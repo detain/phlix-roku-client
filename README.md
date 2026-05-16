@@ -1,259 +1,338 @@
-# Phlex Media Server
+# Phlex Media Server - Roku Application
 
-A comprehensive media server platform built with PHP 8.3+, featuring real-time WebSocket communication, HTTP REST APIs, and support for multiple client platforms including Roku, Samsung Tizen, and Windows.
-
-## Overview
-
-Phlex Media Server provides a complete media management and streaming solution:
-
-- **Media Library Management**: Organize and browse media collections with automatic scanning
-- **User Authentication**: JWT-based auth with refresh tokens
-- **Real-time SyncPlay**: Watch content together with friends
-- **Live TV Support**: DVR and guide integration
-- **DLNA Streaming**: Standard protocol support for compatible devices
-- **Transcoding**: On-the-fly media conversion via FFmpeg with automatic quality selection
-- **HLS Streaming**: Adaptive bitrate streaming for web clients with multi-quality playlists
-- **WebSocket Events**: Real-time progress and notification delivery
-- **Multi-Source Metadata**: Automatic metadata fetching from TMDB (movies), TVDB (TV series), Fanart.tv (artwork), and local NFO files with 24-hour cache and provider fallback
-- **Content Filtering**: Parental controls with rating and genre-based filtering
-
-## Architecture
-
-```
-src/
-├── Server/
-│   ├── Core/           # Application bootstrap and core
-│   ├── Http/            # HTTP REST API layer
-│   │   ├── Controllers/ # Request handlers
-│   │   ├── Request.php  # HTTP request representation
-│   │   ├── Response.php # HTTP response builder
-│   │   └── Router.php  # Route dispatching
-│   ├── WebSocket/       # Real-time communication
-│   │   ├── Connection.php      # Client connection wrapper
-│   │   ├── ConnectionPool.php  # Connection management
-│   │   ├── MessageHandler.php  # Event routing
-│   │   ├── WebSocketServer.php # Server implementation
-│   │   └── Events.php          # Event type constants
-│   └── WebPortal/       # Web portal (HTML UI)
-│       ├── WebPortalRouter.php # REST API for portal
-│       └── PageRenderer.php    # Smarty template rendering
-├── Session/            # Playback session management
-├── Media/              # Media library and metadata
-│   ├── Library/        # Library management (LibraryManager, ItemRepository, MediaScanner)
-│   ├── Metadata/      # Metadata fetching (TMDB, TVDB, Fanart, NFO providers)
-│   ├── Transcoding/    # FFmpeg transcoding with EncodingHelper
-│   └── Streaming/      # HLS streaming with adaptive bitrate
-├── Auth/               # Authentication services
-└── Common/             # Shared utilities
-
-public/
-├── index.php           # Web portal entry point
-├── templates/          # Smarty templates
-└── assets/             # Static assets (css, js)
-```
-
-## Requirements
-
-- **PHP**: 8.3 or higher
-- **MySQL**: 8.0+ or MariaDB 10.6+
-- **Workerman**: 5.0+ (bundled via Composer)
-- **FFmpeg**: For transcoding (optional)
+A native Roku application for the Phlex Media Server platform. Stream your media library with full playback control, seamless authentication, and progress synchronization.
 
 ## Features
 
-### Web Portal
-- **Smarty-based Templates**: Server-side rendered HTML pages using Smarty
-- **REST API Endpoints**: Complete API for library browsing, media info, and user data
-- **JWT Authentication**: Integrated token-based auth with refresh support
-- **Responsive Design**: CSS-first approach with utility classes
-- **JavaScript Client**: ApiClient helper with auth, library, and player helpers
-- **Continue Watching**: Track and display in-progress media
-- **Library Browser**: Browse media by library with item counts
+- **Secure Authentication**: Device registration with token-based session management
+- **Library Browsing**: Browse movies, TV shows, and collections with intuitive navigation
+- **HLS Video Playback**: Stream video content with adaptive bitrate support
+- **Full Remote Control**: Complete playback control via Roku remote (play, pause, seek, stop)
+- **Progress Synchronization**: Track and sync watch progress across sessions
+- **Multiple User Support**: Personalized libraries and watch states per user
 
-### Authentication & Security
-- **JWT-based Authentication**: Stateless auth with access tokens (1 hour TTL) and refresh tokens (7 days TTL)
-- **Secure Password Hashing**: Argon2ID for password storage
-- **Multi-Device Sessions**: Track and manage sessions across devices
-- **User Profiles**: Multiple profiles per account with parental controls
-  - Up to 5 profiles per user account
-  - Profile-specific content rating restrictions (G, PG, PG-13, R, NC-17, X, UNRATED)
-  - PIN protection (4 or 6 digits) for profile settings
-  - Genre-based filtering (allowed/blocked genre lists)
-  - Daily watch time limits per profile
-- **Content Rating Filters**: Age-based access restrictions
-- **Audit Logging**: Complete security event logging
+## Prerequisites
 
-### SyncPlay - Group Watching
-- **Synchronized Playback**: Watch content together with friends across devices with sub-second sync accuracy
-- **Host-Controlled Playback**: Only the host can control play/pause/seek; all members receive synchronized commands
-- **NTP-Style Time Sync**: Network time synchronization with latency compensation and drift correction
-- **In-Group Chat**: Real-time messaging with typing indicators and message history
-- **Playback Queue**: Host-managed queue with media info (title, thumbnail)
-- **Host Election**: Automatic host election when current host leaves (oldest member becomes host)
-- **Password Protection**: Optional password protection for private watch parties
-- **Position Tolerance**: Configurable sync tolerance (default 2s) to prevent excessive seeking
+### Required
+- **Roku Device**: Any Roku device with developer mode enabled
+- **Phlex Media Server**: Running instance accessible on your network
+- **Roku Developer Account**: For sideloading apps
 
-### Session Management
-- **Device Sessions**: Track authenticated devices with activity timestamps
-- **Playback Progress**: Resume where you left off across sessions
-- **Continue Watching**: Track items in progress per profile
-- **Watch History**: Complete viewing history per profile with:
-  - Automatic completion detection at 90% progress threshold
-  - Watch time statistics (total, daily, by period)
-  - Resume position tracking for seamless playback continuation
+### Development Tools
+- **Roku SDK**: For packaging and deployment ( rokupkg )
+- **BrightScript Editor**: VS Code extension "BrightScript" by彩虹 (or any editor)
+- **curl**: For direct device communication
+- **zip**: For creating packages
 
-### Live TV & DVR
-- **Multi-Tuner Support**: DVB-T, DVB-S, DVB-C, and ATSC tuner types
-- **Channel Scanning**: Automatic discovery of broadcast services
-- **Electronic Program Guide**: Full EPG with program info, categories, and search
-- **DVR Scheduling**: Schedule recordings with priority management
-- **Time-Shifting**: Pause and rewind live TV with buffer
-- **Channel Lineups**: Custom channel lineups per user
-- **Favorites**: Personal favorite channels per user
-- **Storage Management**: Recording storage tracking and limits
+### Network Requirements
+- Roku device and Phlex Media Server on the same network
+- Phlex Media Server API accessible from Roku device
 
 ## Installation
 
+### 1. Enable Developer Mode on Roku
+
+Press the following button sequence on your Roku remote:
+1. Home (5 times)
+2. Up (2 times)
+3. Right (1 time)
+4. Left (1 time)
+5. Right (1 time)
+6. Left (1 time)
+7. Right (1 time)
+
+Note the IP address shown and enable dev mode via the web interface at `http://<ROKU_IP>`.
+
+### 2. Clone and Configure
+
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/phlex.git
-cd phlex
+git clone https://github.com/your-org/phlex-roku.git
+cd phlex-roku
 
-# Install dependencies
-composer install
+# Review and update manifest if needed
+# Edit: manifest title, version, icons
+```
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your database and service credentials
+### 3. Install Dependencies
 
-# Run database migrations
-php scripts/migrate.php
+No external dependencies required. BrightScript is natively supported by Roku devices.
 
-# Start the development server
-php start.php server
+### 4. Configure Server Connection
+
+The app will prompt for server URL on first launch, or you can pre-configure:
+
+```bash
+# Edit the default server URL in source/components/PhlexApp.brs
+# Or set via Settings within the app
 ```
 
 ## Configuration
 
-Configuration is managed via PHP files in `config/`:
+### Environment Variables
 
-```php
-// config/server.php
-return [
-    'server' => [
-        'name' => 'Phlex Media Server',
-        'host' => '0.0.0.0',
-        'port' => 8080,
-    ],
-    'websocket' => [
-        'host' => '0.0.0.0',
-        'port' => 8097,
-    ],
-    'database' => [
-        'host' => '127.0.0.1',
-        'port' => 3306,
-        'database' => 'phlex',
-        'username' => 'phlex',
-        'password' => 'secure-password',
-    ],
-    'debug' => false,
-];
+| Variable | Description | Default |
+|---------|-------------|---------|
+| `ROKU_IP` | IP address of Roku device | `192.168.1.100` |
+| `ROKU_DEV` | Developer username | `rokudev` |
+| `ROKU_PASSWORD` | Developer password | `rokipassword` |
+
+### Manifest Configuration
+
+Edit `manifest` to customize:
+- `title`: Application name
+- `major_version`, `minor_version`, `build_version`: Version numbers
+- `ui_resolutions`: Supported resolutions (hd, fhd, uhd)
+
+### BrightScript Configuration
+
+The app uses these configurable constants (in source files):
+
+```brightscript
+' In ApiClient.brs - Device capabilities
+deviceProfile: {
+    MaxStreamingBitrate: 30000000  ' 30 Mbps
+    MaxStaticBitrate: 30000000
+    SupportedMediaTypes: ["Video", "Audio"]
+}
 ```
 
-## API Reference
+## Building the App
 
-### HTTP Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Health check |
-| GET | `/system/info` | Server information |
-| POST | `/api/v1/auth/register` | User registration |
-| POST | `/api/v1/auth/login` | User login |
-| POST | `/api/v1/auth/refresh` | Token refresh |
-| GET | `/api/v1/auth/me` | Current user profile |
-| GET | `/api/v1/sessions` | List user sessions |
-| DELETE | `/api/v1/sessions/{id}` | End a session |
-| POST | `/api/v1/sessions/{id}/progress` | Report playback progress |
-| GET | `/api/v1/sessions/{id}/progress` | Get playback state |
-
-### WebSocket Events
-
-**Connection Events:**
-- `connected` - Sent on successful connection
-- `client_disconnected` - Broadcast when client disconnects
-
-**Authentication Events:**
-- `auth_request` - Request authentication
-- `auth_success` - Authentication successful
-- `auth_failure` - Authentication failed
-
-**Playback Events:**
-- `playback_start` - Playback started
-- `playback_pause` - Playback paused
-- `playback_stop` - Playback stopped
-- `playback_progress` - Progress update
-- `playback_seek` - Seek performed
-
-**SyncPlay Events:**
-- `syncplay_create_group` - Create watch group
-- `syncplay_join_group` - Join watch group
-- `syncplay_leave_group` - Leave watch group
-- `syncplay_sync_state` - State synchronization
-
-## Development
-
-### Running Tests
+### Standard Build
 
 ```bash
-# Run all tests
-./vendor/bin/phpunit
+# Create package for sideloading
+make package
 
-# Run with coverage
-./vendor/bin/phpunit --coverage-html coverage-report
-
-# Run specific test suite
-./vendor/bin/phpunit --testsuite Unit
-./vendor/bin/phpunit --testsuite Integration
+# This creates: phlex.zip
 ```
 
-### Code Standards
-
-This project follows PSR-12 coding standards and uses static analysis tools:
+### Install to Device
 
 ```bash
-# Check code style
-./vendor/bin/phpcs --standard=PSR12 src/
+# Install to configured Roku IP
+make install ROKU_IP=192.168.1.100 ROKU_DEV=rokudev ROKU_PASSWORD=yourpass
 
-# Run static analysis
-./vendor/bin/phpstan analyze src/ --level=9
-./vendor/bin/psalm
+# Or install with rokupkg
+rokupkg --install phlex.zip
 ```
 
-### Git Workflow
+### Development Workflow
 
-1. Create a feature branch: `git checkout -b feature/my-feature`
-2. Make changes and commit: `git commit -am 'Add new feature'`
-3. Push to remote: `git push origin feature/my-feature`
-4. Create Pull Request on GitHub
-5. After review, merge via squash-merge
+```bash
+# 1. Make code changes
+# 2. Package and install
+make package install ROKU_IP=192.168.1.100
+
+# 3. Launch app
+make launch ROKU_IP=192.168.1.100
+
+# 4. Debug via telnet on port 8080
+telnet 192.168.1.100 8080
+```
+
+### Manual Deployment
+
+```bash
+# Create package manually
+zip -r phlex.zip manifest source images
+
+# Sideload via curl
+curl -v -u rokudev:password -X POST \
+    http://192.168.1.100:8060/install/app \
+    -F "archive=@phlex.zip" \
+    -F "manifest=@manifest"
+```
+
+## Testing
+
+### Unit Tests
+
+Unit tests are located in `tests/unit/` and use BrightScript's testing patterns.
+
+```bash
+# List available tests
+make test
+
+# Output shows:
+# Found test: tests/unit/ApiClient.test.brs
+# Found test: tests/unit/Storage.test.brs
+# Found test: tests/unit/Utilities.test.brs
+```
+
+### Running Tests on Device
+
+1. Deploy to device: `make install`
+2. Tests run automatically via the test framework when accessed via developer portal
+
+### Integration Tests
+
+Integration tests in `tests/integration/` test API client against a live server.
+
+```bash
+# Run integration tests (requires running Phlex server)
+# Deploy tests to device and run via developer portal
+```
+
+### Test Structure
+
+```
+tests/
+├── unit/
+│   ├── ApiClient.test.brs      # API client unit tests
+│   ├── Storage.test.brs         # Storage unit tests
+│   └── Utilities.test.brs       # Utilities unit tests
+└── integration/
+    └── ApiIntegration.test.brs  # API integration tests
+```
+
+## Deployment to Roku
+
+### Pre-production Checklist
+
+- [ ] Test on physical Roku device
+- [ ] Verify all remote buttons work
+- [ ] Check video playback with various formats
+- [ ] Verify authentication flow
+- [ ] Test library browsing
+- [ ] Check network timeout handling
+- [ ] Verify progress sync
+
+### Publishing to Roku Channel Store
+
+1. Create developer account at [developer.roku.com](https://developer.roku.com)
+2. Sign in and go to Dashboard
+3. Upload your packaged app (phlex.zip)
+4. Complete store listing details
+5. Submit for review
+
+### Private Channel Testing
+
+```bash
+# Sideload directly for testing
+make install
+
+# Or use roku's dev channel mechanism
+```
+
+## API Endpoints
+
+The app communicates with these Phlex API endpoints:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/Auth/Login` | User authentication with device info |
+| DELETE | `/api/v1/Sessions/{id}` | End session |
+| GET | `/api/v1/Sessions` | List active sessions |
+| POST | `/api/v1/Sessions` | Create new session |
+| GET | `/api/v1/Library/VirtualFolders` | Get library folders |
+| GET | `/api/v1/Items` | Get items with filtering |
+| GET | `/api/v1/Items/{id}` | Get single item details |
+| GET | `/api/v1/Items/{id}/PlaybackInfo` | Get playback URLs and info |
+| POST | `/api/v1/Sessions/Play` | Start playback session |
+| POST | `/api/v1/Playstate` | Update playstate (play/pause/stop) |
+| POST | `/api/v1/Playstate/Progress` | Report playback progress |
+| POST | `/api/v1/Items/{id}/UserData` | Update user data (watched, etc.) |
+| GET | `/api/v1/Users/Me` | Get current user info |
+
+## Remote Control Reference
+
+| Button | Action |
+|--------|--------|
+| Select/Play | Play / Pause toggle |
+| Back | Go back / Close detail view |
+| Left | Seek backward 30 seconds |
+| Right | Seek forward 30 seconds |
+| Rewind | Seek backward 10 seconds |
+| Fast Forward | Seek forward 10 seconds |
+| Options | Show/hide playback info |
+
+## Project Structure
+
+```
+phlex-roku/
+├── source/
+│   ├── main.brs                 # Main entry point
+│   ├── lib/
+│   │   ├── ApiClient.brs       # API client (communication layer)
+│   │   ├── Storage.brs        # Persistent storage (registry)
+│   │   ├── AuthManager.brs     # Authentication manager
+│   │   ├── SessionManager.brs  # Session management
+│   │   ├── LibraryManager.brs  # Library browsing logic
+│   │   ├── TaskManager.brs     # Background task management
+│   │   └── Utilities.brs        # Helper functions
+│   ├── components/
+│   │   ├── PhlexApp.brs       # Main app controller
+│   │   ├── HomeScene.brs       # Home screen
+│   │   ├── LibraryScene.brs    # Library browser
+│   │   ├── DetailScene.brs     # Item detail view
+│   │   ├── PlayerScene.brs     # Video player
+│   │   ├── LoginScene.brs      # Login screen
+│   │   └── GridItem.brs        # Grid item component
+│   ├── pages/
+│   │   ├── HomePage.brs        # Home page controller
+│   │   ├── LibraryPage.brs      # Library page controller
+│   │   └── SettingsPage.brs    # Settings page controller
+│   └── data/
+│       └── Theme.brs           # Theme constants
+├── tests/
+│   ├── unit/                   # Unit tests
+│   └── integration/            # Integration tests
+├── images/                      # App icons and splash screens
+├── manifest                    # App manifest
+├── Makefile                    # Build automation
+├── README.md                   # This file
+└── DEVELOPER.md                # Developer documentation
+```
+
+## Troubleshooting
+
+### App Won't Install
+
+1. Verify Roku IP address is correct
+2. Check developer credentials
+3. Ensure dev mode is enabled on Roku
+4. Try: `curl -u user:pass http://ROKU_IP:8060/` to verify connectivity
+
+### API Connection Failed
+
+1. Verify Phlex Media Server is running
+2. Check network connectivity from Roku
+3. Verify correct server URL in app settings
+4. Check server logs for connection attempts
+
+### Video Playback Issues
+
+1. Verify HLS support on your server
+2. Check network bandwidth
+3. Try lower quality streams
+4. Verify codec support (H.264/H.265 for video, AAC/AC3 for audio)
+
+### Debugging
+
+```bash
+# Connect to Roku debug console
+telnet ROKU_IP 8080
+
+# Check app logs
+# View variable values
+# Step through BrightScript code
+```
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch
-3. Ensure all tests pass (`./vendor/bin/phpunit`)
-4. Follow PSR-12 coding standards
-5. Submit a pull request
+2. Create a feature branch
+3. Make changes with tests
+4. Submit a pull request
+5. Ensure CI passes
 
 ## License
 
-Proprietary - All rights reserved.
+MIT License - See LICENSE file for details
 
 ## Support
 
-For issues and feature requests, please use the GitHub issue tracker.
-
----
-
-For detailed development documentation, see [DEVELOPER.md](DEVELOPER.md).
+- Issue Tracker: GitHub Issues
+- Documentation: [Phlex Wiki](https://github.com/your-org/phlex-roku/wiki)
