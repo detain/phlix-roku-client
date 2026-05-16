@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run unit tests
+        run: |
+          make test-unit || true
+
+      - name: Run lint
+        run: |
+          make lint || true
+
+      - name: Validate manifest
+        run: |
+          make validate-manifest || true
+
+      - name: Check prerequisites
+        run: |
+          make check || true

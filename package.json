@@ -1,0 +1,29 @@
+{
+  "name": "phlex-roku-client",
+  "version": "1.0.1",
+  "description": "Phlex Media Server Roku Client",
+  "scripts": {
+    "test": "make test",
+    "test-unit": "make test-unit",
+    "test-integration": "make test-integration",
+    "lint": "make lint",
+    "lint-fix": "make lint-fix",
+    "validate": "make validate",
+    "validate-manifest": "make validate-manifest",
+    "check": "make check",
+    "package": "make package"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/phlex-media/phlex-roku-client"
+  },
+  "keywords": [
+    "roku",
+    "phlex",
+    "plex",
+    "media-server",
+    "brightscript"
+  ],
+  "author": "Phlex Team",
+  "license": "MIT"
+}
