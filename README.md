@@ -10,6 +10,7 @@ A native Roku application for the Phlex Media Server platform. Stream your media
 - **Full Remote Control**: Complete playback control via Roku remote (play, pause, seek, stop)
 - **Progress Synchronization**: Track and sync watch progress across sessions
 - **Multiple User Support**: Personalized libraries and watch states per user
+- **Hub Mode**: Connect to a Phlex Hub for centralized authentication, server discovery, and relay-aware HLS playback through direct-LAN or hub-relay tunnel
 
 ## Prerequisites
 
@@ -66,6 +67,27 @@ The app will prompt for server URL on first launch, or you can pre-configure:
 # Edit the default server URL in source/components/PhlexApp.brs
 # Or set via Settings within the app
 ```
+
+### 5. Hub Mode (Optional)
+
+Hub Mode allows you to connect to a Phlex Hub for centralized authentication and multi-server access:
+
+1. **Enable Hub Mode**: Go to Settings in the app
+2. **Enter Hub URL**: Provide your hub server URL (e.g., `http://hub.example.com:8080`)
+3. **Sign In**: Authenticate with your hub credentials
+4. **Select Server**: Choose from your claimed servers
+5. **Choose Connection Mode**:
+   - **Direct**: Connect directly to server on LAN (fastest)
+   - **Relay**: Route through hub tunnel (for remote access)
+
+#### Hub Mode Storage Keys
+
+| Key | Description |
+|-----|-------------|
+| `hub_url` | Hub server URL |
+| `hub_session` | Hub authentication session (JWT tokens) |
+| `active_server` | Currently selected server |
+| `connection_mode` | "direct" or "relay" |
 
 ## Configuration
 
