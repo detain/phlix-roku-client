@@ -11,6 +11,8 @@ A native Roku application for the Phlex Media Server platform. Stream your media
 - **Progress Synchronization**: Track and sync watch progress across sessions
 - **Multiple User Support**: Personalized libraries and watch states per user
 - **Hub Mode**: Connect to a Phlex Hub for centralized authentication, server discovery, and relay-aware HLS playback through direct-LAN or hub-relay tunnel
+- **Skip Intro/Outro**: Automatically displayed skip buttons when playback enters marker ranges defined by the server (intro start/end, outro start/end)
+- **SyncPlay**: Watch with friends in perfect sync across multiple devices with NTP-style time synchronization, group state management, and synchronized playback controls (play/pause/seek)
 
 ## Prerequisites
 
@@ -88,6 +90,48 @@ Hub Mode allows you to connect to a Phlex Hub for centralized authentication and
 | `hub_session` | Hub authentication session (JWT tokens) |
 | `active_server` | Currently selected server |
 | `connection_mode` | "direct" or "relay" |
+
+### 6. SyncPlay (Watch Together)
+
+SyncPlay allows multiple users to watch the same content together remotely, staying in sync without manual timestamp coordination.
+
+#### Features
+- **NTP-Style Time Sync**: Weighted-mean offset calculation for accurate clock synchronization
+- **Group Watching**: Create or join groups to watch with friends
+- **Synchronized Playback**: Play, pause, and seek commands sync across all members
+- **Member Presence**: See who's in the group and get notified on join/leave
+- **Automatic Position Reports**: Periodic position updates every 30 seconds
+
+#### Usage
+
+1. **During Playback**: Press the SyncPlay button in the player overlay
+2. **Create Group**: Tap "Create Group" to start a new SyncPlay session
+3. **Join Group**: Enter a 6-character Group ID to join an existing session
+4. **Watch Together**: All members receive synchronized play/pause/seek commands
+
+#### SyncPlay WebSocket Events
+
+| Event | Direction | Description |
+|-------|-----------|-------------|
+| `syncplay.join_group` | Client → Server | Join a SyncPlay group |
+| `syncplay.leave_group` | Client → Server | Leave current group |
+| `syncplay.playback_command` | Client → Server | Send play/pause/seek command |
+| `syncplay.report_position` | Client → Server | Periodic position report |
+| `syncplay.request_time_sync` | Client → Server | Request time synchronization |
+| `syncplay.time_sync` | Server → Client | Time sync response (offset calculation) |
+| `syncplay.group_state` | Server → Client | Current group state and members |
+| `syncplay.playback_update` | Server → Client | Play/pause/seek from any member |
+| `syncplay.member_joined` | Server → Client | New member joined group |
+| `syncplay.member_left` | Server → Client | Member left group |
+
+#### Time Synchronization Protocol
+
+The client implements NTP-style time synchronization:
+1. Client sends `syncplay.request_time_sync` with local timestamp
+2. Server responds with `syncplay.time_sync` containing timestamps
+3. Client computes: `offset = (server_time - client_send_time) + latency`
+4. Rolling average of last 5 samples maintained for stability
+5. `adjustedTime = Date.now() + averageOffset` used for position comparisons
 
 ## Configuration
 
@@ -269,6 +313,7 @@ The app communicates with these Phlex API endpoints:
 | Rewind | Seek backward 10 seconds |
 | Fast Forward | Seek forward 10 seconds |
 | Options | Show/hide playback info |
+| Skip Button | Skip intro/outro section (shown automatically during marker ranges) |
 
 ## Project Structure
 
@@ -292,6 +337,15 @@ phlex-roku/
 │   │   ├── PlayerScene.brs     # Video player
 │   │   ├── LoginScene.brs      # Login screen
 │   │   └── GridItem.brs        # Grid item component
+│   ├── player/
+│   │   ├── HlsPlayer.brs       # HLS playback handler
+│   │   └── SkipButton.brs      # Skip intro/outro button
+│   ├── hub/
+│   │   ├── HubAuth.brs         # Hub authentication
+│   │   └── HubConfig.brs      # Hub configuration
+│   ├── syncplay/
+│   │   ├── SyncPlayTimeSync.brs # NTP-style time synchronization
+│   │   └── SyncPlayService.brs  # SyncPlay WebSocket service
 │   ├── pages/
 │   │   ├── HomePage.brs        # Home page controller
 │   │   ├── LibraryPage.brs      # Library page controller
@@ -300,6 +354,7 @@ phlex-roku/
 │       └── Theme.brs           # Theme constants
 ├── tests/
 │   ├── unit/                   # Unit tests
+│   ├── hub/                    # Hub mode tests
 │   └── integration/            # Integration tests
 ├── images/                      # App icons and splash screens
 ├── manifest                    # App manifest

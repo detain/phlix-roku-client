@@ -23,9 +23,21 @@ sub Init()
     m.titleLabel = m.top.FindNode("titleLabel")
     m.backButton = m.top.FindNode("backButton")
 
+    ' Skip button nodes
+    m.skipButton = m.top.FindNode("skipButton")
+    m.skipButtonLabel = m.top.FindNode("skipButtonLabel")
+
+    ' Initialize skip button component
+    m.skipButtonComponent = SkipButton()
+    m.skipButtonComponent.init(m.skipButton, m.skipButtonLabel)
+
     ' Setup button handlers
     if m.backButton <> invalid then
         m.backButton.ObserveField("buttonSelected", "OnBackPressed")
+    end if
+
+    if m.skipButton <> invalid then
+        m.skipButton.ObserveField("buttonSelected", "OnSkipButtonSelected")
     end if
 
     m.itemId = ""
@@ -43,6 +55,13 @@ sub Show(itemId as String, playbackInfo as Object)
     ' Set title
     if m.titleLabel <> invalid and playbackInfo.item <> invalid then
         m.titleLabel.text = playbackInfo.item.Name
+    end if
+
+    ' Extract and set skip markers from playback info
+    if playbackInfo.playback_info <> invalid and playbackInfo.playback_info.markers <> invalid then
+        m.skipButtonComponent.setMarkers(playbackInfo.playback_info.markers)
+    else
+        m.skipButtonComponent.setMarkers(invalid)
     end if
 
     ' Determine stream URL
@@ -105,6 +124,11 @@ sub OnPositionUpdate(event as Object)
             m.timeLabel.text = currentTime + " / " + totalTime
         end if
 
+        ' Update skip button based on position
+        if m.skipButtonComponent <> invalid then
+            m.skipButtonComponent.updatePosition(position)
+        end if
+
         ' Report progress to server (every 10 seconds)
         positionTicks = Int(position * 10000000)
         if positionTicks - m.lastReportedPosition > 100000000 then
@@ -117,6 +141,16 @@ end sub
 sub OnBackPressed()
     StopPlayback()
     ClosePlayer()
+end sub
+
+sub OnSkipButtonSelected()
+    ' Get target position from skip button component
+    if m.skipButtonComponent <> invalid then
+        targetPosition = m.skipButtonComponent.getTargetPosition()
+        if targetPosition > 0 and m.videoPlayer <> invalid then
+            m.videoPlayer.seek = targetPosition
+        end if
+    end if
 end sub
 
 sub ShowControls(show as Boolean)
@@ -144,6 +178,11 @@ sub ReportProgress(positionTicks as Integer)
 end sub
 
 sub ClosePlayer()
+    ' Clean up skip button
+    if m.skipButtonComponent <> invalid then
+        m.skipButtonComponent.cleanup()
+    end if
+
     ' Navigate back
     m.top.Close()
 end sub

@@ -42,6 +42,17 @@
                        color="#FFFFFF"
                        id="timeLabel" />
             </Rectangle>
+
+            <!-- Skip Button - positioned in bottom right -->
+            <Rectangle height="60" width="140" translation="[1120,640]" id="skipButtonContainer">
+                <Button height="60" width="140" title="" id="skipButton" />
+                <Label height="60" width="140" translation="[0,0]"
+                       font="font:MediumSystemFont"
+                       color="#FFFFFF"
+                       horizAlign="center"
+                       vertAlign="center"
+                       id="skipButtonLabel" />
+            </Rectangle>
         </Rectangle>
     </children>
 </component>
