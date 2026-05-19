@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="SyncPlayOverlay" extends="Group">
+    <interface>
+        <field id="syncplayService" type="node" />
+        <field id="visible" type="boolean" />
+    </interface>
+
+    <children>
+        <!-- SyncPlay Toggle Button -->
+        <Rectangle height="50" width="50" translation="[1200, 20]" color="#1A1A1A" id="syncplayToggleBg">
+            <Button height="50" width="50" id="syncplayToggle" />
+        </Rectangle>
+
+        <!-- Sync State Indicator -->
+        <Rectangle height="30" width="100" translation="[1150, 75]" color="#1A1A1A" visible="false" id="syncStateBg">
+            <Label height="30" width="100" translation="[0,0]"
+                   font="font:SmallSystemFont"
+                   color="#FFFFFF"
+                   horizAlign="center"
+                   vertAlign="center"
+                   id="syncStateLabel" />
+        </Rectangle>
+
+        <!-- Member List Panel -->
+        <Rectangle height="400" width="300" translation="[980, 90]" color="#1A1A1ACC" visible="false" id="memberListPanel">
+            <Label height="50" width="300" translation="[0, 0]"
+                   font="font:MediumSystemFont"
+                   color="#FFFFFF"
+                   horizAlign="center"
+                   vertAlign="center"
+                   text="SyncPlay Members"
+                   id="memberListTitle" />
+
+            <!-- Member List (Scrollable) -->
+            <LayoutGroup height="320" width="300" translation="[0, 50]" layoutDirection="vert" id="memberList" />
+
+            <!-- Leave Button -->
+            <Button height="40" width="200" translation="[50, 370]"
+                    title="Leave Group"
+                    id="leaveGroupButton" />
+        </Rectangle>
+
+        <!-- Group Create/Join Dialog -->
+        <Rectangle height="300" width="400" translation="[440, 200]" color="#1A1A1AFF" visible="false" id="groupDialog">
+            <Label height="50" width="400" translation="[0, 10]"
+                   font="font:MediumLargeSystemFont"
+                   color="#FFFFFF"
+                   horizAlign="center"
+                   vertAlign="center"
+                   text="SyncPlay"
+                   id="dialogTitle" />
+
+            <Button height="50" width="300" translation="[50, 70]"
+                    title="Create Group"
+                    id="createGroupButton" />
+
+            <Label height="30" width="300" translation="[50, 130]"
+                   font="font:SmallSystemFont"
+                   color="#888888"
+                   horizAlign="center"
+                   text="or join existing"
+                   id="orLabel" />
+
+            <TextEditBox height="50" width="300" translation="[50, 160]"
+                         hintText="Enter Group ID"
+                         id="groupIdInput" />
+
+            <Button height="50" width="300" translation="[50, 220]"
+                    title="Join Group"
+                    id="joinGroupButton" />
+
+            <Button height="40" width="100" translation="[150, 255]"
+                    title="Cancel"
+                    id="cancelDialogButton" />
+        </Rectangle>
+
+        <!-- Notification Toast -->
+        <Rectangle height="60" width="400" translation="[440, 650]" color="#1A1A1ACC" visible="false" id="notificationToast">
+            <Label height="60" width="400" translation="[0, 0]"
+                   font="font:MediumSystemFont"
+                   color="#FFFFFF"
+                   horizAlign="center"
+                   vertAlign="center"
+                   id="notificationText" />
+        </Rectangle>
+    </children>
+</component>
