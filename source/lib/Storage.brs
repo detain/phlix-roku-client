@@ -7,7 +7,7 @@
 
 function Storage() as Object
     obj = {
-        registry: CreateObject("roRegistrySection", "phlex")
+        registry: CreateObject("roRegistrySection", "phlix")
 
         get: function(key as String) as String
             return m.registry.Read(key)

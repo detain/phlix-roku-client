@@ -1,6 +1,6 @@
-# Phlex Media Server - Roku Application
+# Phlix Media Server - Roku Application
 
-A native Roku application for the Phlex Media Server platform. Stream your media library with full playback control, seamless authentication, and progress synchronization.
+A native Roku application for the Phlix Media Server platform. Stream your media library with full playback control, seamless authentication, and progress synchronization.
 
 ## Features
 
@@ -10,7 +10,7 @@ A native Roku application for the Phlex Media Server platform. Stream your media
 - **Full Remote Control**: Complete playback control via Roku remote (play, pause, seek, stop)
 - **Progress Synchronization**: Track and sync watch progress across sessions
 - **Multiple User Support**: Personalized libraries and watch states per user
-- **Hub Mode**: Connect to a Phlex Hub for centralized authentication, server discovery, and relay-aware HLS playback through direct-LAN or hub-relay tunnel
+- **Hub Mode**: Connect to a Phlix Hub for centralized authentication, server discovery, and relay-aware HLS playback through direct-LAN or hub-relay tunnel
 - **Skip Intro/Outro**: Automatically displayed skip buttons when playback enters marker ranges defined by the server (intro start/end, outro start/end)
 - **SyncPlay**: Watch with friends in perfect sync across multiple devices with NTP-style time synchronization, group state management, and synchronized playback controls (play/pause/seek)
 
@@ -18,7 +18,7 @@ A native Roku application for the Phlex Media Server platform. Stream your media
 
 ### Required
 - **Roku Device**: Any Roku device with developer mode enabled
-- **Phlex Media Server**: Running instance accessible on your network
+- **Phlix Media Server**: Running instance accessible on your network
 - **Roku Developer Account**: For sideloading apps
 
 ### Development Tools
@@ -28,8 +28,8 @@ A native Roku application for the Phlex Media Server platform. Stream your media
 - **zip**: For creating packages
 
 ### Network Requirements
-- Roku device and Phlex Media Server on the same network
-- Phlex Media Server API accessible from Roku device
+- Roku device and Phlix Media Server on the same network
+- Phlix Media Server API accessible from Roku device
 
 ## Installation
 
@@ -50,8 +50,8 @@ Note the IP address shown and enable dev mode via the web interface at `http://<
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/phlex-roku.git
-cd phlex-roku
+git clone https://github.com/your-org/phlix-roku.git
+cd phlix-roku
 
 # Review and update manifest if needed
 # Edit: manifest title, version, icons
@@ -66,13 +66,13 @@ No external dependencies required. BrightScript is natively supported by Roku de
 The app will prompt for server URL on first launch, or you can pre-configure:
 
 ```bash
-# Edit the default server URL in source/components/PhlexApp.brs
+# Edit the default server URL in source/components/PhlixApp.brs
 # Or set via Settings within the app
 ```
 
 ### 5. Hub Mode (Optional)
 
-Hub Mode allows you to connect to a Phlex Hub for centralized authentication and multi-server access:
+Hub Mode allows you to connect to a Phlix Hub for centralized authentication and multi-server access:
 
 1. **Enable Hub Mode**: Go to Settings in the app
 2. **Enter Hub URL**: Provide your hub server URL (e.g., `http://hub.example.com:8080`)
@@ -171,7 +171,7 @@ deviceProfile: {
 # Create package for sideloading
 make package
 
-# This creates: phlex.zip
+# This creates: phlix.zip
 ```
 
 ### Install to Device
@@ -181,7 +181,7 @@ make package
 make install ROKU_IP=192.168.1.100 ROKU_DEV=rokudev ROKU_PASSWORD=yourpass
 
 # Or install with rokupkg
-rokupkg --install phlex.zip
+rokupkg --install phlix.zip
 ```
 
 ### Development Workflow
@@ -202,12 +202,12 @@ telnet 192.168.1.100 8080
 
 ```bash
 # Create package manually
-zip -r phlex.zip manifest source images
+zip -r phlix.zip manifest source images
 
 # Sideload via curl
 curl -v -u rokudev:password -X POST \
     http://192.168.1.100:8060/install/app \
-    -F "archive=@phlex.zip" \
+    -F "archive=@phlix.zip" \
     -F "manifest=@manifest"
 ```
 
@@ -237,7 +237,7 @@ make test
 Integration tests in `tests/integration/` test API client against a live server.
 
 ```bash
-# Run integration tests (requires running Phlex server)
+# Run integration tests (requires running Phlix server)
 # Deploy tests to device and run via developer portal
 ```
 
@@ -269,7 +269,7 @@ tests/
 
 1. Create developer account at [developer.roku.com](https://developer.roku.com)
 2. Sign in and go to Dashboard
-3. Upload your packaged app (phlex.zip)
+3. Upload your packaged app (phlix.zip)
 4. Complete store listing details
 5. Submit for review
 
@@ -284,7 +284,7 @@ make install
 
 ## API Endpoints
 
-The app communicates with these Phlex API endpoints:
+The app communicates with these Phlix API endpoints:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -318,7 +318,7 @@ The app communicates with these Phlex API endpoints:
 ## Project Structure
 
 ```
-phlex-roku/
+phlix-roku/
 ├── source/
 │   ├── main.brs                 # Main entry point
 │   ├── lib/
@@ -330,7 +330,7 @@ phlex-roku/
 │   │   ├── TaskManager.brs     # Background task management
 │   │   └── Utilities.brs        # Helper functions
 │   ├── components/
-│   │   ├── PhlexApp.brs       # Main app controller
+│   │   ├── PhlixApp.brs       # Main app controller
 │   │   ├── HomeScene.brs       # Home screen
 │   │   ├── LibraryScene.brs    # Library browser
 │   │   ├── DetailScene.brs     # Item detail view
@@ -374,7 +374,7 @@ phlex-roku/
 
 ### API Connection Failed
 
-1. Verify Phlex Media Server is running
+1. Verify Phlix Media Server is running
 2. Check network connectivity from Roku
 3. Verify correct server URL in app settings
 4. Check server logs for connection attempts
@@ -412,4 +412,4 @@ MIT License - See LICENSE file for details
 ## Support
 
 - Issue Tracker: GitHub Issues
-- Documentation: [Phlex Wiki](https://github.com/your-org/phlex-roku/wiki)
+- Documentation: [Phlix Wiki](https://github.com/your-org/phlix-roku/wiki)

@@ -6,7 +6,7 @@ ROKU_DEV ?= rokudev
 ROKU_PASSWORD ?= rokipassword
 
 # Package name
-PKG_NAME = phlex
+PKG_NAME = phlix
 PKG_VERSION = 1.0.1
 
 # Source directories
@@ -236,7 +236,7 @@ validate: validate-manifest validate-xml test
 # Generate API documentation
 docs-api:
 	@echo "Generating API documentation..."
-	@echo "# Phlex Roku API Reference" > API.md
+	@echo "# Phlix Roku API Reference" > API.md
 	@echo "" >> API.md
 	@echo "## ApiClient Methods" >> API.md
 	@grep -E "^        ' [A-Z].*" $(LIB_DIR)/ApiClient.brs | sed "s/        ' /- /" >> API.md

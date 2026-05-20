@@ -1,11 +1,11 @@
-' source/components/PhlexApp.brs
-' @fileoverview PhlexApp - Main application controller for SceneGraph
-' @author Phlex Team
+' source/components/PhlixApp.brs
+' @fileoverview PhlixApp - Main application controller for SceneGraph
+' @author Phlix Team
 ' @version 1.0.0
 ' @requires ApiClient, Storage, AuthManager, SessionManager, LibraryManager, TaskManager
 '
 ' @description
-' PhlexApp is the root component of the Phlex Roku application. It serves as the
+' PhlixApp is the root component of the Phlix Roku application. It serves as the
 ' main application controller and is responsible for:
 ' - Initializing the API client and managers
 ' - Checking for existing authentication sessions
@@ -15,7 +15,7 @@
 '
 ' @example
 ' ```brightscript
-' ' PhlexApp is automatically created by SceneGraph
+' ' PhlixApp is automatically created by SceneGraph
 ' ' Handle login success transition
 ' m.top.OnLoginSuccess()
 '
@@ -32,12 +32,12 @@
 '   @event OnLogout - Fired when user logs out
 
 ' ===========================================
-' Phlex Main App Component
+' Phlix Main App Component
 ' Main application entry point for SceneGraph
 ' ===========================================
 
 sub Init()
-    print "Phlex App Init"
+    print "Phlix App Init"
 
     ' Initialize API client with server URL from registry or default
     serverUrl = Storage.get("server_url")

@@ -1,63 +1,63 @@
-' tests/unit/PhlexApp.test.brs
+' tests/unit/PhlixApp.test.brs
 
 ' ===========================================
-' PhlexApp Unit Tests
+' PhlixApp Unit Tests
 ' ===========================================
 
-sub TestPhlexAppInit()
+sub TestPhlixAppInit()
     ' Test that app can be initialized
     ' Note: In real BrightScript environment, this would create the actual component
-    print "TestPhlexAppInit - Component structure validation"
+    print "TestPhlixAppInit - Component structure validation"
     assertTrue(true)
-    print "TestPhlexAppInit passed"
+    print "TestPhlixAppInit passed"
 end sub
 
-sub TestPhlexAppShowLogin()
+sub TestPhlixAppShowLogin()
     ' Test ShowLogin creates LoginScene
     ' In unit test context, we verify the method exists and structure is correct
-    print "TestPhlexAppShowLogin - Scene creation validation"
+    print "TestPhlixAppShowLogin - Scene creation validation"
     assertTrue(true)
-    print "TestPhlexAppShowLogin passed"
+    print "TestPhlixAppShowLogin passed"
 end sub
 
-sub TestPhlexAppShowHome()
+sub TestPhlixAppShowHome()
     ' Test ShowHome creates HomeScene
-    print "TestPhlexAppShowHome - Scene creation validation"
+    print "TestPhlixAppShowHome - Scene creation validation"
     assertTrue(true)
-    print "TestPhlexAppShowHome passed"
+    print "TestPhlixAppShowHome passed"
 end sub
 
-sub TestPhlexAppOnLoginSuccess()
+sub TestPhlixAppOnLoginSuccess()
     ' Test login success transition
-    print "TestPhlexAppOnLoginSuccess - Login transition validation"
+    print "TestPhlixAppOnLoginSuccess - Login transition validation"
     assertTrue(true)
-    print "TestPhlexAppOnLoginSuccess passed"
+    print "TestPhlixAppOnLoginSuccess passed"
 end sub
 
-sub TestPhlexAppOnLogout()
+sub TestPhlixAppOnLogout()
     ' Test logout cleanup
-    print "TestPhlexAppOnLogout - Logout cleanup validation"
+    print "TestPhlixAppOnLogout - Logout cleanup validation"
     assertTrue(true)
-    print "TestPhlexAppOnLogout passed"
+    print "TestPhlixAppOnLogout passed"
 end sub
 
-sub TestPhlexAppOnKeyEvent()
+sub TestPhlixAppOnKeyEvent()
     ' Test key event handling
-    print "TestPhlexAppOnKeyEvent - Key handling validation"
+    print "TestPhlixAppOnKeyEvent - Key handling validation"
     assertTrue(true)
-    print "TestPhlexAppOnKeyEvent passed"
+    print "TestPhlixAppOnKeyEvent passed"
 end sub
 
-sub TestPhlexAppNavigation()
+sub TestPhlixAppNavigation()
     ' Test navigation between scenes
-    print "TestPhlexAppNavigation - Navigation validation"
+    print "TestPhlixAppNavigation - Navigation validation"
     assertTrue(true)
-    print "TestPhlexAppNavigation passed"
+    print "TestPhlixAppNavigation passed"
 end sub
 
-sub TestPhlexAppStateManagement()
+sub TestPhlixAppStateManagement()
     ' Test application state management
-    print "TestPhlexAppStateManagement - State management validation"
+    print "TestPhlixAppStateManagement - State management validation"
     assertTrue(true)
-    print "TestPhlexAppStateManagement passed"
+    print "TestPhlixAppStateManagement passed"
 end sub

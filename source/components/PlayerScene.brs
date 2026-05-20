@@ -1,7 +1,7 @@
 ' source/components/PlayerScene.brs
 
 ' ===========================================
-' Phlex Player Scene
+' Phlix Player Scene
 ' Handles video playback on Roku
 ' ===========================================
 
@@ -173,7 +173,7 @@ sub StopPlayback()
 end sub
 
 sub ReportProgress(positionTicks as Integer)
-    ' Report to Phlex server
+    ' Report to Phlix server
     api.reportProgress(positionTicks, not m.isPlaying)
 end sub
 

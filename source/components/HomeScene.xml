@@ -4,7 +4,7 @@
         <!-- Header -->
         <Rectangle height="100" width="1280" color="#1a1a2e">
             <Label height="60" width="400" translation="[40,20]"
-                   text="Phlex"
+                   text="Phlix"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF" />
         </Rectangle>

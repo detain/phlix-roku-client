@@ -1,7 +1,7 @@
 {
-  "name": "phlex-roku-client",
+  "name": "phlix-roku-client",
   "version": "1.0.1",
-  "description": "Phlex Media Server Roku Client",
+  "description": "Phlix Media Server Roku Client",
   "scripts": {
     "test": "make test",
     "test-unit": "make test-unit",
@@ -15,15 +15,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/phlex-media/phlex-roku-client"
+    "url": "https://github.com/phlix-media/phlix-roku-client"
   },
   "keywords": [
     "roku",
-    "phlex",
+    "phlix",
     "plex",
     "media-server",
     "brightscript"
   ],
-  "author": "Phlex Team",
+  "author": "Phlix Team",
   "license": "MIT"
 }

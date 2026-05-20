@@ -1,12 +1,12 @@
 ' source/lib/ApiClient.brs
-' @fileoverview ApiClient - Main HTTP client for Phlex Media Server API communication
-' @author Phlex Team
+' @fileoverview ApiClient - Main HTTP client for Phlix Media Server API communication
+' @author Phlix Team
 ' @version 1.0.0
 ' @requires Storage module for persistent storage
 '
 ' @description
 ' This module provides the ApiClient factory function which creates an object
-' for communicating with the Phlex Media Server REST API. It handles:
+' for communicating with the Phlix Media Server REST API. It handles:
 ' - Authentication with device registration
 ' - Session management
 ' - Library browsing and item retrieval
@@ -24,8 +24,8 @@
 ' @requires Storage
 
 ' ===========================================
-' Phlex API Client for Roku
-' Handles all communication with Phlex Media Server
+' Phlix API Client for Roku
+' Handles all communication with Phlix Media Server
 ' ===========================================
 
 function ApiClient(baseUrl as String) as Object
@@ -111,16 +111,16 @@ function ApiClient(baseUrl as String) as Object
 
             ' Set headers
             http.AddHeader("Content-Type", "application/json")
-            http.AddHeader("X-Phlex-Device-ID", m.deviceId)
-            http.AddHeader("X-Phlex-Device-Name", m.deviceName)
-            http.AddHeader("X-Phlex-Device-Type", m.deviceType)
+            http.AddHeader("X-Phlix-Device-ID", m.deviceId)
+            http.AddHeader("X-Phlix-Device-Name", m.deviceName)
+            http.AddHeader("X-Phlix-Device-Type", m.deviceType)
 
             if m.token <> "" then
                 http.AddHeader("Authorization", "Bearer " + m.token)
             end if
 
             if m.sessionId <> "" then
-                http.AddHeader("X-Phlex-Session-ID", m.sessionId)
+                http.AddHeader("X-Phlix-Session-ID", m.sessionId)
             end if
 
             ' Prepare body

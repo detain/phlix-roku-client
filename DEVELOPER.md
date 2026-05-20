@@ -1,6 +1,6 @@
-# Phlex Roku Developer Guide
+# Phlix Roku Developer Guide
 
-This document provides detailed information for developers working on the Phlex Roku application.
+This document provides detailed information for developers working on the Phlix Roku application.
 
 ## Architecture Overview
 
@@ -8,7 +8,7 @@ This document provides detailed information for developers working on the Phlex 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        PhlexApp                             │
+│                        PhlixApp                             │
 │  (Main application controller - entry point)               │
 └─────────────────────────────────────────────────────────────┘
          │                    │                    │
@@ -43,8 +43,8 @@ This document provides detailed information for developers working on the Phlex 
 
 | Component | Responsibility |
 |-----------|----------------|
-| `PhlexApp` | Main app controller, scene navigation |
-| `ApiClient` | All HTTP communication with Phlex server |
+| `PhlixApp` | Main app controller, scene navigation |
+| `ApiClient` | All HTTP communication with Phlix server |
 | `AuthManager` | Authentication state and token management |
 | `SessionManager` | Session lifecycle management |
 | `LibraryManager` | Library browsing and item retrieval |
@@ -468,7 +468,7 @@ watch m.top.data  ' Watch for changes
 ### Navigation Pattern
 
 ```brightscript
-' In PhlexApp.brs
+' In PhlixApp.brs
 sub ShowHome()
     homeScene = CreateObject("roSGNode", "HomeScene")
     m.top.Append(homeScene)

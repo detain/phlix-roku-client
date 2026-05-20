@@ -1,16 +1,16 @@
 ' main.brs
 
 ' ===========================================
-' Phlex Media Server - Roku App
+' Phlix Media Server - Roku App
 ' Main entry point
 ' ===========================================
 
 sub main(args as Object)
-    print "Phlex Roku App Starting..."
+    print "Phlix Roku App Starting..."
 
     ' Create and show the main app component
     screen = CreateObject("roSGScreen")
-    scene = screen.CreateScene("PhlexApp")
+    scene = screen.CreateScene("PhlixApp")
     screen.Show()
 
     ' Message loop
@@ -21,5 +21,5 @@ sub main(args as Object)
         end if
     end while
 
-    print "Phlex Roku App Exiting..."
+    print "Phlix Roku App Exiting..."
 end sub

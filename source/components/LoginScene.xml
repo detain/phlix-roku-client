@@ -11,7 +11,7 @@
         <Rectangle height="500" width="500" translation="[390,110]" color="#1a1a2e">
             <!-- Title -->
             <Label height="60" width="460" translation="[20,20]"
-                   text="Phlex"
+                   text="Phlix"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF"
                    halign="center" />

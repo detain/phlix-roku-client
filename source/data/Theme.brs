@@ -2,7 +2,7 @@
 
 ' ===========================================
 ' Theme Constants
-' UI colors, fonts, and styling for Phlex
+' UI colors, fonts, and styling for Phlix
 ' ===========================================
 
 function Theme() as Object
