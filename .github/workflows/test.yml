@@ -16,16 +16,16 @@ jobs:
 
       - name: Run unit tests
         run: |
-          make test-unit || true
+          make test-unit
 
       - name: Run lint
         run: |
-          make lint || true
+          make lint
 
       - name: Validate manifest
         run: |
-          make validate-manifest || true
+          make validate-manifest
 
       - name: Check prerequisites
         run: |
-          make check || true
+          make check

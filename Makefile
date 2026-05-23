@@ -1,4 +1,4 @@
-.PHONY: all package install dev clean test lint lint-fix validate-manifest
+.PHONY: all package install dev clean test lint lint-fix validate-manifest _run_rooibos _run_rooibos_unit _run_rooibos_integration
 
 # Roku IP address (set via environment or edit here)
 ROKU_IP ?= 192.168.1.100
@@ -60,40 +60,111 @@ clean:
 # Run tests
 test:
 	@echo "Running tests..."
-	@echo "BrightScript tests require device or emulator to execute."
 	@echo ""
-	@echo "Unit Tests:"
-	@if [ -d $(TESTS_DIR)/unit ]; then \
-		find $(TESTS_DIR)/unit -name "*.test.brs" -exec echo "  - {}" \; ; \
+	@# rooibos requires a Roku device/emulator (set ROKU_HOST env var)
+	@# If ROKU_HOST is not set and no local runner available, fail with clear message
+	@if [ -n "$$ROKU_HOST" ] || [ -n "$$ROKU_TEST_HOST" ]; then \
+		echo "Roku host detected ($$ROKU_HOST$$ROKU_TEST_HOST), attempting to run tests..."; \
+		$(MAKE) _run_rooibos; \
+	elif command -v rokuunit >/dev/null 2>&1; then \
+		echo "Running tests with rokuunit..."; \
+		rokuunit; \
+	elif command -v rooibos >/dev/null 2>&1; then \
+		echo "ERROR: Tests cannot run in this environment."; \
+		echo "rooibos requires a Roku device/emulator. Set ROKU_HOST environment variable."; \
+		echo "Falling back to lint check..."; \
+		$(MAKE) lint; \
+		exit 1; \
+	elif command -v npx >/dev/null 2>&1 && npx --yes rooibos-roku --help >/dev/null 2>&1; then \
+		echo "ERROR: Tests cannot run in this environment."; \
+		echo "rooibos-roku requires a Roku device/emulator. Set ROKU_HOST environment variable."; \
+		echo "Falling back to lint check..."; \
+		$(MAKE) lint; \
+		exit 1; \
 	else \
-		echo "  No unit tests found"; \
+		echo "ERROR: Tests cannot run in this environment."; \
+		echo "No BrightScript test runner (rokuunit/rooibos/rooibos-roku) is available."; \
+		echo "Falling back to lint check..."; \
+		$(MAKE) lint; \
+		exit 1; \
 	fi
-	@echo ""
-	@echo "Integration Tests:"
-	@if [ -d $(TESTS_DIR)/integration ]; then \
-		find $(TESTS_DIR)/integration -name "*.test.brs" -exec echo "  - {}" \; ; \
+
+# Internal target to run rooibos with host
+_run_rooibos:
+	@if command -v rooibos >/dev/null 2>&1; then \
+		rooibos; \
 	else \
-		echo "  No integration tests found"; \
+		npx --yes rooibos-roku; \
 	fi
 
 # Run unit tests only
 test-unit:
 	@echo "Running unit tests..."
-	@if [ -d $(TESTS_DIR)/unit ]; then \
+	@if [ -n "$$ROKU_HOST" ] || [ -n "$$ROKU_TEST_HOST" ]; then \
+		echo "Roku host detected ($$ROKU_HOST$$ROKU_TEST_HOST), attempting to run unit tests..."; \
+		$(MAKE) _run_rooibos_unit; \
+	elif command -v rokuunit >/dev/null 2>&1; then \
+		rokuunit --group unit; \
+	elif command -v rooibos >/dev/null 2>&1; then \
+		echo "ERROR: Tests cannot run in this environment."; \
+		echo "rooibos requires a Roku device/emulator. Set ROKU_HOST environment variable."; \
 		echo "Unit test files:"; \
-		find $(TESTS_DIR)/unit -name "*.test.brs" -exec basename {} \; ; \
+		if [ -d $(TESTS_DIR)/unit ]; then find $(TESTS_DIR)/unit -name "*.test.brs" -exec basename {} \; | head -5; else echo "  No unit tests found"; fi; \
+		exit 1; \
+	elif command -v npx >/dev/null 2>&1 && npx --yes rooibos-roku --help >/dev/null 2>&1; then \
+		echo "ERROR: Tests cannot run in this environment."; \
+		echo "rooibos-roku requires a Roku device/emulator. Set ROKU_HOST environment variable."; \
+		echo "Unit test files:"; \
+		if [ -d $(TESTS_DIR)/unit ]; then find $(TESTS_DIR)/unit -name "*.test.brs" -exec basename {} \; | head -5; else echo "  No unit tests found"; fi; \
+		exit 1; \
 	else \
-		echo "No unit tests found"; \
+		echo "ERROR: Tests cannot run in this environment."; \
+		echo "No BrightScript test runner (rokuunit/rooibos/rooibos-roku) is available."; \
+		echo "Unit test files:"; \
+		if [ -d $(TESTS_DIR)/unit ]; then find $(TESTS_DIR)/unit -name "*.test.brs" -exec basename {} \; | head -5; else echo "  No unit tests found"; fi; \
+		exit 1; \
+	fi
+
+_run_rooibos_unit:
+	@if command -v rooibos >/dev/null 2>&1; then \
+		rooibos --group unit; \
+	else \
+		npx --yes rooibos-roku --group unit; \
 	fi
 
 # Run integration tests only
 test-integration:
 	@echo "Running integration tests..."
-	@if [ -d $(TESTS_DIR)/integration ]; then \
+	@if [ -n "$$ROKU_HOST" ] || [ -n "$$ROKU_TEST_HOST" ]; then \
+		echo "Roku host detected ($$ROKU_HOST$$ROKU_TEST_HOST), attempting to run integration tests..."; \
+		$(MAKE) _run_rooibos_integration; \
+	elif command -v rokuunit >/dev/null 2>&1; then \
+		rokuunit --group integration; \
+	elif command -v rooibos >/dev/null 2>&1; then \
+		echo "ERROR: Tests cannot run in this environment."; \
+		echo "rooibos requires a Roku device/emulator. Set ROKU_HOST environment variable."; \
 		echo "Integration test files:"; \
-		find $(TESTS_DIR)/integration -name "*.test.brs" -exec basename {} \; ; \
+		if [ -d $(TESTS_DIR)/integration ]; then find $(TESTS_DIR)/integration -name "*.test.brs" -exec basename {} \; | head -5; else echo "  No integration tests found"; fi; \
+		exit 1; \
+	elif command -v npx >/dev/null 2>&1 && npx --yes rooibos-roku --help >/dev/null 2>&1; then \
+		echo "ERROR: Tests cannot run in this environment."; \
+		echo "rooibos-roku requires a Roku device/emulator. Set ROKU_HOST environment variable."; \
+		echo "Integration test files:"; \
+		if [ -d $(TESTS_DIR)/integration ]; then find $(TESTS_DIR)/integration -name "*.test.brs" -exec basename {} \; | head -5; else echo "  No integration tests found"; fi; \
+		exit 1; \
 	else \
-		echo "No integration tests found"; \
+		echo "ERROR: Tests cannot run in this environment."; \
+		echo "No BrightScript test runner (rokuunit/rooibos/rooibos-roku) is available."; \
+		echo "Integration test files:"; \
+		if [ -d $(TESTS_DIR)/integration ]; then find $(TESTS_DIR)/integration -name "*.test.brs" -exec basename {} \; | head -5; else echo "  No integration tests found"; fi; \
+		exit 1; \
+	fi
+
+_run_rooibos_integration:
+	@if command -v rooibos >/dev/null 2>&1; then \
+		rooibos --group integration; \
+	else \
+		npx --yes rooibos-roku --group integration; \
 	fi
 
 # ===========================================
@@ -104,16 +175,31 @@ test-integration:
 lint:
 	@echo "Running BrightScript lint checks..."
 	@echo ""
-	@echo "Checking for debug artifacts..."
-	@if grep -rn "console.log" $(SOURCE_DIR)/ 2>/dev/null; then \
+	@# Try brslint if available
+	@if command -v brslint >/dev/null 2>&1; then \
+		echo "Running brslint..."; \
+		brslint source || exit 1; \
+	elif command -v npx >/dev/null 2>&1 && npx --yes brslint --help >/dev/null 2>&1; then \
+		echo "Running brslint via npx..."; \
+		npx --yes brslint source || exit 1; \
+	else \
+		echo "brslint not available, skipping syntax-aware linting"; \
+	fi
+	@echo ""
+	@# Fallback grep-based checks (always run as baseline)
+	@echo "Running baseline checks..."
+	@found_console_log=$$(grep -rn "console.log" $(SOURCE_DIR)/ 2>/dev/null || true); \
+	if [ -n "$$found_console_log" ]; then \
 		echo "ERROR: console.log found (use print instead)"; \
+		echo "$$found_console_log"; \
+		exit 1; \
 	else \
 		echo "  ✓ No console.log found"; \
 	fi
-	@if grep -rn "TODO\|FIXME" $(SOURCE_DIR)/ 2>/dev/null; then \
-		echo "WARNING: TODO/FIXME comments found"; \
-	else \
-		echo "  ✓ No TODO/FIXME comments"; \
+	@found_todos=$$(grep -rn "TODO\|FIXME" $(SOURCE_DIR)/ 2>/dev/null || true); \
+	if [ -n "$$found_todos" ]; then \
+		echo "WARNING: TODO/FIXME comments found (should be resolved before merge):"; \
+		echo "$$found_todos"; \
 	fi
 	@echo ""
 	@echo "Checking naming conventions..."
@@ -121,9 +207,9 @@ lint:
 	if [ -n "$$bad_funcs" ]; then \
 		echo "WARNING: Functions should use PascalCase:"; \
 		echo "$$bad_funcs" | head -3; \
-	else \
-		echo "  ✓ Function names are PascalCase"; \
-	fi
+		exit 1; \
+	fi; \
+	echo "  ✓ Function names are PascalCase"
 	@echo ""
 	@echo "Checking file structure..."
 	@required_files="main.brs ApiClient.brs Storage.brs AuthManager.brs SessionManager.brs LibraryManager.brs"; \

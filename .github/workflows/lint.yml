@@ -16,12 +16,12 @@ jobs:
 
       - name: Run BrightScript lint
         run: |
-          make lint || true
+          make lint
 
       - name: Check formatting
         run: |
-          make check || true
+          make check
 
       - name: Validate XML files
         run: |
-          make validate-xml || true
+          make validate-xml
