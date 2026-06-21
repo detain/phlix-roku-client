@@ -64,8 +64,14 @@ sub Show(itemId as String, playbackInfo as Object)
         m.skipButtonComponent.setMarkers(invalid)
     end if
 
-    ' Determine stream URL
-    streamUrl = playbackInfo.playback_info.Url
+    ' Determine stream URL. Prefer the server's signed stream_url: the stream
+    ' route is gated and ContentNode Authorization-header support varies by Roku
+    ' OS version, so a self-contained signed URL is more reliable. Fall back to
+    ' the unsigned Url for older servers that don't mint one.
+    streamUrl = playbackInfo.playback_info.stream_url
+    if streamUrl = invalid or streamUrl = "" then
+        streamUrl = playbackInfo.playback_info.Url
+    end if
     if streamUrl = invalid or streamUrl = "" then
         print "No stream URL available"
         return
