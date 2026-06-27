@@ -1,0 +1,31 @@
+name: Package
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+# Least-privilege: zipping the source needs no write scope and no secrets.
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Build sideload package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build sideload zip (manifest + source + images)
+        run: make package
+
+      - name: Upload sideload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: phlix-roku-sideload
+          path: phlix.zip
+          if-no-files-found: error

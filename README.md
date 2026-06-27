@@ -1,5 +1,11 @@
 # Phlix Media Server - Roku Application
 
+[![Lint](https://github.com/detain/phlix-roku-client/actions/workflows/lint.yml/badge.svg)](https://github.com/detain/phlix-roku-client/actions/workflows/lint.yml)
+[![Tests](https://github.com/detain/phlix-roku-client/actions/workflows/test.yml/badge.svg)](https://github.com/detain/phlix-roku-client/actions/workflows/test.yml)
+[![Package](https://github.com/detain/phlix-roku-client/actions/workflows/package.yml/badge.svg)](https://github.com/detain/phlix-roku-client/actions/workflows/package.yml)
+![Platform](https://img.shields.io/badge/platform-Roku-662D91?logo=roku&logoColor=white)
+![Language](https://img.shields.io/badge/BrightScript-SceneGraph-662D91)
+
 A native Roku application for the Phlix Media Server platform. Stream your media library with full playback control, seamless authentication, and progress synchronization.
 
 ## Features
