@@ -391,6 +391,36 @@ function ApiClient(baseUrl as String) as Object
             return m.request("GET", "/media" + query, invalid)
         end function
 
+        ' GET /media?search=<q> with query params. Global search across ALL
+        ' libraries: deliberately omits libraryId/parentId/topLevel (the server
+        ' ignores topLevel when search is set, so results can include
+        ' season/episode rows too). Returns the whole {items,total,limit,offset}
+        ' envelope (the scene reads .items).
+        search: function(query as String, options = {} as Object) as Object
+            limit = 50
+            offset = 0
+            sort = "name"
+            order = "asc"
+            if options.DoesExist("limit") then limit = options.limit
+            if options.DoesExist("offset") then offset = options.offset
+            if options.DoesExist("startIndex") then offset = options.startIndex
+            if options.DoesExist("sort") then sort = options.sort
+            if options.DoesExist("order") then order = options.order
+
+            q = query
+            if q = invalid then q = ""
+
+            params = []
+            params.push("search=" + UrlEncode(q))
+            params.push("limit=" + str(limit).trim())
+            params.push("offset=" + str(offset).trim())
+            params.push("sort=" + UrlEncode(sort))
+            params.push("order=" + UrlEncode(order))
+
+            query2 = "?" + JoinStrings(params, "&")
+            return m.request("GET", "/media" + query2, invalid)
+        end function
+
         ' GET /media/{id} -> {item:{...}} ; returns the unwrapped item.
         getItem: function(itemId as String) as Object
             result = m.request("GET", "/media/" + itemId, invalid)

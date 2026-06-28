@@ -53,6 +53,11 @@ sub ExecRequest()
         else if req.op = "getContinueWatching" then
             result.data = api.getContinueWatching()
             result.ok = (result.data <> invalid)
+        else if req.op = "search" then
+            opts = req.options
+            if opts = invalid then opts = {}
+            result.data = api.search(req.query, opts)
+            result.ok = (result.data <> invalid)
         end if
     end if
 
