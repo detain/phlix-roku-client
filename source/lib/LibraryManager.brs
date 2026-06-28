@@ -29,13 +29,13 @@ function LibraryManager(api as Object) as Object
             end if
 
             items = m.api.getLibraryItems(libraryId, {
-                startIndex: startIndex
+                offset: startIndex
                 limit: limit
             })
 
-            if items <> invalid and items.Items <> invalid then
+            if items <> invalid and items.items <> invalid then
                 m.currentLibrary = libraryId
-                m.currentItems = items.Items
+                m.currentItems = items.items
             end if
 
             return m.currentItems
@@ -59,19 +59,17 @@ function LibraryManager(api as Object) as Object
             return m.api.getItemPlaybackInfo(itemId)
         end function
 
-        ' Mark item as watched
+        ' Mark item as watched.
+        ' NOTE (F0b): the canonical /api/v1 contract has no /Items/{id}/UserData
+        ' endpoint. Watched state is derived server-side from playback progress,
+        ' and explicit favorites/ratings land in F5. Stubbed to return invalid
+        ' so callers (scenes, updated in F1) compile without the Emby route.
         markWatched: function(itemId as String) as Object
-            if m.api <> invalid then
-                return m.api.markWatched(itemId)
-            end if
             return invalid
         end function
 
-        ' Mark item as unwatched
+        ' Mark item as unwatched. See markWatched note above.
         markUnwatched: function(itemId as String) as Object
-            if m.api <> invalid then
-                return m.api.markUnwatched(itemId)
-            end if
             return invalid
         end function
 
