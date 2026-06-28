@@ -253,3 +253,152 @@ function EpisodeCaption(item as Object) as String
 
     return title
 end function
+
+' Flatten a RAW album-track row (from /music/albums/{name}) into the flat shape
+' the music UI consumes: {id,name,artist,track_number,disc_number,duration_secs}.
+' The interesting fields live under metadata.* on raw rows; read top-level first,
+' then metadata fallback. metadata may arrive as a non-assoc string, so only read
+' its keys when it is an roAssociativeArray (mirrors HomeScene.ContinuePosterUrl).
+' The raw row's top-level `id` IS the playable media_item id. Guards invalid.
+' @param raw Object - a raw media-item row (may be invalid)
+' @return Object - the flattened track assocarray (sentinel {} when raw invalid)
+function NormalizeAlbumTrack(raw as Object) as Object
+    track = { id: "", name: "", artist: "", track_number: 0, disc_number: 0, duration_secs: 0 }
+    if raw = invalid then return track
+
+    ' Pull the optional metadata sub-object (only when it parsed to an assoc).
+    meta = invalid
+    if raw.DoesExist("metadata") and raw.metadata <> invalid then
+        if type(raw.metadata) = "roAssociativeArray" then meta = raw.metadata
+    end if
+
+    ' id is always top-level on the raw row.
+    if raw.DoesExist("id") and raw.id <> invalid then track.id = raw.id
+
+    ' name = metadata.title -> top-level name -> "".
+    if meta <> invalid and meta.DoesExist("title") and meta.title <> invalid and meta.title <> "" then
+        track.name = meta.title
+    else if raw.DoesExist("name") and raw.name <> invalid then
+        track.name = raw.name
+    end if
+
+    ' artist: top-level then metadata.
+    if raw.DoesExist("artist") and raw.artist <> invalid then
+        track.artist = raw.artist
+    else if meta <> invalid and meta.DoesExist("artist") and meta.artist <> invalid then
+        track.artist = meta.artist
+    end if
+
+    ' track_number / disc_number: top-level then metadata; default 0.
+    if raw.DoesExist("track_number") and raw.track_number <> invalid then
+        track.track_number = Int(raw.track_number)
+    else if meta <> invalid and meta.DoesExist("track_number") and meta.track_number <> invalid then
+        track.track_number = Int(meta.track_number)
+    end if
+
+    if raw.DoesExist("disc_number") and raw.disc_number <> invalid then
+        track.disc_number = Int(raw.disc_number)
+    else if meta <> invalid and meta.DoesExist("disc_number") and meta.disc_number <> invalid then
+        track.disc_number = Int(meta.disc_number)
+    end if
+
+    ' duration_secs: top-level then metadata; default 0.
+    if raw.DoesExist("duration_secs") and raw.duration_secs <> invalid then
+        track.duration_secs = Int(raw.duration_secs)
+    else if meta <> invalid and meta.DoesExist("duration_secs") and meta.duration_secs <> invalid then
+        track.duration_secs = Int(meta.duration_secs)
+    end if
+
+    return track
+end function
+
+' Non-mutating insertion sort of a (normalized) track array by disc_number then
+' track_number. Invalid/missing numbers sort LAST (sentinel 999999) so unnumbered
+' tracks sink to the end. Mirrors SortByEpisodeOrder. Returns a NEW array; the
+' input is not modified. Guards non-array input -> [].
+' @param tracks Object - array of normalized track assocarrays (may be invalid)
+' @return Object - a new sorted array (empty array when input is invalid)
+function SortByTrackOrder(tracks as Object) as Object
+    sorted = []
+    if tracks = invalid then return sorted
+
+    for each track in tracks
+        dKey = SortKeyValue(track, "disc_number")
+        tKey = SortKeyValue(track, "track_number")
+        ' SortKeyValue returns the value (0 for unnumbered); promote 0 to the
+        ' end-sentinel so unnumbered tracks sink below numbered ones.
+        if dKey = 0 then dKey = 999999
+        if tKey = 0 then tKey = 999999
+        insertAt = sorted.Count()
+
+        for i = 0 to sorted.Count() - 1
+            existing = sorted[i]
+            existD = SortKeyValue(existing, "disc_number")
+            existT = SortKeyValue(existing, "track_number")
+            if existD = 0 then existD = 999999
+            if existT = 0 then existT = 999999
+            if dKey < existD or (dKey = existD and tKey < existT) then
+                insertAt = i
+                exit for
+            end if
+        end for
+
+        if insertAt >= sorted.Count() then
+            sorted.Push(track)
+        else
+            sorted.Unshift(invalid)
+            for j = sorted.Count() - 1 to insertAt + 1 step -1
+                sorted[j] = sorted[j - 1]
+            end for
+            sorted[insertAt] = track
+        end if
+    end for
+
+    return sorted
+end function
+
+' Build a one-line caption for a track list row: "<track_number>. <name>" when
+' track_number>0 else just <name>; appends "  (mm:ss)" via FormatTime when
+' duration_secs>0. Guards invalid.
+' @param track Object - a normalized track assocarray (may be invalid)
+' @return String - the caption (empty string when track is invalid)
+function TrackCaption(track as Object) as String
+    if track = invalid then return ""
+
+    name = ""
+    if track.DoesExist("name") and track.name <> invalid then name = track.name
+
+    caption = name
+    if track.DoesExist("track_number") and track.track_number <> invalid and Int(track.track_number) > 0 then
+        caption = str(Int(track.track_number)).trim() + ". " + name
+    end if
+
+    if track.DoesExist("duration_secs") and track.duration_secs <> invalid and Int(track.duration_secs) > 0 then
+        caption = caption + "  (" + FormatTime(track.duration_secs) + ")"
+    end if
+
+    return caption
+end function
+
+' Build a one-line caption for an album list row: "<name> — <artist>" plus
+' " (<year>)" when a year is present. Guards every invalid/missing field.
+' @param album Object - an album assocarray (may be invalid)
+' @return String - the caption (empty string when album is invalid)
+function AlbumCaption(album as Object) as String
+    if album = invalid then return ""
+
+    name = ""
+    if album.DoesExist("name") and album.name <> invalid then name = album.name
+
+    caption = name
+    if album.DoesExist("artist") and album.artist <> invalid and album.artist <> "" then
+        caption = caption + " — " + album.artist
+    end if
+
+    if album.DoesExist("year") and album.year <> invalid then
+        yearStr = str(Int(album.year)).trim()
+        if yearStr <> "0" then caption = caption + " (" + yearStr + ")"
+    end if
+
+    return caption
+end function

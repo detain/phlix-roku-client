@@ -515,6 +515,44 @@ function ApiClient(baseUrl as String) as Object
             query = "?" + JoinStrings(params, "&")
             return m.request("GET", "/users/me/favorites" + query, invalid)
         end function
+
+        ' ---------------------------------------------------------------------
+        ' Music (F6). All /music/* routes are Bearer-gated and aggregate across
+        ' ALL music libraries server-side (no library_id param). These return
+        ' the WHOLE envelope (mirror getFavorites); the scene reads the named key.
+        ' ---------------------------------------------------------------------
+
+        ' GET /music/artists -> {artists:[...]} ; whole json.
+        getArtists: function() as Object
+            return m.request("GET", "/music/artists", invalid)
+        end function
+
+        ' GET /music/albums -> {albums:[...]} ; whole json.
+        getAlbums: function() as Object
+            return m.request("GET", "/music/albums", invalid)
+        end function
+
+        ' GET /music/albums/{name} -> {album:{...}} ; the album NAME is the path
+        ' segment (URL-encoded). The returned album.tracks are RAW media rows.
+        getAlbum: function(albumName as String) as Object
+            return m.request("GET", "/music/albums/" + UrlEncode(albumName), invalid)
+        end function
+
+        ' GET /music/tracks?limit&offset -> {tracks,total,limit,offset} ; whole
+        ' json. Tracks here are FLAT (unlike album.tracks).
+        getTracks: function(options = {} as Object) as Object
+            limit = 100
+            offset = 0
+            if options.DoesExist("limit") then limit = options.limit
+            if options.DoesExist("offset") then offset = options.offset
+
+            params = []
+            params.push("limit=" + str(limit).trim())
+            params.push("offset=" + str(offset).trim())
+
+            query = "?" + JoinStrings(params, "&")
+            return m.request("GET", "/music/tracks" + query, invalid)
+        end function
     }
 
     ' Generate device ID if not exists
