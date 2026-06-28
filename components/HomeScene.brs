@@ -149,7 +149,13 @@ sub OnLibraryItemSelected(event as Object)
     library = m.libraries[index]
     if library = invalid then return
 
-    ShowLibrary(library.id, library.name)
+    ' Music libraries have no artwork -> route to the text-list MusicScene
+    ' (music aggregates server-side, so MusicScene needs no library id).
+    if library.DoesExist("type") and library.type = "music" then
+        ShowMusic()
+    else
+        ShowLibrary(library.id, library.name)
+    end if
 end sub
 
 sub OnLibraryItemFocused(event as Object)
@@ -247,6 +253,14 @@ sub ShowLibrary(libraryId as String, libraryName as String)
     scene = CreateObject("roSGNode", "LibraryScene")
     m.top.Append(scene)
     scene.LoadLibrary(libraryId, libraryName)
+end sub
+
+' Open the music browser (Artists/Albums/Tracks). Reached by selecting a
+' type="music" library tile; mirrors OnSearchPressed's create + focus.
+sub ShowMusic()
+    scene = CreateObject("roSGNode", "MusicScene")
+    m.top.Append(scene)
+    scene.SetFocus(true)
 end sub
 
 sub OnSearchPressed(event as Object)

@@ -75,6 +75,20 @@ sub ExecRequest()
             if opts = invalid then opts = {}
             result.data = api.getFavorites(opts)
             result.ok = (result.data <> invalid)
+        else if req.op = "getArtists" then
+            result.data = api.getArtists()
+            result.ok = (result.data <> invalid)
+        else if req.op = "getAlbums" then
+            result.data = api.getAlbums()
+            result.ok = (result.data <> invalid)
+        else if req.op = "getAlbum" then
+            result.data = api.getAlbum(req.albumName)
+            result.ok = (result.data <> invalid)
+        else if req.op = "getTracks" then
+            opts = req.options
+            if opts = invalid then opts = {}
+            result.data = api.getTracks(opts)
+            result.ok = (result.data <> invalid)
         end if
     end if
 
