@@ -11,6 +11,9 @@
     <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
     <script type="text/brightscript" uri="pkg:/source/player/SkipButton.brs" />
+    <!-- F13 SyncPlay: PlayerScene reads SyncPlayProtocol() in BuildSyncPlayWsUrl
+         (and may format status). The socket itself lives in SyncPlayTask. -->
+    <script type="text/brightscript" uri="pkg:/source/lib/SyncPlayProtocol.brs" />
     <script type="text/brightscript" uri="pkg:/components/PlayerScene.brs" />
 
     <children>
@@ -60,6 +63,32 @@
                        horizAlign="center"
                        vertAlign="center"
                        id="skipButtonLabel" />
+            </Rectangle>
+        </Rectangle>
+
+        <!-- ============================================================= -->
+        <!-- F13 SyncPlay "Watch Together" overlay. Hidden by default; the   -->
+        <!-- entire SyncPlay path is gated behind opening this panel (the    -->
+        <!-- "*"/options key), so the default playback path is unchanged     -->
+        <!-- when it is never shown.                                         -->
+        <!-- ============================================================= -->
+        <Rectangle height="720" width="1280" color="#000000" transparency="0.4" visible="false" id="syncPanel">
+            <Rectangle height="640" width="600" translation="[40,40]" color="#0d0d1a">
+                <Label height="50" width="540" translation="[30,20]"
+                       text="Watch Together"
+                       font="font:LargeBoldSystemFont"
+                       color="#FFFFFF" />
+                <LabelList height="360" width="540" translation="[30,90]"
+                           id="syncGroupList" />
+                <Button height="60" width="260" translation="[30,470]"
+                        title="Create Group" id="syncCreateButton" />
+                <Button height="60" width="260" translation="[310,470]"
+                        title="Leave" id="syncLeaveButton" />
+                <Label height="80" width="540" translation="[30,550]"
+                       wrap="true"
+                       font="font:SmallSystemFont"
+                       color="#AAAAAA"
+                       id="syncStatusLabel" />
             </Rectangle>
         </Rectangle>
     </children>
