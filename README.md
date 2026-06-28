@@ -16,7 +16,7 @@ A native Roku application for the Phlix Media Server platform. Stream your media
 - **Full Remote Control**: Complete playback control via Roku remote (play, pause, seek, stop)
 - **Progress Synchronization**: Track and sync watch progress across sessions
 - **Multiple User Support**: Personalized libraries and watch states per user
-- **Hub Mode**: Connect to a Phlix Hub for centralized authentication, server discovery, and relay-aware HLS playback through direct-LAN or hub-relay tunnel
+- **Hub / Multi-Server Mode**: Point the Connect screen at a Phlix Hub instead of a single server — after login the client detects the hub (`GET /api/v1/me/servers`), shows a server picker, and routes all media requests to the chosen server through the hub's relay proxy (the hub Bearer is the relay auth). See "Hub / multi-server mode" below for the known PUT/DELETE-over-relay limitation.
 - **Skip Intro/Outro**: Automatically displayed skip buttons when playback enters marker ranges defined by the server (intro start/end, outro start/end)
 - **SyncPlay**: Watch with friends in perfect sync across multiple devices with NTP-style time synchronization, group state management, and synchronized playback controls (play/pause/seek)
 - **Profile Management (admin)**: View a user's profiles and adjust the parental-control rating or clear a forgotten PIN — button-driven, no keyboard. Reached via `Admin → Users → (select user) → Profiles`
@@ -90,26 +90,71 @@ On subsequent launches the persisted `server_url` is reused and the Connect scre
 skipped (boot goes straight to login or, if a session is restored, Home). The login screen
 itself only collects username/password — it no longer has a server-URL field.
 
-### 5. Hub Mode (Optional)
+### 5. Hub / multi-server mode
 
-Hub Mode allows you to connect to a Phlix Hub for centralized authentication and multi-server access:
+The connect URL entered on the Connect screen can be **either a direct Phlix server or a
+Phlix Hub** — they expose `/health` and `POST /api/v1/auth/login` identically, so the
+connect + login flow is the same for both. The client decides which it is talking to
+**after login**, transparently:
 
-1. **Enable Hub Mode**: Go to Settings in the app
-2. **Enter Hub URL**: Provide your hub server URL (e.g., `http://hub.example.com:8080`)
-3. **Sign In**: Authenticate with your hub credentials
-4. **Select Server**: Choose from your claimed servers
-5. **Choose Connection Mode**:
-   - **Direct**: Connect directly to server on LAN (fastest)
-   - **Relay**: Route through hub tunnel (for remote access)
+1. **Probe.** Immediately after a successful login the client calls
+   `GET /api/v1/me/servers`.
+   - A **hub** returns `{servers:[ … ]}` (camelCase rows). The client persists
+     `connection_kind = "hub"` and routes to a new **server picker** screen
+     (`ServerPickerScene`).
+   - A **direct server** has no such route (404 / no `servers` array). The client persists
+     `connection_kind = "direct"` and goes straight to Home, exactly as before. Direct mode
+     is unchanged from F12a.
+2. **Pick a server.** The picker lists each claimed server with its name, online/offline
+   status, and library count. Selecting one persists `active_server_id` (and
+   `active_server_name` for display) and proceeds to Home.
+3. **Relay routing.** Once a server is picked, the media `ApiClient` is rebuilt against the
+   hub's **relay proxy** base — `{hub}/api/v1/servers/{serverId}/proxy` — so every existing
+   scene and background task transparently routes its requests through the hub to the chosen
+   server with **no per-scene changes**. The **hub Bearer token is the relay auth**: the hub
+   strips the client's `Authorization`/`Cookie` headers, verifies the logged-in user owns the
+   target server (403 otherwise), injects `X-Phlix-Relay-User`, and tunnels the request over
+   its WSS connection to the server, which trusts the tunnel. No separate per-server token is
+   involved.
+4. **Boot / session validation.** On a subsequent launch in hub mode the persisted **hub**
+   session is validated against the **hub directly** (`GET /api/v1/auth/me` on the bare hub
+   URL, not over the relay — `/auth/me` over the relay returns the hub-user perspective and is
+   unreliable). If valid and a server is already picked → Home; if valid but no server picked →
+   the server picker; otherwise → login. Logging out clears `connection_kind`,
+   `active_server_id`, and `active_server_name` but keeps `server_url`, so you return to the
+   login screen on the same hub/server.
 
-#### Hub Mode Storage Keys
+#### Hub mode storage keys
 
 | Key | Description |
 |-----|-------------|
-| `hub_url` | Hub server URL |
-| `hub_session` | Hub authentication session (JWT tokens) |
-| `active_server` | Currently selected server |
-| `connection_mode` | "direct" or "relay" |
+| `server_url` | The connect endpoint — a hub URL **or** a direct server URL (set on the Connect screen). |
+| `auth_token` / `refresh_token` | The login token. In hub mode this is the **hub** token, which doubles as the relay Bearer. |
+| `connection_kind` | `"hub"` or `"direct"`. Absent / unrecognized is treated as `"direct"`. |
+| `active_server_id` | The hub server chosen in the picker; appended to the relay proxy base. |
+| `active_server_name` | Display name of the chosen server. |
+
+#### Known limitation — non-GET/POST verbs over the relay
+
+The hub registers **only `GET` and `POST`** on its relay proxy route
+(`/api/v1/servers/{id}/proxy/{path:.*}`). In hub mode the media `ApiClient` is bound to the
+relay base, so `PUT`/`DELETE` calls cannot be tunneled to the server and degrade:
+
+- **favorites-remove** (`DELETE /media/{id}/favorite`),
+- **rating set / clear** (`PUT` / `DELETE /media/{id}/rating`),
+- **server-side session-end on logout** (`DELETE /sessions/{id}` — the local token still
+  clears, so logout works, but the server session is not ended).
+
+The core flows — connect, login, server pick, browse, play, resume, search, and
+**favorites-add** — all use `GET`/`POST` and work over the relay. **Direct mode is
+unaffected** (all verbs reach the server). **Recommended follow-up:** a phlix-hub change to
+register `PUT`/`DELETE`/`PATCH` on the proxy handler.
+
+> **Hub-token refresh-over-relay is not wired.** The `ApiClient` refresh-on-401 path would, in
+> hub mode, attempt to refresh through the relay against the server rather than against the hub.
+> The hub token's `expires_in` is 3600s; on expiry the relay 401 does not refresh correctly, the
+> token clears, and the next boot/login re-authenticates. Routing refresh to the hub in relay
+> mode is a planned follow-up.
 
 ### 6. SyncPlay (Watch Together)
 
@@ -323,7 +368,9 @@ The app communicates with these Phlix API endpoints:
 | GET | `/api/v1/Users/Me` | Get current user info |
 | GET | `/api/v1/collections` | List collections (read-only). Returns `{collections:[...]}`. Currently unauthenticated server-side. |
 | GET | `/api/v1/collections/{id}` | Get one collection with its items (read-only). Returns `{collection, items, total}`; `items` are raw DB rows normalized client-side. Currently unauthenticated server-side. |
-| GET | `/api/v1/auth/me` | Get the current user (auth-gated). Returns the unwrapped `{user}`, which carries `is_admin` (TINYINT 0/1) and `status`. The Home screen calls this on init to gate the admin entry. |
+| GET | `/api/v1/auth/me` | Get the current user (auth-gated). Returns the unwrapped `{user}`, which carries `is_admin` (TINYINT 0/1) and `status`. The Home screen calls this on init to gate the admin entry. In **hub mode** the boot session-validation hits this against the **hub directly** (not over the relay), because `/auth/me` over the relay returns the hub-user perspective on the server and is unreliable. |
+| GET | `/api/v1/me/servers` | Hub-only. Returns `{servers:[ … ]}` (**camelCase** rows: `serverId`, `userId`, `serverName`, `version`, `lastSeenAt`, `status` `"online"`/`"offline"`/`"claiming"`/`"disabled"`, `hostnameCandidates:[url]`, `relayActive` (bool), `libraryCount`). A **direct** server has no such route → 404 / no `servers` array. The client calls this right after login to detect hub vs direct, and the server picker reads the whole `{servers}` envelope. |
+| GET/POST | `/api/v1/servers/{serverId}/proxy/{path:.*}` | Hub relay proxy (the **only** registered relay route). In hub mode, after a server is picked, the media `ApiClient` is bound to `{hub}/api/v1/servers/{serverId}/proxy` and sends the **hub** Bearer; the hub strips client auth, verifies server ownership (403 `server.not_owned` otherwise), injects `X-Phlix-Relay-User`, and tunnels the request to the server (which trusts the tunnel). **Only `GET`/`POST` are registered** — `PUT`/`DELETE` are not routable over the relay (see the known limitation under "Hub / multi-server mode"). |
 | GET | `/api/v1/admin/dashboard/now-playing` | Admin-gated, read-only. Active streams. Envelope `{success, data, count}`; `data[]` rows carry `username`, `media_title`, `progress_percent`, etc. AdminMiddleware → 401 (no/invalid token) / 403 (non-admin). |
 | GET | `/api/v1/admin/dashboard/storage` | Admin-gated, read-only. Per-type storage usage. Envelope `{success, data, count}`; `data[]` rows carry `media_type`, `item_count`, server-preformatted `formatted_total`. AdminMiddleware → 401/403. |
 | GET | `/api/v1/admin/dashboard/activity` | Admin-gated, read-only. Recent activity (optional `?limit=N`). Envelope `{success, data, count}`; `data[]` rows carry `occurred_at`, `username`, `event_type`. AdminMiddleware → 401/403. |
@@ -509,14 +556,11 @@ phlix-roku/
 │   │   ├── SeriesRulesScene.brs  # Admin Live TV series-rules list (one-shot LabelList; read-only, selection inert)
 │   │   ├── PlayerScene.brs     # Video player
 │   │   ├── ConnectScene.brs    # First-run "Connect to server" screen (normalizes + probes /health, persists server_url, then proceeds to login)
-│   │   ├── LoginScene.brs      # Login screen (username/password only — server URL is set by ConnectScene)
+│   │   ├── LoginScene.brs      # Login screen (username/password only); after login probes GET /me/servers to detect hub vs direct
+│   │   ├── ServerPickerScene.brs # Hub mode: "Choose a server" list (one-shot GET /me/servers); pick persists active_server_id → relay routing
 │   │   └── GridItem.brs        # Grid item component
 │   ├── player/
-│   │   ├── HlsPlayer.brs       # HLS playback handler
 │   │   └── SkipButton.brs      # Skip intro/outro button
-│   ├── hub/
-│   │   ├── HubAuth.brs         # Hub authentication
-│   │   └── HubConfig.brs      # Hub configuration
 │   ├── syncplay/
 │   │   ├── SyncPlayTimeSync.brs # NTP-style time synchronization
 │   │   └── SyncPlayService.brs  # SyncPlay WebSocket service
@@ -528,7 +572,6 @@ phlix-roku/
 │       └── Theme.brs           # Theme constants
 ├── tests/
 │   ├── unit/                   # Unit tests
-│   ├── hub/                    # Hub mode tests
 │   └── integration/            # Integration tests
 ├── images/                      # App icons and splash screens
 ├── manifest                    # App manifest
