@@ -162,6 +162,13 @@ function UrlEncode(str as String) as String
     return result
 end function
 
+' Convert seconds (Float) to 100ns ticks (LongInteger). Double math (52-bit mantissa) keeps
+' large values exact; the LongInteger return coerces the truncation. Float*1e7 would lose
+' precision AND a 32-bit Int() overflows past ~214s.
+function SecondsToTicks(seconds as Double) as LongInteger
+    return seconds * 10000000.0
+end function
+
 ' Show an error to the user. Placeholder logging implementation; the player /
 ' detail slices replace this with a proper SceneGraph Dialog.
 ' @param message String - the error message

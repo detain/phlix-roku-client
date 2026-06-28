@@ -316,8 +316,11 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' POST /sessions {device_id, device_name, device_type} -> {session_id}
+        ' Token-gated (not user-gated): after restoreSession across scene
+        ' navigation GetApiClient repopulates m.token but NOT m.user, so the
+        ' player must be able to create a session to report progress.
         createSession: function() as Object
-            if m.user = invalid then
+            if m.token = "" then
                 print "Not logged in"
                 return invalid
             end if
@@ -363,7 +366,19 @@ function ApiClient(baseUrl as String) as Object
             if options.DoesExist("order") then order = options.order
 
             params = []
-            params.push("parentId=" + UrlEncode(libraryId))
+
+            ' Library browse semantics (WebPortalRouter): default to
+            ' libraryId=<id>&topLevel=1 (only movies + series at the grid level).
+            ' An explicit options.parentId switches to direct-children mode
+            ' (series->season->episode, F2) and OMITS topLevel.
+            if options.DoesExist("parentId") then
+                params.push("parentId=" + UrlEncode(options.parentId))
+            else
+                params.push("libraryId=" + UrlEncode(libraryId))
+                ' topLevel coerced to the string "1" (NOT str(true)->"true").
+                params.push("topLevel=1")
+            end if
+
             params.push("limit=" + str(limit).trim())
             params.push("offset=" + str(offset).trim())
             params.push("sort=" + UrlEncode(sort))
@@ -371,8 +386,6 @@ function ApiClient(baseUrl as String) as Object
 
             ' Optional filters mirrored from the canonical contract.
             if options.DoesExist("search") then params.push("search=" + UrlEncode(options.search))
-            if options.DoesExist("libraryId") then params.push("libraryId=" + UrlEncode(options.libraryId))
-            if options.DoesExist("topLevel") then params.push("topLevel=" + str(options.topLevel).trim())
 
             query = "?" + JoinStrings(params, "&")
             return m.request("GET", "/media" + query, invalid)

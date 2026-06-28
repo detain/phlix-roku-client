@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="ApiTask" extends="Task">
+    <interface>
+        <field id="request" type="assocarray" />
+        <field id="response" type="assocarray" alwaysNotify="true" />
+    </interface>
+
+    <!-- Transitive closure: a component scope does NOT auto-include pkg:/source.
+         GetApiClient needs Storage + Utilities + ApiClient + AppContext. -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/ApiTask.brs" />
+</component>

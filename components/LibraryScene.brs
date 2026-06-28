@@ -3,9 +3,6 @@
 sub Init()
     m.top.SetFocus(true)
 
-    ' Shared API client for this scene
-    m.api = GetApiClient()
-
     ' Create poster grid for items
     m.posterGrid = m.top.FindNode("itemsGrid")
     m.posterGrid.ObserveField("itemSelected", "OnItemSelected")
@@ -14,80 +11,85 @@ sub Init()
     ' UI nodes
     m.backButton = m.top.FindNode("backButton")
     m.titleLabel = m.top.FindNode("titleLabel")
+    m.descriptionLabel = m.top.FindNode("descriptionLabel")
 
     if m.backButton <> invalid then
         m.backButton.ObserveField("buttonSelected", "OnBackPressed")
     end if
 
+    ' Route all data access through the ApiTask node (off the render thread).
+    m.apiTask = CreateObject("roSGNode", "ApiTask")
+    m.apiTask.ObserveField("response", "OnApiResponse")
+
     m.libraryId = ""
     m.items = []
 end sub
 
-sub LoadLibrary(libraryId as String)
+sub LoadLibrary(libraryId as String, libraryName as String)
     m.libraryId = libraryId
 
-    ' Get library info
-    library = m.api.getItem(libraryId)
-    if library <> invalid and m.titleLabel <> invalid then
-        m.titleLabel.text = library.Name
+    if m.titleLabel <> invalid then
+        m.titleLabel.text = libraryName
     end if
 
-    ' Load items
     RefreshItems()
 end sub
 
 sub RefreshItems()
-    if m.libraryId = "" then
-        return
+    if m.libraryId = "" then return
+
+    m.apiTask.request = {
+        op: "getLibraryItems"
+        libraryId: m.libraryId
+        options: { topLevel: 1 }
+    }
+    m.apiTask.control = "run"
+end sub
+
+sub OnApiResponse(event as Object)
+    resp = event.getData()
+    if resp = invalid then return
+
+    if resp.op = "getLibraryItems" then
+        if not resp.ok or resp.data = invalid or resp.data.items = invalid then return
+
+        m.items = resp.data.items
+
+        content = CreateObject("roSGNode", "ContentNode")
+        for each item in m.items
+            contentItem = content.AddChild({
+                Title: item.name
+                Description: item.overview
+                ShortDescriptionLine1: item.name
+                Type: item.type
+                id: item.id
+            })
+
+            if item.year <> invalid then
+                contentItem.ShortDescriptionLine2 = str(item.year).trim()
+            end if
+
+            ' poster_url is an absolute URL (TMDB or local) or null.
+            if item.poster_url <> invalid and item.poster_url <> "" then
+                contentItem.HDPosterUrl = item.poster_url
+            else
+                contentItem.HDPosterUrl = "pkg:/images/placeholder.png"
+            end if
+        end for
+
+        m.posterGrid.content = content
     end if
-
-    items = m.api.getLibraryItems(m.libraryId)
-
-    if items = invalid or items.Items = invalid then
-        return
-    end if
-
-    m.items = items.Items
-
-    ' Create content node for grid
-    content = CreateObject("roSGNode", "ContentNode")
-
-    for each item in m.items
-        contentItem = content.AddChild({
-            Title: item.Name
-            Description: item.Overview
-            HDPosterUrl: "pkg:/images/placeholder.png"
-            ShortDescriptionLine1: item.Name
-            ShortDescriptionLine2: item.ProductionYear
-            Type: item.Type
-            id: item.Id
-        })
-
-        ' Use poster thumbnail if available
-        if item.ImageTags <> invalid and item.ImageTags.Primary <> invalid then
-            contentItem.HDPosterUrl = m.api.baseUrl + "/Items/" + item.Id + "/Images/Primary"
-        end if
-    end for
-
-    m.posterGrid.content = content
 end sub
 
 sub OnItemSelected(event as Object)
     index = event.getData()
 
-    if index < 0 or index >= m.items.Count() then
-        return
-    end if
+    if index < 0 or index >= m.items.Count() then return
 
     item = m.items[index]
 
-    if item.Type = "Folder" or item.Type = "CollectionFolder" then
-        ' Navigate to sub-folder
-        ShowSubFolder(item.Id, item.Name)
-    else
-        ' Navigate to item detail
-        ShowItemDetail(item.Id)
-    end if
+    ' F1: every type opens the detail scene; series/season drill-down is F2.
+    ShowItemDetail(item.id)
 end sub
 
 sub OnItemFocused(event as Object)
@@ -96,32 +98,19 @@ sub OnItemFocused(event as Object)
     if index >= 0 and index < m.items.Count() then
         item = m.items[index]
         if m.descriptionLabel <> invalid then
-            if item.Overview <> invalid then
-                m.descriptionLabel.text = item.Overview
+            if item.overview <> invalid then
+                m.descriptionLabel.text = item.overview
             else
-                m.descriptionLabel.text = item.Name
+                m.descriptionLabel.text = item.name
             end if
         end if
     end if
 end sub
 
-sub ShowSubFolder(folderId as String, folderName as String)
-    scene = CreateObject("roSGNode", "LibraryScene")
-    scene.LoadLibrary(folderId)
-    scene.SetTitle(folderName)
-    m.top.Append(scene)
-end sub
-
 sub ShowItemDetail(itemId as String)
     scene = CreateObject("roSGNode", "DetailScene")
-    scene.LoadItem(itemId)
     m.top.Append(scene)
-end sub
-
-sub SetTitle(title as String)
-    if m.titleLabel <> invalid then
-        m.titleLabel.text = title
-    end if
+    scene.LoadItem(itemId)
 end sub
 
 sub OnBackPressed()
