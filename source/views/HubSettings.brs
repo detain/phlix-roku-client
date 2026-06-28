@@ -142,7 +142,7 @@ function HubSettingsScene() as Object
         end function
 
         ' Refresh server list from hub
-        refreshServers: function()
+        refreshServers: function() as Void
             m.showStatus("Loading servers...")
 
             m.servers = m.hubAuth.listServers()
@@ -159,7 +159,7 @@ function HubSettingsScene() as Object
         end function
 
         ' Populate servers list UI
-        populateServersList: function()
+        populateServersList: function() as Void
             if m.serversList = invalid then return
 
             ' Create content node for list
@@ -184,7 +184,7 @@ function HubSettingsScene() as Object
         end function
 
         ' Handle sign in button press
-        onSignInPressed: function()
+        onSignInPressed: function() as Void
             hubUrl = ""
             username = ""
             password = ""
@@ -250,7 +250,7 @@ function HubSettingsScene() as Object
         end function
 
         ' Handle server selection
-        onServerSelected: function()
+        onServerSelected: function() as Void
             if m.serversList = invalid then return
 
             index = m.serversList.itemSelected

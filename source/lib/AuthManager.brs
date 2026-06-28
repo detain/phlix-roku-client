@@ -5,17 +5,18 @@
 ' Handles user authentication state and operations
 ' ===========================================
 
-function AuthManager() as Object
+function AuthManager(api as Object) as Object
     obj = {
+        api: api
         isAuthenticated: false
         currentUser: invalid
 
         ' Check if user is authenticated
         checkAuth: function() as Boolean
-            if api <> invalid then
-                m.isAuthenticated = api.restoreSession()
+            if m.api <> invalid then
+                m.isAuthenticated = m.api.restoreSession()
                 if m.isAuthenticated then
-                    m.currentUser = api.user
+                    m.currentUser = m.api.user
                 end if
             end if
             return m.isAuthenticated
@@ -23,11 +24,11 @@ function AuthManager() as Object
 
         ' Perform login
         login: function(username as String, password as String) as Object
-            if api = invalid then
+            if m.api = invalid then
                 return { success: false, error: "API not initialized" }
             end if
 
-            result = api.login(username, password)
+            result = m.api.login(username, password)
             if result <> invalid and result.token <> invalid then
                 m.isAuthenticated = true
                 m.currentUser = result.user
@@ -39,8 +40,8 @@ function AuthManager() as Object
 
         ' Perform logout
         logout: function()
-            if api <> invalid then
-                api.logout()
+            if m.api <> invalid then
+                m.api.logout()
             end if
             m.isAuthenticated = false
             m.currentUser = invalid

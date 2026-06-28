@@ -5,6 +5,13 @@
         <field id="playbackInfo" type="assocarray" />
     </interface>
 
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/source/player/SkipButton.brs" />
+    <script type="text/brightscript" uri="pkg:/components/PlayerScene.brs" />
+
     <children>
         <!-- Video Player -->
         <Video height="720" width="1280" id="videoPlayer" />

@@ -39,23 +39,17 @@
 sub Init()
     print "Phlix App Init"
 
-    ' Initialize API client with server URL from registry or default
-    serverUrl = Storage.get("server_url")
-    if serverUrl = "" or serverUrl = invalid then
-        serverUrl = "http://localhost:8096"
-    end if
+    ' Initialize the shared API client (restores token/session from Storage)
+    m.api = GetApiClient()
 
-    ' Initialize global API client
-    api = ApiClient(serverUrl)
-
-    ' Initialize managers
-    authManager = AuthManager()
-    sessionManager = SessionManager()
-    libraryManager = LibraryManager()
-    taskManager = TaskManager()
+    ' Initialize managers, sharing the single API client
+    m.auth = AuthManager(m.api)
+    m.session = SessionManager(m.api)
+    m.library = LibraryManager(m.api)
+    m.tasks = TaskManager()
 
     ' Check for existing session
-    if authManager.checkAuth() then
+    if m.auth.checkAuth() then
         ' User is already logged in, show home
         ShowHome()
     else
@@ -66,6 +60,7 @@ end sub
 
 sub ShowLogin()
     loginScene = CreateObject("roSGNode", "LoginScene")
+    loginScene.ObserveField("loginSucceeded", "OnLoginSuccess")
     m.top.Append(loginScene)
     loginScene.SetFocus(true)
 end sub
@@ -84,8 +79,8 @@ end sub
 
 sub OnLogout()
     ' Clean up sessions
-    sessionManager.endSession()
-    authManager.logout()
+    m.session.endSession()
+    m.auth.logout()
 
     ' Remove all children and show login
     while m.top.GetChildCount() > 0

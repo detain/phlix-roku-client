@@ -3,6 +3,9 @@
 sub Init()
     m.top.SetFocus(true)
 
+    ' Shared API client for this scene
+    m.api = GetApiClient()
+
     ' Create poster grid
     m.posterGrid = m.top.FindNode("libraryGrid")
     m.posterGrid.ObserveField("itemSelected", "OnItemSelected")
@@ -13,7 +16,7 @@ sub Init()
 end sub
 
 sub LoadLibraries()
-    libraries = api.getLibraries()
+    libraries = m.api.getLibraries()
 
     if libraries = invalid then
         return

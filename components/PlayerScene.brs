@@ -8,6 +8,9 @@
 sub Init()
     m.top.SetFocus(true)
 
+    ' Shared API client for this scene
+    m.api = GetApiClient()
+
     ' Create video player
     m.videoPlayer = m.top.FindNode("videoPlayer")
     m.videoPlayer.EnableCookies()
@@ -159,7 +162,7 @@ sub OnSkipButtonSelected()
     end if
 end sub
 
-sub ShowControls(show as Boolean)
+sub ShowControls(shouldShow as Boolean)
     ' Animate controls visibility
 end sub
 
@@ -180,7 +183,7 @@ end sub
 
 sub ReportProgress(positionTicks as Integer)
     ' Report to Phlix server
-    api.reportProgress(positionTicks, not m.isPlaying)
+    m.api.reportProgress(positionTicks, not m.isPlaying)
 end sub
 
 sub ClosePlayer()
@@ -193,21 +196,22 @@ sub ClosePlayer()
     m.top.Close()
 end sub
 
-' Progress timer
-m.progressTimer = invalid
-
+' Progress timer (SceneGraph Timer node — roTimer is not usable in SceneGraph)
 sub startProgressTimer()
     if m.progressTimer = invalid then
-        m.progressTimer = CreateObject("roTimer")
-        m.progressTimer.SetPort(m.top.GetNodePort())
-        m.progressTimer.StartPeriod(1)
+        m.progressTimer = m.top.CreateChild("Timer")
+        m.progressTimer.duration = 1
+        m.progressTimer.repeat = true
         m.progressTimer.ObserveField("fire", "OnTimerFire")
+        m.progressTimer.control = "start"
     end if
 end sub
 
 sub stopProgressTimer()
     if m.progressTimer <> invalid then
-        m.progressTimer.Stop()
+        m.progressTimer.control = "stop"
+        m.progressTimer.UnobserveField("fire")
+        m.top.RemoveChild(m.progressTimer)
         m.progressTimer = invalid
     end if
 end sub

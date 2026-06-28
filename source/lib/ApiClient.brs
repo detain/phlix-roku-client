@@ -214,7 +214,7 @@ function ApiClient(baseUrl as String) as Object
             params.push("sortBy=SortName")
             params.push("sortOrder=Ascending")
 
-            query = "?" + Join(params, "&")
+            query = "?" + JoinStrings(params, "&")
             return m.request("GET", "/Items" + query, {})
         end function
 
