@@ -307,6 +307,8 @@ The app communicates with these Phlix API endpoints:
 | POST | `/api/v1/Playstate/Progress` | Report playback progress |
 | POST | `/api/v1/Items/{id}/UserData` | Update user data (watched, etc.) |
 | GET | `/api/v1/Users/Me` | Get current user info |
+| GET | `/api/v1/collections` | List collections (read-only). Returns `{collections:[...]}`. Currently unauthenticated server-side. |
+| GET | `/api/v1/collections/{id}` | Get one collection with its items (read-only). Returns `{collection, items, total}`; `items` are raw DB rows normalized client-side. Currently unauthenticated server-side. |
 
 ## Remote Control Reference
 
@@ -320,6 +322,19 @@ The app communicates with these Phlix API endpoints:
 | Fast Forward | Seek forward 10 seconds |
 | Options | Show/hide playback info |
 | Skip Button | Skip intro/outro section (shown automatically during marker ranges) |
+
+### Home Header Navigation
+
+The Home screen header has three buttons. Use Left/Right to cycle between them (stops at the
+ends — never wraps):
+
+`Search ↔ Favorites ↔ Collections`
+
+- **Search** — open the search screen.
+- **Favorites** — browse your favorited items.
+- **Collections** — open the read-only Collections browse flow: `Home → Collections (list of
+  collection names) → a collection's items (poster grid) → item detail`. Items are type-routed
+  exactly like Library/Favorites (series → series view, season → season view, otherwise → detail).
 
 ## Project Structure
 
@@ -340,6 +355,8 @@ phlix-roku/
 │   │   ├── HomeScene.brs       # Home screen
 │   │   ├── LibraryScene.brs    # Library browser
 │   │   ├── DetailScene.brs     # Item detail view
+│   │   ├── CollectionsScene.brs # Collections list (LabelList of collection names, read-only)
+│   │   ├── CollectionScene.brs  # One collection's items (poster grid; raw rows normalized client-side)
 │   │   ├── PlayerScene.brs     # Video player
 │   │   ├── LoginScene.brs      # Login screen
 │   │   └── GridItem.brs        # Grid item component
