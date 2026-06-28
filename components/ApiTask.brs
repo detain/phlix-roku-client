@@ -95,6 +95,12 @@ sub ExecRequest()
         else if req.op = "getPhotoAlbum" then
             result.data = api.getPhotoAlbum(req.albumId, req.libraryId)
             result.ok = (result.data <> invalid)
+        else if req.op = "getCollections" then
+            result.data = api.getCollections()
+            result.ok = (result.data <> invalid)
+        else if req.op = "getCollection" then
+            result.data = api.getCollection(req.collectionId)
+            result.ok = (result.data <> invalid)
         end if
     end if
 

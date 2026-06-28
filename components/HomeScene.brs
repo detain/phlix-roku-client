@@ -26,6 +26,12 @@ sub Init()
         m.favoritesButton.ObserveField("buttonSelected", "OnFavoritesPressed")
     end if
 
+    ' Collections entry (header, beside Favorites). Opens the CollectionsScene.
+    m.collectionsButton = m.top.FindNode("collectionsButton")
+    if m.collectionsButton <> invalid then
+        m.collectionsButton.ObserveField("buttonSelected", "OnCollectionsPressed")
+    end if
+
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
 
     ' Route all data access through a SINGLE observed ApiTask node (off the
@@ -38,7 +44,7 @@ sub Init()
     m.continueItems = []
     m.currentRail = "library"
     ' Which header button is focused while m.currentRail = "search":
-    ' "search" or "favorites" (default "search").
+    ' "search", "favorites" or "collections" (default "search").
     m.headerCol = "search"
     m.pendingResume = invalid
 
@@ -289,11 +295,19 @@ sub OnFavoritesPressed(event as Object)
     scene.SetFocus(true)
 end sub
 
+sub OnCollectionsPressed(event as Object)
+    scene = CreateObject("roSGNode", "CollectionsScene")
+    m.top.Append(scene)
+    scene.SetFocus(true)
+end sub
+
 ' Move focus into the header (search) zone, onto whichever header button
 ' m.headerCol currently points at (default "search"). Sets m.currentRail.
 sub FocusHeaderZone()
     if m.headerCol = "favorites" and m.favoritesButton <> invalid then
         m.favoritesButton.SetFocus(true)
+    else if m.headerCol = "collections" and m.collectionsButton <> invalid then
+        m.collectionsButton.SetFocus(true)
     else if m.searchButton <> invalid then
         m.searchButton.SetFocus(true)
         m.headerCol = "search"
@@ -309,18 +323,27 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
 
     if press then
         ' Horizontal header nav: while in the "search" (header) zone, Left/Right
-        ' switch between the two header buttons (Search <-> Favorites). The
-        ' header buttons never consume left/right themselves, so they bubble.
+        ' cycle through the three header buttons (Search <-> Favorites <->
+        ' Collections), stopping at the ends (never wrapping). The header buttons
+        ' never consume left/right themselves, so they bubble.
         if key = "left" and m.currentRail = "search" then
-            if m.searchButton <> invalid then
+            if m.headerCol = "collections" and m.favoritesButton <> invalid then
+                m.favoritesButton.SetFocus(true)
+                m.headerCol = "favorites"
+                handled = true
+            else if m.headerCol = "favorites" and m.searchButton <> invalid then
                 m.searchButton.SetFocus(true)
                 m.headerCol = "search"
                 handled = true
             end if
         else if key = "right" and m.currentRail = "search" then
-            if m.favoritesButton <> invalid then
+            if m.headerCol = "search" and m.favoritesButton <> invalid then
                 m.favoritesButton.SetFocus(true)
                 m.headerCol = "favorites"
+                handled = true
+            else if m.headerCol = "favorites" and m.collectionsButton <> invalid then
+                m.collectionsButton.SetFocus(true)
+                m.headerCol = "collections"
                 handled = true
             end if
         else if key = "down" then
