@@ -681,6 +681,74 @@ function ApiClient(baseUrl as String) as Object
         resetUserPassword: function(userId as String) as Object
             return m.request("POST", "/admin/users/" + userId + "/reset-password", invalid)
         end function
+
+        ' ---------------------------------------------------------------------
+        ' Live TV (F9a). /admin/livetv/* require is_admin+active (AdminMiddleware).
+        ' getChannels returns the WHOLE envelope {success,channels:[...]} (admin
+        ' getters do not unwrap). getChannelStreamUrl resolves the Bearer-gated 302
+        ' from /channels/{id}/stream to the final (unauthenticated) tuner/HLS url so
+        ' the Video node - which cannot carry our Bearer - can play it directly.
+        ' ---------------------------------------------------------------------
+        getChannels: function() as Object
+            return m.request("GET", "/admin/livetv/channels", invalid)
+        end function
+
+        ' Resolve the channel stream redirect WITH Bearer and return the Location
+        ' (the final stream url), or "" on failure. DEVICE-UNVERIFIABLE: roUrlTransfer
+        ' redirect-follow behavior is firmware-dependent; if it auto-follows we get a
+        ' 200 with no Location and return "" (caller shows an error). See worklog.
+        getChannelStreamUrl: function(channelId as String) as String
+            return m.resolveLocation("/admin/livetv/channels/" + channelId + "/stream")
+        end function
+
+        ' Issue a GET and return the 3xx Location header WITHOUT following the redirect
+        ' (best-effort). Mirrors sendRaw's roUrlTransfer + roMessagePort + bounded wait,
+        ' but reads headers instead of the body. Sends the same device + Bearer headers.
+        resolveLocation: function(path as String) as String
+            url = m.baseUrl + "/api/v1" + path
+
+            port = CreateObject("roMessagePort")
+            http = CreateObject("roUrlTransfer")
+            http.SetPort(port)
+            http.SetUrl(url)
+            http.RetainBodyOnError(true)
+            http.SetTimeout(30000)
+            http.EnableEncodings(true)
+
+            http.AddHeader("X-Phlix-Device-ID", m.deviceId)
+            http.AddHeader("X-Phlix-Device-Name", m.deviceName)
+            http.AddHeader("X-Phlix-Device-Type", m.deviceType)
+            if m.token <> "" then http.AddHeader("Authorization", "Bearer " + m.token)
+            if m.sessionId <> "" then http.AddHeader("X-Phlix-Session-ID", m.sessionId)
+
+            if Left(url, 6) = "https:" then
+                http.SetCertificatesFile("common:/certs/ca-bundle.crt")
+                http.InitClientCertificates()
+            end if
+
+            if not http.AsyncGetToString() then return ""
+
+            location = ""
+            event = wait(35000, port)
+            if type(event) = "roUrlEvent" then
+                code = event.GetResponseCode()
+                if code >= 300 and code < 400 then
+                    headers = event.GetResponseHeaders()
+                    if headers <> invalid then
+                        if headers.DoesExist("Location") then
+                            location = headers.Location
+                        else if headers.DoesExist("location") then
+                            location = headers.location
+                        end if
+                    end if
+                end if
+            else
+                http.AsyncCancel()
+            end if
+
+            if location = invalid then location = ""
+            return location
+        end function
     }
 
     ' Generate device ID if not exists
