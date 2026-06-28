@@ -87,9 +87,15 @@ sub OnItemSelected(event as Object)
     if index < 0 or index >= m.items.Count() then return
 
     item = m.items[index]
+    if item = invalid then return
 
-    ' F1: every type opens the detail scene; series/season drill-down is F2.
-    ShowItemDetail(item.id)
+    ' F2: a series drills into its seasons (SeriesScene); every other top-level
+    ' type (movie/audio/image) opens the detail scene directly.
+    if item.type = "series" then
+        ShowSeries(item.id, item.name)
+    else
+        ShowItemDetail(item.id)
+    end if
 end sub
 
 sub OnItemFocused(event as Object)
@@ -105,6 +111,15 @@ sub OnItemFocused(event as Object)
             end if
         end if
     end if
+end sub
+
+sub ShowSeries(seriesId as String, seriesName as String)
+    name = seriesName
+    if name = invalid then name = ""
+
+    scene = CreateObject("roSGNode", "SeriesScene")
+    m.top.Append(scene)
+    scene.LoadSeries(seriesId, name)
 end sub
 
 sub ShowItemDetail(itemId as String)
