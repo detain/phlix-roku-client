@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="ServerPickerScene" extends="Scene">
+    <!-- F12b hub mode: pick one of the hub user's servers (GET /me/servers).
+         PhlixApp self-creates + appends + focuses this scene and observes the
+         `serverPicked` FIELD (mirrors ConnectScene's `connected` / LoginScene's
+         loginSucceeded), so the interface is a FIELD, not a function. On select
+         we persist active_server_id + active_server_name and fire serverPicked
+         -> PhlixApp rebuilds m.api against the relay base and shows Home.
+         Transitive closure: a component scope does NOT auto-include
+         pkg:/source. -->
+    <interface>
+        <field id="serverPicked" type="boolean" value="false" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/ServerPickerScene.brs" />
+    <children>
+        <Rectangle height="100" width="1280" color="#1a1a2e">
+            <Label height="60" width="800" translation="[40,20]"
+                   text="Choose a server"
+                   font="font:LargeBoldSystemFont"
+                   color="#FFFFFF" />
+        </Rectangle>
+        <!-- Full-width text list of the hub user's servers -->
+        <LabelList height="500" width="1200" translation="[40,140]"
+                   id="serverList" />
+        <Rectangle height="40" width="1280" translation="[0,680]" color="#0d0d1a">
+            <Label height="40" width="1200" translation="[40,8]"
+                   text="Loading…"
+                   font="font:MediumSystemFont"
+                   color="#AAAAAA"
+                   id="statusLabel" />
+        </Rectangle>
+    </children>
+</component>
