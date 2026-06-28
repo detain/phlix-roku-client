@@ -26,6 +26,7 @@
             <Button width="420" height="64" title="Disable" id="disableButton" />
             <Button width="420" height="64" title="Set Admin" id="adminButton" />
             <Button width="420" height="64" title="Reset Password" id="resetPasswordButton" />
+            <Button width="420" height="64" title="Profiles" id="profilesButton" />
             <Button width="420" height="64" title="Refresh" id="refreshButton" />
         </LayoutGroup>
         <!-- Current user-state detail -->
