@@ -594,6 +594,35 @@ function ApiClient(baseUrl as String) as Object
         getCollection: function(collectionId as String) as Object
             return m.request("GET", "/collections/" + collectionId, invalid)
         end function
+
+        ' ---------------------------------------------------------------------
+        ' Current user (F11). GET /auth/me -> {user} ; returns the unwrapped user
+        ' (or invalid). HomeScene uses user.is_admin to gate the admin entry.
+        ' ---------------------------------------------------------------------
+        getMe: function() as Object
+            result = m.request("GET", "/auth/me", invalid)
+            if result <> invalid and result.user <> invalid then
+                return result.user
+            end if
+            return invalid
+        end function
+
+        ' ---------------------------------------------------------------------
+        ' Admin dashboard (F11a, read-only). All /admin/* require is_admin+active
+        ' (AdminMiddleware -> 401/403). Envelope is {success,data,count}; these
+        ' return the WHOLE json (the scene reads .data, an array).
+        ' ---------------------------------------------------------------------
+        getAdminNowPlaying: function() as Object
+            return m.request("GET", "/admin/dashboard/now-playing", invalid)
+        end function
+
+        getAdminStorage: function() as Object
+            return m.request("GET", "/admin/dashboard/storage", invalid)
+        end function
+
+        getAdminActivity: function(limit as Integer) as Object
+            return m.request("GET", "/admin/dashboard/activity?limit=" + str(limit).trim(), invalid)
+        end function
     }
 
     ' Generate device ID if not exists

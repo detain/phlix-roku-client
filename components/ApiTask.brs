@@ -101,6 +101,20 @@ sub ExecRequest()
         else if req.op = "getCollection" then
             result.data = api.getCollection(req.collectionId)
             result.ok = (result.data <> invalid)
+        else if req.op = "getMe" then
+            result.data = api.getMe()
+            result.ok = (result.data <> invalid)
+        else if req.op = "getAdminNowPlaying" then
+            result.data = api.getAdminNowPlaying()
+            result.ok = (result.data <> invalid)
+        else if req.op = "getAdminStorage" then
+            result.data = api.getAdminStorage()
+            result.ok = (result.data <> invalid)
+        else if req.op = "getAdminActivity" then
+            limit = 20
+            if req.DoesExist("limit") and req.limit <> invalid then limit = req.limit
+            result.data = api.getAdminActivity(limit)
+            result.ok = (result.data <> invalid)
         end if
     end if
 

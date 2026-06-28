@@ -563,3 +563,25 @@ function FormatExifSummary(exif as Object) as String
 
     return JoinStrings(lines, Chr(10))
 end function
+
+' True when the user assocarray is flagged admin. is_admin arrives from JSON as a
+' TINYINT Integer (1/0) but may be a Boolean; both coerce via Int() (Int(true)=1,
+' Int(false)=0). Only Int()-coerce numeric/boolean types — Int() on a String can
+' raise, so guard the type first. Guards invalid/missing -> false.
+' @param user Object - a user assocarray (may be invalid)
+' @return Boolean - true only when is_admin is truthy (1 / true)
+function IsAdminUser(user as Object) as Boolean
+    if user = invalid then return false
+    if not user.DoesExist("is_admin") then return false
+    v = user.is_admin
+    if v = invalid then return false
+
+    t = type(v)
+    if t = "Boolean" or t = "roBoolean" then
+        return v
+    else if t = "Integer" or t = "roInt" or t = "LongInteger" or t = "roLongInteger" or t = "Float" or t = "roFloat" or t = "Double" or t = "roDouble" then
+        return (Int(v) = 1)
+    end if
+
+    return false
+end function

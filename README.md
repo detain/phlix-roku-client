@@ -309,6 +309,10 @@ The app communicates with these Phlix API endpoints:
 | GET | `/api/v1/Users/Me` | Get current user info |
 | GET | `/api/v1/collections` | List collections (read-only). Returns `{collections:[...]}`. Currently unauthenticated server-side. |
 | GET | `/api/v1/collections/{id}` | Get one collection with its items (read-only). Returns `{collection, items, total}`; `items` are raw DB rows normalized client-side. Currently unauthenticated server-side. |
+| GET | `/api/v1/auth/me` | Get the current user (auth-gated). Returns the unwrapped `{user}`, which carries `is_admin` (TINYINT 0/1) and `status`. The Home screen calls this on init to gate the admin entry. |
+| GET | `/api/v1/admin/dashboard/now-playing` | Admin-gated, read-only. Active streams. Envelope `{success, data, count}`; `data[]` rows carry `username`, `media_title`, `progress_percent`, etc. AdminMiddleware → 401 (no/invalid token) / 403 (non-admin). |
+| GET | `/api/v1/admin/dashboard/storage` | Admin-gated, read-only. Per-type storage usage. Envelope `{success, data, count}`; `data[]` rows carry `media_type`, `item_count`, server-preformatted `formatted_total`. AdminMiddleware → 401/403. |
+| GET | `/api/v1/admin/dashboard/activity` | Admin-gated, read-only. Recent activity (optional `?limit=N`). Envelope `{success, data, count}`; `data[]` rows carry `occurred_at`, `username`, `event_type`. AdminMiddleware → 401/403. |
 
 ## Remote Control Reference
 
@@ -325,16 +329,22 @@ The app communicates with these Phlix API endpoints:
 
 ### Home Header Navigation
 
-The Home screen header has three buttons. Use Left/Right to cycle between them (stops at the
+The Home screen header has up to four buttons. Use Left/Right to cycle between them (stops at the
 ends — never wraps):
 
-`Search ↔ Favorites ↔ Collections`
+`Search ↔ Favorites ↔ Collections ↔ Admin`
 
 - **Search** — open the search screen.
 - **Favorites** — browse your favorited items.
 - **Collections** — open the read-only Collections browse flow: `Home → Collections (list of
   collection names) → a collection's items (poster grid) → item detail`. Items are type-routed
   exactly like Library/Favorites (series → series view, season → season view, otherwise → detail).
+- **Admin** — shown **only for admin users**. On Home init the app calls `GET /auth/me` and reveals
+  the button when the returned user is `is_admin`; for non-admins the button stays hidden and the
+  Right-nav skips it (no dead end / no focus on a hidden node). Opens the read-only admin flow:
+  `Home → Admin (menu) → Dashboard`. The Admin menu currently has one row, **Dashboard**, which opens
+  a read-only stats view (now-playing / storage / recent-activity) in a single list. No admin actions
+  are exposed in this slice — reads only.
 
 ## Project Structure
 
@@ -357,6 +367,8 @@ phlix-roku/
 │   │   ├── DetailScene.brs     # Item detail view
 │   │   ├── CollectionsScene.brs # Collections list (LabelList of collection names, read-only)
 │   │   ├── CollectionScene.brs  # One collection's items (poster grid; raw rows normalized client-side)
+│   │   ├── AdminScene.brs       # Admin menu (LabelList; is_admin-gated entry; one row: Dashboard)
+│   │   ├── DashboardScene.brs   # Read-only admin dashboard (now-playing / storage / activity in one list)
 │   │   ├── PlayerScene.brs     # Video player
 │   │   ├── LoginScene.brs      # Login screen
 │   │   └── GridItem.brs        # Grid item component
