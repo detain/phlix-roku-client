@@ -29,7 +29,7 @@ function AuthManager(api as Object) as Object
             end if
 
             result = m.api.login(username, password)
-            if result <> invalid and result.token <> invalid then
+            if result <> invalid and result.access_token <> invalid then
                 m.isAuthenticated = true
                 m.currentUser = result.user
                 return { success: true, user: result.user }

@@ -158,38 +158,6 @@ function HlsPlayer() as Object
     return obj
 end function
 
-' URL encode helper
-' @param str String - String to encode
-' @return String - URL encoded string
-function UrlEncode(str as String) as String
-    result = ""
-    for i = 1 to len(str)
-        c = mid(str, i, 1)
-        if c = " " then
-            result = result + "%20"
-        else if c = "&" then
-            result = result + "%26"
-        else if c = "=" then
-            result = result + "%3D"
-        else if c = "?" then
-            result = result + "%3F"
-        else if c = "/" then
-            result = result + "%2F"
-        else if c = ":" then
-            result = result + "%3A"
-        else if c = "#" then
-            result = result + "%23"
-        else if c = "[" then
-            result = result + "%5B"
-        else if c = "]" then
-            result = result + "%5D"
-        else
-            result = result + c
-        end if
-    end for
-    return result
-end function
-
 ' Factory function alias
 function HlsPlayerFactory() as Object
     return HlsPlayer()
