@@ -147,6 +147,13 @@ sub ExecRequest()
         else if req.op = "resetUserPassword" then
             result.data = api.resetUserPassword(req.userId)
             result.ok = (result.data <> invalid)
+        else if req.op = "getChannels" then
+            result.data = api.getChannels()
+            result.ok = (result.data <> invalid)
+        else if req.op = "getChannelStreamUrl" then
+            streamUrl = api.getChannelStreamUrl(req.channelId)
+            result.data = { stream_url: streamUrl }
+            result.ok = (streamUrl <> invalid and streamUrl <> "")
         end if
     end if
 

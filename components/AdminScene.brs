@@ -18,6 +18,7 @@ sub Init()
         { label: "Dashboard", scene: "DashboardScene" }
         { label: "Libraries", scene: "LibraryAdminScene" }
         { label: "Users", scene: "UserAdminScene" }
+        { label: "Live TV", scene: "LiveTvScene" }
     ]
 
     ' Text list (admin sections have no artwork).
