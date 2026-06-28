@@ -14,11 +14,35 @@
                    color="#FFFFFF" />
         </Rectangle>
 
+        <!-- Continue Watching rail (single row, hidden until populated) -->
+        <Label height="36" width="1200" translation="[40,104]"
+               text="Continue Watching"
+               font="font:MediumBoldSystemFont"
+               color="#FFFFFF"
+               visible="false"
+               id="continueLabel" />
+        <PosterGrid height="300" width="1280" translation="[0,144]"
+                    numColumns="5" numRows="1"
+                    itemSpacing="[20, 15]"
+                    basePosterSize="[220, 280]"
+                    caption1Icon="handle://leftbottom"
+                    visible="false"
+                    id="continueGrid">
+            <ContentEmitter />
+        </PosterGrid>
+
+        <!-- Libraries label -->
+        <Label height="32" width="1200" translation="[40,448]"
+               text="Libraries"
+               font="font:MediumBoldSystemFont"
+               color="#FFFFFF"
+               id="libraryLabel" />
+
         <!-- Library Grid -->
-        <PosterGrid height="580" width="1280" translation="[0,100]"
-                    numColumns="4" numRows="2"
-                    itemSpacing="[30, 20]"
-                    basePosterSize="[280, 380]"
+        <PosterGrid height="200" width="1280" translation="[0,484]"
+                    numColumns="5" numRows="2"
+                    itemSpacing="[20, 15]"
+                    basePosterSize="[220, 180]"
                     caption1Icon="handle://leftbottom"
                     id="libraryGrid">
             <ContentEmitter />
