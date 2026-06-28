@@ -3,9 +3,6 @@
 sub Init()
     m.top.SetFocus(true)
 
-    ' Shared API client for this scene
-    m.api = GetApiClient()
-
     ' UI nodes
     m.backButton = m.top.FindNode("backButton")
     m.titleLabel = m.top.FindNode("titleLabel")
@@ -22,54 +19,79 @@ sub Init()
         m.playButton.ObserveField("buttonSelected", "OnPlayPressed")
     end if
 
+    ' Route all data access through the ApiTask node (off the render thread).
+    m.apiTask = CreateObject("roSGNode", "ApiTask")
+    m.apiTask.ObserveField("response", "OnApiResponse")
+
     m.itemId = ""
     m.item = invalid
+    m.playbackInfo = invalid
 end sub
 
 sub LoadItem(itemId as String)
     m.itemId = itemId
+    m.apiTask.request = { op: "getItem", itemId: itemId }
+    m.apiTask.control = "run"
+end sub
 
-    ' Fetch item details
-    m.item = m.api.getItem(itemId)
+sub OnApiResponse(event as Object)
+    resp = event.getData()
+    if resp = invalid then return
 
-    if m.item = invalid then
-        return
+    if resp.op = "getItem" then
+        if not resp.ok or resp.data = invalid then return
+        m.item = resp.data
+        RenderItem()
+    else if resp.op = "getItemPlaybackInfo" then
+        ' Markers/chapters may legitimately be empty; launch the player either way.
+        if resp.ok then
+            m.playbackInfo = resp.data
+        else
+            m.playbackInfo = invalid
+        end if
+        PlayItem()
     end if
+end sub
 
-    ' Update UI
+sub RenderItem()
+    item = m.item
+
     if m.titleLabel <> invalid then
-        m.titleLabel.text = m.item.Name
+        m.titleLabel.text = item.name
     end if
 
     if m.descriptionLabel <> invalid then
-        if m.item.Overview <> invalid then
-            m.descriptionLabel.text = m.item.Overview
+        if item.overview <> invalid then
+            m.descriptionLabel.text = item.overview
         end if
     end if
 
-    if m.posterImage <> invalid and m.item.ImageTags <> invalid and m.item.ImageTags.Primary <> invalid then
-        m.posterImage.uri = m.api.baseUrl + "/Items/" + m.item.Id + "/Images/Primary"
+    if m.posterImage <> invalid and item.poster_url <> invalid and item.poster_url <> "" then
+        m.posterImage.uri = item.poster_url
     end if
 
-    ' Update info label with metadata
+    ' Info line: year + runtime (MINUTES) + content-rating LABEL.
     if m.infoLabel <> invalid then
         info = ""
-        if m.item.ProductionYear <> invalid then
-            info = info + str(m.item.ProductionYear).trim()
+        if item.year <> invalid then
+            info = info + str(item.year).trim()
         end if
-        if m.item.RunTimeTicks <> invalid then
-            runtime = Int(m.item.RunTimeTicks / 10000000)
-            info = info + " • " + FormatTime(runtime)
+        if item.runtime <> invalid then
+            if info <> "" then info = info + " • "
+            info = info + FormatTime(item.runtime * 60)
         end if
-        if m.item.OfficialRating <> invalid then
-            info = info + " • " + m.item.OfficialRating
+        if item.rating <> invalid and item.rating <> "" then
+            if info <> "" then info = info + " • "
+            info = info + item.rating
         end if
         m.infoLabel.text = info
     end if
 
-    ' Hide play button if not playable
+    ' Show play button only for playable video types (canonical lowercase).
     if m.playButton <> invalid then
-        if m.item.Type <> "Movie" and m.item.Type <> "Episode" and m.item.Type <> "Video" then
+        if item.type = "movie" or item.type = "episode" then
+            m.playButton.visible = true
+        else
             m.playButton.visible = false
         end if
     end if
@@ -80,31 +102,21 @@ sub OnBackPressed()
 end sub
 
 sub OnPlayPressed()
-    if m.itemId = "" or m.item = invalid then
-        return
-    end if
+    if m.itemId = "" or m.item = invalid then return
 
-    ' Only play video content
-    if m.item.Type = "Movie" or m.item.Type = "Episode" or m.item.Type = "Video" then
-        PlayItem()
+    ' Only play video content.
+    if m.item.type = "movie" or m.item.type = "episode" then
+        m.apiTask.request = { op: "getItemPlaybackInfo", itemId: m.itemId }
+        m.apiTask.control = "run"
     end if
 end sub
 
 sub PlayItem()
-    ' Get playback info
-    playbackInfo = m.api.getItemPlaybackInfo(m.itemId)
-
-    if playbackInfo = invalid or playbackInfo.PlaybackInfo = invalid then
-        print "No playback info available"
-        return
-    end if
-
-    ' Create and show player
     playerScene = CreateObject("roSGNode", "PlayerScene")
     m.top.Append(playerScene)
     playerScene.Show(m.itemId, {
         item: m.item
-        playback_info: playbackInfo.PlaybackInfo
+        playbackInfo: m.playbackInfo
     })
 end sub
 
