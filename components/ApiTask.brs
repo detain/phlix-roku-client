@@ -104,6 +104,11 @@ sub ExecRequest()
         else if req.op = "getMe" then
             result.data = api.getMe()
             result.ok = (result.data <> invalid)
+        else if req.op = "getMyServers" then
+            ' Hub detection / server list. At pick-time active_server_id is empty,
+            ' so GetApiClient binds to the bare hub url -> this hits the hub.
+            result.data = api.getMyServers()
+            result.ok = (result.data <> invalid)
         else if req.op = "getAdminNowPlaying" then
             result.data = api.getAdminNowPlaying()
             result.ok = (result.data <> invalid)

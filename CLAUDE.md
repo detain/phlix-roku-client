@@ -31,11 +31,17 @@ Running a single test: there is no host runner. To execute a test you must sidel
 
 ```
 source/main.brs            → boots an roSGScreen, instantiates the PhlixApp scene, runs the message loop
-source/components/*.{brs,xml}  → SceneGraph scenes (PhlixApp, Connect, Login, Home, Library, Detail, Player, GridItem)
+source/components/*.{brs,xml}  → SceneGraph scenes (PhlixApp, Connect, Login, ServerPicker, Home, Library, Detail, Player, GridItem)
 source/lib/*.brs           → pure BrightScript modules, all using the factory-object pattern
 source/pages/*.brs         → page controllers used by scenes
 source/data/Theme.brs      → constants
 ```
+
+> The old `source/hub/` (`HubAuth.brs`, `HubConfig.brs`), `source/views/HubSettings.brs`, and
+> `source/player/HlsPlayer.brs` were **deleted in F12b** — they were dead code targeting a wrong,
+> never-wired hub contract (a `/api/v1/relay/{id}` path that does not exist). Hub support now lives
+> in `AppContext.brs` + `ServerPickerScene` (see "Boot / connection gate" below). Don't resurrect
+> those files or their guessed envelope shapes.
 
 Each scene is an XML file declaring nodes + interface fields, paired with a `.brs` file implementing `Init`, `OnKeyEvent`, and field observers. Scene navigation happens by `CreateObject("roSGNode", "<SceneName>")` and `m.top.Append(scene)` — see `PhlixApp.brs`.
 
@@ -45,13 +51,27 @@ Every file in `source/lib/` exposes a single `PascalCase` factory function that 
 
 `ApiClient` is the single chokepoint for all HTTP to the Phlix server — every endpoint goes through its internal request transport, which builds `url = m.baseUrl + "/api/v1" + path` (so `baseUrl` is the bare origin, **without** the `/api/v1` prefix). It also reaches into `Storage` (the registry-backed key/value module) to persist `auth_token`, `refresh_token`, and `session_id`. The one exception is `probeHealth()`, which hits `{baseUrl}/health` directly (NOT `/api/v1/health`) — it is used by the first-run Connect flow to verify a candidate URL is reachable before persisting it.
 
+In **hub mode** the media `ApiClient`'s `baseUrl` is the relay base `{hub}/api/v1/servers/{id}/proxy` (from `GetMediaBaseUrl()`), so the same transport produces `{hub}/api/v1/servers/{id}/proxy/api/v1{path}` — the hub captures the trailing `api/v1{path}`, re-anchors it as `/api/v1{path}`, and tunnels it to the server. The existing Bearer-send is correct as-is (the hub token *is* the relay auth); no transport change was needed for relay routing. `getMyServers()` (`GET /me/servers`) was added for hub detection / the server picker.
+
 Managers (`AuthManager`, `SessionManager`, `LibraryManager`, `TaskManager`) are thin wrappers around `ApiClient` that own a slice of state and the user-facing verbs. Scenes call managers, managers call `ApiClient`, `ApiClient` calls the server. Do not let scenes call `ApiClient` directly — that bypasses the manager state.
 
 ### Boot / connection gate
 
-`main.brs` boots the `PhlixApp` scene. `PhlixApp.Init` builds the managers, then gates on whether a server has been chosen: `if not IsServerConnected() then ShowConnect() else (m.auth.checkAuth() ? ShowHome() : ShowLogin())`. `IsServerConnected()` (in `source/lib/AppContext.brs`) just checks that the persisted `server_url` is set and non-empty.
+`main.brs` boots the `PhlixApp` scene. `PhlixApp.Init` builds the managers, then gates on whether a server has been chosen: `if not IsServerConnected()` → `ShowConnect()`, else it branches on **connection kind**. `IsServerConnected()` (in `source/lib/AppContext.brs`) just checks that the persisted `server_url` is set and non-empty.
 
-On first run that path is `ShowConnect()` → the user picks a server on `ConnectScene` → on success `OnConnected()` removes the Connect scene, rebuilds `m.api`/`m.auth`/`m.session`/`m.library` against the now-connected `server_url`, then falls through to `ShowLogin()` (or `ShowHome()` if a session was restored). The persisted key is `server_url`, consumed by `GetApiClient()` / `GetServerUrl()`.
+On first run that path is `ShowConnect()` → the user picks a server on `ConnectScene` → on success `OnConnected()` removes the Connect scene, rebuilds `m.api`/`m.auth`/`m.session`/`m.library` against the now-connected `server_url`, then falls through to `ShowLogin()` (or `ShowHome()` if a session was restored). The persisted key is `server_url`, consumed by `GetMediaBaseUrl()` / `GetServerUrl()`.
+
+#### Hub vs direct (F12b)
+
+The connect URL may be a **direct Phlix server** or a **Phlix Hub** — both expose `/health` and `POST /api/v1/auth/login`, so connect + login are identical. `AppContext.brs` persists `connection_kind` (`"hub"`/`"direct"`; absent/unrecognized → `"direct"`) and, in hub mode, `active_server_id` + `active_server_name`.
+
+- **Detection** happens **after login**: `LoginScene` calls `GET /api/v1/me/servers`; a `{servers:[…]}` array → hub (sets `connection_kind="hub"`, fires `hubDetected`); 404 / no array → direct (`connection_kind="direct"`, fires `loginSucceeded`).
+- **Server picker.** On `hubDetected`, `PhlixApp` shows `ServerPickerScene` (one-shot `getMyServers` via `ApiTask`). Picking persists `active_server_id`/`active_server_name`, fires `serverPicked`, and `PhlixApp.OnServerPicked` **rebuilds `m.api`/`m.auth`/`m.session`/`m.library`** so they bind to the relay base.
+- **Relay-base `GetApiClient`.** `GetApiClient()` binds to `GetMediaBaseUrl()` (was `GetServerUrl()`). `GetMediaBaseUrl()` returns `{hubUrl}/api/v1/servers/{activeServerId}/proxy` **only** when `connection_kind="hub"` AND `active_server_id` is non-empty; otherwise it falls back to the bare `GetServerUrl()`. So in hub mode every scene/`ApiTask` transparently routes through the hub relay (the **hub** Bearer is the relay auth — the hub strips client auth, verifies ownership, injects `X-Phlix-Relay-User`), and **direct mode is byte-unchanged**. The fallback is what lets login and the `/me/servers` probe hit the bare hub URL before a server is picked.
+- **Hub-scoped calls use `GetHubApiClient()`** (bare hub URL + restored token), NOT `GetApiClient()`. Boot session-validation in hub mode runs `GetHubApiClient()` + `AuthManager.checkAuth()` (so `/auth/me` hits the hub, not the relay where it is unreliable): valid + server picked → `ShowHome()`; valid + no server → `ShowServerPicker()`; else `ShowLogin()`.
+- **Logout** clears `connection_kind`/`active_server_id`/`active_server_name` but **keeps** `server_url`.
+
+> **Known hub-mode limitation:** the hub registers only `GET`/`POST` on its relay proxy, so `PUT`/`DELETE` (favorites-remove, rating set/clear, server-side session-end) don't reach the server in hub mode; and hub-token refresh-over-relay is not wired (re-auth on expiry). Both are documented follow-ups in `README.md` ("Hub / multi-server mode"). Direct mode is unaffected.
 
 > The pre-F0b Roku client targeted an Emby-style API (an `ApiClient.deviceProfile` blob plus routes like `/Items/{id}/PlaybackInfo`). F0b removed the device profile and migrated the client to the canonical Phlix `/api/v1` API; there is no device-profile negotiation any more. Treat any lingering Emby-route references in older docs/comments as stale.
 
