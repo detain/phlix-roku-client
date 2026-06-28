@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component name="LoginScene" extends="Scene">
     <interface>
-        <field id="OnLoginSuccess" type="func" />
+        <field id="loginSucceeded" type="boolean" value="false" />
     </interface>
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AuthManager.brs" />
+    <script type="text/brightscript" uri="pkg:/components/LoginScene.brs" />
     <children>
         <!-- Background -->
         <Rectangle height="720" width="1280" color="#0d0d1a" />

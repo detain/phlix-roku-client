@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="PhlixApp" extends="Scene">
+    <interface>
+        <field id="serverUrl" type="string" />
+    </interface>
+    <!-- Shared source dependencies (SceneGraph components must explicitly script-include
+         the pkg:/source files they use; source is not auto-global to component scopes). -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AuthManager.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/SessionManager.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/LibraryManager.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/TaskManager.brs" />
+    <script type="text/brightscript" uri="pkg:/components/PhlixApp.brs" />
+    <children>
+    </children>
+</component>

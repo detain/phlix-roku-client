@@ -6,7 +6,7 @@
     "test": "make test",
     "test-unit": "make test-unit",
     "test-integration": "make test-integration",
-    "lint": "make lint",
+    "lint": "bsc --project bsconfig.json",
     "lint-fix": "make lint-fix",
     "validate": "make validate",
     "validate-manifest": "make validate-manifest",
@@ -25,5 +25,8 @@
     "brightscript"
   ],
   "author": "Phlix Team",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "brighterscript": "0.72.5"
+  }
 }

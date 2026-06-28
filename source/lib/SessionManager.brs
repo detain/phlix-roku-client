@@ -5,18 +5,19 @@
 ' Manages active playback sessions
 ' ===========================================
 
-function SessionManager() as Object
+function SessionManager(api as Object) as Object
     obj = {
+        api: api
         activeSession: invalid
         sessions: []
 
         ' Create a new session
         createSession: function() as Object
-            if api = invalid or api.user = invalid then
+            if m.api = invalid or m.api.user = invalid then
                 return invalid
             end if
 
-            session = api.createSession()
+            session = m.api.createSession()
             if session <> invalid then
                 m.activeSession = session
                 m.sessions.push(session)
@@ -27,16 +28,16 @@ function SessionManager() as Object
 
         ' Get all sessions
         getSessions: function() as Object
-            if api <> invalid then
-                m.sessions = api.getSessions()
+            if m.api <> invalid then
+                m.sessions = m.api.getSessions()
             end if
             return m.sessions
         end function
 
         ' End current session
         endSession: function()
-            if m.activeSession <> invalid and api <> invalid then
-                api.stopPlayback()
+            if m.activeSession <> invalid and m.api <> invalid then
+                m.api.stopPlayback()
                 m.activeSession = invalid
             end if
         end function

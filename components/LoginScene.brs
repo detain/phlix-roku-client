@@ -3,6 +3,10 @@
 sub Init()
     m.top.SetFocus(true)
 
+    ' Shared API client + auth manager for this scene
+    m.api = GetApiClient()
+    m.auth = AuthManager(m.api)
+
     ' UI nodes
     m.usernameInput = m.top.FindNode("usernameInput")
     m.passwordInput = m.top.FindNode("passwordInput")
@@ -70,22 +74,22 @@ sub OnLoginPressed()
     Storage.set("username", username)
 
     ' Update API client with new server URL
-    api.baseUrl = serverUrl
+    m.api.baseUrl = serverUrl
 
     ' Show loading status
     ShowStatus("Logging in...")
 
     ' Perform login
-    result = authManager.login(username, password)
+    result = m.auth.login(username, password)
 
     if result.success then
         ' Clear any errors
         HideError()
         HideStatus()
 
-        ' Report success to app
+        ' Report success to app (PhlixApp observes loginSucceeded)
         Print "Login successful"
-        m.top.OnLoginSuccess()
+        m.top.loginSucceeded = true
     else
         ShowError("Login failed. Please check your credentials.")
         HideStatus()

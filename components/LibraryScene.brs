@@ -3,6 +3,9 @@
 sub Init()
     m.top.SetFocus(true)
 
+    ' Shared API client for this scene
+    m.api = GetApiClient()
+
     ' Create poster grid for items
     m.posterGrid = m.top.FindNode("itemsGrid")
     m.posterGrid.ObserveField("itemSelected", "OnItemSelected")
@@ -24,7 +27,7 @@ sub LoadLibrary(libraryId as String)
     m.libraryId = libraryId
 
     ' Get library info
-    library = api.getItem(libraryId)
+    library = m.api.getItem(libraryId)
     if library <> invalid and m.titleLabel <> invalid then
         m.titleLabel.text = library.Name
     end if
@@ -38,7 +41,7 @@ sub RefreshItems()
         return
     end if
 
-    items = api.getLibraryItems(m.libraryId)
+    items = m.api.getLibraryItems(m.libraryId)
 
     if items = invalid or items.Items = invalid then
         return
@@ -62,7 +65,7 @@ sub RefreshItems()
 
         ' Use poster thumbnail if available
         if item.ImageTags <> invalid and item.ImageTags.Primary <> invalid then
-            contentItem.HDPosterUrl = api.baseUrl + "/Items/" + item.Id + "/Images/Primary"
+            contentItem.HDPosterUrl = m.api.baseUrl + "/Items/" + item.Id + "/Images/Primary"
         end if
     end for
 

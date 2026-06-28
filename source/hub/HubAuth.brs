@@ -162,7 +162,7 @@ function HubAuth() as Object
 
         ' Persist session to storage
         ' @param session Object - Session object to persist, or invalid to clear
-        setSession: function(session as Object)
+        setSession: function(session as Object) as Void
             if session = invalid then
                 Storage.delete("hub_session")
                 return

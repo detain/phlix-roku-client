@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component name="HomeScene" extends="Scene">
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/HomeScene.brs" />
     <children>
         <!-- Header -->
         <Rectangle height="100" width="1280" color="#1a1a2e">

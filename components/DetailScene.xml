@@ -3,6 +3,11 @@
     <interface>
         <field id="itemId" type="string" />
     </interface>
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/DetailScene.brs" />
     <children>
         <!-- Background -->
         <Rectangle height="720" width="1280" color="#0d0d1a" />
