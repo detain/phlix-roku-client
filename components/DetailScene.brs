@@ -3,6 +3,9 @@
 sub Init()
     m.top.SetFocus(true)
 
+    ' Shared API client for this scene
+    m.api = GetApiClient()
+
     ' UI nodes
     m.backButton = m.top.FindNode("backButton")
     m.titleLabel = m.top.FindNode("titleLabel")
@@ -27,7 +30,7 @@ sub LoadItem(itemId as String)
     m.itemId = itemId
 
     ' Fetch item details
-    m.item = api.getItem(itemId)
+    m.item = m.api.getItem(itemId)
 
     if m.item = invalid then
         return
@@ -45,7 +48,7 @@ sub LoadItem(itemId as String)
     end if
 
     if m.posterImage <> invalid and m.item.ImageTags <> invalid and m.item.ImageTags.Primary <> invalid then
-        m.posterImage.uri = api.baseUrl + "/Items/" + m.item.Id + "/Images/Primary"
+        m.posterImage.uri = m.api.baseUrl + "/Items/" + m.item.Id + "/Images/Primary"
     end if
 
     ' Update info label with metadata
@@ -89,7 +92,7 @@ end sub
 
 sub PlayItem()
     ' Get playback info
-    playbackInfo = api.getItemPlaybackInfo(m.itemId)
+    playbackInfo = m.api.getItemPlaybackInfo(m.itemId)
 
     if playbackInfo = invalid or playbackInfo.PlaybackInfo = invalid then
         print "No playback info available"

@@ -110,7 +110,7 @@ function SkipButton() as Object
 
         ' Show the skip button with appropriate label
         ' @param markerType String - "intro" or "outro"
-        showButton: function(markerType as String)
+        showButton: function(markerType as String) as Void
             if m.button = invalid then return
 
             m.activeMarkerType = markerType
@@ -127,7 +127,7 @@ function SkipButton() as Object
         end function
 
         ' Hide the skip button
-        hideButton: function()
+        hideButton: function() as Void
             if m.button = invalid then return
 
             m.isVisible = false

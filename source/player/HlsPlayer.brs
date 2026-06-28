@@ -82,7 +82,7 @@ function HlsPlayer() as Object
             serverId = m.hubConfig.activeServer.serverId
             relayUrl = m.hubConfig.hubUrl + "/api/v1/relay/" + serverId + "/hls"
 
-            return relayUrl + "?url=" +.UrlEncode(streamUrl)
+            return relayUrl + "?url=" + UrlEncode(streamUrl)
         end function
 
         ' Get request headers for playback

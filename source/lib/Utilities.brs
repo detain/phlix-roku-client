@@ -86,7 +86,7 @@ end function
 
 ' Unescape string from display
 function UnescapeString(str as String) as String
-    return str.Replace("&lt;", "<").Replace("&gt;", ">").Replace("&quot;", """")).Replace("&amp;", "&")
+    return str.Replace("&lt;", "<").Replace("&gt;", ">").Replace("&quot;", """").Replace("&amp;", "&")
 end function
 
 ' Create content node with poster info
@@ -113,3 +113,24 @@ end function
 function GenerateRandomId() as String
     return str(Rnd(999999999)).trim() + "-" + str(Rnd(999999999)).trim()
 end function
+
+' Join an array of strings with a separator (BrightScript roArray has no join).
+' @param parts Object - array of String values
+' @param sep String - the separator
+' @return String - the joined result
+function JoinStrings(parts as Object, sep as String) as String
+    result = ""
+    if parts = invalid then return result
+    for i = 0 to parts.Count() - 1
+        if i > 0 then result = result + sep
+        result = result + parts[i]
+    end for
+    return result
+end function
+
+' Show an error to the user. Placeholder logging implementation; the player /
+' detail slices replace this with a proper SceneGraph Dialog.
+' @param message String - the error message
+sub ShowErrorDialog(message as String)
+    print "Error: " + message
+end sub

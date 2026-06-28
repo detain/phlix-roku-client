@@ -5,29 +5,30 @@
 ' Handles library browsing and item retrieval
 ' ===========================================
 
-function LibraryManager() as Object
+function LibraryManager(api as Object) as Object
     obj = {
+        api: api
         libraries: []
         currentLibrary: invalid
         currentItems: []
 
         ' Load all libraries
         loadLibraries: function() as Object
-            if api = invalid then
+            if m.api = invalid then
                 return []
             end if
 
-            m.libraries = api.getLibraries()
+            m.libraries = m.api.getLibraries()
             return m.libraries
         end function
 
         ' Get items in a library
         getLibraryItems: function(libraryId as String, startIndex = 0 as Integer, limit = 50 as Integer) as Object
-            if api = invalid then
+            if m.api = invalid then
                 return []
             end if
 
-            items = api.getLibraryItems(libraryId, {
+            items = m.api.getLibraryItems(libraryId, {
                 startIndex: startIndex
                 limit: limit
             })
@@ -42,34 +43,34 @@ function LibraryManager() as Object
 
         ' Get item details
         getItem: function(itemId as String) as Object
-            if api = invalid then
+            if m.api = invalid then
                 return invalid
             end if
 
-            return api.getItem(itemId)
+            return m.api.getItem(itemId)
         end function
 
         ' Get playback info for item
         getPlaybackInfo: function(itemId as String) as Object
-            if api = invalid then
+            if m.api = invalid then
                 return invalid
             end if
 
-            return api.getItemPlaybackInfo(itemId)
+            return m.api.getItemPlaybackInfo(itemId)
         end function
 
         ' Mark item as watched
         markWatched: function(itemId as String) as Object
-            if api <> invalid then
-                return api.markWatched(itemId)
+            if m.api <> invalid then
+                return m.api.markWatched(itemId)
             end if
             return invalid
         end function
 
         ' Mark item as unwatched
         markUnwatched: function(itemId as String) as Object
-            if api <> invalid then
-                return api.markUnwatched(itemId)
+            if m.api <> invalid then
+                return m.api.markUnwatched(itemId)
             end if
             return invalid
         end function
