@@ -52,6 +52,16 @@
                 <Button height="60" width="200" translation="[10,330]"
                         title="Play"
                         id="playButton" />
+
+                <Button height="60" width="300" translation="[230,330]"
+                        title="Add to Favorites"
+                        visible="false"
+                        id="favoriteButton" />
+
+                <Button height="60" width="300" translation="[540,330]"
+                        title="Rating: not set"
+                        visible="false"
+                        id="ratingButton" />
             </Rectangle>
         </Rectangle>
     </children>

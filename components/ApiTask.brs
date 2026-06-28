@@ -58,6 +58,23 @@ sub ExecRequest()
             if opts = invalid then opts = {}
             result.data = api.search(req.query, opts)
             result.ok = (result.data <> invalid)
+        else if req.op = "favorite" then
+            result.data = api.addFavorite(req.itemId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "unfavorite" then
+            result.data = api.removeFavorite(req.itemId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "setRating" then
+            result.data = api.setRating(req.itemId, req.rating)
+            result.ok = (result.data <> invalid)
+        else if req.op = "clearRating" then
+            result.data = api.clearRating(req.itemId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "getFavorites" then
+            opts = req.options
+            if opts = invalid then opts = {}
+            result.data = api.getFavorites(opts)
+            result.ok = (result.data <> invalid)
         end if
     end if
 
