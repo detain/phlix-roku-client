@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component name="LibraryScene" extends="Scene">
+    <interface>
+        <function name="LoadLibrary" />
+    </interface>
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />

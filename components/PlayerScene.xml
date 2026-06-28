@@ -3,6 +3,7 @@
     <interface>
         <field id="itemId" type="string" />
         <field id="playbackInfo" type="assocarray" />
+        <function name="Show" />
     </interface>
 
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />

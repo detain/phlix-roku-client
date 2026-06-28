@@ -8,9 +8,6 @@
 sub Init()
     m.top.SetFocus(true)
 
-    ' Shared API client for this scene
-    m.api = GetApiClient()
-
     ' Create video player
     m.videoPlayer = m.top.FindNode("videoPlayer")
     m.videoPlayer.EnableCookies()
@@ -43,58 +40,73 @@ sub Init()
         m.skipButton.ObserveField("buttonSelected", "OnSkipButtonSelected")
     end if
 
+    ' ApiTask: transcode start/status (observed). progressTask: session +
+    ' progress reporting (NOT observed - fire-and-forget).
+    m.apiTask = CreateObject("roSGNode", "ApiTask")
+    m.apiTask.ObserveField("response", "OnApiResponse")
+    m.progressTask = CreateObject("roSGNode", "ApiTask")
+
     m.itemId = ""
+    m.item = invalid
     m.playbackInfo = invalid
     m.isPlaying = false
+    ' Throttle is tracked in SECONDS (Float), never in 100ns ticks (a 32-bit
+    ' Int overflows past ~214s).
     m.lastReportedPosition = 0
+    m.transcodeAttempted = false
+    m.transcodeJobId = ""
+    m.transcodePollCount = 0
 end sub
 
-sub Show(itemId as String, playbackInfo as Object)
+sub Show(itemId as String, args as Object)
     m.itemId = itemId
-    m.playbackInfo = playbackInfo
     m.isPlaying = false
     m.lastReportedPosition = 0
+    m.transcodeAttempted = false
+    m.transcodeJobId = ""
+    m.transcodePollCount = 0
 
-    ' Set title
-    if m.titleLabel <> invalid and playbackInfo.item <> invalid then
-        m.titleLabel.text = playbackInfo.item.Name
+    if args <> invalid then
+        m.item = args.item
+        m.playbackInfo = args.playbackInfo
     end if
 
-    ' Extract and set skip markers from playback info
-    if playbackInfo.playback_info <> invalid and playbackInfo.playback_info.markers <> invalid then
-        m.skipButtonComponent.setMarkers(playbackInfo.playback_info.markers)
+    ' Title
+    if m.titleLabel <> invalid and m.item <> invalid then
+        m.titleLabel.text = m.item.name
+    end if
+
+    ' Skip markers - pass the playback-info skip_button_spec straight through
+    ' (its keys match SkipButton's expected skip_intro_start/... fields).
+    if m.playbackInfo <> invalid and m.playbackInfo.skip_button_spec <> invalid then
+        m.skipButtonComponent.setMarkers(m.playbackInfo.skip_button_spec)
     else
         m.skipButtonComponent.setMarkers(invalid)
     end if
 
-    ' Determine stream URL. Prefer the server's signed stream_url: the stream
-    ' route is gated and ContentNode Authorization-header support varies by Roku
-    ' OS version, so a self-contained signed URL is more reliable. Fall back to
-    ' the unsigned Url for older servers that don't mint one.
-    streamUrl = playbackInfo.playback_info.stream_url
+    ' Signed direct-play URL (no Bearer needed).
+    streamUrl = invalid
+    if m.item <> invalid then streamUrl = m.item.stream_url
     if streamUrl = invalid or streamUrl = "" then
-        streamUrl = playbackInfo.playback_info.Url
-    end if
-    if streamUrl = invalid or streamUrl = "" then
-        print "No stream URL available"
+        ShowErrorDialog("No stream URL available")
         return
     end if
 
-    ' Configure stream
+    ' streamformat best-effort: the signed stream_url has no extension. mp4
+    ' direct-play works on most models; failures trigger the transcode fallback.
     stream = CreateObject("roSGNode", "ContentNode")
     stream.url = streamUrl
-    stream.streamformat = playbackInfo.playback_info.Container
-
-    if playbackInfo.playback_info.Transcoded = true then
-        stream.streamformat = "hls"
-    end if
-
-    ' Set content and start playback
+    stream.streamformat = "mp4"
     m.videoPlayer.content = stream
     m.videoPlayer.control = "play"
     m.isPlaying = true
 
-    ' Start progress reporting
+    ' Create a session once so progress reports have a session_id (persisted to
+    ' Storage by ApiClient.createSession; a later fresh GetApiClient restores it).
+    m.progressTask.request = { op: "createSession" }
+    m.progressTask.control = "run"
+
+    ' Start progress reporting timer
     startProgressTimer()
 end sub
 
@@ -103,7 +115,17 @@ sub OnPlayerStateChange(event as Object)
 
     if state = "error" then
         print "Video playback error: "; m.videoPlayer.errorCode
-        ShowErrorDialog("Playback failed. Please try again.")
+        ' Transcode fallback (attempt once).
+        if not m.transcodeAttempted then
+            m.transcodeAttempted = true
+            if m.titleLabel <> invalid and m.item <> invalid then
+                m.titleLabel.text = m.item.name + " (Preparing...)"
+            end if
+            m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
+            m.apiTask.control = "run"
+        else
+            ShowErrorDialog("Playback failed. Please try again.")
+        end if
     else if state = "playing" then
         m.isPlaying = true
         ShowControls(false)
@@ -113,6 +135,54 @@ sub OnPlayerStateChange(event as Object)
         m.isPlaying = false
         ClosePlayer()
     end if
+end sub
+
+sub OnApiResponse(event as Object)
+    resp = event.getData()
+    if resp = invalid then return
+
+    if resp.op = "startTranscode" then
+        if not resp.ok or resp.data = invalid then
+            ShowErrorDialog("Could not start transcode.")
+            return
+        end if
+        data = resp.data
+        if data.status = "ready" or data.playlist_ready = true then
+            PlayHls(data.master_url)
+        else
+            m.transcodeJobId = data.job_id
+            m.transcodePollCount = 0
+            startTranscodePollTimer()
+        end if
+    else if resp.op = "getTranscodeStatus" then
+        if not resp.ok or resp.data = invalid then return
+        data = resp.data
+        if data.status = "ready" or data.playlist_ready = true then
+            stopTranscodePollTimer()
+            PlayHls(data.master_url)
+        else if data.status = "failed" then
+            stopTranscodePollTimer()
+            ShowErrorDialog("Transcode failed.")
+        end if
+    end if
+end sub
+
+sub PlayHls(url as Object)
+    if url = invalid or url = "" then
+        ShowErrorDialog("Transcode produced no stream URL.")
+        return
+    end if
+
+    if m.titleLabel <> invalid and m.item <> invalid then
+        m.titleLabel.text = m.item.name
+    end if
+
+    stream = CreateObject("roSGNode", "ContentNode")
+    stream.url = url
+    stream.streamformat = "hls"
+    m.videoPlayer.content = stream
+    m.videoPlayer.control = "play"
+    m.isPlaying = true
 end sub
 
 sub OnPositionUpdate(event as Object)
@@ -138,11 +208,11 @@ sub OnPositionUpdate(event as Object)
             m.skipButtonComponent.updatePosition(position)
         end if
 
-        ' Report progress to server (every 10 seconds)
-        positionTicks = Int(position * 10000000)
-        if positionTicks - m.lastReportedPosition > 100000000 then
-            ReportProgress(positionTicks)
-            m.lastReportedPosition = positionTicks
+        ' Report progress to server (throttled to once every 10 seconds).
+        ' Throttle is tracked in SECONDS to avoid the 32-bit tick overflow.
+        if position - m.lastReportedPosition > 10 then
+            ReportProgress(position)
+            m.lastReportedPosition = position
         end if
     end if
 end sub
@@ -174,29 +244,62 @@ sub StopPlayback()
     ' Report final position
     position = m.videoPlayer.position
     if position > 0 then
-        ReportProgress(Int(position * 10000000))
+        ReportProgress(position)
     end if
 
     ' Stop progress timer
     stopProgressTimer()
 end sub
 
-sub ReportProgress(positionTicks as Integer)
-    ' Report to Phlix server
-    m.api.reportProgress(positionTicks, not m.isPlaying)
+' positionSeconds is in SECONDS. Ticks are 100ns; SecondsToTicks uses Double math
+' returning LongInteger so values past ~214s do not overflow a 32-bit Integer.
+sub ReportProgress(positionSeconds as Float)
+    positionTicks = SecondsToTicks(positionSeconds)
+    durationTicks = SecondsToTicks(m.videoPlayer.duration)
+    m.progressTask.request = {
+        op: "reportProgress"
+        mediaItemId: m.itemId
+        positionTicks: positionTicks
+        durationTicks: durationTicks
+        isPaused: (not m.isPlaying)
+    }
+    m.progressTask.control = "run"
 end sub
 
 sub ClosePlayer()
+    ' Clean up timers
+    stopTranscodePollTimer()
+    stopProgressTimer()
+
     ' Clean up skip button
     if m.skipButtonComponent <> invalid then
         m.skipButtonComponent.cleanup()
+    end if
+
+    ' Unobserve the video node fields registered in Init.
+    if m.videoPlayer <> invalid then
+        m.videoPlayer.UnObserveField("state")
+        m.videoPlayer.UnObserveField("position")
+    end if
+
+    ' Unobserve button observers registered in Init.
+    if m.backButton <> invalid then
+        m.backButton.UnObserveField("buttonSelected")
+    end if
+    if m.skipButton <> invalid then
+        m.skipButton.UnObserveField("buttonSelected")
+    end if
+
+    ' Stop observing the API task.
+    if m.apiTask <> invalid then
+        m.apiTask.UnObserveField("response")
     end if
 
     ' Navigate back
     m.top.Close()
 end sub
 
-' Progress timer (SceneGraph Timer node — roTimer is not usable in SceneGraph)
+' Progress timer (SceneGraph Timer node - roTimer is not usable in SceneGraph)
 sub startProgressTimer()
     if m.progressTimer = invalid then
         m.progressTimer = m.top.CreateChild("Timer")
@@ -210,7 +313,7 @@ end sub
 sub stopProgressTimer()
     if m.progressTimer <> invalid then
         m.progressTimer.control = "stop"
-        m.progressTimer.UnobserveField("fire")
+        m.progressTimer.UnObserveField("fire")
         m.top.RemoveChild(m.progressTimer)
         m.progressTimer = invalid
     end if
@@ -218,6 +321,46 @@ end sub
 
 sub OnTimerFire()
     ' Keep Roku awake during playback
+end sub
+
+' Transcode status poll timer (fires getTranscodeStatus every 2s while pending).
+sub startTranscodePollTimer()
+    if m.transcodePollTimer = invalid then
+        m.transcodePollTimer = m.top.CreateChild("Timer")
+        m.transcodePollTimer.duration = 2
+        m.transcodePollTimer.repeat = true
+        m.transcodePollTimer.ObserveField("fire", "OnTranscodePollFire")
+        m.transcodePollTimer.control = "start"
+    end if
+end sub
+
+sub stopTranscodePollTimer()
+    if m.transcodePollTimer <> invalid then
+        m.transcodePollTimer.control = "stop"
+        m.transcodePollTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.transcodePollTimer)
+        m.transcodePollTimer = invalid
+    end if
+end sub
+
+sub OnTranscodePollFire()
+    ' Nothing to poll without a job id.
+    if m.transcodeJobId = invalid or m.transcodeJobId = "" then
+        stopTranscodePollTimer()
+        return
+    end if
+
+    ' Bound the poll so a stuck job can't spin the timer forever (~30 polls at
+    ' 2s = ~60s).
+    m.transcodePollCount = m.transcodePollCount + 1
+    if m.transcodePollCount > 30 then
+        stopTranscodePollTimer()
+        ShowErrorDialog("Transcode timed out. Please try again.")
+        return
+    end if
+
+    m.apiTask.request = { op: "getTranscodeStatus", jobId: m.transcodeJobId }
+    m.apiTask.control = "run"
 end sub
 
 sub OnKeyEvent(key as String, press as Boolean) as Boolean
