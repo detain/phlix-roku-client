@@ -323,6 +323,8 @@ The app communicates with these Phlix API endpoints:
 | POST | `/api/v1/admin/users/{id}/disable` | Admin-gated (AdminMiddleware). Disables a user. Bodyless POST. `{message}` on success; 404 / 400 `{error}` (cannot disable self; cannot disable last admin). |
 | POST | `/api/v1/admin/users/{id}/set-admin` | Admin-gated (AdminMiddleware). Promotes/demotes a user; body `{is_admin: bool}`. `{message}` on success; 404 / 400 `{error}` (cannot demote self; cannot demote last admin). |
 | POST | `/api/v1/admin/users/{id}/reset-password` | Admin-gated (AdminMiddleware). Resets the user's password. Bodyless POST. `{message, new_password}` on success (the new password is shown once); 404 `{error}`. |
+| GET | `/api/v1/admin/livetv/channels` | Admin-gated (AdminMiddleware). Lists Live TV channels. Returns the whole `{success, channels:[...]}` envelope (admin getters do not unwrap). Each channel row carries `id` (== `channel_id`, the UUID used for `/stream`), `name`, `number` (**Integer**), `type`, `frequency` (Integer), `tuner_id`, `service_id`, `visual_id`, `description`, `icon_url`, `visibility`, `created_at`, `updated_at`. AdminMiddleware → 401 (no/invalid token) / 403 (non-admin). **If Live TV is not configured the route group is not registered → 404**; configured-but-no-tuner returns `{success, channels:[]}`. |
+| GET | `/api/v1/admin/livetv/channels/{id}/stream` | Admin-gated (AdminMiddleware, Bearer). **Returns a 302 redirect** (`Location` header) to the actual stream URL. The redirect target is an **unauthenticated** tuner/HLS URL (HDHomeRun: a direct `http://<host>:5004/auto/vN` raw MPEG-TS URL; IPTV: may be an `.m3u8`). Because the Roku `Video` node cannot carry the `Authorization` header, the client resolves this 302 with Bearer and hands the final (unauthenticated) URL to the player. See the Live TV caveat below. |
 
 ## Remote Control Reference
 
@@ -352,7 +354,7 @@ ends — never wraps):
 - **Admin** — shown **only for admin users**. On Home init the app calls `GET /auth/me` and reveals
   the button when the returned user is `is_admin`; for non-admins the button stays hidden and the
   Right-nav skips it (no dead end / no focus on a hidden node). Opens the read-only admin flow:
-  `Home → Admin (menu) → Dashboard | Libraries | Users`. The Admin menu has three rows:
+  `Home → Admin (menu) → Dashboard | Libraries | Users | Live TV`. The Admin menu has four rows:
   - **Dashboard** — a read-only stats view (now-playing / storage / recent-activity) in a single list.
   - **Libraries** — a button-driven library admin surface (no keyboard required):
     `Admin → Libraries (LabelList of libraries) → a library's actions`. The per-library actions screen
@@ -376,6 +378,33 @@ ends — never wraps):
     **Deferred / future work:** creating and editing users (need an on-screen keyboard) and deleting or
     rejecting users (destructive removal with no on-TV confirmation dialog) are intentionally not shipped
     in this surface — the actions included are all recoverable/reversible.
+  - **Live TV** — a channels list + channel playback surface:
+    `Admin → Live TV (LabelList of channels) → select a channel → live player`. The list is a
+    one-shot `GET /api/v1/admin/livetv/channels` (AdminMiddleware-gated; the whole
+    `{success, channels:[...]}` envelope is read). Each channel row shows **`<number>  <name>`**
+    (the Integer `number` is stringified, not string-compared). Selecting a channel resolves its
+    stream — the client issues the Bearer-gated `GET /api/v1/admin/livetv/channels/{id}/stream`,
+    reads the **302 `Location`** header (without following the redirect), and opens a dedicated
+    lightweight live player (`LivePlayerScene`) on the final (unauthenticated) tuner/HLS URL. The
+    live player has **no sessions / progress / transcode / markers** — it does not reuse the VOD
+    `PlayerScene`. The status line surfaces friendly errors ("Tuning…", "Couldn't start channel",
+    "Live TV unavailable", "Playback failed"). The route group is **not registered when Live TV is
+    not configured** (the list then reports "Live TV unavailable").
+
+    > **Streaming caveat (device-only-verifiable).** Channel playback hinges on resolving a
+    > Bearer-gated **302** and reading the `Location` header _without following it_. Roku's
+    > `roUrlTransfer` redirect-follow behavior is **firmware-dependent** and there is no documented
+    > "don't follow redirects" setter: if the firmware auto-follows, `GetResponseCode()` returns
+    > 200, no `Location` header is exposed, the resolved stream URL is empty, and live playback
+    > fails with a friendly error. This cannot be verified without a physical device. **Recommended
+    > upstream mitigation:** add a JSON `GET .../stream-url` endpoint (or a signed live-TV URL) so a
+    > TV `Video` node can obtain the stream URL without resolving an authenticated redirect. The
+    > `mpegts`-vs-`hls` `streamFormat` heuristic (`.m3u8` in the URL → `hls`, otherwise `mpegts`)
+    > and raw-TS playback are likewise only verifiable on a device.
+
+    **Scope:** channels list + playback only. **Deferred / future work:** guide/EPG, recordings,
+    and series-rules (read) arrive in **F9b**; channel edit (PUT) and recording / series-rule
+    mutations are deferred (they need on-screen pickers/keyboard).
 
 ## Project Structure
 
@@ -398,12 +427,14 @@ phlix-roku/
 │   │   ├── DetailScene.brs     # Item detail view
 │   │   ├── CollectionsScene.brs # Collections list (LabelList of collection names, read-only)
 │   │   ├── CollectionScene.brs  # One collection's items (poster grid; raw rows normalized client-side)
-│   │   ├── AdminScene.brs       # Admin menu (LabelList; is_admin-gated entry; rows: Dashboard, Libraries, Users)
+│   │   ├── AdminScene.brs       # Admin menu (LabelList; is_admin-gated entry; rows: Dashboard, Libraries, Users, Live TV)
 │   │   ├── DashboardScene.brs   # Read-only admin dashboard (now-playing / storage / activity in one list)
 │   │   ├── LibraryAdminScene.brs # Admin libraries list (LabelList; drills into per-library actions)
 │   │   ├── LibraryAdminActionsScene.brs # Per-library admin actions (Scan / Rescan / Match Metadata / Refresh Status + scan-status line)
 │   │   ├── UserAdminScene.brs    # Admin users list (LabelList of all users; drills into per-user actions)
 │   │   ├── UserAdminActionsScene.brs # Per-user admin actions (Approve / Disable / Make-or-Remove Admin / Reset Password / Refresh + user detail line)
+│   │   ├── LiveTvScene.brs       # Admin Live TV channels list (one-shot LabelList; row-select resolves stream → live player)
+│   │   ├── LivePlayerScene.brs   # Dedicated lightweight live Video player (no sessions/progress/transcode/markers)
 │   │   ├── PlayerScene.brs     # Video player
 │   │   ├── LoginScene.brs      # Login screen
 │   │   └── GridItem.brs        # Grid item component
