@@ -417,3 +417,101 @@ function PhotoAlbumCaption(album as Object) as String
 
     return date
 end function
+
+' Build a multi-line EXIF summary (Chr(10)-joined) from whichever metadata fields
+' are present, skipping absent fields so there are no empty/"invalid" lines.
+' Lines (each emitted ONLY when its source is present):
+'   Camera     = camera_make + " " + camera_model (emit if either present)
+'   Lens       = lens
+'   Settings   = aperture, shutter_speed, focal_length, "ISO "+iso joined by "  •  "
+'   Dimensions = width + " × " + height (only when BOTH are valid Ints > 0)
+'   Date       = date_taken_formatted (fallback date_taken_year)
+'   GPS        = gps_display (already "lat, lng" formatted)
+' metadata MAY arrive as a non-assoc, so only read keys when it is an
+' roAssociativeArray (mirrors NormalizeAlbumTrack / ContinuePosterUrl). Pure; NO
+' node access. Returns "" when exif is invalid/non-assoc/empty (caller shows a
+' "No photo info" placeholder).
+' @param exif Object - a photo metadata assocarray (may be invalid)
+' @return String - the multi-line summary (empty string when nothing present)
+function FormatExifSummary(exif as Object) as String
+    if exif = invalid then return ""
+    if type(exif) <> "roAssociativeArray" then return ""
+
+    lines = []
+
+    ' Camera: camera_make + camera_model (emit if either present).
+    make = ""
+    if exif.DoesExist("camera_make") and exif.camera_make <> invalid and exif.camera_make <> "" then
+        make = exif.camera_make
+    end if
+    model = ""
+    if exif.DoesExist("camera_model") and exif.camera_model <> invalid and exif.camera_model <> "" then
+        model = exif.camera_model
+    end if
+    if make <> "" or model <> "" then
+        camera = make
+        if make <> "" and model <> "" then
+            camera = make + " " + model
+        else if model <> "" then
+            camera = model
+        end if
+        lines.Push(camera)
+    end if
+
+    ' Lens.
+    if exif.DoesExist("lens") and exif.lens <> invalid and exif.lens <> "" then
+        lines.Push(exif.lens)
+    end if
+
+    ' Settings: aperture • shutter_speed • focal_length • "ISO "+iso.
+    settings = []
+    if exif.DoesExist("aperture") and exif.aperture <> invalid and exif.aperture <> "" then
+        settings.Push(exif.aperture)
+    end if
+    if exif.DoesExist("shutter_speed") and exif.shutter_speed <> invalid and exif.shutter_speed <> "" then
+        settings.Push(exif.shutter_speed)
+    end if
+    if exif.DoesExist("focal_length") and exif.focal_length <> invalid and exif.focal_length <> "" then
+        settings.Push(exif.focal_length)
+    end if
+    if exif.DoesExist("iso") and exif.iso <> invalid then
+        isoVal = Int(exif.iso)
+        if isoVal > 0 then settings.Push("ISO " + str(isoVal).trim())
+    end if
+    if settings.Count() > 0 then
+        lines.Push(JoinStrings(settings, "  •  "))
+    end if
+
+    ' Dimensions: width × height (emit only when BOTH are valid Ints > 0).
+    if exif.DoesExist("width") and exif.width <> invalid and exif.DoesExist("height") and exif.height <> invalid then
+        w = Int(exif.width)
+        h = Int(exif.height)
+        if w > 0 and h > 0 then
+            lines.Push(str(w).trim() + " × " + str(h).trim())
+        end if
+    end if
+
+    ' Date: date_taken_formatted -> date_taken_year. The year may arrive as a
+    ' String ("YYYY") or an Integer, so branch on type — comparing an Integer
+    ' with "" raises a runtime type-mismatch (would crash the viewer render).
+    if exif.DoesExist("date_taken_formatted") and exif.date_taken_formatted <> invalid and exif.date_taken_formatted <> "" then
+        lines.Push(exif.date_taken_formatted)
+    else if exif.DoesExist("date_taken_year") and exif.date_taken_year <> invalid then
+        yearValue = exif.date_taken_year
+        if type(yearValue) = "String" or type(yearValue) = "roString" then
+            if yearValue <> "" then lines.Push(yearValue)
+        else
+            yearInt = Int(yearValue)
+            if yearInt > 0 then lines.Push(str(yearInt).trim())
+        end if
+    end if
+
+    ' GPS: gps_display (already "lat, lng" formatted).
+    if exif.DoesExist("gps_display") and exif.gps_display <> invalid and exif.gps_display <> "" then
+        lines.Push(exif.gps_display)
+    end if
+
+    if lines.Count() = 0 then return ""
+
+    return JoinStrings(lines, Chr(10))
+end function

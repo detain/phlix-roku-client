@@ -26,5 +26,17 @@
                font="font:MediumSystemFont"
                color="#FFFFFF"
                id="captionLabel" />
+
+        <!-- EXIF info overlay (F7b). Hidden by default; Up shows / Down hides.
+             A right-side semi-transparent panel keeps the image visible on the
+             left while the wrapping Label lists the photo's EXIF metadata. -->
+        <Group id="infoOverlay" visible="false">
+            <Rectangle width="560" height="720" translation="[720,0]"
+                       color="#000000CC" />
+            <Label id="infoLabel" wrap="true" width="500" translation="[760,60]"
+                   text=""
+                   font="font:MediumSystemFont"
+                   color="#FFFFFF" />
+        </Group>
     </children>
 </component>
