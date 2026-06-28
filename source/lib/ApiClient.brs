@@ -608,6 +608,17 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
+        ' Hub mode (F12b). GET /me/servers -> {servers:[ {serverId, serverName,
+        ' status, relayActive, libraryCount, hostnameCandidates, ...} ]} (CAMEL
+        ' case). Exists ONLY on a hub; a DIRECT server has no such route (404),
+        ' so the caller treats a missing/non-array .servers as "direct". Returns
+        ' the WHOLE envelope (the caller reads .servers); invalid on failure.
+        ' ---------------------------------------------------------------------
+        getMyServers: function() as Object
+            return m.request("GET", "/me/servers", invalid)
+        end function
+
+        ' ---------------------------------------------------------------------
         ' Admin dashboard (F11a, read-only). All /admin/* require is_admin+active
         ' (AdminMiddleware -> 401/403). Envelope is {success,data,count}; these
         ' return the WHOLE json (the scene reads .data, an array).

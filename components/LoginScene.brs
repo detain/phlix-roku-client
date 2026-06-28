@@ -3,8 +3,15 @@
 sub Init()
     m.top.SetFocus(true)
 
-    ' Shared API client + auth manager for this scene
-    m.api = GetApiClient()
+    ' Login + the /me/servers probe ALWAYS target the bare connect endpoint
+    ' (the hub or direct server the user connected to), NEVER the relay base:
+    ' a hub access token is minted by the HUB, so re-login while a hub server is
+    ' still selected (kind="hub" + active_server_id set, e.g. after the hourly
+    ' hub token expires) must hit the hub directly. GetApiClient would return the
+    ' relay base in that state and the proxy's own AuthMiddleware would 401 the
+    ' expired token before it ever tunnels. GetHubApiClient binds to the bare
+    ' server_url, which is the correct login target in BOTH hub and direct mode.
+    m.api = GetHubApiClient()
     m.auth = AuthManager(m.api)
 
     ' UI nodes
@@ -61,9 +68,24 @@ sub OnLoginPressed()
         HideError()
         HideStatus()
 
-        ' Report success to app (PhlixApp observes loginSucceeded)
-        Print "Login successful"
-        m.top.loginSucceeded = true
+        ' F12b hub detection: a hub exposes GET /me/servers ({servers:[...]});
+        ' a direct server does not (404 -> no .servers array). m.api was built
+        ' from GetApiClient in Init; at login active_server_id is empty so the
+        ' media base falls back to the bare connect url -> this probes the
+        ' actual endpoint we logged into. Persist the kind, then fire the
+        ' matching transition field (PhlixApp observes both).
+        serversResp = m.api.getMyServers()
+        if serversResp <> invalid and serversResp.DoesExist("servers") and type(serversResp.servers) = "roArray" then
+            ' It's a hub -> let PhlixApp show the server picker.
+            Storage.set("connection_kind", "hub")
+            Print "Hub detected"
+            m.top.hubDetected = true
+        else
+            ' Direct server -> go straight to Home.
+            Storage.set("connection_kind", "direct")
+            Print "Login successful"
+            m.top.loginSucceeded = true
+        end if
     else
         ShowError("Login failed. Please check your credentials.")
         HideStatus()
