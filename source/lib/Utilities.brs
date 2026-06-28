@@ -128,6 +128,40 @@ function JoinStrings(parts as Object, sep as String) as String
     return result
 end function
 
+' URL-encode a string (percent-encode the URL-significant characters). Lives in
+' Utilities so any component that includes Utilities + ApiClient can resolve it.
+' @param str String - the raw value
+' @return String - the encoded value
+function UrlEncode(str as String) as String
+    result = ""
+    if str = invalid then return result
+    for i = 1 to Len(str)
+        c = Mid(str, i, 1)
+        if c = " " then
+            result = result + "%20"
+        else if c = "&" then
+            result = result + "%26"
+        else if c = "=" then
+            result = result + "%3D"
+        else if c = "?" then
+            result = result + "%3F"
+        else if c = "/" then
+            result = result + "%2F"
+        else if c = ":" then
+            result = result + "%3A"
+        else if c = "#" then
+            result = result + "%23"
+        else if c = "[" then
+            result = result + "%5B"
+        else if c = "]" then
+            result = result + "%5D"
+        else
+            result = result + c
+        end if
+    end for
+    return result
+end function
+
 ' Show an error to the user. Placeholder logging implementation; the player /
 ' detail slices replace this with a proper SceneGraph Dialog.
 ' @param message String - the error message

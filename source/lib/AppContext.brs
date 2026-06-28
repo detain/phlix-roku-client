@@ -25,6 +25,8 @@ function GetApiClient() as Object
     api = ApiClient(GetServerUrl())
     token = Storage.get("auth_token")
     if token <> invalid and token <> "" then api.token = token
+    refreshToken = Storage.get("refresh_token")
+    if refreshToken <> invalid and refreshToken <> "" then api.refreshToken = refreshToken
     sid = Storage.get("session_id")
     if sid <> invalid and sid <> "" then api.sessionId = sid
     return api
