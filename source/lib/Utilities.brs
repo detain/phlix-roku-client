@@ -175,3 +175,81 @@ end function
 sub ShowErrorDialog(message as String)
     print "Error: " + message
 end sub
+
+' Coerce a media-item's numeric sort key to an Integer, mapping invalid/missing
+' to a large sentinel so unsorted/null values sort LAST and deterministically.
+' @param item Object - a media-item assocarray (may be invalid)
+' @param key String - the assoc key to read (e.g. "season_number")
+' @return Integer - the value, or 999999 when invalid/missing/non-numeric
+function SortKeyValue(item as Object, key as String) as Integer
+    if item = invalid then return 999999
+    if not item.DoesExist(key) then return 999999
+    value = item[key]
+    if value = invalid then return 999999
+    ' Coerce; non-numeric assoc values box to 0, which is acceptable for ints.
+    return Int(value)
+end function
+
+' Non-mutating insertion sort of an array of media-item assocarrays by
+' season_number then episode_number. Invalid/missing numbers sort last (sentinel
+' 999999). N is small (seasons/episodes per parent), so O(n^2) insertion sort is
+' clear, deterministic, and avoids roArray.SortBy's missing-key quirks. Returns a
+' NEW array; the input is not modified.
+' @param items Object - array of media-item assocarrays (may be invalid)
+' @return Object - a new sorted array (empty array when input is invalid)
+function SortByEpisodeOrder(items as Object) as Object
+    sorted = []
+    if items = invalid then return sorted
+
+    for each item in items
+        ' Find the insertion index in `sorted` for this item.
+        sKey = SortKeyValue(item, "season_number")
+        eKey = SortKeyValue(item, "episode_number")
+        insertAt = sorted.Count()
+
+        for i = 0 to sorted.Count() - 1
+            existing = sorted[i]
+            existS = SortKeyValue(existing, "season_number")
+            existE = SortKeyValue(existing, "episode_number")
+            if sKey < existS or (sKey = existS and eKey < existE) then
+                insertAt = i
+                exit for
+            end if
+        end for
+
+        if insertAt >= sorted.Count() then
+            sorted.Push(item)
+        else
+            sorted.Unshift(invalid)
+            ' Shift tail right by one, then drop the new value in.
+            for j = sorted.Count() - 1 to insertAt + 1 step -1
+                sorted[j] = sorted[j - 1]
+            end for
+            sorted[insertAt] = item
+        end if
+    end for
+
+    return sorted
+end function
+
+' Build a one-line caption for an episode list row. When episode_number is
+' present: "E<n>. <episode_title or name>"; otherwise just the name. Guards every
+' invalid/missing field.
+' @param item Object - an episode media-item assocarray (may be invalid)
+' @return String - the caption (empty string when item is invalid)
+function EpisodeCaption(item as Object) as String
+    if item = invalid then return ""
+
+    title = ""
+    if item.DoesExist("episode_title") and item.episode_title <> invalid and item.episode_title <> "" then
+        title = item.episode_title
+    else if item.DoesExist("name") and item.name <> invalid then
+        title = item.name
+    end if
+
+    if item.DoesExist("episode_number") and item.episode_number <> invalid then
+        return "E" + str(Int(item.episode_number)).trim() + ". " + title
+    end if
+
+    return title
+end function

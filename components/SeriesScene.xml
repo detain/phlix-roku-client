@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="SeriesScene" extends="Scene">
+    <interface>
+        <function name="LoadSeries" />
+    </interface>
+    <!-- Transitive closure: a component scope does NOT auto-include pkg:/source.
+         The .brs reaches Storage + Utilities + ApiClient + AppContext (via the
+         ApiTask data path) plus its own controller. -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/SeriesScene.brs" />
+    <children>
+        <!-- Header -->
+        <Rectangle height="100" width="1280" color="#1a1a2e">
+            <Rectangle height="60" width="160" translation="[20,20]">
+                <Button height="60" width="160" title="Back" id="backButton" />
+            </Rectangle>
+            <Label height="60" width="800" translation="[200,20]"
+                   text="Series"
+                   font="font:LargeBoldSystemFont"
+                   color="#FFFFFF"
+                   id="titleLabel" />
+        </Rectangle>
+
+        <!-- Items Grid -->
+        <PosterGrid height="540" width="1280" translation="[0,100]"
+                    numColumns="5" numRows="3"
+                    itemSpacing="[20, 15]"
+                    basePosterSize="[220, 330]"
+                    caption1Icon="handle://leftbottom"
+                    id="itemsGrid">
+            <ContentEmitter />
+        </PosterGrid>
+
+        <!-- Description Area -->
+        <Rectangle height="40" width="1280" translation="[0,640]" color="#0d0d1a">
+            <Label height="40" width="1200" translation="[40,8]"
+                   text="Select a season"
+                   font="font:MediumSystemFont"
+                   color="#AAAAAA"
+                   id="descriptionLabel" />
+        </Rectangle>
+    </children>
+</component>
