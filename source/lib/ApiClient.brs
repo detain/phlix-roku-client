@@ -646,6 +646,41 @@ function ApiClient(baseUrl as String) as Object
         getLibraryScanStatus: function(libraryId as String) as Object
             return m.request("GET", "/libraries/" + libraryId + "/scan-status", invalid)
         end function
+
+        ' ---------------------------------------------------------------------
+        ' Users admin (F11c). All /admin/users* require is_admin+active
+        ' (AdminMiddleware). List returns {users:[...]}; get returns {user}; the
+        ' action POSTs return {message} on success or {error} on a 400/404 guard
+        ' (callers must read the specific key - result.ok is TRUE either way).
+        ' reset-password additionally returns {new_password}. set-admin carries a
+        ' JSON body {is_admin:bool}; the others are no-body POSTs. All return the
+        ' WHOLE json (admin getters do not unwrap).
+        ' ---------------------------------------------------------------------
+        getAdminUsers: function(status as String) as Object
+            path = "/admin/users"
+            if status <> invalid and status <> "" then path = path + "?status=" + UrlEncode(status)
+            return m.request("GET", path, invalid)
+        end function
+
+        getAdminUser: function(userId as String) as Object
+            return m.request("GET", "/admin/users/" + userId, invalid)
+        end function
+
+        approveUser: function(userId as String) as Object
+            return m.request("POST", "/admin/users/" + userId + "/approve", invalid)
+        end function
+
+        disableUser: function(userId as String) as Object
+            return m.request("POST", "/admin/users/" + userId + "/disable", invalid)
+        end function
+
+        setUserAdmin: function(userId as String, isAdmin as Boolean) as Object
+            return m.request("POST", "/admin/users/" + userId + "/set-admin", { is_admin: isAdmin })
+        end function
+
+        resetUserPassword: function(userId as String) as Object
+            return m.request("POST", "/admin/users/" + userId + "/reset-password", invalid)
+        end function
     }
 
     ' Generate device ID if not exists

@@ -317,6 +317,12 @@ The app communicates with these Phlix API endpoints:
 | POST | `/api/v1/libraries/{id}/rescan` | Admin-gated (internal `requireAdmin`). Enqueues a **full** rescan job. **202** `{job_id, status, message}`. Sent as a bodyless POST. |
 | POST | `/api/v1/libraries/{id}/match-metadata` | Admin-gated (internal `requireAdmin`). Enqueues a metadata-matching job. **202** `{job_id, status, message}`. Sent as a bodyless POST. |
 | GET | `/api/v1/libraries/{id}/scan-status` | Admin-gated (internal `requireAdmin`). Returns the latest scan job for the library: `{scan_status: <job row | null>}`. **200** even when never scanned (`scan_status` is `null`). Job row carries `job_type`, `status`, `current_path`, `started_at`, `completed_at`. |
+| GET | `/api/v1/admin/users` | Admin-gated (AdminMiddleware). Lists all users (optional `?status=pending\|active\|disabled`). Returns the whole `{users:[...]}` envelope; each user row carries `id` (UUID), `username`, `email`, `display_name`, `is_admin` (TINYINT 0/1), `status` (`pending`/`active`/`disabled`), `created_at`, `last_login`. AdminMiddleware → 401 (no/invalid token) / 403 (non-admin). |
+| GET | `/api/v1/admin/users/{id}` | Admin-gated (AdminMiddleware). Returns one user: `{user}` (whole envelope). 404 `{error}` if not found. |
+| POST | `/api/v1/admin/users/{id}/approve` | Admin-gated (AdminMiddleware). Approves a pending user. Bodyless POST. `{message}` on success; 404 `{error}`. |
+| POST | `/api/v1/admin/users/{id}/disable` | Admin-gated (AdminMiddleware). Disables a user. Bodyless POST. `{message}` on success; 404 / 400 `{error}` (cannot disable self; cannot disable last admin). |
+| POST | `/api/v1/admin/users/{id}/set-admin` | Admin-gated (AdminMiddleware). Promotes/demotes a user; body `{is_admin: bool}`. `{message}` on success; 404 / 400 `{error}` (cannot demote self; cannot demote last admin). |
+| POST | `/api/v1/admin/users/{id}/reset-password` | Admin-gated (AdminMiddleware). Resets the user's password. Bodyless POST. `{message, new_password}` on success (the new password is shown once); 404 `{error}`. |
 
 ## Remote Control Reference
 
@@ -346,7 +352,7 @@ ends — never wraps):
 - **Admin** — shown **only for admin users**. On Home init the app calls `GET /auth/me` and reveals
   the button when the returned user is `is_admin`; for non-admins the button stays hidden and the
   Right-nav skips it (no dead end / no focus on a hidden node). Opens the read-only admin flow:
-  `Home → Admin (menu) → Dashboard | Libraries`. The Admin menu has two rows:
+  `Home → Admin (menu) → Dashboard | Libraries | Users`. The Admin menu has three rows:
   - **Dashboard** — a read-only stats view (now-playing / storage / recent-activity) in a single list.
   - **Libraries** — a button-driven library admin surface (no keyboard required):
     `Admin → Libraries (LabelList of libraries) → a library's actions`. The per-library actions screen
@@ -356,6 +362,20 @@ ends — never wraps):
     only one request runs at a time. The status line shows the latest job's type / status / current path
     / started / completed, or **"Never scanned"** when the library has no scan job yet. Status is
     refreshed **manually** via the Refresh Status button — there is no auto-poll.
+  - **Users** — a button-driven user admin surface (no keyboard required):
+    `Admin → Users (LabelList of all users) → a user's actions`. The list shows every user (no
+    status-filter tabs) with a caption combining username, status, and an admin tag. The per-user
+    actions screen has five buttons — **Approve**, **Disable**, **Make Admin / Remove Admin** (a
+    toggle whose title reflects the user's current admin state), **Reset Password**, and **Refresh** —
+    plus a multi-line detail line summarizing the user (username / email / status / admin). Approve /
+    Disable / Set-Admin call the server and then re-fetch and re-render the user's state; only one
+    request runs at a time. **Reset Password** shows the server's one-time `new_password` **once** in
+    the status line (it is not re-fetched afterward, so the password stays visible). State is refreshed
+    **manually** via the Refresh button — there is no auto-poll. The server enforces guards (cannot
+    disable/demote yourself or the last admin) and returns those messages, which are surfaced verbatim.
+    **Deferred / future work:** creating and editing users (need an on-screen keyboard) and deleting or
+    rejecting users (destructive removal with no on-TV confirmation dialog) are intentionally not shipped
+    in this surface — the actions included are all recoverable/reversible.
 
 ## Project Structure
 
@@ -378,10 +398,12 @@ phlix-roku/
 │   │   ├── DetailScene.brs     # Item detail view
 │   │   ├── CollectionsScene.brs # Collections list (LabelList of collection names, read-only)
 │   │   ├── CollectionScene.brs  # One collection's items (poster grid; raw rows normalized client-side)
-│   │   ├── AdminScene.brs       # Admin menu (LabelList; is_admin-gated entry; rows: Dashboard, Libraries)
+│   │   ├── AdminScene.brs       # Admin menu (LabelList; is_admin-gated entry; rows: Dashboard, Libraries, Users)
 │   │   ├── DashboardScene.brs   # Read-only admin dashboard (now-playing / storage / activity in one list)
 │   │   ├── LibraryAdminScene.brs # Admin libraries list (LabelList; drills into per-library actions)
 │   │   ├── LibraryAdminActionsScene.brs # Per-library admin actions (Scan / Rescan / Match Metadata / Refresh Status + scan-status line)
+│   │   ├── UserAdminScene.brs    # Admin users list (LabelList of all users; drills into per-user actions)
+│   │   ├── UserAdminActionsScene.brs # Per-user admin actions (Approve / Disable / Make-or-Remove Admin / Reset Password / Refresh + user detail line)
 │   │   ├── PlayerScene.brs     # Video player
 │   │   ├── LoginScene.brs      # Login screen
 │   │   └── GridItem.brs        # Grid item component

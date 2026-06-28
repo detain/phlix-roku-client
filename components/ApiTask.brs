@@ -127,6 +127,26 @@ sub ExecRequest()
         else if req.op = "getLibraryScanStatus" then
             result.data = api.getLibraryScanStatus(req.libraryId)
             result.ok = (result.data <> invalid)
+        else if req.op = "getAdminUsers" then
+            status = ""
+            if req.DoesExist("status") and req.status <> invalid then status = req.status
+            result.data = api.getAdminUsers(status)
+            result.ok = (result.data <> invalid)
+        else if req.op = "getAdminUser" then
+            result.data = api.getAdminUser(req.userId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "approveUser" then
+            result.data = api.approveUser(req.userId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "disableUser" then
+            result.data = api.disableUser(req.userId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "setUserAdmin" then
+            result.data = api.setUserAdmin(req.userId, req.isAdmin)
+            result.ok = (result.data <> invalid)
+        else if req.op = "resetUserPassword" then
+            result.data = api.resetUserPassword(req.userId)
+            result.ok = (result.data <> invalid)
         end if
     end if
 

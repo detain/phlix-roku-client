@@ -17,6 +17,7 @@ sub Init()
     m.menuItems = [
         { label: "Dashboard", scene: "DashboardScene" }
         { label: "Libraries", scene: "LibraryAdminScene" }
+        { label: "Users", scene: "UserAdminScene" }
     ]
 
     ' Text list (admin sections have no artwork).
