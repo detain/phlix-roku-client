@@ -38,6 +38,10 @@ sub Init()
     if m.resetPasswordButton <> invalid then
         m.resetPasswordButton.ObserveField("buttonSelected", "OnResetPassword")
     end if
+    m.profilesButton = m.top.FindNode("profilesButton")
+    if m.profilesButton <> invalid then
+        m.profilesButton.ObserveField("buttonSelected", "OnProfiles")
+    end if
     m.refreshButton = m.top.FindNode("refreshButton")
     if m.refreshButton <> invalid then
         m.refreshButton.ObserveField("buttonSelected", "OnRefresh")
@@ -116,6 +120,17 @@ end sub
 
 sub OnRefresh(event as Object)
     RefreshUser()
+end sub
+
+' Open this user's profiles list. Opening a child scene is NOT an API op on this
+' scene's task, so it is NOT guarded by m.pendingOp. ProfilesScene is
+' self-created + focused and reads the user via the LoadProfiles interface fn.
+sub OnProfiles(event as Object)
+    if m.userId = "" then return
+
+    scene = CreateObject("roSGNode", "ProfilesScene")
+    m.top.Append(scene)
+    scene.LoadProfiles(m.userId, m.userName)
 end sub
 
 ' Enqueue a no-arg action (approve / disable / reset-password). A press while an
@@ -251,6 +266,7 @@ sub Teardown()
     if m.disableButton <> invalid then m.disableButton.UnObserveField("buttonSelected")
     if m.adminButton <> invalid then m.adminButton.UnObserveField("buttonSelected")
     if m.resetPasswordButton <> invalid then m.resetPasswordButton.UnObserveField("buttonSelected")
+    if m.profilesButton <> invalid then m.profilesButton.UnObserveField("buttonSelected")
     if m.refreshButton <> invalid then m.refreshButton.UnObserveField("buttonSelected")
     if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
 end sub
