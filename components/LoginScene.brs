@@ -11,25 +11,12 @@ sub Init()
     m.usernameInput = m.top.FindNode("usernameInput")
     m.passwordInput = m.top.FindNode("passwordInput")
     m.loginButton = m.top.FindNode("loginButton")
-    m.serverInput = m.top.FindNode("serverInput")
     m.statusLabel = m.top.FindNode("statusLabel")
     m.errorLabel = m.top.FindNode("errorLabel")
 
     ' Set up button handlers
     if m.loginButton <> invalid then
         m.loginButton.ObserveField("buttonSelected", "OnLoginPressed")
-    end if
-
-    ' Load saved server URL
-    savedServerUrl = Storage.get("server_url")
-    if savedServerUrl <> "" and savedServerUrl <> invalid then
-        if m.serverInput <> invalid then
-            m.serverInput.text = savedServerUrl
-        end if
-    else
-        if m.serverInput <> invalid then
-            m.serverInput.text = "http://localhost:8096"
-        end if
     end if
 
     ' Load saved credentials
@@ -44,7 +31,6 @@ end sub
 sub OnLoginPressed()
     username = ""
     password = ""
-    serverUrl = ""
 
     if m.usernameInput <> invalid then
         username = m.usernameInput.text
@@ -54,27 +40,15 @@ sub OnLoginPressed()
         password = m.passwordInput.text
     end if
 
-    if m.serverInput <> invalid then
-        serverUrl = m.serverInput.text
-    end if
-
     ' Validate inputs
     if username = "" or password = "" then
         ShowError("Please enter username and password")
         return
     end if
 
-    if serverUrl = "" then
-        ShowError("Please enter server URL")
-        return
-    end if
-
-    ' Save server URL and username
-    Storage.set("server_url", serverUrl)
+    ' Save username (server_url is owned by the Connect screen now). m.api is
+    ' already bound to the connected server_url via GetApiClient in Init.
     Storage.set("username", username)
-
-    ' Update API client with new server URL
-    m.api.baseUrl = serverUrl
 
     ' Show loading status
     ShowStatus("Logging in...")

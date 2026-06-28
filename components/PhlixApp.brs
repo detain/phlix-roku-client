@@ -48,12 +48,41 @@ sub Init()
     m.library = LibraryManager(m.api)
     m.tasks = TaskManager()
 
-    ' Check for existing session
-    if m.auth.checkAuth() then
+    ' First-run gate: with no server chosen yet, show the Connect screen. Only
+    ' once a server_url is persisted do we run the normal auth flow.
+    if not IsServerConnected() then
+        ShowConnect()
+    else if m.auth.checkAuth() then
         ' User is already logged in, show home
         ShowHome()
     else
         ' Show login screen
+        ShowLogin()
+    end if
+end sub
+
+sub ShowConnect()
+    connectScene = CreateObject("roSGNode", "ConnectScene")
+    connectScene.ObserveField("connected", "OnConnected")
+    m.top.Append(connectScene)
+    connectScene.SetFocus(true)
+end sub
+
+sub OnConnected()
+    ' Remove the connect child (the last-appended child).
+    m.top.RemoveChild(m.top.GetChild(m.top.GetChildCount() - 1))
+
+    ' Rebuild the shared API client + managers so they bind to the newly
+    ' persisted server_url (the originals were built against the absent default).
+    m.api = GetApiClient()
+    m.auth = AuthManager(m.api)
+    m.session = SessionManager(m.api)
+    m.library = LibraryManager(m.api)
+
+    ' First run: checkAuth is false -> ShowLogin.
+    if m.auth.checkAuth() then
+        ShowHome()
+    else
         ShowLogin()
     end if
 end sub
