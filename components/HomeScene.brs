@@ -20,6 +20,12 @@ sub Init()
         m.searchButton.ObserveField("buttonSelected", "OnSearchPressed")
     end if
 
+    ' Favorites entry (header, beside Search). Opens the FavoritesScene.
+    m.favoritesButton = m.top.FindNode("favoritesButton")
+    if m.favoritesButton <> invalid then
+        m.favoritesButton.ObserveField("buttonSelected", "OnFavoritesPressed")
+    end if
+
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
 
     ' Route all data access through a SINGLE observed ApiTask node (off the
@@ -31,6 +37,9 @@ sub Init()
     m.libraries = []
     m.continueItems = []
     m.currentRail = "library"
+    ' Which header button is focused while m.currentRail = "search":
+    ' "search" or "favorites" (default "search").
+    m.headerCol = "search"
     m.pendingResume = invalid
 
     ' Init load chain: libraries first, then continue-watching (fired from the
@@ -246,16 +255,52 @@ sub OnSearchPressed(event as Object)
     scene.SetFocus(true)
 end sub
 
+sub OnFavoritesPressed(event as Object)
+    scene = CreateObject("roSGNode", "FavoritesScene")
+    m.top.Append(scene)
+    scene.SetFocus(true)
+end sub
+
+' Move focus into the header (search) zone, onto whichever header button
+' m.headerCol currently points at (default "search"). Sets m.currentRail.
+sub FocusHeaderZone()
+    if m.headerCol = "favorites" and m.favoritesButton <> invalid then
+        m.favoritesButton.SetFocus(true)
+    else if m.searchButton <> invalid then
+        m.searchButton.SetFocus(true)
+        m.headerCol = "search"
+    else if m.favoritesButton <> invalid then
+        m.favoritesButton.SetFocus(true)
+        m.headerCol = "favorites"
+    end if
+    m.currentRail = "search"
+end sub
+
 sub OnKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
     if press then
-        ' 3-zone vertical chain: search (top) <-> continue (if visible) <->
-        ' library (bottom). Focus switching relies on PosterGrid/Button key
-        ' bubbling: the searchButton never consumes "down", a single-row
-        ' continueGrid never consumes "up"/"down", and a multi-row libraryGrid
-        ' never consumes "up" on its top row, so they bubble here.
-        if key = "down" then
+        ' Horizontal header nav: while in the "search" (header) zone, Left/Right
+        ' switch between the two header buttons (Search <-> Favorites). The
+        ' header buttons never consume left/right themselves, so they bubble.
+        if key = "left" and m.currentRail = "search" then
+            if m.searchButton <> invalid then
+                m.searchButton.SetFocus(true)
+                m.headerCol = "search"
+                handled = true
+            end if
+        else if key = "right" and m.currentRail = "search" then
+            if m.favoritesButton <> invalid then
+                m.favoritesButton.SetFocus(true)
+                m.headerCol = "favorites"
+                handled = true
+            end if
+        else if key = "down" then
+            ' 3-zone vertical chain: search (top) <-> continue (if visible) <->
+            ' library (bottom). Focus switching relies on PosterGrid/Button key
+            ' bubbling: the header buttons never consume "down", a single-row
+            ' continueGrid never consumes "up"/"down", and a multi-row
+            ' libraryGrid never consumes "up" on its top row, so they bubble.
             if m.currentRail = "search" then
                 if m.continueGrid.visible then
                     m.continueGrid.SetFocus(true)
@@ -275,17 +320,13 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
                 if m.continueGrid.visible then
                     m.continueGrid.SetFocus(true)
                     m.currentRail = "continue"
-                else if m.searchButton <> invalid then
-                    m.searchButton.SetFocus(true)
-                    m.currentRail = "search"
+                else
+                    FocusHeaderZone()
                 end if
                 handled = true
             else if m.currentRail = "continue" then
-                if m.searchButton <> invalid then
-                    m.searchButton.SetFocus(true)
-                    m.currentRail = "search"
-                    handled = true
-                end if
+                FocusHeaderZone()
+                handled = true
             end if
         end if
     end if

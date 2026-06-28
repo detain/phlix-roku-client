@@ -12,9 +12,12 @@
                    text="Phlix"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF" />
-            <Button height="60" width="200" translation="[1040,20]"
+            <Button height="60" width="200" translation="[820,20]"
                     title="Search"
                     id="searchButton" />
+            <Button height="60" width="200" translation="[1040,20]"
+                    title="Favorites"
+                    id="favoritesButton" />
         </Rectangle>
 
         <!-- Continue Watching rail (single row, hidden until populated) -->
