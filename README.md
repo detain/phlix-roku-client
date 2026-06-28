@@ -70,12 +70,25 @@ No external dependencies required. BrightScript is natively supported by Roku de
 
 ### 4. Configure Server Connection
 
-The app will prompt for server URL on first launch, or you can pre-configure:
+There is **nothing to pre-configure** — the server URL is entered in-app on first launch.
 
-```bash
-# Edit the default server URL in source/components/PhlixApp.brs
-# Or set via Settings within the app
-```
+On first run (no `server_url` persisted yet) the boot flow shows a **Connect to server**
+screen (`ConnectScene`):
+
+1. Enter your server's address (a direct Phlix server **or** a Phlix Hub — both expose
+   `/health` identically), e.g. `https://my.phlix.server` or `http://192.168.1.100:8096`.
+2. Press **Connect**. The URL is normalized (a missing scheme is inferred — `http://` for
+   LAN/loopback hosts, `https://` otherwise — and a trailing `/` is stripped) and probed
+   via `GET {url}/health`.
+3. On a healthy probe the URL is persisted to registry storage under `server_url` and the
+   app proceeds to the login screen, then Home.
+4. If the probe fails (server unreachable, or `/health` is blocked), an error is shown and
+   a **Connect anyway** button appears — pressing it persists the entered URL and proceeds
+   regardless.
+
+On subsequent launches the persisted `server_url` is reused and the Connect screen is
+skipped (boot goes straight to login or, if a session is restored, Home). The login screen
+itself only collects username/password — it no longer has a server-URL field.
 
 ### 5. Hub Mode (Optional)
 
@@ -495,7 +508,8 @@ phlix-roku/
 │   │   ├── RecordingsScene.brs   # Admin Live TV recordings list (one-shot LabelList; read-only, selection inert)
 │   │   ├── SeriesRulesScene.brs  # Admin Live TV series-rules list (one-shot LabelList; read-only, selection inert)
 │   │   ├── PlayerScene.brs     # Video player
-│   │   ├── LoginScene.brs      # Login screen
+│   │   ├── ConnectScene.brs    # First-run "Connect to server" screen (normalizes + probes /health, persists server_url, then proceeds to login)
+│   │   ├── LoginScene.brs      # Login screen (username/password only — server URL is set by ConnectScene)
 │   │   └── GridItem.brs        # Grid item component
 │   ├── player/
 │   │   ├── HlsPlayer.brs       # HLS playback handler
@@ -536,7 +550,8 @@ phlix-roku/
 
 1. Verify Phlix Media Server is running
 2. Check network connectivity from Roku
-3. Verify correct server URL in app settings
+3. Verify the server URL entered on the first-run Connect screen is correct (the
+   `/health` probe surfaces "Couldn't reach that server" when it is wrong/unreachable)
 4. Check server logs for connection attempts
 
 ### Video Playback Issues

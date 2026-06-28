@@ -31,7 +31,7 @@ Running a single test: there is no host runner. To execute a test you must sidel
 
 ```
 source/main.brs            → boots an roSGScreen, instantiates the PhlixApp scene, runs the message loop
-source/components/*.{brs,xml}  → SceneGraph scenes (PhlixApp, Login, Home, Library, Detail, Player, GridItem)
+source/components/*.{brs,xml}  → SceneGraph scenes (PhlixApp, Connect, Login, Home, Library, Detail, Player, GridItem)
 source/lib/*.brs           → pure BrightScript modules, all using the factory-object pattern
 source/pages/*.brs         → page controllers used by scenes
 source/data/Theme.brs      → constants
@@ -41,15 +41,19 @@ Each scene is an XML file declaring nodes + interface fields, paired with a `.br
 
 ### Factory pattern for lib modules
 
-Every file in `source/lib/` exposes a single `PascalCase` factory function that returns an object literal containing both state and methods (closing over `m`). Example: `ApiClient(baseUrl)` returns `{ baseUrl, token, sessionId, deviceProfile, setToken: function(...), request: function(...), … }`. There are no classes. To add functionality, extend the returned object literal, not a prototype.
+Every file in `source/lib/` exposes a single `PascalCase` factory function that returns an object literal containing both state and methods (closing over `m`). Example: `ApiClient(baseUrl)` returns `{ baseUrl, token, sessionId, setToken: function(...), … }`. There are no classes. To add functionality, extend the returned object literal, not a prototype.
 
-`ApiClient` is the single chokepoint for all HTTP to the Phlix server — every endpoint goes through its internal `request(method, path, body)`. It also reaches into `Storage` (the registry-backed key/value module) to persist `auth_token` and `session_id`.
+`ApiClient` is the single chokepoint for all HTTP to the Phlix server — every endpoint goes through its internal request transport, which builds `url = m.baseUrl + "/api/v1" + path` (so `baseUrl` is the bare origin, **without** the `/api/v1` prefix). It also reaches into `Storage` (the registry-backed key/value module) to persist `auth_token`, `refresh_token`, and `session_id`. The one exception is `probeHealth()`, which hits `{baseUrl}/health` directly (NOT `/api/v1/health`) — it is used by the first-run Connect flow to verify a candidate URL is reachable before persisting it.
 
 Managers (`AuthManager`, `SessionManager`, `LibraryManager`, `TaskManager`) are thin wrappers around `ApiClient` that own a slice of state and the user-facing verbs. Scenes call managers, managers call `ApiClient`, `ApiClient` calls the server. Do not let scenes call `ApiClient` directly — that bypasses the manager state.
 
-### Device profile is load-bearing
+### Boot / connection gate
 
-`ApiClient.deviceProfile` (in `source/lib/ApiClient.brs`) declares which containers/codecs the Roku will direct-play vs. transcode. The server reads this on `/Items/{id}/PlaybackInfo` and chooses the stream URL accordingly. Changing it changes server-side behavior, not just client decoding.
+`main.brs` boots the `PhlixApp` scene. `PhlixApp.Init` builds the managers, then gates on whether a server has been chosen: `if not IsServerConnected() then ShowConnect() else (m.auth.checkAuth() ? ShowHome() : ShowLogin())`. `IsServerConnected()` (in `source/lib/AppContext.brs`) just checks that the persisted `server_url` is set and non-empty.
+
+On first run that path is `ShowConnect()` → the user picks a server on `ConnectScene` → on success `OnConnected()` removes the Connect scene, rebuilds `m.api`/`m.auth`/`m.session`/`m.library` against the now-connected `server_url`, then falls through to `ShowLogin()` (or `ShowHome()` if a session was restored). The persisted key is `server_url`, consumed by `GetApiClient()` / `GetServerUrl()`.
+
+> The pre-F0b Roku client targeted an Emby-style API (an `ApiClient.deviceProfile` blob plus routes like `/Items/{id}/PlaybackInfo`). F0b removed the device profile and migrated the client to the canonical Phlix `/api/v1` API; there is no device-profile negotiation any more. Treat any lingering Emby-route references in older docs/comments as stale.
 
 ## BrightScript conventions used in this repo
 
@@ -59,7 +63,7 @@ These are conventions enforced informally (sometimes by `make lint`'s greps); fo
 - Type every parameter and return: `function GetUserById(id as String) as Object`.
 - `invalid` is the null. Always guard before use: `if user <> invalid then …`. Functions that fetch data return `invalid` or `{}` on failure rather than throwing.
 - `print` is the only logging primitive — `make lint` rejects `console.log`. Leave production code free of speculative debug prints.
-- Don't introduce hardcoded server URLs or credentials — server URL comes from the login flow / Settings page and is persisted via `Storage`.
+- Don't introduce hardcoded server URLs or credentials — the server URL is entered on the first-run **Connect screen** (`ConnectScene`, which normalizes the input and probes `GET {url}/health`) and is persisted via `Storage` under the `server_url` key. The boot flow gates on it (`PhlixApp.Init` → `IsServerConnected()` → `ShowConnect()` when unset). The login screen only collects username/password.
 
 ## When editing scenes
 
