@@ -115,6 +115,18 @@ sub ExecRequest()
             if req.DoesExist("limit") and req.limit <> invalid then limit = req.limit
             result.data = api.getAdminActivity(limit)
             result.ok = (result.data <> invalid)
+        else if req.op = "scanLibrary" then
+            result.data = api.scanLibrary(req.libraryId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "rescanLibrary" then
+            result.data = api.rescanLibrary(req.libraryId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "matchLibraryMetadata" then
+            result.data = api.matchLibraryMetadata(req.libraryId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "getLibraryScanStatus" then
+            result.data = api.getLibraryScanStatus(req.libraryId)
+            result.ok = (result.data <> invalid)
         end if
     end if
 

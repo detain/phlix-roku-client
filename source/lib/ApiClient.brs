@@ -623,6 +623,29 @@ function ApiClient(baseUrl as String) as Object
         getAdminActivity: function(limit as Integer) as Object
             return m.request("GET", "/admin/dashboard/activity?limit=" + str(limit).trim(), invalid)
         end function
+
+        ' ---------------------------------------------------------------------
+        ' Libraries admin (F11b). Bare /libraries/{id}/* routes, internally
+        ' requireAdmin-gated. scan/rescan/match enqueue async jobs (202
+        ' {job_id,status,message}); scan-status returns {scan_status:<job|null>}.
+        ' libraryId is a UUID -> path directly. POST has NO body (proven no-body
+        ' POST pattern, same as startTranscode). All return the WHOLE json.
+        ' ---------------------------------------------------------------------
+        scanLibrary: function(libraryId as String) as Object
+            return m.request("POST", "/libraries/" + libraryId + "/scan", invalid)
+        end function
+
+        rescanLibrary: function(libraryId as String) as Object
+            return m.request("POST", "/libraries/" + libraryId + "/rescan", invalid)
+        end function
+
+        matchLibraryMetadata: function(libraryId as String) as Object
+            return m.request("POST", "/libraries/" + libraryId + "/match-metadata", invalid)
+        end function
+
+        getLibraryScanStatus: function(libraryId as String) as Object
+            return m.request("GET", "/libraries/" + libraryId + "/scan-status", invalid)
+        end function
     }
 
     ' Generate device ID if not exists

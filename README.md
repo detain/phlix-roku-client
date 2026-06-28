@@ -313,6 +313,10 @@ The app communicates with these Phlix API endpoints:
 | GET | `/api/v1/admin/dashboard/now-playing` | Admin-gated, read-only. Active streams. Envelope `{success, data, count}`; `data[]` rows carry `username`, `media_title`, `progress_percent`, etc. AdminMiddleware → 401 (no/invalid token) / 403 (non-admin). |
 | GET | `/api/v1/admin/dashboard/storage` | Admin-gated, read-only. Per-type storage usage. Envelope `{success, data, count}`; `data[]` rows carry `media_type`, `item_count`, server-preformatted `formatted_total`. AdminMiddleware → 401/403. |
 | GET | `/api/v1/admin/dashboard/activity` | Admin-gated, read-only. Recent activity (optional `?limit=N`). Envelope `{success, data, count}`; `data[]` rows carry `occurred_at`, `username`, `event_type`. AdminMiddleware → 401/403. |
+| POST | `/api/v1/libraries/{id}/scan` | Admin-gated (internal `requireAdmin`). Enqueues an **incremental** scan job. **202** `{job_id, status, message}`. Sent as a bodyless POST. |
+| POST | `/api/v1/libraries/{id}/rescan` | Admin-gated (internal `requireAdmin`). Enqueues a **full** rescan job. **202** `{job_id, status, message}`. Sent as a bodyless POST. |
+| POST | `/api/v1/libraries/{id}/match-metadata` | Admin-gated (internal `requireAdmin`). Enqueues a metadata-matching job. **202** `{job_id, status, message}`. Sent as a bodyless POST. |
+| GET | `/api/v1/libraries/{id}/scan-status` | Admin-gated (internal `requireAdmin`). Returns the latest scan job for the library: `{scan_status: <job row | null>}`. **200** even when never scanned (`scan_status` is `null`). Job row carries `job_type`, `status`, `current_path`, `started_at`, `completed_at`. |
 
 ## Remote Control Reference
 
@@ -342,9 +346,16 @@ ends — never wraps):
 - **Admin** — shown **only for admin users**. On Home init the app calls `GET /auth/me` and reveals
   the button when the returned user is `is_admin`; for non-admins the button stays hidden and the
   Right-nav skips it (no dead end / no focus on a hidden node). Opens the read-only admin flow:
-  `Home → Admin (menu) → Dashboard`. The Admin menu currently has one row, **Dashboard**, which opens
-  a read-only stats view (now-playing / storage / recent-activity) in a single list. No admin actions
-  are exposed in this slice — reads only.
+  `Home → Admin (menu) → Dashboard | Libraries`. The Admin menu has two rows:
+  - **Dashboard** — a read-only stats view (now-playing / storage / recent-activity) in a single list.
+  - **Libraries** — a button-driven library admin surface (no keyboard required):
+    `Admin → Libraries (LabelList of libraries) → a library's actions`. The per-library actions screen
+    has four buttons — **Scan (incremental)**, **Rescan (full)**, **Match Metadata**, and **Refresh
+    Status** — plus a scan-status summary line. Selecting Scan / Rescan / Match Metadata enqueues an
+    asynchronous job on the server (202 `{job_id, status, message}`) and then refreshes the status line;
+    only one request runs at a time. The status line shows the latest job's type / status / current path
+    / started / completed, or **"Never scanned"** when the library has no scan job yet. Status is
+    refreshed **manually** via the Refresh Status button — there is no auto-poll.
 
 ## Project Structure
 
@@ -367,8 +378,10 @@ phlix-roku/
 │   │   ├── DetailScene.brs     # Item detail view
 │   │   ├── CollectionsScene.brs # Collections list (LabelList of collection names, read-only)
 │   │   ├── CollectionScene.brs  # One collection's items (poster grid; raw rows normalized client-side)
-│   │   ├── AdminScene.brs       # Admin menu (LabelList; is_admin-gated entry; one row: Dashboard)
+│   │   ├── AdminScene.brs       # Admin menu (LabelList; is_admin-gated entry; rows: Dashboard, Libraries)
 │   │   ├── DashboardScene.brs   # Read-only admin dashboard (now-playing / storage / activity in one list)
+│   │   ├── LibraryAdminScene.brs # Admin libraries list (LabelList; drills into per-library actions)
+│   │   ├── LibraryAdminActionsScene.brs # Per-library admin actions (Scan / Rescan / Match Metadata / Refresh Status + scan-status line)
 │   │   ├── PlayerScene.brs     # Video player
 │   │   ├── LoginScene.brs      # Login screen
 │   │   └── GridItem.brs        # Grid item component
