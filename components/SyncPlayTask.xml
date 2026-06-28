@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="SyncPlayTask" extends="Task">
+    <interface>
+        <!-- Scene->task connection config: { host, port, path, memberName }.
+             `path` already carries "/syncplay?token=...". The scene splits the
+             URL (do NOT re-parse it here). -->
+        <field id="config" type="assocarray" />
+
+        <!-- Scene->task imperative commands. alwaysNotify so two identical kinds
+             in a row still fire. { kind, ... } - see RunSocket's HandleCommand. -->
+        <field id="command" type="assocarray" alwaysNotify="true" />
+
+        <!-- Task->scene events. alwaysNotify so repeated kinds still notify.
+             { kind, ... } - see the routing in RunSocket. -->
+        <field id="event" type="assocarray" alwaysNotify="true" />
+
+        <!-- Task->scene connection state string:
+             "connecting" | "open" | "closed" | "error". -->
+        <field id="connectionState" type="string" />
+    </interface>
+
+    <!-- Transitive closure: a component scope does NOT auto-include pkg:/source.
+         The socket loop is driven entirely by the `config`/`command` fields (the
+         scene splits the URL), so it needs only Storage + Utilities +
+         SyncPlayProtocol (framing/codec/NowMs) + own .brs. AppContext/ApiClient
+         are deliberately NOT included (unused here, and AppContext would drag in
+         ApiClient). -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/SyncPlayProtocol.brs" />
+    <script type="text/brightscript" uri="pkg:/components/SyncPlayTask.brs" />
+</component>

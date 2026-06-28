@@ -31,8 +31,8 @@ Running a single test: there is no host runner. To execute a test you must sidel
 
 ```
 source/main.brs            → boots an roSGScreen, instantiates the PhlixApp scene, runs the message loop
-source/components/*.{brs,xml}  → SceneGraph scenes (PhlixApp, Connect, Login, ServerPicker, Home, Library, Detail, Player, GridItem)
-source/lib/*.brs           → pure BrightScript modules, all using the factory-object pattern
+components/*.{brs,xml}      → SceneGraph scenes + Task nodes (PhlixApp, Connect, Login, ServerPicker, Home, Library, Detail, Player, GridItem, ApiTask, SyncPlayTask, …)
+source/lib/*.brs           → pure BrightScript modules, all using the factory-object pattern (incl. SyncPlayProtocol)
 source/pages/*.brs         → page controllers used by scenes
 source/data/Theme.brs      → constants
 ```
@@ -72,6 +72,45 @@ The connect URL may be a **direct Phlix server** or a **Phlix Hub** — both exp
 - **Logout** clears `connection_kind`/`active_server_id`/`active_server_name` but **keeps** `server_url`.
 
 > **Known hub-mode limitation:** the hub registers only `GET`/`POST` on its relay proxy, so `PUT`/`DELETE` (favorites-remove, rating set/clear, server-side session-end) don't reach the server in hub mode; and hub-token refresh-over-relay is not wired (re-auth on expiry). Both are documented follow-ups in `README.md` ("Hub / multi-server mode"). Direct mode is unaffected.
+
+### SyncPlay / Watch Together (F13)
+
+SyncPlay is a hand-rolled RFC6455 WebSocket client built **to a not-yet-deployed phlix-server target
+contract** (the post-`SP*` SyncPlay worker; the server's `:8097` WS worker is still a `(Future)`
+stub), and it is **device-unverifiable** (bsc + review only). Two new files plus an additive overlay:
+
+- `source/lib/SyncPlayProtocol.brs` — a **pure** factory (no I/O, no UI): RFC6455 framing
+  (`BuildClientFrame`/`BuildTextFrame`/`ParseFrames` with masked client frames + buffered decode;
+  BrightScript has no infix `xor`, so masking uses a composed `XorByte` helper), the WebSocket
+  handshake helpers (we send a valid random `Sec-WebSocket-Key` and accept the `101` **without
+  verifying the accept hash** — noted in-code), the **FLAT** `syncplay_*` codec (`Encode`/`Decode`;
+  payload fields at the top level, `protocol_version:1`, ms `timestamp`), and the NTP TimeSync
+  (weighted-mean offset, variance-<50 stability, drift EMA clamped `[0.99,1.01]`). Module-level
+  `NowMs() as LongInteger` uses a `1000&` literal to avoid 32-bit overflow on `seconds*1000`.
+- `components/SyncPlayTask.{xml,brs}` — a long-lived `Task` (`functionName="RunSocket"`) that owns
+  the `roStreamSocket`. Socket I/O **must** be off the render thread: one shared `roMessagePort`
+  receives both `roSocketEvent` and the scene→task `command` `roSGNodeEvent`; a `wait(4000,port)`
+  returning `invalid` is the tick that sends a `time_ping`. Only assocarray/string/number cross the
+  Task↔scene boundary — the Task reads `config`/`command` and writes `event`/`connectionState`, never
+  touching UI nodes. Because component scope does not auto-include `pkg:/source`, its XML carries the
+  full `<script>` closure (Storage, Utilities, AppContext, SyncPlayProtocol, own `.brs`).
+- `components/PlayerScene.{xml,brs}` — the **only** place playback control lives, so SyncPlay is an
+  additive "Watch Together" overlay there (LabelList of groups + Create/Leave + status). It is opened
+  by the `*`/Options key and **lazily** creates the `SyncPlayTask` + group-list `ApiTask` on first
+  open, so the default playback path is byte-unchanged when the overlay is never opened. Inbound host
+  play/pause/seek are applied to the local `Video` node drift-corrected (ms→s) and echo-suppressed by
+  `your_id`; when this device is the host, local play/pause/seek (at the user-input layer only — not
+  from `OnPlayerStateChange`, to avoid feedback loops) are broadcast.
+- `ApiClient.getSyncPlayGroups()` → `GET /api/v1/syncplay/groups` (whole `{groups}` envelope, not
+  unwrapped) feeds the overlay list so no group id is typed on the TV; create/join/leave go over WS.
+
+**Two hard facts to keep in docs/code:**
+
+- **`ws://` only.** `roStreamSocket` is plaintext TCP with **no TLS** → `wss://` is impossible. The
+  scene derives `ws://<host>:8097/syncplay?token=<auth_token>` from `GetServerUrl()` (port forced to
+  `8097`). It only works against a Roku-reachable **plaintext** `:8097` (LAN / documented exposure).
+- **Hub mode is disabled.** The hub relay is HTTP-only (strips `Upgrade`), so SyncPlay refuses to
+  open in hub mode with a message. Direct mode (`GetConnectionKind()<>"hub"`) only.
 
 > The pre-F0b Roku client targeted an Emby-style API (an `ApiClient.deviceProfile` blob plus routes like `/Items/{id}/PlaybackInfo`). F0b removed the device profile and migrated the client to the canonical Phlix `/api/v1` API; there is no device-profile negotiation any more. Treat any lingering Emby-route references in older docs/comments as stale.
 

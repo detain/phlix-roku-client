@@ -18,7 +18,7 @@ A native Roku application for the Phlix Media Server platform. Stream your media
 - **Multiple User Support**: Personalized libraries and watch states per user
 - **Hub / Multi-Server Mode**: Point the Connect screen at a Phlix Hub instead of a single server — after login the client detects the hub (`GET /api/v1/me/servers`), shows a server picker, and routes all media requests to the chosen server through the hub's relay proxy (the hub Bearer is the relay auth). See "Hub / multi-server mode" below for the known PUT/DELETE-over-relay limitation.
 - **Skip Intro/Outro**: Automatically displayed skip buttons when playback enters marker ranges defined by the server (intro start/end, outro start/end)
-- **SyncPlay**: Watch with friends in perfect sync across multiple devices with NTP-style time synchronization, group state management, and synchronized playback controls (play/pause/seek)
+- **SyncPlay / Watch Together** *(built to a not-yet-deployed server target; device-unverifiable — see the LIMITATIONS box under "SyncPlay (Watch Together)")*: a hand-rolled RFC6455 WebSocket client (`source/lib/SyncPlayProtocol.brs` + `components/SyncPlayTask.{xml,brs}`) lets several devices watch the same content in sync. Open the **Watch Together** overlay in the player (the `*`/Options key), pick a group from the list (or Create), and playback follows the host (play/pause/seek) with NTP-style drift correction. **Direct mode only** (disabled in hub mode), and **`ws://` only** because Roku's `roStreamSocket` has no TLS.
 - **Profile Management (admin)**: View a user's profiles and adjust the parental-control rating or clear a forgotten PIN — button-driven, no keyboard. Reached via `Admin → Users → (select user) → Profiles`
 
 ## Prerequisites
@@ -158,45 +158,110 @@ register `PUT`/`DELETE`/`PATCH` on the proxy handler.
 
 ### 6. SyncPlay (Watch Together)
 
-SyncPlay allows multiple users to watch the same content together remotely, staying in sync without manual timestamp coordination.
+SyncPlay lets several devices watch the same content together, staying in sync without manual
+timestamp coordination. It is a **TV-friendly, button-driven overlay inside the player** — there is
+no separate SyncPlay scene; all playback control stays in `PlayerScene`, so when the overlay is
+never opened the player path is byte-identical to a non-SyncPlay build.
 
-#### Features
-- **NTP-Style Time Sync**: Weighted-mean offset calculation for accurate clock synchronization
-- **Group Watching**: Create or join groups to watch with friends
-- **Synchronized Playback**: Play, pause, and seek commands sync across all members
-- **Member Presence**: See who's in the group and get notified on join/leave
-- **Automatic Position Reports**: Periodic position updates every 30 seconds
+> ## ⚠️ LIMITATIONS — read before relying on SyncPlay
+>
+> - **DEVICE-UNVERIFIABLE.** Roku BrightScript only runs on hardware (there is no host runner), so
+>   this code has been verified by `brighterscript` (bsc) + code review **only** — never executed.
+> - **Built to a not-yet-deployed server target.** The whole slice targets the *post-`SP*`*
+>   phlix-server SyncPlay wire contract. **The server's SyncPlay WebSocket worker is not live yet**
+>   (`phlix-server/start.php` still stubs the `:8097` worker as `(Future)`), so SyncPlay cannot
+>   actually connect or function until phlix-server Phase 8 (SP1/SP2/SP4/SP7) ships.
+> - **`ws://` only — `wss://` is impossible.** Roku's `roStreamSocket` is plaintext TCP with **no
+>   TLS**, so the hand-rolled WebSocket can speak `ws://` only. On a TLS-fronted production box
+>   (HAProxy terminating TLS) SyncPlay connects **only if the server's plaintext `:8097` is reachable
+>   from the Roku** (same LAN, or a documented plaintext exposure). The client derives a plaintext
+>   `ws://<host>:8097/syncplay?token=…` URL from the connected server origin.
+> - **Hub mode: disabled.** The hub relay proxy is HTTP-only (it strips the `Upgrade` header), so
+>   there is no WebSocket path through the hub. In hub mode the overlay refuses to open with a
+>   friendly message ("Watch Together isn't available in hub mode yet").
+> - **Deferred:** chat / typing, host transfer, playback queue, periodic `playback_sync` broadcast,
+>   group passwords (password-gated groups simply fail to join), WS reconnect/backoff (a disconnect
+>   ends the session — no auto re-join), and strict `Sec-WebSocket-Accept` SHA-1 verification (the
+>   client sends a valid random key and accepts the `101` without verifying the accept hash).
 
 #### Usage
 
-1. **During Playback**: Press the SyncPlay button in the player overlay
-2. **Create Group**: Tap "Create Group" to start a new SyncPlay session
-3. **Join Group**: Enter a 6-character Group ID to join an existing session
-4. **Watch Together**: All members receive synchronized play/pause/seek commands
+1. **Open the overlay.** During playback, press the **`*` / Options** key to open the **Watch
+   Together** overlay (direct mode only — in hub mode it shows the disabled message).
+2. **Pick or create a group.** The overlay lists existing groups (a read-only snapshot from
+   `GET /api/v1/syncplay/groups`, so no group-id typing on the TV). Select one to **Join**, press
+   **Create Group** to start a new room (named `"<device>'s Room"`, no keyboard), or **Leave** to
+   exit. A status line shows the connection state, group name, member count, and sync (offset/stable)
+   indicator.
+3. **Watch together.** Playback follows the group **host**: inbound host `play` / `pause` / `seek`
+   are applied to the local `Video` node with NTP drift correction (ms→s at the boundary) and
+   echo-suppressed by your own member id. When **this** device is the host, your local play / pause /
+   seek are broadcast to the group.
 
-#### SyncPlay WebSocket Events
+#### Wire contract (canonical `syncplay_*`)
 
-| Event | Direction | Description |
-|-------|-----------|-------------|
-| `syncplay.join_group` | Client → Server | Join a SyncPlay group |
-| `syncplay.leave_group` | Client → Server | Leave current group |
-| `syncplay.playback_command` | Client → Server | Send play/pause/seek command |
-| `syncplay.report_position` | Client → Server | Periodic position report |
-| `syncplay.request_time_sync` | Client → Server | Request time synchronization |
-| `syncplay.time_sync` | Server → Client | Time sync response (offset calculation) |
-| `syncplay.group_state` | Server → Client | Current group state and members |
-| `syncplay.playback_update` | Server → Client | Play/pause/seek from any member |
-| `syncplay.member_joined` | Server → Client | New member joined group |
-| `syncplay.member_left` | Server → Client | Member left group |
+The on-the-wire protocol mirrors `@phlix/syncplay` and the phlix-server `Messages::TYPE_*`
+constants. The transport implementation is `source/lib/SyncPlayProtocol.brs` (pure RFC6455 framing +
+flat codec + NTP TimeSync, no I/O), driven by the long-lived `components/SyncPlayTask.{xml,brs}`
+node (socket I/O off the render thread).
 
-#### Time Synchronization Protocol
+- **Framing is FLAT.** Every message, in and out, is a single flat JSON object — payload fields
+  spread at the **top level**, *not* nested under `data`:
+  `{ "type": "syncplay_<name>", "protocol_version": 1, "timestamp": <ms>, …payload }`. The repo's
+  old `syncplay.<dot>` event notation was wrong and never implemented — the real types use the
+  **`syncplay_` underscore** prefix.
+- `protocol_version` is always `1`; `timestamp` is sender wall-clock **milliseconds**; **all
+  positions / durations on the wire are milliseconds** (Roku `Video` position/seek are seconds → the
+  client converts at the boundary).
+- **`syncplay_group_state` is the one nested case:** `{ type, protocol_version, timestamp,
+  group:{…}, your_id:"…" }` — `group` and `your_id` sit flat at the top level, but `group` is itself
+  an object (`group_id`, `group_name`, `member_count`, `members:[{id,name,is_host,joined_at}]`,
+  `host_id`, `current_media_id`, `playback_position` (ms), `playback_state`, …). The client learns
+  its **real** member id from `group_state.your_id` (used for echo-suppression and host detection).
+- **Auth + URL:** the WS connection is authenticated on the upgrade via `?token=<access_token>` (the
+  same access token the REST client holds in Storage `auth_token`); unauthenticated sockets are
+  rejected before any frame. The canonical URL is `wss://<host>/syncplay` → server **`:8097`**, but
+  since Roku can't do TLS the client connects to the derived plaintext
+  `ws://<host>:8097/syncplay?token=…`.
 
-The client implements NTP-style time synchronization:
-1. Client sends `syncplay.request_time_sync` with local timestamp
-2. Server responds with `syncplay.time_sync` containing timestamps
-3. Client computes: `offset = (server_time - client_send_time) + latency`
-4. Rolling average of last 5 samples maintained for stability
-5. `adjustedTime = Date.now() + averageOffset` used for position comparisons
+The 19 canonical message types (F13 implements the TV-friendly subset shown below; chat / typing /
+host_transfer / queue / sync are deferred):
+
+| Type (`syncplay_*`) | Direction | F13 | Notes |
+|---|---|---|---|
+| `syncplay_group_create` | Client → Server | ✅ | `group_name`, `member_name?` (sent on Create) |
+| `syncplay_group_join` | Client → Server | ✅ | `group_id`, `member_name?` (sent on Join) |
+| `syncplay_group_leave` | Client → Server | ✅ | `group_id`, `member_id` (sent on Leave) |
+| `syncplay_group_list` | Client → Server | — | group browse uses the REST snapshot instead |
+| `syncplay_playback_play` | both | ✅ | `group_id`, `member_id`, `position` (ms), `server_time` (ms) |
+| `syncplay_playback_pause` | both | ✅ | same payload as `_play` |
+| `syncplay_playback_seek` | both | ✅ | `from_position`, `to_position`, `server_time` (all ms) |
+| `syncplay_playback_queue` | both | — | deferred (no queue UI) |
+| `syncplay_playback_sync` | both | — | deferred (no periodic broadcast) |
+| `syncplay_chat` / `syncplay_typing` | both | — | deferred (no chat UI) |
+| `syncplay_host_transfer` | Client → Server | — | deferred |
+| `syncplay_time_ping` | Client → Server | ✅ | `client_time` (ms = t1); sent on the periodic tick |
+| `syncplay_time_pong` | Server → Client | ✅ | `client_time` (echoed t1), `server_time` (t2) |
+| `syncplay_group_state` | Server → Client | ✅ | nested `group` + `your_id` (see above) |
+| `syncplay_host_elect` | Server → Client | ✅ | `elected_id`, `elected_by` (re-election on host leave) |
+| `syncplay_time_sync` | Server → Client | — | not consumed (client maintains its own offset) |
+| `syncplay_info` | Server → Client | ✅ | `message` (+ `member_id`/`member_name` on member JOIN) |
+| `syncplay_error` | Server → Client | ✅ | `error_code` (fallback `code`) + `message` |
+
+#### Time Synchronization Protocol (NTP-style, milliseconds)
+
+Implemented in `SyncPlayProtocol.brs` TimeSync, mirroring `@phlix/syncplay` SPEC §5:
+
+1. Every tick (~4s) the client sends `syncplay_time_ping` with `client_time` = t1 (ms).
+2. The server replies `syncplay_time_pong` with `client_time` (echoed t1) and `server_time` (t2 =
+   server receive time; there is **no** t3/`server_receive_time` field).
+3. Per pong (t3 = t2, t4 = local `NowMs()`): `rtt = t4 - t1`; `oneWay = rtt/2`;
+   `offset = t2 - t1 + oneWay`. Samples with `rtt < 0` or `rtt > 1000` are rejected.
+4. `offset` is the **weighted mean** (weight `1/max(1,rtt)`) over the last 5 samples; it is
+   considered **stable** when there are ≥5 samples and the recent-offset variance is `< 50`.
+5. A drift-rate EMA `1.0 + 0.1*(Δoffset/Δt)/1000` (clamped to `[0.99, 1.01]`) scales the follow
+   position: adjusted ms = `position + (NowMs() + offset - serverTime) * driftRate`, converted to
+   seconds before any `video.seek`.
 
 ## Configuration
 
@@ -368,6 +433,7 @@ The app communicates with these Phlix API endpoints:
 | GET | `/api/v1/Users/Me` | Get current user info |
 | GET | `/api/v1/collections` | List collections (read-only). Returns `{collections:[...]}`. Currently unauthenticated server-side. |
 | GET | `/api/v1/collections/{id}` | Get one collection with its items (read-only). Returns `{collection, items, total}`; `items` are raw DB rows normalized client-side. Currently unauthenticated server-side. |
+| GET | `/api/v1/syncplay/groups` | SyncPlay group-list snapshot (read-only; server SP5). Returns the whole `{groups:[{id, name, member_count, has_password, current_media, is_playing}]}` envelope (NOT unwrapped) — note the list uses `id`/`name`, **not** `group_id`/`group_name`. Used to populate the Watch Together overlay without typing a group id on the TV; group create/join/leave go over the WebSocket, not REST. See "SyncPlay (Watch Together)". |
 | GET | `/api/v1/auth/me` | Get the current user (auth-gated). Returns the unwrapped `{user}`, which carries `is_admin` (TINYINT 0/1) and `status`. The Home screen calls this on init to gate the admin entry. In **hub mode** the boot session-validation hits this against the **hub directly** (not over the relay), because `/auth/me` over the relay returns the hub-user perspective on the server and is unreliable. |
 | GET | `/api/v1/me/servers` | Hub-only. Returns `{servers:[ … ]}` (**camelCase** rows: `serverId`, `userId`, `serverName`, `version`, `lastSeenAt`, `status` `"online"`/`"offline"`/`"claiming"`/`"disabled"`, `hostnameCandidates:[url]`, `relayActive` (bool), `libraryCount`). A **direct** server has no such route → 404 / no `servers` array. The client calls this right after login to detect hub vs direct, and the server picker reads the whole `{servers}` envelope. |
 | GET/POST | `/api/v1/servers/{serverId}/proxy/{path:.*}` | Hub relay proxy (the **only** registered relay route). In hub mode, after a server is picked, the media `ApiClient` is bound to `{hub}/api/v1/servers/{serverId}/proxy` and sends the **hub** Bearer; the hub strips client auth, verifies server ownership (403 `server.not_owned` otherwise), injects `X-Phlix-Relay-User`, and tunnels the request to the server (which trusts the tunnel). **Only `GET`/`POST` are registered** — `PUT`/`DELETE` are not routable over the relay (see the known limitation under "Hub / multi-server mode"). |
@@ -404,7 +470,7 @@ The app communicates with these Phlix API endpoints:
 | Right | Seek forward 30 seconds |
 | Rewind | Seek backward 10 seconds |
 | Fast Forward | Seek forward 10 seconds |
-| Options | Show/hide playback info |
+| Options (`*`) | Open/close the **Watch Together** (SyncPlay) overlay (direct mode only; shows a disabled message in hub mode). While the overlay is open, Back/Options close it. |
 | Skip Button | Skip intro/outro section (shown automatically during marker ranges) |
 
 ### Home Header Navigation
@@ -533,6 +599,7 @@ phlix-roku/
 │   │   ├── SessionManager.brs  # Session management
 │   │   ├── LibraryManager.brs  # Library browsing logic
 │   │   ├── TaskManager.brs     # Background task management
+│   │   ├── SyncPlayProtocol.brs # SyncPlay: pure RFC6455 WS framing + flat syncplay_* codec + NTP TimeSync (no I/O / no UI)
 │   │   └── Utilities.brs        # Helper functions
 │   ├── components/
 │   │   ├── PhlixApp.brs       # Main app controller
@@ -554,16 +621,14 @@ phlix-roku/
 │   │   ├── GuideScene.brs        # Admin Live TV guide/EPG list (one-shot LabelList; read-only, selection inert)
 │   │   ├── RecordingsScene.brs   # Admin Live TV recordings list (one-shot LabelList; read-only, selection inert)
 │   │   ├── SeriesRulesScene.brs  # Admin Live TV series-rules list (one-shot LabelList; read-only, selection inert)
-│   │   ├── PlayerScene.brs     # Video player
+│   │   ├── PlayerScene.brs     # Video player (+ additive "Watch Together" SyncPlay overlay, opened with the "*"/Options key; gated, hub-disabled, ws:// only)
+│   │   ├── SyncPlayTask.{xml,brs} # Long-lived Task running the SyncPlay ws:// socket off the render thread (roStreamSocket; RunSocket loop; flat syncplay_* frames)
 │   │   ├── ConnectScene.brs    # First-run "Connect to server" screen (normalizes + probes /health, persists server_url, then proceeds to login)
 │   │   ├── LoginScene.brs      # Login screen (username/password only); after login probes GET /me/servers to detect hub vs direct
 │   │   ├── ServerPickerScene.brs # Hub mode: "Choose a server" list (one-shot GET /me/servers); pick persists active_server_id → relay routing
 │   │   └── GridItem.brs        # Grid item component
 │   ├── player/
 │   │   └── SkipButton.brs      # Skip intro/outro button
-│   ├── syncplay/
-│   │   ├── SyncPlayTimeSync.brs # NTP-style time synchronization
-│   │   └── SyncPlayService.brs  # SyncPlay WebSocket service
 │   ├── pages/
 │   │   ├── HomePage.brs        # Home page controller
 │   │   ├── LibraryPage.brs      # Library page controller
