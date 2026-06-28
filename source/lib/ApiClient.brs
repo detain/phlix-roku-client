@@ -572,6 +572,28 @@ function ApiClient(baseUrl as String) as Object
         getPhotoAlbum: function(albumId as String, libraryId as String) as Object
             return m.request("GET", "/photo/albums/" + UrlEncode(albumId) + "?library_id=" + UrlEncode(libraryId), invalid)
         end function
+
+        ' ---------------------------------------------------------------------
+        ' Collections (F8, read-only browse). The /collections* read routes are
+        ' currently UNAUTHENTICATED server-side (no AuthMiddleware — a server gap
+        ' flagged upstream); the client still sends its standard headers. These
+        ' return the WHOLE envelope (mirror getFavorites/getAlbums); the scene
+        ' reads the named key. A collection id is a UUID -> path directly (no
+        ' UrlEncode, consistent with getItem).
+        ' ---------------------------------------------------------------------
+
+        ' GET /collections -> {collections:[...]} ; whole json.
+        getCollections: function() as Object
+            return m.request("GET", "/collections", invalid)
+        end function
+
+        ' GET /collections/{id} -> {collection:{...}, items:[...], total} ; whole
+        ' json. The items are RAW DB rows (poster_url/overview/year under
+        ' metadata.*), NOT MediaItemShaper-shaped -> the scene normalizes each
+        ' row with Utilities.NormalizeCollectionItem.
+        getCollection: function(collectionId as String) as Object
+            return m.request("GET", "/collections/" + collectionId, invalid)
+        end function
     }
 
     ' Generate device ID if not exists

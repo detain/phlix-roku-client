@@ -312,6 +312,54 @@ function NormalizeAlbumTrack(raw as Object) as Object
     return track
 end function
 
+' Flatten a RAW collection-item row (from GET /collections/{id}) into the shape
+' the grid + type-routing consume: {id,name,type,poster_url,overview,year}.
+' Collection items are NOT MediaItemShaper-shaped: id/name/type are top-level but
+' poster_url/overview/year live under metadata.* (mirrors NormalizeAlbumTrack /
+' ContinuePosterUrl). metadata MAY arrive as a non-assoc string, so only read its
+' keys when it is an roAssociativeArray. `type` stays top-level so series ->
+' SeriesScene / season -> SeasonScene routing still works. Reads top-level first
+' then metadata fallback (defensive; raw rows have these only under metadata).
+' `year` is kept as-is (Integer or invalid). Guards invalid.
+' @param raw Object - a raw collection-item row (may be invalid)
+' @return Object - the normalized item (sentinel with empty strings when invalid)
+function NormalizeCollectionItem(raw as Object) as Object
+    item = { id: "", name: "", type: "", poster_url: "", overview: "", year: invalid }
+    if raw = invalid then return item
+
+    meta = invalid
+    if raw.DoesExist("metadata") and raw.metadata <> invalid then
+        if type(raw.metadata) = "roAssociativeArray" then meta = raw.metadata
+    end if
+
+    if raw.DoesExist("id") and raw.id <> invalid then item.id = raw.id
+    if raw.DoesExist("name") and raw.name <> invalid then item.name = raw.name
+    if raw.DoesExist("type") and raw.type <> invalid then item.type = raw.type
+
+    ' poster_url: top-level (defensive) then metadata.
+    if raw.DoesExist("poster_url") and raw.poster_url <> invalid and raw.poster_url <> "" then
+        item.poster_url = raw.poster_url
+    else if meta <> invalid and meta.DoesExist("poster_url") and meta.poster_url <> invalid and meta.poster_url <> "" then
+        item.poster_url = meta.poster_url
+    end if
+
+    ' overview: top-level then metadata.
+    if raw.DoesExist("overview") and raw.overview <> invalid then
+        item.overview = raw.overview
+    else if meta <> invalid and meta.DoesExist("overview") and meta.overview <> invalid then
+        item.overview = meta.overview
+    end if
+
+    ' year: top-level then metadata (kept as-is; may be Integer or invalid).
+    if raw.DoesExist("year") and raw.year <> invalid then
+        item.year = raw.year
+    else if meta <> invalid and meta.DoesExist("year") and meta.year <> invalid then
+        item.year = meta.year
+    end if
+
+    return item
+end function
+
 ' Non-mutating insertion sort of a (normalized) track array by disc_number then
 ' track_number. Invalid/missing numbers sort LAST (sentinel 999999) so unnumbered
 ' tracks sink to the end. Mirrors SortByEpisodeOrder. Returns a NEW array; the

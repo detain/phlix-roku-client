@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="CollectionsScene" extends="Scene">
+    <!-- HomeScene self-creates + appends + focuses this scene, so NO interface
+         function is required. Transitive closure: a component scope does NOT
+         auto-include pkg:/source. -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/CollectionsScene.brs" />
+    <children>
+        <Rectangle height="100" width="1280" color="#1a1a2e">
+            <Label height="60" width="800" translation="[40,20]"
+                   text="Collections"
+                   font="font:LargeBoldSystemFont"
+                   color="#FFFFFF" />
+        </Rectangle>
+        <!-- Full-width text list (collections have no artwork) -->
+        <LabelList height="500" width="1200" translation="[40,140]"
+                   id="collectionsList" />
+        <Rectangle height="40" width="1280" translation="[0,680]" color="#0d0d1a">
+            <Label height="40" width="1200" translation="[40,8]"
+                   text="Loading…"
+                   font="font:MediumSystemFont"
+                   color="#AAAAAA"
+                   id="statusLabel" />
+        </Rectangle>
+    </children>
+</component>

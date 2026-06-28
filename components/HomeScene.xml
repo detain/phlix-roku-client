@@ -12,12 +12,15 @@
                    text="Phlix"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF" />
-            <Button height="60" width="200" translation="[820,20]"
+            <Button height="60" width="200" translation="[600,20]"
                     title="Search"
                     id="searchButton" />
-            <Button height="60" width="200" translation="[1040,20]"
+            <Button height="60" width="200" translation="[810,20]"
                     title="Favorites"
                     id="favoritesButton" />
+            <Button height="60" width="240" translation="[1020,20]"
+                    title="Collections"
+                    id="collectionsButton" />
         </Rectangle>
 
         <!-- Continue Watching rail (single row, hidden until populated) -->
