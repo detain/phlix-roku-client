@@ -175,6 +175,12 @@ sub ExecRequest()
         else if req.op = "getSeriesRules" then
             result.data = api.getSeriesRules()
             result.ok = (result.data <> invalid)
+        else if req.op = "probeHealth" then
+            ' Probe the CANDIDATE url, not the shared GetApiClient (which is bound
+            ' to the old/absent server_url at first run). Build a fresh client.
+            api2 = ApiClient(req.url)
+            result.data = api2.probeHealth()
+            result.ok = (result.data <> invalid and HealthOk(result.data))
         end if
     end if
 

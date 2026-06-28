@@ -18,6 +18,16 @@ function GetServerUrl() as String
     return url
 end function
 
+' True when a server URL has been chosen (persisted under "server_url" and
+' non-empty). Boot gates on this: first run (no server_url) -> ConnectScene;
+' otherwise the normal auth flow. GetServerUrl keeps its localhost fallback as a
+' defensive default for any code path that reaches it before connect completes.
+' @return Boolean - true when a non-empty server_url is persisted
+function IsServerConnected() as Boolean
+    url = Storage.get("server_url")
+    return (url <> invalid and url <> "")
+end function
+
 ' Build an ApiClient bound to the configured server URL with any persisted
 ' auth token / session id restored from Storage.
 ' @return Object - A ready-to-use ApiClient instance

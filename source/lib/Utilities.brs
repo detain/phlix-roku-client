@@ -61,6 +61,67 @@ function IsValidUrl(url as String) as Boolean
     return false
 end function
 
+' Normalize a raw server/hub URL typed on the Connect screen into a bare origin
+' ApiClient can consume (ApiClient builds {baseUrl} + "/api/v1" + path). Trims
+' surrounding whitespace; keeps an explicit http://|https:// scheme; otherwise
+' infers the scheme from the host (local hosts -> http://, everything else ->
+' https://); finally strips a single trailing "/". Guards invalid/empty -> "".
+' @param raw String - the user-entered URL (may be invalid)
+' @return String - the normalized bare origin (empty string when nothing usable)
+function NormalizeServerUrl(raw as String) as String
+    if raw = invalid then return ""
+
+    url = raw.Trim()
+    if url = "" then return ""
+
+    lower = url.Lower()
+    if lower.Left(7) = "http://" or lower.Left(8) = "https://" then
+        ' Explicit scheme - keep as typed.
+    else
+        ' Infer scheme from the host. Local/private hosts default to http://,
+        ' everything else (a real domain) to https://.
+        isLocal = false
+        if lower.Left(9) = "localhost" then isLocal = true
+        if lower.Left(4) = "127." then isLocal = true
+        if lower.Left(8) = "192.168." then isLocal = true
+        if lower.Left(3) = "10." then isLocal = true
+        if lower.Left(4) = "172." then isLocal = true
+
+        if isLocal then
+            url = "http://" + url
+        else
+            url = "https://" + url
+        end if
+    end if
+
+    ' Strip a single trailing slash so ApiClient's "/api/v1" concat stays clean.
+    if Len(url) > 0 and Right(url, 1) = "/" then
+        url = Left(url, Len(url) - 1)
+    end if
+
+    return url
+end function
+
+' True when a parsed /health JSON body indicates a reachable Phlix host. The body
+' is {status:"ok", service, version, ...}; we accept it when status="ok" OR a
+' "version" key is present. NEVER compare a possibly-numeric field with "" - read
+' status (a string, safe to compare) and only DoesExist("version"). Guards invalid.
+' @param json Object - the parsed /health body (may be invalid)
+' @return Boolean - true when the body looks like a healthy Phlix host
+function HealthOk(json as Object) as Boolean
+    if json = invalid then return false
+    if type(json) <> "roAssociativeArray" then return false
+
+    if json.DoesExist("status") and json.status <> invalid then
+        s = json.status
+        if (type(s) = "String" or type(s) = "roString") and s = "ok" then return true
+    end if
+
+    if json.DoesExist("version") then return true
+
+    return false
+end function
+
 ' Get file extension from URL
 function GetFileExtension(url as String) as String
     parts = url.Split("/")
