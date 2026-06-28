@@ -18,6 +18,20 @@ function FormatTime(seconds as Float) as String
     end if
 end function
 
+' Format a UNIX epoch timestamp (seconds) as a short local "M/D H:MM" wall-clock
+' string for guide/recording captions. Distinct from FormatTime (a DURATION
+' formatter). roDateTime.FromSeconds takes an Integer; UNIX seconds fit in 32-bit
+' until 2038 so Int() is safe (unlike 100ns ticks - see SecondsToTicks).
+function FormatUnixTime(seconds as Double) as String
+    if seconds <= 0 then return ""
+    dt = CreateObject("roDateTime")
+    dt.FromSeconds(Int(seconds))
+    dt.ToLocalTime()
+    minute = str(dt.GetMinutes()).trim()
+    if Len(minute) < 2 then minute = "0" + minute
+    return str(dt.GetMonth()).trim() + "/" + str(dt.GetDayOfMonth()).trim() + " " + str(dt.GetHours()).trim() + ":" + minute
+end function
+
 ' Parse a time string to seconds
 function ParseTime(timeString as String) as Float
     parts = timeString.split(":")

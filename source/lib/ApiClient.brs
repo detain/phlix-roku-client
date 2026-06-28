@@ -749,6 +749,20 @@ function ApiClient(baseUrl as String) as Object
             if location = invalid then location = ""
             return location
         end function
+
+        ' Live TV read-only lists (F9b). All return the WHOLE envelope; scenes read
+        ' resp.data.programs / .recordings / .rules.
+        getGuide: function() as Object
+            return m.request("GET", "/admin/livetv/guide", invalid)
+        end function
+
+        getRecordings: function() as Object
+            return m.request("GET", "/admin/livetv/recordings", invalid)
+        end function
+
+        getSeriesRules: function() as Object
+            return m.request("GET", "/admin/livetv/series-rules", invalid)
+        end function
     }
 
     ' Generate device ID if not exists
