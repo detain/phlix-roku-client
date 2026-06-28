@@ -89,6 +89,12 @@ sub ExecRequest()
             if opts = invalid then opts = {}
             result.data = api.getTracks(opts)
             result.ok = (result.data <> invalid)
+        else if req.op = "getPhotoAlbums" then
+            result.data = api.getPhotoAlbums(req.libraryId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "getPhotoAlbum" then
+            result.data = api.getPhotoAlbum(req.albumId, req.libraryId)
+            result.ok = (result.data <> invalid)
         end if
     end if
 

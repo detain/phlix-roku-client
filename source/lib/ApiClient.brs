@@ -553,6 +553,25 @@ function ApiClient(baseUrl as String) as Object
             query = "?" + JoinStrings(params, "&")
             return m.request("GET", "/music/tracks" + query, invalid)
         end function
+
+        ' ---------------------------------------------------------------------
+        ' Photos (F7). All /photo/* JSON routes are Bearer-gated and REQUIRE a
+        ' library_id. These return the WHOLE envelope (mirror getAlbums); the
+        ' scene reads the named key. The thumbnail_url / full_url fields on the
+        ' returned photos are ABSOLUTE + SIGNED (token embedded) -> they drop
+        ' straight into a Poster.uri / PosterGrid HDPosterUrl (NO Bearer).
+        ' ---------------------------------------------------------------------
+
+        ' GET /photo/albums?library_id -> {albums:[...]} ; library_id REQUIRED.
+        getPhotoAlbums: function(libraryId as String) as Object
+            return m.request("GET", "/photo/albums?library_id=" + UrlEncode(libraryId), invalid)
+        end function
+
+        ' GET /photo/albums/{id}?library_id -> {album:{...}} ; id = md5(date);
+        ' library_id REQUIRED. The returned album.photos carry signed urls.
+        getPhotoAlbum: function(albumId as String, libraryId as String) as Object
+            return m.request("GET", "/photo/albums/" + UrlEncode(albumId) + "?library_id=" + UrlEncode(libraryId), invalid)
+        end function
     }
 
     ' Generate device ID if not exists

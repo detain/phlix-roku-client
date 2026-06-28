@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="PhotoViewerScene" extends="Scene">
+    <interface>
+        <function name="LoadPhotos" />
+    </interface>
+    <!-- Transitive closure: a component scope does NOT auto-include pkg:/source.
+         The .brs reaches Storage + Utilities + ApiClient + AppContext (kept for
+         scope parity with the sibling photo scenes) plus its own controller. -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/PhotoViewerScene.brs" />
+    <children>
+        <!-- Black backdrop so portrait/landscape images letterbox cleanly -->
+        <Rectangle height="720" width="1280" color="#000000" />
+
+        <!-- Full-screen image. scaleToFit preserves aspect ratio. -->
+        <Poster width="1280" height="720"
+                loadDisplayMode="scaleToFit"
+                id="fullImage" />
+
+        <!-- Caption: photo name + "i / N" -->
+        <Label height="40" width="1200" translation="[40,672]"
+               text=""
+               font="font:MediumSystemFont"
+               color="#FFFFFF"
+               id="captionLabel" />
+    </children>
+</component>
