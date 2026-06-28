@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="PhotoAlbumScene" extends="Scene">
+    <interface>
+        <function name="LoadAlbum" />
+    </interface>
+    <!-- Transitive closure: a component scope does NOT auto-include pkg:/source.
+         The .brs reaches Storage + Utilities + ApiClient + AppContext (via the
+         ApiTask data path) plus its own controller. -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/PhotoAlbumScene.brs" />
+    <children>
+        <!-- Header -->
+        <Rectangle height="100" width="1280" color="#1a1a2e">
+            <Label height="60" width="1200" translation="[40,20]"
+                   text="Album"
+                   font="font:LargeBoldSystemFont"
+                   color="#FFFFFF"
+                   id="titleLabel" />
+        </Rectangle>
+
+        <!-- Photo thumbnail grid -->
+        <PosterGrid height="540" width="1280" translation="[0,100]"
+                    numColumns="6" numRows="3"
+                    itemSpacing="[16, 16]"
+                    basePosterSize="[180, 180]"
+                    id="photosGrid">
+            <ContentEmitter />
+        </PosterGrid>
+
+        <!-- Status / empty hint -->
+        <Rectangle height="40" width="1280" translation="[0,640]" color="#0d0d1a">
+            <Label height="40" width="1200" translation="[40,8]"
+                   text="Loading…"
+                   font="font:MediumSystemFont"
+                   color="#AAAAAA"
+                   id="statusLabel" />
+        </Rectangle>
+    </children>
+</component>

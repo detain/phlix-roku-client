@@ -151,8 +151,11 @@ sub OnLibraryItemSelected(event as Object)
 
     ' Music libraries have no artwork -> route to the text-list MusicScene
     ' (music aggregates server-side, so MusicScene needs no library id).
+    ' Photo libraries -> the date-album PosterGrid PhotosScene (F7).
     if library.DoesExist("type") and library.type = "music" then
         ShowMusic()
+    else if library.DoesExist("type") and library.type = "photo" then
+        ShowPhotos(library.id, library.name)
     else
         ShowLibrary(library.id, library.name)
     end if
@@ -261,6 +264,17 @@ sub ShowMusic()
     scene = CreateObject("roSGNode", "MusicScene")
     m.top.Append(scene)
     scene.SetFocus(true)
+end sub
+
+' Open the photos browser (date-album PosterGrid). Reached by selecting a
+' type="photo" library tile; mirrors ShowLibrary's create + LoadLibrary.
+sub ShowPhotos(libraryId as String, libraryName as String)
+    name = libraryName
+    if name = invalid then name = ""
+
+    scene = CreateObject("roSGNode", "PhotosScene")
+    m.top.Append(scene)
+    scene.LoadLibrary(libraryId, name)
 end sub
 
 sub OnSearchPressed(event as Object)
