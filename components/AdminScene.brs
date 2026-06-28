@@ -16,6 +16,7 @@ sub Init()
     ' slices push more rows (Libraries, Users, Live TV) here.
     m.menuItems = [
         { label: "Dashboard", scene: "DashboardScene" }
+        { label: "Libraries", scene: "LibraryAdminScene" }
     ]
 
     ' Text list (admin sections have no artwork).
