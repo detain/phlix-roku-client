@@ -14,6 +14,12 @@ sub Init()
     m.continueGrid.ObserveField("itemSelected", "OnContinueItemSelected")
     m.continueGrid.ObserveField("itemFocused", "OnContinueItemFocused")
 
+    ' Search entry (header). Opens the SearchScene.
+    m.searchButton = m.top.FindNode("searchButton")
+    if m.searchButton <> invalid then
+        m.searchButton.ObserveField("buttonSelected", "OnSearchPressed")
+    end if
+
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
 
     ' Route all data access through a SINGLE observed ApiTask node (off the
@@ -234,21 +240,53 @@ sub ShowLibrary(libraryId as String, libraryName as String)
     scene.LoadLibrary(libraryId, libraryName)
 end sub
 
+sub OnSearchPressed(event as Object)
+    scene = CreateObject("roSGNode", "SearchScene")
+    m.top.Append(scene)
+    scene.SetFocus(true)
+end sub
+
 sub OnKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
     if press then
-        ' Focus switching relies on PosterGrid key bubbling: a single-row
-        ' continueGrid never consumes "down" and a multi-row libraryGrid never
-        ' consumes "up" on its top row, so both bubble here.
-        if key = "down" and m.currentRail = "continue" then
-            m.libraryGrid.SetFocus(true)
-            m.currentRail = "library"
-            handled = true
-        else if key = "up" and m.currentRail = "library" and m.continueGrid.visible then
-            m.continueGrid.SetFocus(true)
-            m.currentRail = "continue"
-            handled = true
+        ' 3-zone vertical chain: search (top) <-> continue (if visible) <->
+        ' library (bottom). Focus switching relies on PosterGrid/Button key
+        ' bubbling: the searchButton never consumes "down", a single-row
+        ' continueGrid never consumes "up"/"down", and a multi-row libraryGrid
+        ' never consumes "up" on its top row, so they bubble here.
+        if key = "down" then
+            if m.currentRail = "search" then
+                if m.continueGrid.visible then
+                    m.continueGrid.SetFocus(true)
+                    m.currentRail = "continue"
+                else
+                    m.libraryGrid.SetFocus(true)
+                    m.currentRail = "library"
+                end if
+                handled = true
+            else if m.currentRail = "continue" then
+                m.libraryGrid.SetFocus(true)
+                m.currentRail = "library"
+                handled = true
+            end if
+        else if key = "up" then
+            if m.currentRail = "library" then
+                if m.continueGrid.visible then
+                    m.continueGrid.SetFocus(true)
+                    m.currentRail = "continue"
+                else if m.searchButton <> invalid then
+                    m.searchButton.SetFocus(true)
+                    m.currentRail = "search"
+                end if
+                handled = true
+            else if m.currentRail = "continue" then
+                if m.searchButton <> invalid then
+                    m.searchButton.SetFocus(true)
+                    m.currentRail = "search"
+                    handled = true
+                end if
+            end if
         end if
     end if
 
