@@ -325,6 +325,9 @@ The app communicates with these Phlix API endpoints:
 | POST | `/api/v1/admin/users/{id}/reset-password` | Admin-gated (AdminMiddleware). Resets the user's password. Bodyless POST. `{message, new_password}` on success (the new password is shown once); 404 `{error}`. |
 | GET | `/api/v1/admin/livetv/channels` | Admin-gated (AdminMiddleware). Lists Live TV channels. Returns the whole `{success, channels:[...]}` envelope (admin getters do not unwrap). Each channel row carries `id` (== `channel_id`, the UUID used for `/stream`), `name`, `number` (**Integer**), `type`, `frequency` (Integer), `tuner_id`, `service_id`, `visual_id`, `description`, `icon_url`, `visibility`, `created_at`, `updated_at`. AdminMiddleware → 401 (no/invalid token) / 403 (non-admin). **If Live TV is not configured the route group is not registered → 404**; configured-but-no-tuner returns `{success, channels:[]}`. |
 | GET | `/api/v1/admin/livetv/channels/{id}/stream` | Admin-gated (AdminMiddleware, Bearer). **Returns a 302 redirect** (`Location` header) to the actual stream URL. The redirect target is an **unauthenticated** tuner/HLS URL (HDHomeRun: a direct `http://<host>:5004/auto/vN` raw MPEG-TS URL; IPTV: may be an `.m3u8`). Because the Roku `Video` node cannot carry the `Authorization` header, the client resolves this 302 with Bearer and hands the final (unauthenticated) URL to the player. See the Live TV caveat below. |
+| GET | `/api/v1/admin/livetv/guide` | Admin-gated (AdminMiddleware). Read-only EPG. Returns the whole `{success, programs:[...]}` envelope (admin getters do not unwrap). The client sends no query params → upcoming programs across **all** channels (next 7 days, capped 500 server-side). Each program row carries `id` (== `program_id`), `channel_id`, `title`, `description`, `start_time` / `end_time` (**Integer**, UNIX seconds), `duration` (Integer, seconds), `category`, `series_id`, `episode_number` (Integer\|null), `episode_title`, `rating`, `year` (Integer\|null), `is_repeat` / `is_film` (Bool), `created_at`, `updated_at`. AdminMiddleware → 401/403. **If Live TV is not configured the route group is not registered → 404** (treated as "Live TV unavailable"). |
+| GET | `/api/v1/admin/livetv/recordings` | Admin-gated (AdminMiddleware). Read-only recordings list. Returns the whole `{success, recordings:[...]}` envelope. Each recording row carries `id` (== `recording_id`), `channel_id`, `program_id`\|null, `user_id`\|null, `title`, `description`\|null, `start_time` / `end_time` (**Integer**, UNIX seconds), `duration` (Integer, seconds), `priority` (Integer), `quality`\|null, `storage_path`\|null, `storage_size` (Integer), `status` (String), `series_rule_id`\|null, `created_at`, `updated_at`. AdminMiddleware → 401/403; route group absent → 404 ("Live TV unavailable"). |
+| GET | `/api/v1/admin/livetv/series-rules` | Admin-gated (AdminMiddleware). Read-only series-recording rules. Returns the whole `{success, rules:[...]}` envelope. ⚠️ Each rule row has **no top-level `id`** — the key is `rule_id`. Rows carry `rule_id`, `series_id`, `channel_id`\|null, `title`, `priority` (**Integer**), `pre_padding_seconds` / `post_padding_seconds` (Integer), `max_recordings` (Integer\|null), `days_ahead` (Integer), `is_active` (Bool), `created_at`\|null, `updated_at`\|null. AdminMiddleware → 401/403; route group absent → 404 ("Live TV unavailable"). |
 
 ## Remote Control Reference
 
@@ -354,7 +357,8 @@ ends — never wraps):
 - **Admin** — shown **only for admin users**. On Home init the app calls `GET /auth/me` and reveals
   the button when the returned user is `is_admin`; for non-admins the button stays hidden and the
   Right-nav skips it (no dead end / no focus on a hidden node). Opens the read-only admin flow:
-  `Home → Admin (menu) → Dashboard | Libraries | Users | Live TV`. The Admin menu has four rows:
+  `Home → Admin (menu) → Dashboard | Libraries | Users | Live TV | TV Guide | Recordings | Series Rules`.
+  The Admin menu has seven rows:
   - **Dashboard** — a read-only stats view (now-playing / storage / recent-activity) in a single list.
   - **Libraries** — a button-driven library admin surface (no keyboard required):
     `Admin → Libraries (LabelList of libraries) → a library's actions`. The per-library actions screen
@@ -402,9 +406,30 @@ ends — never wraps):
     > `mpegts`-vs-`hls` `streamFormat` heuristic (`.m3u8` in the URL → `hls`, otherwise `mpegts`)
     > and raw-TS playback are likewise only verifiable on a device.
 
-    **Scope:** channels list + playback only. **Deferred / future work:** guide/EPG, recordings,
-    and series-rules (read) arrive in **F9b**; channel edit (PUT) and recording / series-rule
-    mutations are deferred (they need on-screen pickers/keyboard).
+    **Scope:** channels list + playback only.
+  - **TV Guide** — a read-only EPG list (`Admin → TV Guide`). A one-shot
+    `GET /api/v1/admin/livetv/guide` (AdminMiddleware-gated; the whole `{success, programs:[...]}`
+    envelope is read, sent with no query params → upcoming programs across all channels). Each row
+    shows **`<start time>  <title>`** where the start time is the Integer `start_time` (UNIX seconds)
+    rendered by `Utilities.FormatUnixTime` as a local `"M/D H:MM"` wall-clock string (the Integer is
+    never string-compared). **Selection is inert** (read-only view). Empty result → "No programs";
+    missing `programs` key / unregistered route → "Live TV unavailable".
+  - **Recordings** — a read-only recordings list (`Admin → Recordings`). A one-shot
+    `GET /api/v1/admin/livetv/recordings` (whole `{success, recordings:[...]}` envelope). Each row
+    shows **`<title>  (<status>)`** plus ` — <start time>` (via `FormatUnixTime`) when present, falling
+    back to the status or "(recording)" when there is no title. **Selection is inert.** Empty →
+    "No recordings"; missing key / unregistered route → "Live TV unavailable".
+  - **Series Rules** — a read-only series-recording-rule list (`Admin → Series Rules`). A one-shot
+    `GET /api/v1/admin/livetv/series-rules` (whole `{success, rules:[...]}` envelope). Each row shows
+    the rule **`title`** (falling back to `series_id`, then "(rule)"), optionally with `  (priority N)`
+    where `N` is the Integer `priority`. The rule row has **no top-level `id`** — only `rule_id` is
+    read. **Selection is inert.** Empty → "No rules"; missing key / unregistered route → "Live TV
+    unavailable".
+
+    With these three views, **F9 (live TV) is complete**. **Deferred / future work:** a guide
+    channel-filter picker, recording create / delete + recording playback, series-rule CRUD, and
+    channel edit (PUT) are intentionally not shipped — they need on-screen pickers / keyboard (or an
+    unscouted route), so all four Live TV admin surfaces remain read-only.
 
 ## Project Structure
 
@@ -427,7 +452,7 @@ phlix-roku/
 │   │   ├── DetailScene.brs     # Item detail view
 │   │   ├── CollectionsScene.brs # Collections list (LabelList of collection names, read-only)
 │   │   ├── CollectionScene.brs  # One collection's items (poster grid; raw rows normalized client-side)
-│   │   ├── AdminScene.brs       # Admin menu (LabelList; is_admin-gated entry; rows: Dashboard, Libraries, Users, Live TV)
+│   │   ├── AdminScene.brs       # Admin menu (LabelList; is_admin-gated entry; rows: Dashboard, Libraries, Users, Live TV, TV Guide, Recordings, Series Rules)
 │   │   ├── DashboardScene.brs   # Read-only admin dashboard (now-playing / storage / activity in one list)
 │   │   ├── LibraryAdminScene.brs # Admin libraries list (LabelList; drills into per-library actions)
 │   │   ├── LibraryAdminActionsScene.brs # Per-library admin actions (Scan / Rescan / Match Metadata / Refresh Status + scan-status line)
@@ -435,6 +460,9 @@ phlix-roku/
 │   │   ├── UserAdminActionsScene.brs # Per-user admin actions (Approve / Disable / Make-or-Remove Admin / Reset Password / Refresh + user detail line)
 │   │   ├── LiveTvScene.brs       # Admin Live TV channels list (one-shot LabelList; row-select resolves stream → live player)
 │   │   ├── LivePlayerScene.brs   # Dedicated lightweight live Video player (no sessions/progress/transcode/markers)
+│   │   ├── GuideScene.brs        # Admin Live TV guide/EPG list (one-shot LabelList; read-only, selection inert)
+│   │   ├── RecordingsScene.brs   # Admin Live TV recordings list (one-shot LabelList; read-only, selection inert)
+│   │   ├── SeriesRulesScene.brs  # Admin Live TV series-rules list (one-shot LabelList; read-only, selection inert)
 │   │   ├── PlayerScene.brs     # Video player
 │   │   ├── LoginScene.brs      # Login screen
 │   │   └── GridItem.brs        # Grid item component
