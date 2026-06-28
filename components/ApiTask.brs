@@ -154,6 +154,15 @@ sub ExecRequest()
             streamUrl = api.getChannelStreamUrl(req.channelId)
             result.data = { stream_url: streamUrl }
             result.ok = (streamUrl <> invalid and streamUrl <> "")
+        else if req.op = "getGuide" then
+            result.data = api.getGuide()
+            result.ok = (result.data <> invalid)
+        else if req.op = "getRecordings" then
+            result.data = api.getRecordings()
+            result.ok = (result.data <> invalid)
+        else if req.op = "getSeriesRules" then
+            result.data = api.getSeriesRules()
+            result.ok = (result.data <> invalid)
         end if
     end if
 
