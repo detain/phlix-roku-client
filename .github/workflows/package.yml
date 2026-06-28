@@ -29,3 +29,47 @@ jobs:
           name: phlix-roku-sideload
           path: phlix.zip
           if-no-files-found: error
+
+  release-latest:
+    name: Update "latest" prerelease
+    needs: package
+    # On every master/main push, overwrite a rolling "latest" GitHub Release
+    # carrying the RAW sideload phlix.zip as a directly-downloadable asset
+    # (GitHub Actions artifacts are re-zipped on download — a Release serves the
+    # bare sideload zip Roku's Dev Application Installer expects). Skipped on PRs.
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    # Override the read-only default above: publishing a Release needs write.
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Download sideload package
+        uses: actions/download-artifact@v4
+        with:
+          name: phlix-roku-sideload
+          path: artifacts
+
+      - name: Reset "latest" release + tag
+        run: gh release delete latest --yes --cleanup-tag || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish "latest" prerelease
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: latest
+          name: Latest (master)
+          body: |
+            Rolling build of the latest `master` commit (${{ github.sha }}).
+            - **`phlix.zip`** — Roku sideload package. Upload it directly via the
+              Roku device's Development Application Installer (no zip wrapper).
+          prerelease: true
+          make_latest: false
+          target_commitish: ${{ github.sha }}
+          files: artifacts/phlix.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
