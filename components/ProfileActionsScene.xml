@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="ProfileActionsScene" extends="Scene">
+    <!-- ProfilesScene creates + appends + focuses this scene and calls
+         scene.LoadProfile(...) across the component boundary, so the LoadProfile
+         interface fn MUST be declared (bsc does NOT catch a missing one - it is a
+         runtime failure). Transitive closure: a component scope does NOT
+         auto-include pkg:/source. -->
+    <interface>
+        <function name="LoadProfile" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/ProfileActionsScene.brs" />
+    <children>
+        <Rectangle height="100" width="1280" color="#1a1a2e">
+            <Label height="60" width="1200" translation="[40,20]"
+                   text="Profile"
+                   font="font:LargeBoldSystemFont"
+                   color="#FFFFFF"
+                   id="titleLabel" />
+        </Rectangle>
+        <!-- Vertical action button column: 7 flat rating buttons + Clear PIN +
+             Refresh (flat single-action buttons mirror F11c exactly - no focus
+             sub-modes, lowest-risk). -->
+        <LayoutGroup translation="[40,160]" itemSpacings="[14]">
+            <Button width="420" height="64" title="Rating: G" id="ratingGButton" />
+            <Button width="420" height="64" title="Rating: PG" id="ratingPgButton" />
+            <Button width="420" height="64" title="Rating: PG-13" id="ratingPg13Button" />
+            <Button width="420" height="64" title="Rating: R" id="ratingRButton" />
+            <Button width="420" height="64" title="Rating: NC-17" id="ratingNc17Button" />
+            <Button width="420" height="64" title="Rating: X" id="ratingXButton" />
+            <Button width="420" height="64" title="Rating: UNRATED" id="ratingUnratedButton" />
+            <Button width="420" height="64" title="Clear PIN" id="clearPinButton" />
+            <Button width="420" height="64" title="Refresh" id="refreshButton" />
+        </LayoutGroup>
+        <!-- Current profile-state detail -->
+        <Label width="680" height="400" translation="[560,160]"
+               text=""
+               wrap="true"
+               font="font:MediumSystemFont"
+               color="#FFFFFF"
+               id="detailLabel" />
+        <Rectangle height="40" width="1280" translation="[0,680]" color="#0d0d1a">
+            <Label height="40" width="1200" translation="[40,8]"
+                   text="Loading…"
+                   font="font:MediumSystemFont"
+                   color="#AAAAAA"
+                   id="statusLabel" />
+        </Rectangle>
+    </children>
+</component>

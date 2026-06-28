@@ -599,3 +599,31 @@ function IsAdminUser(user as Object) as Boolean
 
     return false
 end function
+
+' Truthy test for a bool-or-numeric (TINYINT) flag under container[key]. Mirrors
+' IsAdminUser's type-guard (a numeric <> "" compare CRASHES). Returns false when
+' missing/invalid/non-bool-non-numeric.
+' @param container Object - assocarray that may hold the flag (may be invalid)
+' @param key String - the flag key
+' @return Boolean - true only when container[key] is truthy (1 / true)
+function IsTruthyFlag(container as Object, key as String) as Boolean
+    if container = invalid then return false
+    if type(container) <> "roAssociativeArray" then return false
+    if not container.DoesExist(key) then return false
+    v = container[key]
+    if v = invalid then return false
+    t = type(v)
+    if t = "Boolean" or t = "roBoolean" then return v
+    if t = "Integer" or t = "roInt" or t = "LongInteger" or t = "roLongInteger" or t = "Float" or t = "roFloat" or t = "Double" or t = "roDouble" then return (Int(v) = 1)
+    return false
+end function
+
+' Map a content-rating int (0-6) to its label. Out-of-range -> "UNRATED".
+' (0=G,1=PG,2=PG-13,3=R,4=NC-17,5=X,6=UNRATED.)
+' @param n Integer - the rating int
+' @return String - the label
+function RatingLabel(n as Integer) as String
+    labels = ["G", "PG", "PG-13", "R", "NC-17", "X", "UNRATED"]
+    if n < 0 or n > 6 then return "UNRATED"
+    return labels[n]
+end function

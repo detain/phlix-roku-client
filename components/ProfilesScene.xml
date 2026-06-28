@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="ProfilesScene" extends="Scene">
+    <!-- UserAdminActionsScene creates + appends + focuses this scene and calls
+         scene.LoadProfiles(...) across the component boundary, so the
+         LoadProfiles interface fn MUST be declared (bsc does NOT catch a missing
+         one - it is a runtime failure). Transitive closure: a component scope
+         does NOT auto-include pkg:/source. -->
+    <interface>
+        <function name="LoadProfiles" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/ProfilesScene.brs" />
+    <children>
+        <Rectangle height="100" width="1280" color="#1a1a2e">
+            <Label height="60" width="1200" translation="[40,20]"
+                   text="Profiles"
+                   font="font:LargeBoldSystemFont"
+                   color="#FFFFFF"
+                   id="titleLabel" />
+        </Rectangle>
+        <!-- Full-width text list of the user's profiles -->
+        <LabelList height="500" width="1200" translation="[40,140]"
+                   id="profileList" />
+        <Rectangle height="40" width="1280" translation="[0,680]" color="#0d0d1a">
+            <Label height="40" width="1200" translation="[40,8]"
+                   text="Loading…"
+                   font="font:MediumSystemFont"
+                   color="#AAAAAA"
+                   id="statusLabel" />
+        </Rectangle>
+    </children>
+</component>

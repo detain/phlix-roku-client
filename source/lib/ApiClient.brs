@@ -683,6 +683,32 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
+        ' Profiles admin (F10). /admin/users/{userId}/profiles +
+        ' /admin/profiles/{id}[/pin] all under AdminMiddleware. getUserProfiles
+        ' returns the WHOLE {profiles:[...]}; getProfile returns the WHOLE
+        ' {profile}; the mutations return {message} (or {error} on a guard -
+        ' result.ok is TRUE either way, the caller reads the key).  userId is a
+        ' String (from UserAdminScene); profileId is stringified by the caller.
+        ' setProfileRating sends body {rating:int}; clearProfilePin is a no-body
+        ' DELETE. All return the WHOLE json (admin getters do not unwrap).
+        ' ---------------------------------------------------------------------
+        getUserProfiles: function(userId as String) as Object
+            return m.request("GET", "/admin/users/" + userId + "/profiles", invalid)
+        end function
+
+        getProfile: function(profileId as String) as Object
+            return m.request("GET", "/admin/profiles/" + profileId, invalid)
+        end function
+
+        setProfileRating: function(profileId as String, rating as Integer) as Object
+            return m.request("PUT", "/admin/profiles/" + profileId, { rating: rating })
+        end function
+
+        clearProfilePin: function(profileId as String) as Object
+            return m.request("DELETE", "/admin/profiles/" + profileId + "/pin", invalid)
+        end function
+
+        ' ---------------------------------------------------------------------
         ' Live TV (F9a). /admin/livetv/* require is_admin+active (AdminMiddleware).
         ' getChannels returns the WHOLE envelope {success,channels:[...]} (admin
         ' getters do not unwrap). getChannelStreamUrl resolves the Bearer-gated 302
