@@ -402,3 +402,18 @@ function AlbumCaption(album as Object) as String
 
     return caption
 end function
+
+' Build the label for a photo album: its date ("YYYY-MM-DD"), mapping the
+' server sentinel "Unknown" (and invalid/empty) -> "Undated". Guards invalid.
+' @param album Object - a photo-album assocarray (may be invalid)
+' @return String - the album date label, or "Undated"
+function PhotoAlbumCaption(album as Object) as String
+    if album = invalid then return "Undated"
+
+    date = ""
+    if album.DoesExist("date") and album.date <> invalid then date = album.date
+
+    if date = "" or date = "Unknown" then return "Undated"
+
+    return date
+end function
