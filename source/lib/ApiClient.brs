@@ -474,6 +474,47 @@ function ApiClient(baseUrl as String) as Object
         getContinueWatching: function() as Object
             return m.request("GET", "/me/continue-watching", invalid)
         end function
+
+        ' ---------------------------------------------------------------------
+        ' Favorites + ratings (per-user, account-level). itemId is a UUID and
+        ' goes straight into the path (no UrlEncode, consistent with getItem).
+        ' ---------------------------------------------------------------------
+
+        ' POST /media/{id}/favorite (NO body) -> {message} ; whole json.
+        addFavorite: function(itemId as String) as Object
+            return m.request("POST", "/media/" + itemId + "/favorite", invalid)
+        end function
+
+        ' DELETE /media/{id}/favorite (NO body) -> {message} ; whole json.
+        removeFavorite: function(itemId as String) as Object
+            return m.request("DELETE", "/media/" + itemId + "/favorite", invalid)
+        end function
+
+        ' PUT /media/{id}/rating {rating:<int 1-10>} -> {message} ; whole json.
+        setRating: function(itemId as String, rating as Integer) as Object
+            return m.request("PUT", "/media/" + itemId + "/rating", { rating: rating })
+        end function
+
+        ' DELETE /media/{id}/rating (clear) -> {message} ; whole json.
+        clearRating: function(itemId as String) as Object
+            return m.request("DELETE", "/media/" + itemId + "/rating", invalid)
+        end function
+
+        ' GET /users/me/favorites?limit&offset -> {items,limit,offset} ; whole
+        ' json (F5b consumes the list; F5a just exposes the method).
+        getFavorites: function(options = {} as Object) as Object
+            limit = 50
+            offset = 0
+            if options.DoesExist("limit") then limit = options.limit
+            if options.DoesExist("offset") then offset = options.offset
+
+            params = []
+            params.push("limit=" + str(limit).trim())
+            params.push("offset=" + str(offset).trim())
+
+            query = "?" + JoinStrings(params, "&")
+            return m.request("GET", "/users/me/favorites" + query, invalid)
+        end function
     }
 
     ' Generate device ID if not exists
