@@ -776,6 +776,37 @@ function ApiClient(baseUrl as String) as Object
             return location
         end function
 
+        ' ---------------------------------------------------------------------
+        ' Health probe (F12a connect flow). Hits {baseUrl}/health DIRECTLY (the
+        ' public, unauthenticated health endpoint - NOT /api/v1/health, so it does
+        ' NOT go through sendRaw's "/api/v1" concat). Used on first-run connect to
+        ' confirm a typed URL is reachable. The caller constructs a fresh
+        ' ApiClient(candidateUrl) so this probes the CANDIDATE origin (the shared
+        ' client is bound to the old/absent server_url at first run). Uses a short
+        ' SYNC GetToString with an ~8s timeout so an unreachable host fails fast;
+        ' it runs on the ApiTask thread so a sync wait is safe here. Returns the
+        ' parsed JSON body, or invalid on empty/parse-fail/transport error.
+        ' ---------------------------------------------------------------------
+        probeHealth: function() as Object
+            url = m.baseUrl + "/health"
+
+            http = CreateObject("roUrlTransfer")
+            http.SetUrl(url)
+            http.RetainBodyOnError(true)
+            http.SetTimeout(8000)
+            http.EnableEncodings(true)
+
+            if Left(url, 6) = "https:" then
+                http.SetCertificatesFile("common:/certs/ca-bundle.crt")
+                http.InitClientCertificates()
+            end if
+
+            responseString = http.GetToString()
+            if responseString = invalid or responseString = "" then return invalid
+
+            return ParseJSON(responseString)
+        end function
+
         ' Live TV read-only lists (F9b). All return the WHOLE envelope; scenes read
         ' resp.data.programs / .recordings / .rules.
         getGuide: function() as Object

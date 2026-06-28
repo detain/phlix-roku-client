@@ -22,36 +22,27 @@
                    color="#FFFFFF"
                    halign="center" />
 
-            <!-- Server URL -->
-            <Label height="30" width="460" translation="[20,90]"
-                   text="Server URL"
-                   font="font:SmallSystemFont"
-                   color="#AAAAAA" />
-            <TextEditBox height="50" width="460" translation="[20,120]"
-                         hint="http://localhost:8096"
-                         id="serverInput" />
-
             <!-- Username -->
-            <Label height="30" width="460" translation="[20,180]"
+            <Label height="30" width="460" translation="[20,90]"
                    text="Username"
                    font="font:SmallSystemFont"
                    color="#AAAAAA" />
-            <TextEditBox height="50" width="460" translation="[20,210]"
+            <TextEditBox height="50" width="460" translation="[20,120]"
                          hint="Username"
                          id="usernameInput" />
 
             <!-- Password -->
-            <Label height="30" width="460" translation="[20,270]"
+            <Label height="30" width="460" translation="[20,180]"
                    text="Password"
                    font="font:SmallSystemFont"
                    color="#AAAAAA" />
-            <TextEditBox height="50" width="460" translation="[20,300]"
+            <TextEditBox height="50" width="460" translation="[20,210]"
                          hint="Password"
                          secure="true"
                          id="passwordInput" />
 
             <!-- Error Label -->
-            <Label height="30" width="460" translation="[20,360]"
+            <Label height="30" width="460" translation="[20,270]"
                    text=""
                    font="font:SmallSystemFont"
                    color="#FF4444"
@@ -59,7 +50,7 @@
                    id="errorLabel" />
 
             <!-- Status Label -->
-            <Label height="30" width="460" translation="[20,360]"
+            <Label height="30" width="460" translation="[20,270]"
                    text=""
                    font="font:SmallSystemFont"
                    color="#0095d5"
@@ -67,7 +58,7 @@
                    id="statusLabel" />
 
             <!-- Login Button -->
-            <Button height="60" width="460" translation="[20,400]"
+            <Button height="60" width="460" translation="[20,310]"
                     title="Login"
                     id="loginButton" />
         </Rectangle>
