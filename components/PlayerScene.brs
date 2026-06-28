@@ -56,6 +56,8 @@ sub Init()
     m.transcodeAttempted = false
     m.transcodeJobId = ""
     m.transcodePollCount = 0
+    m.resumeSeconds = 0.0
+    m.resumeApplied = false
 end sub
 
 sub Show(itemId as String, args as Object)
@@ -66,9 +68,17 @@ sub Show(itemId as String, args as Object)
     m.transcodeJobId = ""
     m.transcodePollCount = 0
 
+    ' Optional resume position (F3 continue-watching). DetailScene omits it ->
+    ' stays 0 -> playback starts from the beginning (no behavior change).
+    m.resumeSeconds = 0.0
+    m.resumeApplied = false
+
     if args <> invalid then
         m.item = args.item
         m.playbackInfo = args.playbackInfo
+        if args.resumeSeconds <> invalid and args.resumeSeconds > 0 then
+            m.resumeSeconds = args.resumeSeconds
+        end if
     end if
 
     ' Title
@@ -129,6 +139,15 @@ sub OnPlayerStateChange(event as Object)
     else if state = "playing" then
         m.isPlaying = true
         ShowControls(false)
+
+        ' Resume seek on the FIRST "playing" transition only (reliable Roku
+        ' resume pattern - content is loaded). The single resumeApplied guard
+        ' also covers the transcode-fallback PlayHls path, which yields its own
+        ' "playing" transition.
+        if m.resumeSeconds > 0 and not m.resumeApplied then
+            m.videoPlayer.seek = m.resumeSeconds
+            m.resumeApplied = true
+        end if
     else if state = "paused" then
         m.isPlaying = false
     else if state = "stopped" then
