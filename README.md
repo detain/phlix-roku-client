@@ -19,6 +19,7 @@ A native Roku application for the Phlix Media Server platform. Stream your media
 - **Hub Mode**: Connect to a Phlix Hub for centralized authentication, server discovery, and relay-aware HLS playback through direct-LAN or hub-relay tunnel
 - **Skip Intro/Outro**: Automatically displayed skip buttons when playback enters marker ranges defined by the server (intro start/end, outro start/end)
 - **SyncPlay**: Watch with friends in perfect sync across multiple devices with NTP-style time synchronization, group state management, and synchronized playback controls (play/pause/seek)
+- **Profile Management (admin)**: View a user's profiles and adjust the parental-control rating or clear a forgotten PIN — button-driven, no keyboard. Reached via `Admin → Users → (select user) → Profiles`
 
 ## Prerequisites
 
@@ -323,6 +324,10 @@ The app communicates with these Phlix API endpoints:
 | POST | `/api/v1/admin/users/{id}/disable` | Admin-gated (AdminMiddleware). Disables a user. Bodyless POST. `{message}` on success; 404 / 400 `{error}` (cannot disable self; cannot disable last admin). |
 | POST | `/api/v1/admin/users/{id}/set-admin` | Admin-gated (AdminMiddleware). Promotes/demotes a user; body `{is_admin: bool}`. `{message}` on success; 404 / 400 `{error}` (cannot demote self; cannot demote last admin). |
 | POST | `/api/v1/admin/users/{id}/reset-password` | Admin-gated (AdminMiddleware). Resets the user's password. Bodyless POST. `{message, new_password}` on success (the new password is shown once); 404 `{error}`. |
+| GET | `/api/v1/admin/users/{userId}/profiles` | Admin-gated (AdminMiddleware). Lists a user's profiles. Returns the whole `{profiles:[...]}` envelope (admin getters do not unwrap). Each profile row carries `id` (UUID), `user_id`, `name`, `avatar_url`\|null, `is_active` (bool/TINYINT), `is_admin` (bool/TINYINT), `rating` (computed **Integer** 0-6: `G=0, PG=1, PG-13=2, R=3, NC-17=4, X=5, UNRATED=6`), `created_at`, `updated_at`, and an optional `settings` object (`content_rating` label string, `pin_required_for_admin` bool, `max_daily_watch_time`, `allow_unrated`, …). 404 `{error}` if the user is not found. |
+| GET | `/api/v1/admin/profiles/{id}` | Admin-gated (AdminMiddleware). Returns one profile: `{profile}` (whole envelope). 404 `{error}` if not found. |
+| PUT | `/api/v1/admin/profiles/{id}` | Admin-gated (AdminMiddleware). Updates a profile; F10 sends `{rating: <int 0-6>}` only (name/PIN edits deferred). `{message}` on success; 400 `{error, field_errors?}` / 404 `{error}`. |
+| DELETE | `/api/v1/admin/profiles/{id}/pin` | Admin-gated (AdminMiddleware). Clears (removes) the profile's PIN. Bodyless DELETE. `{message}` on success; 404 `{error}`. |
 | GET | `/api/v1/admin/livetv/channels` | Admin-gated (AdminMiddleware). Lists Live TV channels. Returns the whole `{success, channels:[...]}` envelope (admin getters do not unwrap). Each channel row carries `id` (== `channel_id`, the UUID used for `/stream`), `name`, `number` (**Integer**), `type`, `frequency` (Integer), `tuner_id`, `service_id`, `visual_id`, `description`, `icon_url`, `visibility`, `created_at`, `updated_at`. AdminMiddleware → 401 (no/invalid token) / 403 (non-admin). **If Live TV is not configured the route group is not registered → 404**; configured-but-no-tuner returns `{success, channels:[]}`. |
 | GET | `/api/v1/admin/livetv/channels/{id}/stream` | Admin-gated (AdminMiddleware, Bearer). **Returns a 302 redirect** (`Location` header) to the actual stream URL. The redirect target is an **unauthenticated** tuner/HLS URL (HDHomeRun: a direct `http://<host>:5004/auto/vN` raw MPEG-TS URL; IPTV: may be an `.m3u8`). Because the Roku `Video` node cannot carry the `Authorization` header, the client resolves this 302 with Bearer and hands the final (unauthenticated) URL to the player. See the Live TV caveat below. |
 | GET | `/api/v1/admin/livetv/guide` | Admin-gated (AdminMiddleware). Read-only EPG. Returns the whole `{success, programs:[...]}` envelope (admin getters do not unwrap). The client sends no query params → upcoming programs across **all** channels (next 7 days, capped 500 server-side). Each program row carries `id` (== `program_id`), `channel_id`, `title`, `description`, `start_time` / `end_time` (**Integer**, UNIX seconds), `duration` (Integer, seconds), `category`, `series_id`, `episode_number` (Integer\|null), `episode_title`, `rating`, `year` (Integer\|null), `is_repeat` / `is_film` (Bool), `created_at`, `updated_at`. AdminMiddleware → 401/403. **If Live TV is not configured the route group is not registered → 404** (treated as "Live TV unavailable"). |
@@ -371,9 +376,10 @@ ends — never wraps):
   - **Users** — a button-driven user admin surface (no keyboard required):
     `Admin → Users (LabelList of all users) → a user's actions`. The list shows every user (no
     status-filter tabs) with a caption combining username, status, and an admin tag. The per-user
-    actions screen has five buttons — **Approve**, **Disable**, **Make Admin / Remove Admin** (a
-    toggle whose title reflects the user's current admin state), **Reset Password**, and **Refresh** —
-    plus a multi-line detail line summarizing the user (username / email / status / admin). Approve /
+    actions screen has six buttons — **Approve**, **Disable**, **Make Admin / Remove Admin** (a
+    toggle whose title reflects the user's current admin state), **Reset Password**, **Profiles**, and
+    **Refresh** — plus a multi-line detail line summarizing the user (username / email / status /
+    admin). Approve /
     Disable / Set-Admin call the server and then re-fetch and re-render the user's state; only one
     request runs at a time. **Reset Password** shows the server's one-time `new_password` **once** in
     the status line (it is not re-fetched afterward, so the password stays visible). State is refreshed
@@ -382,6 +388,29 @@ ends — never wraps):
     **Deferred / future work:** creating and editing users (need an on-screen keyboard) and deleting or
     rejecting users (destructive removal with no on-TV confirmation dialog) are intentionally not shipped
     in this surface — the actions included are all recoverable/reversible.
+    - **Profiles** — a per-user profile admin surface (no keyboard required), reached from the
+      user's actions screen: `Admin → Users → (select user) → Profiles (LabelList of the user's
+      profiles) → a profile's actions`. Because the server's profile-listing route is **per-user**
+      (`GET /api/v1/admin/users/{userId}/profiles`), the Profiles button hangs off the selected
+      user rather than being a top-level Admin row. The profile list is a one-shot fetch reading the
+      whole `{profiles:[...]}` envelope; each row shows the profile name plus tags (rating label,
+      `admin`, `active`, `PIN`). Bool/TINYINT flags (`is_admin`, `is_active`,
+      `settings.pin_required_for_admin`) are read through type-guarded helpers and the computed
+      `rating` Integer (0-6) is mapped to a label — neither is ever string-compared. The per-profile
+      actions screen has nine buttons: seven flat **Rating: G / PG / PG-13 / R / NC-17 / X /
+      UNRATED** buttons (each sends `PUT /api/v1/admin/profiles/{id}` with `{rating: <int 0-6>}`),
+      **Clear PIN** (`DELETE /api/v1/admin/profiles/{id}/pin`), and **Refresh** — plus a multi-line
+      detail summary (Name / Rating / Admin / Active / PIN required). Set-Rating and Clear-PIN call
+      the server then re-fetch and re-render the profile; only one request runs at a time, and state
+      is refreshed **manually** (no auto-poll). **Deferred / future work:** creating a profile,
+      editing a profile's name, and setting a PIN all need an on-screen keyboard, and deleting a
+      profile is a destructive action with no on-TV confirmation dialog — so they are intentionally
+      not shipped. The shipped subset ("view profiles + adjust the parental-control rating + clear a
+      forgotten PIN") is the genuinely useful button-driven slice for a 10-foot remote.
+
+      > **Upstream gap.** There is **no user-facing profile route** — profile management is
+      > admin-gated only (the same gap the mobile E5 slice flagged). A self-service on-TV profile
+      > switcher would need a `/users/me/profiles` route plus a profile-context request header.
   - **Live TV** — a channels list + channel playback surface:
     `Admin → Live TV (LabelList of channels) → select a channel → live player`. The list is a
     one-shot `GET /api/v1/admin/livetv/channels` (AdminMiddleware-gated; the whole
@@ -457,7 +486,9 @@ phlix-roku/
 │   │   ├── LibraryAdminScene.brs # Admin libraries list (LabelList; drills into per-library actions)
 │   │   ├── LibraryAdminActionsScene.brs # Per-library admin actions (Scan / Rescan / Match Metadata / Refresh Status + scan-status line)
 │   │   ├── UserAdminScene.brs    # Admin users list (LabelList of all users; drills into per-user actions)
-│   │   ├── UserAdminActionsScene.brs # Per-user admin actions (Approve / Disable / Make-or-Remove Admin / Reset Password / Refresh + user detail line)
+│   │   ├── UserAdminActionsScene.brs # Per-user admin actions (Approve / Disable / Make-or-Remove Admin / Reset Password / Profiles / Refresh + user detail line)
+│   │   ├── ProfilesScene.brs     # Per-user profile list (one-shot LabelList; read-only; drills into per-profile actions)
+│   │   ├── ProfileActionsScene.brs # Per-profile admin actions (7 Rating buttons / Clear PIN / Refresh + profile detail line)
 │   │   ├── LiveTvScene.brs       # Admin Live TV channels list (one-shot LabelList; row-select resolves stream → live player)
 │   │   ├── LivePlayerScene.brs   # Dedicated lightweight live Video player (no sessions/progress/transcode/markers)
 │   │   ├── GuideScene.brs        # Admin Live TV guide/EPG list (one-shot LabelList; read-only, selection inert)
