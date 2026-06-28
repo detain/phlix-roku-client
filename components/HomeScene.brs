@@ -32,6 +32,14 @@ sub Init()
         m.collectionsButton.ObserveField("buttonSelected", "OnCollectionsPressed")
     end if
 
+    ' Admin entry (header, beside Collections). Hidden by default (visible="false"
+    ' in XML); revealed only when the current user is_admin (see OnMeResponse).
+    ' Opens the AdminScene menu.
+    m.adminButton = m.top.FindNode("adminButton")
+    if m.adminButton <> invalid then
+        m.adminButton.ObserveField("buttonSelected", "OnAdminPressed")
+    end if
+
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
 
     ' Route all data access through a SINGLE observed ApiTask node (off the
@@ -44,13 +52,23 @@ sub Init()
     m.continueItems = []
     m.currentRail = "library"
     ' Which header button is focused while m.currentRail = "search":
-    ' "search", "favorites" or "collections" (default "search").
+    ' "search", "favorites", "collections" or "admin" (default "search").
+    ' "admin" is only ever reached when m.isAdmin (the button is otherwise hidden).
     m.headerCol = "search"
+    m.isAdmin = false
     m.pendingResume = invalid
 
-    ' Init load chain: libraries first, then continue-watching (fired from the
-    ' getLibraries branch of OnApiResponse).
-    LoadLibraries()
+    ' Init load chain (serialized through the single task): getMe FIRST (gates the
+    ' admin button), which then chains libraries -> continue-watching from the
+    ' getMe branch of OnApiResponse.
+    LoadMe()
+end sub
+
+' Fetch the current user (GET /auth/me). The response gates the admin button and
+' then continues the original chain (libraries -> continue-watching).
+sub LoadMe()
+    m.apiTask.request = { op: "getMe" }
+    m.apiTask.control = "run"
 end sub
 
 sub LoadLibraries()
@@ -67,7 +85,9 @@ sub OnApiResponse(event as Object)
     resp = event.getData()
     if resp = invalid then return
 
-    if resp.op = "getLibraries" then
+    if resp.op = "getMe" then
+        OnMeResponse(resp)
+    else if resp.op = "getLibraries" then
         OnLibrariesResponse(resp)
     else if resp.op = "getContinueWatching" then
         OnContinueWatchingResponse(resp)
@@ -76,6 +96,16 @@ sub OnApiResponse(event as Object)
     else if resp.op = "getItemPlaybackInfo" then
         OnResumePlaybackInfoResponse(resp)
     end if
+end sub
+
+' getMe response: gate the admin button via IsAdminUser, then continue the
+' original load chain (libraries -> continue-watching) regardless of admin state.
+sub OnMeResponse(resp as Object)
+    if resp.ok and resp.data <> invalid then
+        m.isAdmin = IsAdminUser(resp.data)
+        if m.isAdmin and m.adminButton <> invalid then m.adminButton.visible = true
+    end if
+    LoadLibraries()   ' continue the original chain regardless of admin state
 end sub
 
 sub OnLibrariesResponse(resp as Object)
@@ -301,6 +331,14 @@ sub OnCollectionsPressed(event as Object)
     scene.SetFocus(true)
 end sub
 
+' Open the admin menu (AdminScene). Only reachable via the admin header button,
+' which is shown only when m.isAdmin. Mirrors OnCollectionsPressed.
+sub OnAdminPressed(event as Object)
+    scene = CreateObject("roSGNode", "AdminScene")
+    m.top.Append(scene)
+    scene.SetFocus(true)
+end sub
+
 ' Move focus into the header (search) zone, onto whichever header button
 ' m.headerCol currently points at (default "search"). Sets m.currentRail.
 sub FocusHeaderZone()
@@ -308,6 +346,8 @@ sub FocusHeaderZone()
         m.favoritesButton.SetFocus(true)
     else if m.headerCol = "collections" and m.collectionsButton <> invalid then
         m.collectionsButton.SetFocus(true)
+    else if m.headerCol = "admin" and m.adminButton <> invalid then
+        m.adminButton.SetFocus(true)
     else if m.searchButton <> invalid then
         m.searchButton.SetFocus(true)
         m.headerCol = "search"
@@ -323,11 +363,17 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
 
     if press then
         ' Horizontal header nav: while in the "search" (header) zone, Left/Right
-        ' cycle through the three header buttons (Search <-> Favorites <->
-        ' Collections), stopping at the ends (never wrapping). The header buttons
-        ' never consume left/right themselves, so they bubble.
+        ' cycle through the four header buttons (Search <-> Favorites <->
+        ' Collections <-> Admin), stopping at the ends (never wrapping). The Admin
+        ' button is only entered (Right from Collections) when m.isAdmin, so focus
+        ' never lands on the hidden button. The header buttons never consume
+        ' left/right themselves, so they bubble.
         if key = "left" and m.currentRail = "search" then
-            if m.headerCol = "collections" and m.favoritesButton <> invalid then
+            if m.headerCol = "admin" and m.collectionsButton <> invalid then
+                m.collectionsButton.SetFocus(true)
+                m.headerCol = "collections"
+                handled = true
+            else if m.headerCol = "collections" and m.favoritesButton <> invalid then
                 m.favoritesButton.SetFocus(true)
                 m.headerCol = "favorites"
                 handled = true
@@ -344,6 +390,10 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
             else if m.headerCol = "favorites" and m.collectionsButton <> invalid then
                 m.collectionsButton.SetFocus(true)
                 m.headerCol = "collections"
+                handled = true
+            else if m.headerCol = "collections" and m.isAdmin and m.adminButton <> invalid then
+                m.adminButton.SetFocus(true)
+                m.headerCol = "admin"
                 handled = true
             end if
         else if key = "down" then
