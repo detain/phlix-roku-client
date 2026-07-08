@@ -91,5 +91,28 @@
                        id="syncStatusLabel" />
             </Rectangle>
         </Rectangle>
+
+        <!-- ============================================================= -->
+        <!-- G4 Quality picker overlay. Hidden by default; opened by the Up  -->
+        <!-- key during playback. "Auto" = the multi-variant master playlist -->
+        <!-- (native ABR); a pinned rung swaps to that variant's own HLS      -->
+        <!-- media playlist. Inert until shown, so the default playback path  -->
+        <!-- is byte-unchanged when the picker is never opened.               -->
+        <!-- ============================================================= -->
+        <Rectangle height="720" width="1280" color="#000000" transparency="0.4" visible="false" id="qualityPanel">
+            <Rectangle height="560" width="520" translation="[720,80]" color="#0d0d1a">
+                <Label height="50" width="460" translation="[30,20]"
+                       text="Video Quality"
+                       font="font:LargeBoldSystemFont"
+                       color="#FFFFFF" />
+                <LabelList height="380" width="460" translation="[30,90]"
+                           id="qualityList" />
+                <Label height="70" width="460" translation="[30,480]"
+                       wrap="true"
+                       font="font:SmallSystemFont"
+                       color="#AAAAAA"
+                       id="qualityStatusLabel" />
+            </Rectangle>
+        </Rectangle>
     </children>
 </component>

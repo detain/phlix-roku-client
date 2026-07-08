@@ -451,6 +451,52 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
+        ' Quality ladder (G4). The transcode start (POST /media/{id}/transcode)
+        ' and status (GET /transcode/{jobId}/status) responses carry a signed
+        ' `variants` array (server A7 / plan D6): each entry is
+        ' { id, label, width, height, bitrate, codecs, url, is_original, is_copy }
+        ' ordered highest-first, where `url` is that variant's own signed HLS
+        ' media playlist ("/hls/{job}/media_v{id}.m3u8"). Auto (native ABR) is the
+        ' `master_url`, not a variant. A legacy single-variant job sends
+        ' `variants: null` (or omits the key) -> [].
+        '
+        ' parseVariants returns a compact array of { id, label, url } assocarrays
+        ' (the only fields the PlayerScene picker needs), preserving the server's
+        ' highest-first order. It is PURE (no state, no I/O) and NEVER crashes on a
+        ' missing/malformed field - a rung without a usable id+url is dropped.
+        ' @param resp Object - a transcode start/status response (whole json)
+        ' @return Object - array of { id:String, label:String, url:String }
+        parseVariants: function(resp as Object) as Object
+            out = []
+            if resp = invalid then return out
+            ' Defensive: a non-assocarray resp (e.g. an roArray/roString) passes
+            ' the invalid check but has no .DoesExist member -> guard it before any
+            ' field access so a malformed input returns [] instead of crashing.
+            if type(resp) <> "roAssociativeArray" then return out
+            if not resp.DoesExist("variants") then return out
+            variants = resp.variants
+            if variants = invalid or type(variants) <> "roArray" then return out
+
+            for each v in variants
+                if v <> invalid and type(v) = "roAssociativeArray" then
+                    ' JSON-parsed fields box as "roString"; hand-built assocarrays
+                    ' (unit tests) may carry the intrinsic "String" - accept BOTH.
+                    id = ""
+                    if v.DoesExist("id") and (type(v.id) = "roString" or type(v.id) = "String") then id = v.id
+                    url = ""
+                    if v.DoesExist("url") and (type(v.url) = "roString" or type(v.url) = "String") then url = v.url
+                    if id <> "" and url <> "" then
+                        label = id
+                        if v.DoesExist("label") and (type(v.label) = "roString" or type(v.label) = "String") and v.label <> "" then label = v.label
+                        out.Push({ id: id, label: label, url: url })
+                    end if
+                end if
+            end for
+
+            return out
+        end function
+
+        ' ---------------------------------------------------------------------
         ' Playback progress
         ' ---------------------------------------------------------------------
 

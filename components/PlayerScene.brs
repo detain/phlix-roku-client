@@ -90,6 +90,27 @@ sub Init()
     ' ToggleSyncPanel) so the default playback path is truly byte-unchanged - no
     ' extra ApiTask node nor observer when SyncPlay is never used.
     m.syncListTask = invalid
+
+    ' ============================================================= '
+    ' G4 Quality picker (multi-variant ABR) - additive, inert until the '
+    ' user opens the panel (the Up key). "Auto" = the multi-variant       '
+    ' master (native ABR, byte-unchanged from before); a pinned rung swaps '
+    ' to that variant's own HLS media playlist. The ladder is populated    '
+    ' from the transcode start/status response (server A7); it stays empty  '
+    ' for a direct-play or legacy single-variant stream, where the picker   '
+    ' shows Auto only and no-ops gracefully.                                '
+    ' ============================================================= '
+    m.variants = []                 ' parsed A7 ladder ({id,label,url}); empty until a transcode
+    m.masterUrl = ""                ' the multi-variant master url (Auto / native ABR)
+    m.qualityPanelOpen = false      ' true while the picker overlay is visible
+    m.qualityIds = []               ' parallel id array for qualityList rows ("auto" + rung ids)
+    m.switchingQuality = false      ' one-shot guard: a content swap is in flight (see OnPlayerStateChange)
+
+    m.qualityPanel = m.top.FindNode("qualityPanel")
+    m.qualityList = m.top.FindNode("qualityList")
+    m.qualityStatusLabel = m.top.FindNode("qualityStatusLabel")
+
+    if m.qualityList <> invalid then m.qualityList.ObserveField("itemSelected", "OnQualitySelected")
 end sub
 
 sub Show(itemId as String, args as Object)
@@ -155,6 +176,19 @@ end sub
 sub OnPlayerStateChange(event as Object)
     state = event.getData()
 
+    ' G4 quality-switch guard. OnQualitySelected reassigns `content` on a *live*
+    ' Video node to change quality; on several Roku firmwares/models assigning a
+    ' new ContentNode to a playing Video emits a TRANSIENT state="stopped" before
+    ' "buffering"/"playing". Without this guard that transient stop would hit the
+    ' "stopped" branch below and tear the whole player down (ClosePlayer) instead
+    ' of switching quality. We clear the one-shot flag on the first NON-"stopped"
+    ' transition (buffering/playing) so any transient stop that arrives before the
+    ' new source is confirmed is suppressed; on firmware that emits NO transient
+    ' stop the flag clears immediately here -> pure no-op with zero downside. A
+    ' genuine stop AFTER playback resumes still closes the player (flag already
+    ' cleared), and BACK closes via OnBackPressed->ClosePlayer regardless of it.
+    if state <> "stopped" then m.switchingQuality = false
+
     if state = "error" then
         print "Video playback error: "; m.videoPlayer.errorCode
         ' Transcode fallback (attempt once).
@@ -183,6 +217,9 @@ sub OnPlayerStateChange(event as Object)
     else if state = "paused" then
         m.isPlaying = false
     else if state = "stopped" then
+        ' Suppress the transient "stopped" some firmware emits mid quality-switch
+        ' content swap (see the guard note above); a real stop still closes.
+        if m.switchingQuality then return
         m.isPlaying = false
         ClosePlayer()
     end if
@@ -199,7 +236,8 @@ sub OnApiResponse(event as Object)
         end if
         data = resp.data
         if data.status = "ready" or data.playlist_ready = true then
-            PlayHls(data.master_url)
+            CaptureVariants(data)
+            PlayPreferredOrMaster()
         else
             m.transcodeJobId = data.job_id
             m.transcodePollCount = 0
@@ -210,7 +248,8 @@ sub OnApiResponse(event as Object)
         data = resp.data
         if data.status = "ready" or data.playlist_ready = true then
             stopTranscodePollTimer()
-            PlayHls(data.master_url)
+            CaptureVariants(data)
+            PlayPreferredOrMaster()
         else if data.status = "failed" then
             stopTranscodePollTimer()
             ShowErrorDialog("Transcode failed.")
@@ -358,6 +397,9 @@ sub ClosePlayer()
     if m.syncLeaveButton <> invalid then m.syncLeaveButton.UnObserveField("buttonSelected")
     if m.syncListTask <> invalid then m.syncListTask.UnObserveField("response")
 
+    ' --- G4 Quality picker teardown (pairs the ObserveField from Init). ---
+    if m.qualityList <> invalid then m.qualityList.UnObserveField("itemSelected")
+
     ' Navigate back
     m.top.Close()
 end sub
@@ -440,9 +482,23 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
             return handled
         end if
 
+        ' --- G4 Quality picker: when open, "back"/"up" close it and the
+        '     LabelList owns the rest of navigation/selection. ---
+        if m.qualityPanelOpen then
+            if key = "back" or key = "up" then
+                CloseQualityPanel()
+                handled = true
+            end if
+            return handled
+        end if
+
         ' "*" (options) opens Watch Together. Disabled in hub mode.
         if key = "options" then
             ToggleSyncPanel()
+            handled = true
+        else if key = "up" then
+            ' G4: Up opens the video-quality picker.
+            ToggleQualityPanel()
             handled = true
         else if key = "back" then
             OnBackPressed()
@@ -887,3 +943,151 @@ function SyncIsTruthy(container as Object, key as String) as Boolean
     if tp = "String" or tp = "roString" then return (v = "true" or v = "1")
     return false
 end function
+
+' ===================================================================== '
+' G4 Quality picker (multi-variant ABR). Additive: nothing here runs     '
+' unless a transcode has produced a ladder AND the user opens the panel  '
+' (the Up key). "Auto" plays the multi-variant master (native ABR); a    '
+' pinned rung plays that variant's own signed HLS media playlist. The    '
+' chosen quality is persisted (Storage "preferred_quality") and re-applied'
+' on the next ready transcode. Direct-play / legacy single-variant jobs   '
+' carry no ladder, so the picker offers Auto only and no-ops gracefully.  '
+' ===================================================================== '
+
+' Capture the ladder + master url from a ready transcode start/status response.
+' parseVariants (ApiClient) yields a compact {id,label,url} list, highest-first.
+sub CaptureVariants(data as Object)
+    m.masterUrl = ""
+    if data <> invalid and data.DoesExist("master_url") and (type(data.master_url) = "roString" or type(data.master_url) = "String") then
+        m.masterUrl = data.master_url
+    end if
+    m.variants = GetApiClient().parseVariants(data)
+    if m.variants = invalid then m.variants = []
+end sub
+
+' Play the stream matching the persisted quality preference: a pinned rung's
+' media playlist, else the multi-variant master (Auto). Falls back to the master
+' whenever the preference is "auto"/unset or the pinned rung is absent from THIS
+' job's clamped ladder (e.g. a 1080p pin against a 720p-max source). With no
+' ladder this is byte-identical to the old PlayHls(master_url) behaviour.
+sub PlayPreferredOrMaster()
+    pref = Storage.get("preferred_quality")
+    if pref = invalid then pref = ""
+
+    url = m.masterUrl
+    if pref <> "" and pref <> "auto" then
+        variantUrl = FindVariantUrl(pref)
+        if variantUrl <> "" then url = variantUrl
+    end if
+
+    PlayHls(url)
+end sub
+
+' Return the media-playlist url of the rung with this id, or "" when absent.
+function FindVariantUrl(id as String) as String
+    for each v in m.variants
+        if v <> invalid and v.id = id then return v.url
+    end for
+    return ""
+end function
+
+' Open/close the picker. On open, build the row list (Auto first, then each rung
+' highest-first) and focus the list. The video keeps playing behind the overlay.
+sub ToggleQualityPanel()
+    if m.qualityPanelOpen then
+        CloseQualityPanel()
+        return
+    end if
+
+    m.qualityPanelOpen = true
+    if m.qualityPanel <> invalid then m.qualityPanel.visible = true
+
+    m.qualityIds = ["auto"]
+    content = CreateObject("roSGNode", "ContentNode")
+    content.AddChild({ title: QualityRowCaption("auto", "Auto") })
+    for each v in m.variants
+        if v <> invalid then
+            m.qualityIds.Push(v.id)
+            content.AddChild({ title: QualityRowCaption(v.id, v.label) })
+        end if
+    end for
+    if m.qualityList <> invalid then m.qualityList.content = content
+
+    if m.variants.Count() = 0 then
+        SetQualityStatus("Adaptive streaming - no fixed-quality ladder for this stream")
+    else
+        SetQualityStatus("Auto adapts to your connection; pick a rung to lock it")
+    end if
+
+    if m.qualityList <> invalid then m.qualityList.SetFocus(true)
+end sub
+
+sub CloseQualityPanel()
+    m.qualityPanelOpen = false
+    if m.qualityPanel <> invalid then m.qualityPanel.visible = false
+    m.top.SetFocus(true)
+end sub
+
+' Caption for a row; the currently-persisted preference is marked "(current)".
+' (Plain text - the Roku system font has no reliable check-mark glyph.)
+function QualityRowCaption(id as String, label as String) as String
+    pref = Storage.get("preferred_quality")
+    if pref = invalid or pref = "" then pref = "auto"
+    if id = pref then return label + "  (current)"
+    return label
+end function
+
+' Row selected: persist the choice, preserve the current position across the
+' source swap (seed the existing resume machinery so OnPlayerStateChange re-seeks
+' on the next "playing"), then play the master (Auto) or the pinned rung's url.
+sub OnQualitySelected(event as Object)
+    index = event.getData()
+    if index = invalid then return
+    if index < 0 or index >= m.qualityIds.Count() then return
+    id = m.qualityIds[index]
+
+    Storage.set("preferred_quality", id)
+
+    ' Resolve the target stream url first so the (live) content swap happens
+    ' exactly once. Auto -> the multi-variant master; a pinned rung -> its own
+    ' media playlist, falling back to the master when the rung is absent from
+    ' THIS job's clamped ladder.
+    url = ""
+    if id = "auto" then
+        url = m.masterUrl
+    else
+        url = FindVariantUrl(id)
+        if url = "" then url = m.masterUrl
+    end if
+
+    ' No ladder / no master to swap to -> just close the picker; the current
+    ' stream keeps playing untouched (and we must NOT arm the switch guard, or a
+    ' later genuine stop could be wrongly suppressed).
+    if url = "" then
+        CloseQualityPanel()
+        return
+    end if
+
+    ' Preserve the current position across the source swap (seed the existing
+    ' resume machinery so OnPlayerStateChange re-seeks on the next "playing").
+    if m.videoPlayer <> invalid then
+        currentPos = m.videoPlayer.position
+        if currentPos > 0 then
+            m.resumeSeconds = currentPos
+            m.resumeApplied = false
+        end if
+    end if
+
+    ' Arm the quality-switch guard just BEFORE the content reassignment (inside
+    ' PlayHls) so OnPlayerStateChange does not misread the firmware's transient
+    ' "stopped" as a real stop. See the guard note in OnPlayerStateChange.
+    m.switchingQuality = true
+
+    PlayHls(url)
+
+    CloseQualityPanel()
+end sub
+
+sub SetQualityStatus(text as String)
+    if m.qualityStatusLabel <> invalid then m.qualityStatusLabel.text = text
+end sub
