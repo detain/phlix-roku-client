@@ -1,2 +1,11 @@
 .logs
 .caliber/
+
+# brighterscript (bsc) gate install artifacts - this is a Roku (zip) repo, not a
+# Node project; bsconfig.json/package.json are tracked but the install output is not.
+node_modules/
+package-lock.json
+
+# Session-learned Claude skills (the tracked find-skills/save-learning/setup-caliber
+# skills stay; only save-learning's generated learned-* outputs are excluded).
+.claude/skills/learned-*/
