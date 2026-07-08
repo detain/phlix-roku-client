@@ -1,4 +1,8 @@
 ' components/ProfilesScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Read-only per-user profile list: a one-shot LabelList of one user's profiles.
 ' Mirrors UserAdminScene's LabelList + ApiTask + OnApiResponse idiom, but is

@@ -1,4 +1,8 @@
 ' components/GuideScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' TV Guide list: a one-shot LabelList of upcoming live-TV programs. Mirrors
 ' LiveTvScene's LabelList + ApiTask + OnApiResponse idiom - the load fires once on

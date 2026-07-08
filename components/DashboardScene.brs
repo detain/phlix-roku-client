@@ -1,4 +1,8 @@
 ' components/DashboardScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Read-only admin dashboard: three serialized admin reads (now-playing -> storage
 ' -> activity) through ONE ApiTask, rendered into a single combined LabelList of

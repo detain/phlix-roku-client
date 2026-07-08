@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+<!-- copyright 2026 Joe Huss -->
+
 <component name="PhotoAlbumScene" extends="Scene">
     <interface>
         <function name="LoadAlbum" />

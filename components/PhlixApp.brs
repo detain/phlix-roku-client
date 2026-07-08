@@ -1,4 +1,8 @@
 ' source/components/PhlixApp.brs
+
+' copyright 2026 Joe Huss
+'
+
 ' @fileoverview PhlixApp - Main application controller for SceneGraph
 ' @author Phlix Team
 ' @version 1.0.0

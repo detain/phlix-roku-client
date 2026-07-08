@@ -1,5 +1,9 @@
 ' main.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' Phlix Media Server - Roku App
 ' Main entry point

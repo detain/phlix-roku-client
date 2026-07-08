@@ -1,4 +1,8 @@
 ' components/FavoritesScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Favorites browse screen: a one-shot PosterGrid of the user's favorited items.
 ' Mirrors SearchScene's results-grid + ApiTask + type-routed selection idiom,

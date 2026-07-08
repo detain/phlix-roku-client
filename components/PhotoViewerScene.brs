@@ -1,4 +1,8 @@
 ' components/PhotoViewerScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Full-screen photo viewer (F7a BASIC). Created + appended by PhotoAlbumScene,
 ' which calls the cross-component LoadPhotos (declared in the <interface>),

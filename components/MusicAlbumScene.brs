@@ -1,4 +1,8 @@
 ' components/MusicAlbumScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Track listing for one album. Created + appended by MusicScene, which calls the
 ' cross-component LoadAlbum (declared in the <interface>). Fetches the album via

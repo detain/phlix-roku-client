@@ -1,4 +1,8 @@
 ' components/ConnectScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' First-run "Connect to server" screen. The user types a server (or hub) URL;
 ' on Connect we normalize it (Utilities.NormalizeServerUrl) and probe {url}/health

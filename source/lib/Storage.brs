@@ -1,5 +1,9 @@
 ' source/lib/Storage.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' Persistent Storage for Roku
 ' Uses roRegistry for key-value storage

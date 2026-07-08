@@ -1,4 +1,8 @@
 ' components/ServerPickerScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' F12b hub mode: a one-shot LabelList of the hub user's servers
 ' (GET /me/servers via the ApiTask `getMyServers` op). Mirrors UserAdminScene's

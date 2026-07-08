@@ -1,5 +1,9 @@
 ' tests/unit/Utilities.test.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' Utilities Unit Tests
 ' ===========================================

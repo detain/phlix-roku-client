@@ -1,5 +1,9 @@
 ' source/data/Theme.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' Theme Constants
 ' UI colors, fonts, and styling for Phlix

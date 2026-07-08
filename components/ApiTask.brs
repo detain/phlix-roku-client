@@ -1,5 +1,9 @@
 ' components/ApiTask.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' ApiTask - generic SceneGraph Task node
 ' Runs ONE API operation on its own task thread so the blocking wait() in

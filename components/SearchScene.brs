@@ -1,4 +1,8 @@
 ' components/SearchScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Global search screen: an on-screen Keyboard (left) drives a live results
 ' PosterGrid (right). Mirrors LibraryScene's PosterGrid + ApiTask pattern but

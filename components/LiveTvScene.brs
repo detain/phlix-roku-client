@@ -1,4 +1,8 @@
 ' components/LiveTvScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Live TV channels list: a one-shot LabelList of the server's live-TV channels.
 ' Mirrors UserAdminScene's LabelList + ApiTask + OnApiResponse idiom - the load

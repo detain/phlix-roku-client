@@ -1,4 +1,8 @@
 ' components/UserAdminScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Users admin list: a one-shot LabelList of the server's users. Mirrors
 ' LibraryAdminScene's LabelList + ApiTask + OnApiResponse idiom - the load fires

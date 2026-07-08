@@ -1,4 +1,8 @@
 ' components/UserAdminActionsScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Per-user admin actions: Approve / Disable / Make-or-Remove Admin / Reset
 ' Password / Refresh buttons plus a detail line summarizing the user's state.

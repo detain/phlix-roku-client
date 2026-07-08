@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+<!-- copyright 2026 Joe Huss -->
+
 <component name="LibraryAdminActionsScene" extends="Scene">
     <!-- LibraryAdminScene calls scene.LoadLibrary(...) across the component
          boundary, so the LoadLibrary interface fn MUST be declared (bsc does

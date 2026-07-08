@@ -1,5 +1,9 @@
 ' source/lib/AppContext.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' App Context for Roku
 ' Global accessor functions for shared app state.
