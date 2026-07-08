@@ -1,4 +1,8 @@
 ' components/CollectionScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' A single collection's items as a one-shot PosterGrid. Mirrors LibraryScene's
 ' grid build + LoadX interface fn, and FavoritesScene's type-routed selection +

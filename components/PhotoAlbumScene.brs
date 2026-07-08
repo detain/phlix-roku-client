@@ -1,4 +1,8 @@
 ' components/PhotoAlbumScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Photo thumbnail grid for one date album. Created + appended by PhotosScene,
 ' which calls the cross-component LoadAlbum (declared in the <interface>).

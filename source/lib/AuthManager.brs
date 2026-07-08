@@ -1,5 +1,9 @@
 ' source/lib/AuthManager.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' Authentication Manager for Roku
 ' Handles user authentication state and operations

@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+<!-- copyright 2026 Joe Huss -->
+
 <component name="HomeScene" extends="Scene">
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />

@@ -1,4 +1,8 @@
 ' components/LivePlayerScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Dedicated lightweight LIVE video player. A live channel has NO media item, NO
 ' transcode, NO progress reporting, NO skip markers and NO session - so it does

@@ -1,5 +1,9 @@
 ' tests/unit/ApiClient.test.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' ApiClient Unit Tests
 ' ===========================================

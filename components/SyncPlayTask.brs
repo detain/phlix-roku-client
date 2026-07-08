@@ -1,4 +1,8 @@
 ' components/SyncPlayTask.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' ===========================================
 ' SyncPlayTask - long-lived SceneGraph Task owning the hand-rolled WebSocket

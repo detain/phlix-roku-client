@@ -1,5 +1,9 @@
 ' source/lib/LibraryManager.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' Library Manager for Roku
 ' Handles library browsing and item retrieval

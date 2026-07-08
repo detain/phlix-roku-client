@@ -1,4 +1,8 @@
 ' components/MusicScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Music browser: Artists / Albums / Tracks modes shown as text LabelLists (music
 ' has no artwork). Mirrors HomeScene/SearchScene's ApiTask + OnApiResponse +

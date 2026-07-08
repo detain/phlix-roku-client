@@ -1,4 +1,8 @@
 ' components/SeriesScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Seasons (or, for flat shows, episodes) grid for a single series. Mirrors
 ' LibraryScene's PosterGrid + ApiTask pattern. Fires getLibraryItems with

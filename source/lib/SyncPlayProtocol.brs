@@ -1,4 +1,8 @@
 ' source/lib/SyncPlayProtocol.brs
+
+' copyright 2026 Joe Huss
+'
+
 ' @fileoverview SyncPlayProtocol - PURE BrightScript helpers for the Phlix
 '   SyncPlay (watch-together) WebSocket protocol. NO I/O, NO UI, NO node access.
 ' @module SyncPlayProtocol

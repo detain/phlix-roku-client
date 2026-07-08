@@ -1,5 +1,9 @@
 ' source/components/DetailScene.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 sub Init()
     m.top.SetFocus(true)
 

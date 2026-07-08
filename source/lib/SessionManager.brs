@@ -1,5 +1,9 @@
 ' source/lib/SessionManager.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' Session Manager for Roku
 ' Manages active playback sessions

@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+<!-- copyright 2026 Joe Huss -->
+
 <component name="ProfileActionsScene" extends="Scene">
     <!-- ProfilesScene creates + appends + focuses this scene and calls
          scene.LoadProfile(...) across the component boundary, so the LoadProfile

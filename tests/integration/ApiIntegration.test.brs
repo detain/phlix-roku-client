@@ -1,5 +1,9 @@
 ' tests/integration/ApiIntegration.test.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' API Integration Tests
 ' Tests against actual server (if available)

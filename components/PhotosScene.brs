@@ -1,4 +1,8 @@
 ' components/PhotosScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Date-album grid for a type="photo" library (entry point for the photos
 ' browse flow). Created + appended + driven by HomeScene, which calls the

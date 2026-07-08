@@ -1,5 +1,9 @@
 ' source/components/PlayerScene.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' Phlix Player Scene
 ' Handles video playback on Roku

@@ -1,5 +1,9 @@
 ' tests/unit/PhlixApp.test.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' PhlixApp Unit Tests
 ' ===========================================

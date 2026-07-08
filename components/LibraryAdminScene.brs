@@ -1,4 +1,8 @@
 ' components/LibraryAdminScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Libraries admin list: a one-shot LabelList of the server's libraries. Mirrors
 ' CollectionsScene's LabelList + ApiTask + OnApiResponse idiom - the load fires

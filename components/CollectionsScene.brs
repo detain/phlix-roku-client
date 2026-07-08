@@ -1,4 +1,8 @@
 ' components/CollectionsScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Collections browser: a one-shot LabelList of collection NAMES (collections have
 ' no artwork). Mirrors MusicScene's LabelList + ApiTask + OnApiResponse idiom,

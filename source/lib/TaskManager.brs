@@ -1,5 +1,9 @@
 ' source/lib/TaskManager.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' Task Manager for Roku
 ' Manages background tasks and async operations

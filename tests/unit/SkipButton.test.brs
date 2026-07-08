@@ -1,5 +1,9 @@
 ' tests/unit/SkipButton.test.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' SkipButton Unit Tests
 ' ===========================================

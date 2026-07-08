@@ -1,4 +1,8 @@
 ' components/SeriesRulesScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Series Rules list: a one-shot LabelList of the server's live-TV series recording
 ' rules. Mirrors GuideScene's LabelList + ApiTask + OnApiResponse idiom - the load

@@ -1,4 +1,8 @@
 ' components/LibraryAdminActionsScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Per-library admin actions: Scan / Rescan / Match Metadata / Refresh Status
 ' buttons plus a status line driven by the scan-status job row. Mirrors the

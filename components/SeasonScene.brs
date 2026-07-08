@@ -1,4 +1,8 @@
 ' components/SeasonScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Episodes grid for a single season. Mirrors LibraryScene's PosterGrid + ApiTask
 ' pattern. Fires getLibraryItems with options.parentId=<seasonId> (direct-children

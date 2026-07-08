@@ -1,4 +1,8 @@
 ' components/ProfileActionsScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Per-profile admin actions: 7 flat "Rating: X" buttons (PUT {rating:int 0-6}),
 ' Clear PIN (DELETE the pin), and Refresh, plus a detail line summarizing the

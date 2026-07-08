@@ -1,5 +1,9 @@
 ' source/lib/Utilities.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' Utility Functions for Roku
 ' Helper functions used throughout the app

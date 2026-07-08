@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+<!-- copyright 2026 Joe Huss -->
+
 <component name="LiveTvScene" extends="Scene">
     <!-- AdminScene self-creates + appends + focuses this scene, so NO interface
          function is required. Transitive closure: a component scope does NOT

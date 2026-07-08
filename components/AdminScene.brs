@@ -1,4 +1,8 @@
 ' components/AdminScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Admin menu: a static LabelList of admin sections (F11a has ONE row, Dashboard;
 ' future slices F11b/F11c/F9 append more rows). Mirrors CollectionsScene's

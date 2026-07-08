@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+<!-- copyright 2026 Joe Huss -->
+
 <component name="UserAdminActionsScene" extends="Scene">
     <!-- UserAdminScene calls scene.LoadUser(...) across the component boundary,
          so the LoadUser interface fn MUST be declared (bsc does NOT catch a

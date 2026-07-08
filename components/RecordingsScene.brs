@@ -1,4 +1,8 @@
 ' components/RecordingsScene.brs
+
+' copyright 2026 Joe Huss
+'
+
 '
 ' Recordings list: a one-shot LabelList of the server's live-TV recordings.
 ' Mirrors GuideScene's LabelList + ApiTask + OnApiResponse idiom - the load fires

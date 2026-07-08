@@ -1,4 +1,8 @@
 ' source/lib/ApiClient.brs
+
+' copyright 2026 Joe Huss
+'
+
 ' @fileoverview ApiClient - Main HTTP client for Phlix Media Server API communication
 ' @author Phlix Team
 ' @version 2.0.0

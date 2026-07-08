@@ -1,5 +1,9 @@
 ' source/player/SkipButton.brs
 
+' copyright 2026 Joe Huss
+'
+
+
 ' ===========================================
 ' Skip Button Component
 ' Displays Skip Intro/Outro buttons during playback
