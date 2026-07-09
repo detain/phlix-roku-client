@@ -115,6 +115,30 @@ sub Init()
     m.qualityStatusLabel = m.top.FindNode("qualityStatusLabel")
 
     if m.qualityList <> invalid then m.qualityList.ObserveField("itemSelected", "OnQualitySelected")
+
+    ' ============================================================= '
+    ' P3B-S7 Settings: Audio + Subtitle track selection.
+    ' ============================================================= '
+    m.audioTracks = []               ' StreamAudioTrack[] from playbackInfo
+    m.subtitleTracks = []            ' StreamSubtitleTrack[] from playbackInfo
+    m.selectedAudioTrackId = ""      ' persisted audio track id
+    m.selectedSubtitleTrackId = ""   ' persisted subtitle track id (or "off")
+    m.settingsPanelOpen = false      ' true while the settings overlay is visible
+    m.trackListPanelOpen = false     ' true while the audio/subtitle sub-list is open
+    m.trackListType = ""             ' "audio" or "subtitle"
+
+    m.settingsPanel = m.top.FindNode("settingsPanel")
+    m.settingsList = m.top.FindNode("settingsList")
+    m.settingsStatusLabel = m.top.FindNode("settingsStatusLabel")
+    m.trackListPanel = m.top.FindNode("trackListPanel")
+    m.trackListTitle = m.top.FindNode("trackListTitle")
+    m.trackList = m.top.FindNode("trackList")
+    m.trackListBackButton = m.top.FindNode("trackListBackButton")
+    m.trackListStatusLabel = m.top.FindNode("trackListStatusLabel")
+
+    if m.settingsList <> invalid then m.settingsList.ObserveField("itemSelected", "OnSettingsRowSelected")
+    if m.trackList <> invalid then m.trackList.ObserveField("itemSelected", "OnTrackSelected")
+    if m.trackListBackButton <> invalid then m.trackListBackButton.ObserveField("buttonSelected", "OnTrackListBackPressed")
 end sub
 
 sub Show(itemId as String, args as Object)
@@ -162,6 +186,26 @@ sub Show(itemId as String, args as Object)
     else
         m.skipButtonComponent.setMarkers(invalid)
     end if
+
+    ' P3B-S7: capture audio + subtitle tracks from playbackInfo.
+    ' StreamAudioTrack: {id, codec, language, channels, bitrate?, title?}
+    ' StreamSubtitleTrack: {id, codec, language, title?, isForced?, isDefault?}
+    m.audioTracks = []
+    m.subtitleTracks = []
+    if m.playbackInfo <> invalid then
+        if m.playbackInfo.audio_tracks <> invalid and type(m.playbackInfo.audio_tracks) = "roArray" then
+            m.audioTracks = m.playbackInfo.audio_tracks
+        end if
+        if m.playbackInfo.subtitle_tracks <> invalid and type(m.playbackInfo.subtitle_tracks) = "roArray" then
+            m.subtitleTracks = m.playbackInfo.subtitle_tracks
+        end if
+    end if
+
+    ' Restore persisted track preferences.
+    m.selectedAudioTrackId = Storage.get("preferred_audio_track")
+    if m.selectedAudioTrackId = invalid then m.selectedAudioTrackId = ""
+    m.selectedSubtitleTrackId = Storage.get("preferred_subtitle_track")
+    if m.selectedSubtitleTrackId = invalid then m.selectedSubtitleTrackId = "off"
 
     ' P2-S5: build chapter markers on the seekbar once duration is known.
     ' Defer until first OnPositionUpdate when duration > 0.
@@ -580,6 +624,11 @@ sub ClosePlayer()
     ' --- G4 Quality picker teardown (pairs the ObserveField from Init). ---
     if m.qualityList <> invalid then m.qualityList.UnObserveField("itemSelected")
 
+    ' --- P3B-S7 Settings/track list teardown (pairs every ObserveField from Init). ---
+    if m.settingsList <> invalid then m.settingsList.UnObserveField("itemSelected")
+    if m.trackList <> invalid then m.trackList.UnObserveField("itemSelected")
+    if m.trackListBackButton <> invalid then m.trackListBackButton.UnObserveField("buttonSelected")
+
     ' Navigate back
     m.top.Close()
 end sub
@@ -672,6 +721,24 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
             return handled
         end if
 
+        ' P3B-S7: settings panel (Audio / Subtitles) handling.
+        if m.settingsPanelOpen then
+            if key = "back" or key = "down" then
+                CloseSettingsPanel()
+                handled = true
+            end if
+            return handled
+        end if
+
+        ' P3B-S7: track list sub-panel (Audio tracks or Subtitles list).
+        if m.trackListPanelOpen then
+            if key = "back" then
+                CloseTrackListPanel()
+                handled = true
+            end if
+            return handled
+        end if
+
         ' "*" (options) opens Watch Together. Disabled in hub mode.
         if key = "options" then
             ToggleSyncPanel()
@@ -679,6 +746,10 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
         else if key = "up" then
             ' G4: Up opens the video-quality picker.
             ToggleQualityPanel()
+            handled = true
+        else if key = "down" then
+            ' P3B-S7: Down opens the Audio/Subtitles settings panel.
+            ToggleSettingsPanel()
             handled = true
         else if key = "back" then
             OnBackPressed()
@@ -1277,3 +1348,341 @@ end sub
 sub SetQualityStatus(text as String)
     if m.qualityStatusLabel <> invalid then m.qualityStatusLabel.text = text
 end sub
+
+' ===================================================================== '
+' P3B-S7 Settings panel (Audio + Subtitle track selection). Additive: '
+' nothing here runs unless the user opens the panel (the Down key).     '
+' When the panel is never opened, state stays empty and every guard is  '
+' false, so the default playback path is byte-unchanged.                '
+' ===================================================================== '
+
+' Open/close the settings panel. On open, build the row list (Audio,
+' Subtitles) and focus the list. The video keeps playing behind.
+sub ToggleSettingsPanel()
+    if m.settingsPanelOpen then
+        CloseSettingsPanel()
+        return
+    end if
+
+    m.settingsPanelOpen = true
+    if m.settingsPanel <> invalid then m.settingsPanel.visible = true
+
+    content = CreateObject("roSGNode", "ContentNode")
+    content.AddChild({ title: "Audio" })
+    content.AddChild({ title: "Subtitles" })
+    if m.settingsList <> invalid then m.settingsList.content = content
+
+    SetSettingsStatus("Select a setting to configure")
+
+    if m.settingsList <> invalid then m.settingsList.SetFocus(true)
+end sub
+
+sub CloseSettingsPanel()
+    m.settingsPanelOpen = false
+    if m.settingsPanel <> invalid then m.settingsPanel.visible = false
+    m.top.SetFocus(true)
+end sub
+
+sub SetSettingsStatus(text as String)
+    if m.settingsStatusLabel <> invalid then m.settingsStatusLabel.text = text
+end sub
+
+' Row selected: "Audio" (index 0) or "Subtitles" (index 1) -> open the
+' corresponding track list sub-panel.
+sub OnSettingsRowSelected(event as Object)
+    index = event.getData()
+    if index = invalid then return
+
+    if index = 0 then
+        OpenAudioTrackList()
+    else if index = 1 then
+        OpenSubtitleTrackList()
+    end if
+end sub
+
+' Build and open the audio track list. "Off" is NOT offered for audio
+' (the server always provides at least one track; default = first/only).
+sub OpenAudioTrackList()
+    m.trackListType = "audio"
+    if m.trackListTitle <> invalid then m.trackListTitle.text = "Audio Tracks"
+
+    if m.audioTracks.Count() = 0 then
+        SetTrackListStatus("No audio tracks available for this content")
+        if m.trackList <> invalid then m.trackList.content = CreateObject("roSGNode", "ContentNode")
+        if m.trackListBackButton <> invalid then m.trackListBackButton.SetFocus(true)
+        m.trackListPanelOpen = true
+        if m.trackListPanel <> invalid then m.trackListPanel.visible = true
+        return
+    end if
+
+    m.audioTrackIds = []
+    content = CreateObject("roSGNode", "ContentNode")
+
+    for each track in m.audioTracks
+        if track <> invalid then
+            id = TrackStringifyId(track.id)
+            m.audioTrackIds.Push(id)
+            caption = TrackAudioCaption(track)
+            if id = m.selectedAudioTrackId then caption = caption + "  (current)"
+            content.AddChild({ title: caption })
+        end if
+    end for
+
+    if m.trackList <> invalid then m.trackList.content = content
+    SetTrackListStatus(m.audioTracks.Count().toStr() + " audio track(s)")
+
+    m.trackListPanelOpen = true
+    if m.trackListPanel <> invalid then m.trackListPanel.visible = true
+    if m.trackList <> invalid then m.trackList.SetFocus(true)
+end sub
+
+' Build and open the subtitle track list. "Off" is always the first row.
+sub OpenSubtitleTrackList()
+    m.trackListType = "subtitle"
+    if m.trackListTitle <> invalid then m.trackListTitle.text = "Subtitle Tracks"
+
+    if m.subtitleTracks.Count() = 0 then
+        SetTrackListStatus("No subtitle tracks available for this content")
+        if m.trackList <> invalid then m.trackList.content = CreateObject("roSGNode", "ContentNode")
+        if m.trackListBackButton <> invalid then m.trackListBackButton.SetFocus(true)
+        m.trackListPanelOpen = true
+        if m.trackListPanel <> invalid then m.trackListPanel.visible = true
+        return
+    end if
+
+    m.subtitleTrackIds = []
+    content = CreateObject("roSGNode", "ContentNode")
+
+    ' Row 0 is always "Off".
+    m.subtitleTrackIds.Push("off")
+    offCaption = "Off"
+    if m.selectedSubtitleTrackId = "off" then offCaption = offCaption + "  (current)"
+    content.AddChild({ title: offCaption })
+
+    ' Then each available subtitle track.
+    for each track in m.subtitleTracks
+        if track <> invalid then
+            id = TrackStringifyId(track.id)
+            m.subtitleTrackIds.Push(id)
+            caption = TrackSubtitleCaption(track)
+            if id = m.selectedSubtitleTrackId then caption = caption + "  (current)"
+            content.AddChild({ title: caption })
+        end if
+    end for
+
+    if m.trackList <> invalid then m.trackList.content = content
+    SetTrackListStatus(m.subtitleTracks.Count().toStr() + " subtitle track(s)")
+
+    m.trackListPanelOpen = true
+    if m.trackListPanel <> invalid then m.trackListPanel.visible = true
+    if m.trackList <> invalid then m.trackList.SetFocus(true)
+end sub
+
+sub CloseTrackListPanel()
+    m.trackListPanelOpen = false
+    if m.trackListPanel <> invalid then m.trackListPanel.visible = false
+    if m.settingsList <> invalid then m.settingsList.SetFocus(true)
+end sub
+
+sub OnTrackListBackPressed()
+    CloseTrackListPanel()
+end sub
+
+sub SetTrackListStatus(text as String)
+    if m.trackListStatusLabel <> invalid then m.trackListStatusLabel.text = text
+end sub
+
+' Track selected from the audio or subtitle list. Persist the preference
+' and apply it to the Video node.
+sub OnTrackSelected(event as Object)
+    index = event.getData()
+    if index = invalid then return
+
+    if m.trackListType = "audio" then
+        OnAudioTrackSelected(index)
+    else if m.trackListType = "subtitle" then
+        OnSubtitleTrackSelected(index)
+    end if
+end sub
+
+sub OnAudioTrackSelected(index as Integer)
+    if index < 0 or index >= m.audioTrackIds.Count() then return
+    id = m.audioTrackIds[index]
+
+    Storage.set("preferred_audio_track", id)
+    m.selectedAudioTrackId = id
+
+    ' BrightScript/Roku Video node does not expose per-track audio selection
+    ' for HLS in the same way as subtitleTrack. The audio track is embedded
+    ' in the HLS manifest and Roku's player selects based on device/stream
+    ' defaults. We persist the preference so a future PLAYBACK-INF request
+    ' could pass it to the server (or a brighter future player node could
+    ' respect it). For now, close the panel and note the selection.
+    CloseTrackListPanel()
+    SetSettingsStatus("Audio track selected: " + TrackAudioIdToLabel(id))
+end sub
+
+sub OnSubtitleTrackSelected(index as Integer)
+    if index < 0 or index >= m.subtitleTrackIds.Count() then return
+    id = m.subtitleTrackIds[index]
+
+    Storage.set("preferred_subtitle_track", id)
+    m.selectedSubtitleTrackId = id
+
+    ' Apply subtitle track to the Video node.
+    ' Index 0 = "Off" -> set subtitleTrack = -1 to disable.
+    ' Index 1+ -> subtitle tracks are 1-indexed in Roku's Video node
+    ' (track 1 = first subtitle, etc.).
+    if m.videoPlayer <> invalid then
+        if id = "off" then
+            m.videoPlayer.subtitleTrack = -1
+        else
+            ' Find the track's position in m.subtitleTracks (index 0 = first track).
+            trackIndex = -1
+            for i = 0 to m.subtitleTracks.Count() - 1
+                if m.subtitleTracks[i] <> invalid and TrackStringifyId(m.subtitleTracks[i].id) = id then
+                    trackIndex = i
+                    exit for
+                end if
+            end for
+            ' Roku's subtitleTrack is 1-indexed (0 = off, 1 = first track).
+            m.videoPlayer.subtitleTrack = trackIndex + 1
+        end if
+    end if
+
+    CloseTrackListPanel()
+    CloseSettingsPanel()
+    SetSettingsStatus("Subtitle track: " + TrackSubtitleIdToLabel(id))
+end sub
+
+' Caption helper for an audio track row: "English (AAC, 6ch, 256kbps)" or
+' "Director's Commentary (MP3, 2ch) [title]"
+function TrackAudioCaption(track as Object) as String
+    if track = invalid then return ""
+    parts = []
+    lang = ""
+    if track.DoesExist("language") and track.language <> invalid then
+        lang = TrackLanguageLabel(track.language)
+        parts.Push(lang)
+    end if
+    codec = ""
+    if track.DoesExist("codec") and track.codec <> invalid then
+        codec = track.codec
+        parts.Push(codec)
+    end if
+    channels = 0
+    if track.DoesExist("channels") and track.channels <> invalid then channels = track.channels
+    if channels > 0 then parts.Push(channels.toStr() + "ch")
+    bitrate = 0
+    if track.DoesExist("bitrate") and track.bitrate <> invalid then bitrate = track.bitrate
+    if bitrate > 0 then parts.Push(Int(bitrate / 1000).toStr() + "kbps")
+    title = ""
+    if track.DoesExist("title") and track.title <> invalid and track.title <> "" then title = track.title
+    result = JoinStrings(parts, ", ")
+    if title <> "" then result = result + " [" + title + "]"
+    return result
+end function
+
+' Caption helper for a subtitle track row: "English" or "Spanish (Forced)" etc.
+function TrackSubtitleCaption(track as Object) as String
+    if track = invalid then return ""
+    lang = ""
+    if track.DoesExist("language") and track.language <> invalid then
+        lang = TrackLanguageLabel(track.language)
+    end if
+    if lang = "" then lang = "Unknown"
+    flags = []
+    if track.DoesExist("isForced") and TrackIsTruthy(track, "isForced") then flags.Push("Forced")
+    if track.DoesExist("isDefault") and TrackIsTruthy(track, "isDefault") then flags.Push("Default")
+    result = lang
+    if flags.Count() > 0 then result = result + " (" + JoinStrings(flags, ", ") + ")"
+    return result
+end function
+
+' Convert a language code to a human-readable label.
+function TrackLanguageLabel(code as String) as String
+    if code = "" or code = invalid then return ""
+    ' Common language codes -> labels.
+    langMap = {
+        "eng": "English",
+        "spa": "Spanish",
+        "fra": "French",
+        "deu": "German",
+        "ita": "Italian",
+        "por": "Portuguese",
+        "rus": "Russian",
+        "jpn": "Japanese",
+        "kor": "Korean",
+        "chi": "Chinese",
+        "zho": "Chinese",
+        "hin": "Hindi",
+        "ara": "Arabic",
+        "dut": "Dutch",
+        "pol": "Polish",
+        "tur": "Turkish",
+        "vie": "Vietnamese",
+        "tha": "Thai",
+        "swe": "Swedish",
+        "nor": "Norwegian",
+        "dan": "Danish",
+        "fin": "Finnish",
+        "hun": "Hungarian",
+        "ces": "Czech",
+        "ell": "Greek",
+        "heb": "Hebrew",
+        "ind": "Indonesian",
+        "mal": "Malay",
+        "ron": "Romanian",
+        "ukr": "Ukrainian",
+        "cat": "Catalan"
+    }
+    key = LCase(code)
+    if langMap.DoesExist(key) then return langMap[key]
+    return code
+end function
+
+' Stringify a track id that may be a JSON number OR string.
+function TrackStringifyId(v as Object) as String
+    if v = invalid then return ""
+    tp = type(v)
+    if tp = "String" or tp = "roString" then return v
+    if tp = "Integer" or tp = "roInt" then return str(v).Trim()
+    if tp = "LongInteger" or tp = "roLongInteger" then return (str(v)).Trim()
+    if tp = "Float" or tp = "roFloat" or tp = "Double" or tp = "roDouble" then return str(Int(v)).Trim()
+    return ""
+end function
+
+' Truthy guard for a possibly-bool/numeric JSON flag.
+function TrackIsTruthy(container as Object, key as String) as Boolean
+    if container = invalid then return false
+    if not container.DoesExist(key) then return false
+    v = container[key]
+    if v = invalid then return false
+    tp = type(v)
+    if tp = "Boolean" or tp = "roBoolean" then return v
+    if tp = "Integer" or tp = "roInt" or tp = "LongInteger" or tp = "roLongInteger" or tp = "Float" or tp = "roFloat" or tp = "Double" or tp = "roDouble" then return (v <> 0)
+    if tp = "String" or tp = "roString" then return (v = "true" or v = "1")
+    return false
+end function
+
+' Find the display label for an audio track id (or the id itself).
+function TrackAudioIdToLabel(id as String) as String
+    if id = "" then return "Default"
+    for each track in m.audioTracks
+        if track <> invalid and TrackStringifyId(track.id) = id then
+            return TrackAudioCaption(track)
+        end if
+    end for
+    return id
+end function
+
+' Find the display label for a subtitle track id (or "Off" or the id).
+function TrackSubtitleIdToLabel(id as String) as String
+    if id = "off" then return "Off"
+    for each track in m.subtitleTracks
+        if track <> invalid and TrackStringifyId(track.id) = id then
+            return TrackSubtitleCaption(track)
+        end if
+    end for
+    return id
+end function

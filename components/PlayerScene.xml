@@ -125,5 +125,52 @@
                        id="qualityStatusLabel" />
             </Rectangle>
         </Rectangle>
+
+        <!-- ============================================================= -->
+        <!-- P3B-S7 Settings panel: Audio + Subtitle track selection.         -->
+        <!-- Hidden by default; opened by the Down key during playback.      -->
+        <!-- A row list presents "Audio" and "Subtitles" options; selecting   -->
+        <!-- one opens the track list (or shows "Not available"). Additive:  -->
+        <!-- when no tracks are present the panel still opens but shows the  -->
+        <!-- empty-state message and returns gracefully.                     -->
+        <!-- ============================================================= -->
+        <Rectangle height="720" width="1280" color="#000000" transparency="0.4" visible="false" id="settingsPanel">
+            <Rectangle height="480" width="520" translation="[720,120]" color="#0d0d1a">
+                <Label height="50" width="460" translation="[30,20]"
+                       text="Settings"
+                       font="font:LargeBoldSystemFont"
+                       color="#FFFFFF" />
+                <LabelList height="340" width="460" translation="[30,90]"
+                           id="settingsList" />
+                <Label height="70" width="460" translation="[30,400]"
+                       wrap="true"
+                       font="font:SmallSystemFont"
+                       color="#AAAAAA"
+                       id="settingsStatusLabel" />
+            </Rectangle>
+        </Rectangle>
+
+        <!-- Track list sub-panel (Audio or Subtitles list). Lives inside     -->
+        <!-- settingsPanel bounds; toggled visible when a track row is        -->
+        <!-- selected from settingsList.                                    -->
+        <Rectangle height="720" width="1280" color="#000000" transparency="0.4" visible="false" id="trackListPanel">
+            <Rectangle height="520" width="520" translation="[720,100]" color="#0d0d1a">
+                <Label height="50" width="460" translation="[30,20]"
+                       text="Select Track"
+                       font="font:LargeBoldSystemFont"
+                       color="#FFFFFF"
+                       id="trackListTitle" />
+                <LabelList height="380" width="460" translation="[30,90]"
+                           id="trackList" />
+                <Button height="60" width="200" translation="[30,440]"
+                        title="Back"
+                        id="trackListBackButton" />
+                <Label height="60" width="460" translation="[30,480]"
+                       wrap="true"
+                       font="font:SmallSystemFont"
+                       color="#AAAAAA"
+                       id="trackListStatusLabel" />
+            </Rectangle>
+        </Rectangle>
     </children>
 </component>
