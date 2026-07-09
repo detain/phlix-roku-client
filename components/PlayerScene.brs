@@ -1,3 +1,6 @@
+' @copyright 2026 Joe Huss <detain@interserver.net>
+' @license   MIT
+
 ' source/components/PlayerScene.brs
 
 ' copyright 2026 Joe Huss

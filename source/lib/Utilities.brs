@@ -1,3 +1,6 @@
+' @copyright 2026 Joe Huss <detain@interserver.net>
+' @license   MIT
+
 ' source/lib/Utilities.brs
 
 ' copyright 2026 Joe Huss
