@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="RecommendationsScene" extends="Scene">
+  <interface>
+    <field id="focusPercent" type="float" />
+  </interface>
+  <children>
+    <Rectangle width="1920" height="80" color="#1a1a2e" />
+    <Label text="For You" width="400" fontSize="36"
+           translation="[60, 20]" color="#ffffff" />
+    <Label id="loadingLabel" text="Loading..."
+           translation="[960, 540]"
+           horizAlign="center" color="#888888" />
+    <Label id="emptyLabel" text="No recommendations yet"
+           translation="[960, 540]"
+           horizAlign="center" color="#888888" visible="false" />
+    <MarkupList id="recommendationsList"
+                translation="[0, 100]"
+                itemSize="160,260"
+                itemSpacing="20" />
+  </children>
+  <script uri="pkg:/components/RecommendationsScene.brs" />
+</component>

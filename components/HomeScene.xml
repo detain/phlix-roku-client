@@ -18,13 +18,16 @@
             <Button height="60" width="180" translation="[300,20]"
                     title="Search"
                     id="searchButton" />
-            <Button height="60" width="190" translation="[490,20]"
+            <Button height="60" width="180" translation="[490,20]"
+                    title="For You"
+                    id="forYouButton" />
+            <Button height="60" width="190" translation="[680,20]"
                     title="Favorites"
                     id="favoritesButton" />
-            <Button height="60" width="220" translation="[690,20]"
+            <Button height="60" width="220" translation="[880,20]"
                     title="Collections"
                     id="collectionsButton" />
-            <Button height="60" width="180" translation="[920,20]"
+            <Button height="60" width="180" translation="[1110,20]"
                     title="Admin"
                     visible="false"
                     id="adminButton" />

@@ -20,6 +20,7 @@ A native Roku application for the Phlix Media Server platform. Stream your media
 - **Skip Intro/Outro**: Automatically displayed skip buttons when playback enters marker ranges defined by the server (intro start/end, outro start/end)
 - **SyncPlay / Watch Together** *(built to a not-yet-deployed server target; device-unverifiable — see the LIMITATIONS box under "SyncPlay (Watch Together)")*: a hand-rolled RFC6455 WebSocket client (`source/lib/SyncPlayProtocol.brs` + `components/SyncPlayTask.{xml,brs}`) lets several devices watch the same content in sync. Open the **Watch Together** overlay in the player (the `*`/Options key), pick a group from the list (or Create), and playback follows the host (play/pause/seek) with NTP-style drift correction. **Direct mode only** (disabled in hub mode), and **`ws://` only** because Roku's `roStreamSocket` has no TLS.
 - **Manual quality selection** *(server-A7-dependent; the transient content-swap-while-playing behaviour needs an on-device smoke test — see the CHANGELOG)*: press **Up** in the player to open a quality picker listing **Auto** (server-driven ABR, the multi-variant master) plus each rung the active transcode advertises, highest first, read from the server's `variants[]` ladder. Picking a rung swaps to that rung's own signed playlist and resumes at the same position; picking Auto hands playback back to native ABR. The choice is remembered (`Storage` key `preferred_quality`) and re-applied on the next transcode. With no ladder (direct-play or a legacy job) the picker shows Auto only and no-ops gracefully.
+- **Audio & subtitle track selection**: press **Down** in the player to open a **Settings** panel (Audio / Subtitles). The tracks are read from playback info (`audio_tracks` / `subtitle_tracks`); picking a subtitle track applies it to the `Video` node (`subtitleTrack`, with "Off" to disable) and picking an audio track records the preference. The choice is remembered (`Storage` keys `preferred_audio_track` / `preferred_subtitle_track`). Additive: the panel is hidden by default, so the default playback path is unchanged when it is never opened, and it degrades gracefully to an empty-state message when no tracks are present.
 - **Profile Management (admin)**: View a user's profiles and adjust the parental-control rating or clear a forgotten PIN — button-driven, no keyboard. Reached via `Admin → Users → (select user) → Profiles`
 
 ## Prerequisites
@@ -473,6 +474,7 @@ The app communicates with these Phlix API endpoints:
 | Fast Forward | Seek forward 10 seconds |
 | Options (`*`) | Open/close the **Watch Together** (SyncPlay) overlay (direct mode only; shows a disabled message in hub mode). While the overlay is open, Back/Options close it. |
 | Up | Open/close the **video quality picker** (Auto + each ABR rung the current transcode advertises, server-A7-dependent; shows Auto-only when there's no ladder). While the overlay is open, Back/Up close it and the list owns Up/Down/Select. |
+| Down | Open/close the **Settings** panel (**Audio** / **Subtitles** track selection). Selecting a row opens the track list (or an empty-state message); Back/Down close the panel. |
 | Skip Button | Skip intro/outro section (shown automatically during marker ranges) |
 
 ### Home Header Navigation
@@ -623,7 +625,7 @@ phlix-roku/
 │   │   ├── GuideScene.brs        # Admin Live TV guide/EPG list (one-shot LabelList; read-only, selection inert)
 │   │   ├── RecordingsScene.brs   # Admin Live TV recordings list (one-shot LabelList; read-only, selection inert)
 │   │   ├── SeriesRulesScene.brs  # Admin Live TV series-rules list (one-shot LabelList; read-only, selection inert)
-│   │   ├── PlayerScene.brs     # Video player (+ additive "Watch Together" SyncPlay overlay, opened with the "*"/Options key; gated, hub-disabled, ws:// only) (+ additive video-quality picker, opened with the Up key; server-A7-dependent, no-ops without a ladder)
+│   │   ├── PlayerScene.brs     # Video player (+ additive "Watch Together" SyncPlay overlay, opened with the "*"/Options key; gated, hub-disabled, ws:// only) (+ additive video-quality picker, opened with the Up key; server-A7-dependent, no-ops without a ladder) (+ additive Audio/Subtitles Settings panel, opened with the Down key; persists preferred_audio_track / preferred_subtitle_track)
 │   │   ├── SyncPlayTask.{xml,brs} # Long-lived Task running the SyncPlay ws:// socket off the render thread (roStreamSocket; RunSocket loop; flat syncplay_* frames)
 │   │   ├── ConnectScene.brs    # First-run "Connect to server" screen (normalizes + probes /health, persists server_url, then proceeds to login)
 │   │   ├── LoginScene.brs      # Login screen (username/password only); after login probes GET /me/servers to detect hub vs direct
