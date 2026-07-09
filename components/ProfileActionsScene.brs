@@ -45,6 +45,8 @@ sub Init()
 
     m.clearPinButton = m.top.FindNode("clearPinButton")
     if m.clearPinButton <> invalid then m.clearPinButton.ObserveField("buttonSelected", "OnClearPin")
+    m.parentalControlsButton = m.top.FindNode("parentalControlsButton")
+    if m.parentalControlsButton <> invalid then m.parentalControlsButton.ObserveField("buttonSelected", "OnParentalControls")
     m.refreshButton = m.top.FindNode("refreshButton")
     if m.refreshButton <> invalid then m.refreshButton.ObserveField("buttonSelected", "OnRefresh")
 
@@ -148,6 +150,22 @@ end sub
 
 sub OnRefresh(event as Object)
     RefreshProfile()
+end sub
+
+sub OnParentalControls(event as Object)
+    ShowParentalControls(m.profileId, m.profileName)
+end sub
+
+' Open the parental controls surface (Schedules / Tags / Stream Limits).
+sub ShowParentalControls(profileId as String, profileName as String)
+    if profileId = "" then return
+
+    name = profileName
+    if name = invalid then name = ""
+
+    scene = CreateObject("roSGNode", "ParentalControlsScene")
+    m.top.Append(scene)
+    scene.LoadProfile(profileId, name)
 end sub
 
 sub OnApiResponse(event as Object)
@@ -286,6 +304,7 @@ sub Teardown()
     if m.ratingXButton <> invalid then m.ratingXButton.UnObserveField("buttonSelected")
     if m.ratingUnratedButton <> invalid then m.ratingUnratedButton.UnObserveField("buttonSelected")
     if m.clearPinButton <> invalid then m.clearPinButton.UnObserveField("buttonSelected")
+    if m.parentalControlsButton <> invalid then m.parentalControlsButton.UnObserveField("buttonSelected")
     if m.refreshButton <> invalid then m.refreshButton.UnObserveField("buttonSelected")
     if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
 end sub

@@ -895,15 +895,62 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
-        ' SyncPlay (F13). GET /syncplay/groups -> {groups:[{id,name,member_count,
+        ' SyncPlay (F13). GET /syncplay/rooms -> {rooms:[{id,name,member_count,
         ' has_password,current_media,is_playing}]} (server SP5, read-only snapshot
-        ' used to populate the Watch Together join list WITHOUT typing a group id).
-        ' Returns the WHOLE envelope (the scene reads .groups); do NOT unwrap
-        ' (whole-envelope convention, like getChannels/getCollections). Group
+        ' used to populate the Watch Together join list WITHOUT typing a room id).
+        ' Returns the WHOLE envelope (the scene reads .rooms); do NOT unwrap
+        ' (whole-envelope convention, like getChannels/getCollections). Room
         ' mutations (create/join/leave) go over the WebSocket, not REST.
         ' ---------------------------------------------------------------------
-        getSyncPlayGroups: function() as Object
-            return m.request("GET", "/syncplay/groups", invalid)
+        getSyncPlayRooms: function() as Object
+            return m.request("GET", "/syncplay/rooms", invalid)
+        end function
+
+        ' ---------------------------------------------------------------------
+        ' Parental Controls (P5-S5). Access schedules, tags, and stream limits.
+        ' profileId is stringified by the caller before passing here (an Integer
+        ' in the path would CRASH). All return the WHOLE json.
+        ' ---------------------------------------------------------------------
+
+        ' GET /profiles/{id}/schedules -> {schedules:[...]}
+        getProfileSchedules: function(profileId as String) as Object
+            return m.request("GET", "/profiles/" + profileId + "/schedules", invalid)
+        end function
+
+        ' POST /profiles/{id}/schedules {name,startTime,endTime,daysOfWeek,isActive}
+        ' -> {schedule} (the created schedule) or {error}
+        createProfileSchedule: function(profileId as String, schedule as Object) as Object
+            return m.request("POST", "/profiles/" + profileId + "/schedules", schedule)
+        end function
+
+        ' DELETE /profiles/{id}/schedules/{scheduleId} -> {message}
+        deleteProfileSchedule: function(profileId as String, scheduleId as String) as Object
+            return m.request("DELETE", "/profiles/" + profileId + "/schedules/" + scheduleId, invalid)
+        end function
+
+        ' GET /profiles/{id}/tags -> {tags:[...]}
+        getProfileTags: function(profileId as String) as Object
+            return m.request("GET", "/profiles/" + profileId + "/tags", invalid)
+        end function
+
+        ' POST /profiles/{id}/tags {tag,tagType} -> {tag} (the created tag)
+        createProfileTag: function(profileId as String, tag as Object) as Object
+            return m.request("POST", "/profiles/" + profileId + "/tags", tag)
+        end function
+
+        ' DELETE /profiles/{id}/tags/{tagId} -> {message}
+        deleteProfileTag: function(profileId as String, tagId as String) as Object
+            return m.request("DELETE", "/profiles/" + profileId + "/tags/" + tagId, invalid)
+        end function
+
+        ' GET /profiles/{id}/stream-limits -> {stream_limit:{...}} (whole envelope)
+        getProfileStreamLimits: function(profileId as String) as Object
+            return m.request("GET", "/profiles/" + profileId + "/stream-limits", invalid)
+        end function
+
+        ' PUT /profiles/{id}/stream-limits {maxConcurrentStreams} -> {message}
+        updateProfileStreamLimits: function(profileId as String, limits as Object) as Object
+            return m.request("PUT", "/profiles/" + profileId + "/stream-limits", limits)
         end function
     }
 
