@@ -1,3 +1,6 @@
+' @copyright 2026 Joe Huss <detain@interserver.net>
+' @license   MIT
+
 ' components/CollectionScene.brs
 
 ' copyright 2026 Joe Huss
