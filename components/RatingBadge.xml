@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- copyright 2026 Joe Huss -->
+
+<component name="RatingBadge" extends="Rectangle">
+    <interface>
+        <field id="score" type="float" onChange="OnScoreChange" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/RatingBadge.brs" />
+    <children>
+        <!-- Star icon using text character -->
+        <Label height="50" width="50" translation="[0, 0]"
+               text="★"
+               font="font:LargeBoldSystemFont"
+               color="#FF6B35"
+               halign="center"
+               valign="middle"
+               id="starLabel" />
+
+        <!-- Score display -->
+        <Label height="50" width="100" translation="[55, 0]"
+               text="0.0/10"
+               font="font:LargeBoldSystemFont"
+               color="#FFFFFF"
+               halign="left"
+               valign="middle"
+               id="scoreLabel" />
+    </children>
+</component>
