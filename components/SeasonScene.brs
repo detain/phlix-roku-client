@@ -1,3 +1,5 @@
+' @copyright 2026 Joe Huss <detain@interserver.net>
+' @license   MIT
 ' components/SeasonScene.brs
 
 ' copyright 2026 Joe Huss

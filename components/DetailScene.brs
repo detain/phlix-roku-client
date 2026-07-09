@@ -1,3 +1,5 @@
+' @copyright 2026 Joe Huss <detain@interserver.net>
+' @license   MIT
 ' source/components/DetailScene.brs
 
 ' copyright 2026 Joe Huss
@@ -17,6 +19,7 @@ sub Init()
     m.favoriteButton = m.top.FindNode("favoriteButton")
     m.ratingButton = m.top.FindNode("ratingButton")
     m.ratingBadge = m.top.FindNode("ratingBadge")
+    m.contentRatingLabel = m.top.FindNode("contentRatingLabel")
 
     if m.backButton <> invalid then
         m.backButton.ObserveField("buttonSelected", "OnBackPressed")
@@ -143,7 +146,13 @@ sub RenderItem()
         end if
         if item.rating <> invalid and item.rating <> "" then
             if info <> "" then info = info + " • "
-            info = info + item.rating
+            ' P1-S8: If rating is a number 0-6, convert to content label (G, PG, PG-13, R, etc.)
+            ratingVal = item.rating
+            if type(ratingVal) = "Integer" or type(ratingVal) = "roInt" or type(ratingVal) = "Float" or type(ratingVal) = "roFloat" then
+                info = info + RatingLabel(ratingVal)
+            else
+                info = info + ratingVal
+            end if
         end if
         ' P2-S5: show chapter count if chapters are available on the item.
         if item.chapters <> invalid and type(item.chapters) = "roArray" and item.chapters.count() > 0 then
@@ -187,6 +196,9 @@ sub RenderItem()
 
     ' Render aggregate rating (star badge showing the average score)
     RenderAggregateRating()
+
+    ' P1-S8: Render content rating (G, PG, PG-13, R, etc.)
+    RenderContentRating()
 end sub
 
 sub RenderFavorite()
@@ -259,6 +271,40 @@ sub RenderAggregateRating()
         else
             m.ratingBadge.score = aggregateScore
         end if
+    end if
+end sub
+
+sub RenderContentRating()
+    ' P1-S8: Display content rating label (G, PG, PG-13, R, etc.) prominently
+    if m.contentRatingLabel = invalid then return
+
+    item = m.item
+    if item = invalid then
+        m.contentRatingLabel.text = ""
+        return
+    end if
+
+    contentRating = invalid
+
+    ' Try to get content rating from item data
+    ' Common paths: content_rating (string label), rating (0-6 int)
+    if item.DoesExist("content_rating") and item.content_rating <> invalid then
+        contentRating = item.content_rating
+    else if item.DoesExist("rating") and item.rating <> invalid then
+        r = item.rating
+        ' If rating is a number 0-6, convert to content label
+        if type(r) = "Integer" or type(r) = "roInt" or type(r) = "Float" or type(r) = "roFloat" then
+            contentRating = RatingLabel(r)
+        else if type(r) = "String" or type(r) = "roString" then
+            ' Already a string label
+            contentRating = r
+        end if
+    end if
+
+    if contentRating <> invalid and contentRating <> "" then
+        m.contentRatingLabel.text = "Rated " + contentRating
+    else
+        m.contentRatingLabel.text = ""
     end if
 end sub
 
