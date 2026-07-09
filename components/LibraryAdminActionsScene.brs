@@ -1,3 +1,5 @@
+' @copyright 2026 Joe Huss <detain@interserver.net>
+' @license   MIT
 ' components/LibraryAdminActionsScene.brs
 
 ' copyright 2026 Joe Huss

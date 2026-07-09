@@ -1,3 +1,5 @@
+' @copyright 2026 Joe Huss <detain@interserver.net>
+' @license   MIT
 ' tests/unit/Utilities.test.brs
 
 ' copyright 2026 Joe Huss

@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- @copyright 2026 Joe Huss <detain@interserver.net> -->
+<!-- @license   MIT -->
 
 <!-- copyright 2026 Joe Huss -->
 
@@ -43,6 +45,12 @@
                        font="font:MediumSystemFont"
                        color="#AAAAAA"
                        id="infoLabel" />
+
+                <!-- P1-S8: Content Rating Badge (e.g., Rated PG-13) -->
+                <Label height="35" width="200" translation="[10,105]"
+                       font="font:MediumBoldSystemFont"
+                       color="#FFD700"
+                       id="contentRatingLabel" />
 
                 <!-- Aggregate Rating Badge -->
                 <RatingBadge height="50" width="160" translation="[700,62]"

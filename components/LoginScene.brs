@@ -1,3 +1,5 @@
+' @copyright 2026 Joe Huss <detain@interserver.net>
+' @license   MIT
 ' source/components/LoginScene.brs
 
 ' copyright 2026 Joe Huss
