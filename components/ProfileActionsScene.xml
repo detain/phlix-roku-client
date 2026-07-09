@@ -36,6 +36,7 @@
             <Button width="420" height="64" title="Rating: X" id="ratingXButton" />
             <Button width="420" height="64" title="Rating: UNRATED" id="ratingUnratedButton" />
             <Button width="420" height="64" title="Clear PIN" id="clearPinButton" />
+            <Button width="420" height="64" title="Parental Controls" id="parentalControlsButton" />
             <Button width="420" height="64" title="Refresh" id="refreshButton" />
         </LayoutGroup>
         <!-- Current profile-state detail -->

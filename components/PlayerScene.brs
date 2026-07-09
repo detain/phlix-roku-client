@@ -840,8 +840,8 @@ sub ToggleSyncPanel()
         m.syncListTask.ObserveField("response", "OnSyncListResponse")
     end if
 
-    ' Refresh the group list snapshot.
-    m.syncListTask.request = { op: "getSyncPlayGroups" }
+    ' Refresh the room list snapshot.
+    m.syncListTask.request = { op: "getSyncPlayRooms" }
     m.syncListTask.control = "run"
 
     ' Lazily create + connect the socket task.
@@ -915,18 +915,18 @@ end function
 sub OnSyncListResponse(event as Object)
     resp = event.getData()
     if resp = invalid then return
-    if resp.op <> "getSyncPlayGroups" then return
+    if resp.op <> "getSyncPlayRooms" then return
 
     m.syncGroupIds = []
     content = CreateObject("roSGNode", "ContentNode")
 
-    groups = invalid
-    if resp.ok and resp.data <> invalid and resp.data.DoesExist("groups") and type(resp.data.groups) = "roArray" then
-        groups = resp.data.groups
+    rooms = invalid
+    if resp.ok and resp.data <> invalid and resp.data.DoesExist("rooms") and type(resp.data.rooms) = "roArray" then
+        rooms = resp.data.rooms
     end if
 
-    if groups <> invalid then
-        for each g in groups
+    if rooms <> invalid then
+        for each g in rooms
             if g <> invalid then
                 ' id may be a number -> stringify before any later URL/wire use.
                 gid = ""

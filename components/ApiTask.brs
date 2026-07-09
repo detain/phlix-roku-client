@@ -189,8 +189,8 @@ sub ExecRequest()
         else if req.op = "getSeriesRules" then
             result.data = api.getSeriesRules()
             result.ok = (result.data <> invalid)
-        else if req.op = "getSyncPlayGroups" then
-            result.data = api.getSyncPlayGroups()
+        else if req.op = "getSyncPlayRooms" then
+            result.data = api.getSyncPlayRooms()
             result.ok = (result.data <> invalid)
         else if req.op = "probeHealth" then
             ' Probe the CANDIDATE url, not the shared GetApiClient (which is bound
@@ -198,6 +198,30 @@ sub ExecRequest()
             api2 = ApiClient(req.url)
             result.data = api2.probeHealth()
             result.ok = (result.data <> invalid and HealthOk(result.data))
+        else if req.op = "getProfileSchedules" then
+            result.data = api.getProfileSchedules(req.profileId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "createProfileSchedule" then
+            result.data = api.createProfileSchedule(req.profileId, req.schedule)
+            result.ok = (result.data <> invalid)
+        else if req.op = "deleteProfileSchedule" then
+            result.data = api.deleteProfileSchedule(req.profileId, req.scheduleId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "getProfileTags" then
+            result.data = api.getProfileTags(req.profileId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "createProfileTag" then
+            result.data = api.createProfileTag(req.profileId, req.tag)
+            result.ok = (result.data <> invalid)
+        else if req.op = "deleteProfileTag" then
+            result.data = api.deleteProfileTag(req.profileId, req.tagId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "getProfileStreamLimits" then
+            result.data = api.getProfileStreamLimits(req.profileId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "updateProfileStreamLimits" then
+            result.data = api.updateProfileStreamLimits(req.profileId, req.limits)
+            result.ok = (result.data <> invalid)
         end if
     end if
 
