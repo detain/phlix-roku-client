@@ -189,8 +189,8 @@ sub ExecRequest()
         else if req.op = "getSeriesRules" then
             result.data = api.getSeriesRules()
             result.ok = (result.data <> invalid)
-        else if req.op = "getSyncPlayGroups" then
-            result.data = api.getSyncPlayGroups()
+        else if req.op = "getSyncPlayRooms" then
+            result.data = api.getSyncPlayRooms()
             result.ok = (result.data <> invalid)
         else if req.op = "probeHealth" then
             ' Probe the CANDIDATE url, not the shared GetApiClient (which is bound

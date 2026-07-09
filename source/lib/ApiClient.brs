@@ -895,15 +895,15 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
-        ' SyncPlay (F13). GET /syncplay/groups -> {groups:[{id,name,member_count,
+        ' SyncPlay (F13). GET /syncplay/rooms -> {rooms:[{id,name,member_count,
         ' has_password,current_media,is_playing}]} (server SP5, read-only snapshot
-        ' used to populate the Watch Together join list WITHOUT typing a group id).
-        ' Returns the WHOLE envelope (the scene reads .groups); do NOT unwrap
-        ' (whole-envelope convention, like getChannels/getCollections). Group
+        ' used to populate the Watch Together join list WITHOUT typing a room id).
+        ' Returns the WHOLE envelope (the scene reads .rooms); do NOT unwrap
+        ' (whole-envelope convention, like getChannels/getCollections). Room
         ' mutations (create/join/leave) go over the WebSocket, not REST.
         ' ---------------------------------------------------------------------
-        getSyncPlayGroups: function() as Object
-            return m.request("GET", "/syncplay/groups", invalid)
+        getSyncPlayRooms: function() as Object
+            return m.request("GET", "/syncplay/rooms", invalid)
         end function
     }
 
