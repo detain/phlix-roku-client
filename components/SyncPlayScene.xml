@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- copyright 2026 Joe Huss -->
+
+<!--
+P8-S4 SyncPlay Scene - Room management UI for Watch Together feature.
+
+Displays:
+- List of public rooms to join
+- Form to create a new room (name input, public/private toggle)
+- Current room info when joined (members, sync status)
+
+Launched from PlayerScene via SyncPlay button (Options key).
+-->
+
+<component name="SyncPlayScene" extends="Scene">
+    <interface>
+        <!-- Fires when user selects a room action: "join", "create", "leave" -->
+        <field id="action" type="string" value="" />
+    </interface>
+
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/SyncPlayManager.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/SyncPlayProtocol.brs" />
+    <script type="text/brightscript" uri="pkg:/components/SyncPlayScene.brs" />
+
+    <children>
+        <!-- Header -->
+        <Rectangle height="100" width="1280" color="#1a1a2e">
+            <Label height="60" width="900" translation="[40,20]"
+                   text="Watch Together"
+                   font="font:LargeBoldSystemFont"
+                   color="#FFFFFF" />
+            <Button height="50" width="120" translation="[1100,25]"
+                    title="Back"
+                    id="backButton" />
+        </Rectangle>
+
+        <!-- Not in a room: show room list and create form -->
+        <Rectangle height="580" width="1280" translation="[0,100]" color="#0d0d1a" visible="true" id="roomListPanel">
+            <!-- Room name input -->
+            <Rectangle height="80" width="600" translation="[40,20]" color="#1a1a2e">
+                <Label height="30" width="580" translation="[10,5]"
+                       text="Room Name"
+                       font="font:SmallSystemFont"
+                       color="#AAAAAA" />
+                <Rectangle height="40" width="580" translation="[10,30]" color="#2a2a3e">
+                    <TextEditBox height="40" width="560" translation="[10,0]"
+                                  id="roomNameInput"
+                                  text=""
+                                  hintText="Enter room name..."
+                                  hintColor="#666666"
+                                  color="#FFFFFF"
+                                  font="font:MediumSystemFont" />
+                </Rectangle>
+            </Rectangle>
+
+            <!-- Public/Private toggle -->
+            <Rectangle height="60" width="300" translation="[40,110]" color="#1a1a2e">
+                <Label height="40" width="150" translation="[10,10]"
+                       text="Public Room"
+                       font="font:MediumSystemFont"
+                       color="#FFFFFF" />
+                <Rectangle height="40" width="80" translation="[160,10]" color="#2a2a3e">
+                    <ToggleButton height="40" width="80"
+                                  id="publicToggle"
+                                  checked="true" />
+                </Rectangle>
+            </Rectangle>
+
+            <!-- Create room button -->
+            <Button height="60" width="260" translation="[380,110]"
+                    title="Create Room"
+                    id="createButton" />
+
+            <!-- Room list -->
+            <Label height="30" width="1200" translation="[40,190]"
+                   text="Public Rooms"
+                   font="font:MediumBoldSystemFont"
+                   color="#FFFFFF" />
+            <LabelList height="350" width="1200" translation="[40,230]"
+                       id="roomList" />
+
+            <!-- Status message -->
+            <Label height="40" width="1200" translation="[40,560]"
+                   wrap="true"
+                   font="font:SmallSystemFont"
+                   color="#AAAAAA"
+                   id="statusLabel" />
+        </Rectangle>
+
+        <!-- In a room: show room info and members -->
+        <Rectangle height="580" width="1280" translation="[0,100]" color="#0d0d1a" visible="false" id="roomInfoPanel">
+            <!-- Room name and status -->
+            <Label height="40" width="900" translation="[40,20]"
+                   font="font:LargeBoldSystemFont"
+                   color="#FFFFFF"
+                   id="currentRoomName" />
+            <Label height="30" width="900" translation="[40,65]"
+                   font="font:SmallSystemFont"
+                   color="#AAAAAA"
+                   id="roomStatus" />
+
+            <!-- Members list -->
+            <Label height="30" width="1200" translation="[40,110]"
+                   text="Members"
+                   font="font:MediumBoldSystemFont"
+                   color="#FFFFFF" />
+            <LabelList height="300" width="1200" translation="[40,150]"
+                       id="memberList" />
+
+            <!-- Sync status -->
+            <Label height="30" width="1200" translation="[40,470]"
+                   wrap="true"
+                   font="font:SmallSystemFont"
+                   color="#AAAAAA"
+                   id="syncStatusLabel" />
+
+            <!-- Leave button -->
+            <Button height="60" width="200" translation="[40,520]"
+                    title="Leave Room"
+                    id="leaveButton" />
+        </Rectangle>
+    </children>
+</component>

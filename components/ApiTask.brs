@@ -192,6 +192,15 @@ sub ExecRequest()
         else if req.op = "getSyncPlayRooms" then
             result.data = api.getSyncPlayRooms()
             result.ok = (result.data <> invalid)
+        else if req.op = "createSyncPlayRoom" then
+            result.data = api.createSyncPlayRoom(req.name, req.isPublic)
+            result.ok = (result.data <> invalid)
+        else if req.op = "joinSyncPlayRoom" then
+            result.data = api.joinSyncPlayRoom(req.roomId)
+            result.ok = (result.data <> invalid)
+        else if req.op = "leaveSyncPlayRoom" then
+            result.data = api.leaveSyncPlayRoom(req.roomId)
+            result.ok = (result.data <> invalid)
         else if req.op = "probeHealth" then
             ' Probe the CANDIDATE url, not the shared GetApiClient (which is bound
             ' to the old/absent server_url at first run). Build a fresh client.
