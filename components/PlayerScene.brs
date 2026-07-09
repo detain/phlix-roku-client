@@ -136,7 +136,19 @@ sub Show(itemId as String, args as Object)
         if args.resumeSeconds <> invalid and args.resumeSeconds > 0 then
             m.resumeSeconds = args.resumeSeconds
         end if
+        ' P2-S5: store trickplay data (sprite_path, timeline_path, dimensions)
+        ' for chapter thumbnail markers on the seekbar.
+        if args.trickplay <> invalid then
+            m.trickplay = args.trickplay
+        else
+            m.trickplay = invalid
+        end if
     end if
+
+    ' P2-S5: initialize trickplay/chapter UI state
+    m.chapterLabel = m.top.FindNode("chapterLabel")
+    m.chapterLabelTimer = invalid
+    m.chapterMarkers = []
 
     ' Title
     if m.titleLabel <> invalid and m.item <> invalid then
@@ -150,6 +162,10 @@ sub Show(itemId as String, args as Object)
     else
         m.skipButtonComponent.setMarkers(invalid)
     end if
+
+    ' P2-S5: build chapter markers on the seekbar once duration is known.
+    ' Defer until first OnPositionUpdate when duration > 0.
+    m.chaptersReady = false
 
     ' Signed direct-play URL (no Bearer needed).
     streamUrl = invalid
@@ -302,6 +318,15 @@ sub OnPositionUpdate(event as Object)
             m.skipButtonComponent.updatePosition(position)
         end if
 
+        ' P2-S5: build chapter markers on first frame when duration is known.
+        if not m.chaptersReady then
+            BuildChapterMarkers()
+            m.chaptersReady = true
+        end if
+
+        ' P2-S5: update chapter label if playing (hide if not near a chapter).
+        UpdateChapterLabel(position, duration)
+
         ' Report progress to server (throttled to once every 10 seconds).
         ' Throttle is tracked in SECONDS to avoid the 32-bit tick overflow.
         if position - m.lastReportedPosition > 10 then
@@ -360,6 +385,139 @@ sub ReportProgress(positionSeconds as Float)
     m.progressTask.control = "run"
 end sub
 
+' P2-S5: Build chapter tick markers on the seekbar.
+' Chapters come from playbackInfo.chapters: [{start_seconds, end_seconds, title}, ...]
+' Each marker is a small colored Rectangle positioned at the chapter start.
+sub BuildChapterMarkers()
+    if m.chapterMarkers.Count() > 0 then
+        ' Already built (e.g. on resume after transcode).
+        return
+    end if
+
+    if m.playbackInfo = invalid or m.playbackInfo.chapters = invalid then
+        return
+    end if
+    if m.videoPlayer = invalid or m.videoPlayer.duration <= 0 then
+        return
+    end if
+
+    duration = m.videoPlayer.duration
+    chapters = m.playbackInfo.chapters
+    if type(chapters) <> "roArray" or chapters.Count() = 0 then
+        return
+    end if
+
+    ' The seekbar parent is at translation [213,40] with height 80.
+    ' We place markers just above the seekbar (at y offset 32 = 40 - 8).
+    seekbarX = 213
+    seekbarY = 32
+    seekbarWidth = 854
+    markerHeight = 6
+    markerWidth = 3
+
+    for each ch in chapters
+        if ch = invalid then goto nextChapter
+        startSec = ch.start_seconds
+        endSec = ch.end_seconds
+        title = ch.title
+
+        if startSec = invalid or startSec < 0 then goto nextChapter
+        if endSec = invalid or endSec <= startSec then goto nextChapter
+
+        ' Convert chapter start time to x position on seekbar.
+        chapterX = seekbarX + Int((startSec / duration) * seekbarWidth)
+        if chapterX < seekbarX then chapterX = seekbarX
+        if chapterX > seekbarX + seekbarWidth - markerWidth then goto nextChapter
+
+        marker = CreateObject("roSGNode", "Rectangle")
+        marker.height = markerHeight
+        marker.width = markerWidth
+        marker.color = "#ffcc00"   ' gold tick for chapter start
+        marker.translation = [chapterX, seekbarY]
+        marker.visible = true
+
+        m.top.Append(marker)
+        m.chapterMarkers.Push(marker)
+
+        nextChapter:
+    end for
+end sub
+
+' P2-S5: Show the chapter label briefly when the user seeks near a chapter.
+' @param position Float - current playback position in seconds
+' @param duration Float - total duration in seconds
+sub UpdateChapterLabel(position as Float, duration as Float)
+    chapter = GetChapterAtPosition(position, duration)
+    if chapter <> invalid then
+        title = chapter.title
+        if title <> invalid and title <> "" then
+            ShowChapterLabel(title)
+        end if
+    end if
+end sub
+
+' P2-S5: Return the chapter object at the given position, or invalid.
+function GetChapterAtPosition(position as Float, duration as Float) as Object
+    if m.playbackInfo = invalid or m.playbackInfo.chapters = invalid then
+        return invalid
+    end if
+
+    chapters = m.playbackInfo.chapters
+    if type(chapters) <> "roArray" or chapters.Count() = 0 then
+        return invalid
+    end if
+
+    for each ch in chapters
+        if ch = invalid then goto nextGetChapter
+        startSec = ch.start_seconds
+        endSec = ch.end_seconds
+
+        if startSec = invalid or endSec = invalid then goto nextGetChapter
+
+        if position >= startSec and position < endSec then
+            return ch
+        end if
+
+        nextGetChapter:
+    end for
+    return invalid
+end function
+
+' P2-S5: Display the chapter label for 2 seconds then fade it out.
+' @param title String - chapter title to display
+sub ShowChapterLabel(title as String)
+    if m.chapterLabel = invalid then return
+
+    m.chapterLabel.text = title
+    m.chapterLabel.visible = true
+
+    ' Reset existing timer if chapter changed mid-countdown.
+    if m.chapterLabelTimer <> invalid then
+        m.chapterLabelTimer.control = "stop"
+        m.chapterLabelTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.chapterLabelTimer)
+    end if
+
+    m.chapterLabelTimer = CreateObject("roSGNode", "Timer")
+    m.chapterLabelTimer.duration = 2
+    m.chapterLabelTimer.repeat = false
+    m.chapterLabelTimer.ObserveField("fire", "OnChapterLabelTimerFire")
+    m.top.Append(m.chapterLabelTimer)
+    m.chapterLabelTimer.control = "start"
+end sub
+
+' P2-S5: Hide the chapter label when the timer fires.
+sub OnChapterLabelTimerFire()
+    if m.chapterLabel <> invalid then
+        m.chapterLabel.visible = false
+    end if
+    if m.chapterLabelTimer <> invalid then
+        m.chapterLabelTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.chapterLabelTimer)
+        m.chapterLabelTimer = invalid
+    end if
+end sub
+
 sub ClosePlayer()
     ' Clean up timers
     stopTranscodePollTimer()
@@ -368,6 +526,24 @@ sub ClosePlayer()
     ' Clean up skip button
     if m.skipButtonComponent <> invalid then
         m.skipButtonComponent.cleanup()
+    end if
+
+    ' P2-S5: clean up chapter markers
+    for each marker in m.chapterMarkers
+        if marker <> invalid then
+            m.top.RemoveChild(marker)
+        end if
+    end for
+    m.chapterMarkers = []
+
+    ' P2-S5: clean up chapter label timer
+    if m.chapterLabelTimer <> invalid then
+        m.chapterLabelTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.chapterLabelTimer)
+        m.chapterLabelTimer = invalid
+    end if
+    if m.chapterLabel <> invalid then
+        m.chapterLabel.visible = false
     end if
 
     ' Unobserve the video node fields registered in Init.
@@ -549,6 +725,12 @@ sub SeekRelative(seconds as Float)
     if newPosition > duration then newPosition = duration
 
     m.videoPlayer.seek = newPosition
+
+    ' P2-S5: show chapter label if we landed near a chapter boundary.
+    chapter = GetChapterAtPosition(newPosition, duration)
+    if chapter <> invalid and chapter.title <> invalid then
+        ShowChapterLabel(chapter.title)
+    end if
 
     ' F13 SyncPlay: a host's local seek is broadcast (from old -> new position).
     SyncBroadcastSeek(position, newPosition)
