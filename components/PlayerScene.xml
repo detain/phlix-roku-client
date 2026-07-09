@@ -19,6 +19,7 @@
     <!-- F13 SyncPlay: PlayerScene reads SyncPlayProtocol() in BuildSyncPlayWsUrl
          (and may format status). The socket itself lives in SyncPlayTask. -->
     <script type="text/brightscript" uri="pkg:/source/lib/SyncPlayProtocol.brs" />
+    <script type="text/brightscript" uri="pkg:/source/player/SleepTimer.brs" />
     <script type="text/brightscript" uri="pkg:/components/PlayerScene.brs" />
 
     <children>
@@ -57,6 +58,18 @@
                        font="font:SmallSystemFont"
                        color="#FFFFFF"
                        id="timeLabel" />
+
+                <!-- P3-S4: Sleep Timer countdown label -->
+                <Label height="40" width="180" translation="[750,25]"
+                       font="font:SmallSystemFont"
+                       color="#0095d5"
+                       visible="false"
+                       id="sleepTimerLabel" />
+
+                <!-- P3-S4: PiP (Picture-in-Picture) toggle button -->
+                <Button height="50" width="100" translation="[940,15]"
+                        title="PiP"
+                        id="pipButton" />
             </Rectangle>
 
             <!-- P2-S5: Chapter label shown briefly when seeking to a chapter -->
@@ -173,6 +186,48 @@
                        color="#AAAAAA"
                        id="trackListStatusLabel" />
             </Rectangle>
+        </Rectangle>
+
+        <!-- ============================================================= -->
+        <!-- P3-S4 Sleep Timer panel. Hidden by default; opened by the     -->
+        <!-- Sleep button in the bottom bar. Shows preset durations       -->
+        <!-- (15/30/45/60/90/120 min) plus Cancel. Additive: the default   -->
+        <!-- playback path is byte-unchanged when never opened.           -->
+        <!-- ============================================================= -->
+        <Rectangle height="720" width="1280" color="#000000" transparency="0.4" visible="false" id="sleepTimerPanel">
+            <Rectangle height="480" width="520" translation="[40,120]" color="#0d0d1a">
+                <Label height="50" width="460" translation="[30,20]"
+                       text="Sleep Timer"
+                       font="font:LargeBoldSystemFont"
+                       color="#FFFFFF" />
+                <LabelList height="340" width="460" translation="[30,90]"
+                           id="sleepTimerPresetList" />
+                <Button height="60" width="200" translation="[30,400]"
+                        title="Cancel"
+                        id="sleepTimerCancelButton" />
+                <Label height="70" width="460" translation="[30,440]"
+                       wrap="true"
+                       font="font:SmallSystemFont"
+                       color="#AAAAAA"
+                       id="sleepTimerStatusLabel" />
+            </Rectangle>
+        </Rectangle>
+
+        <!-- ============================================================= -->
+        <!-- P3-S4 PiP (Picture-in-Picture) snapshot overlay.              -->
+        <!-- Hidden by default; shown when user activates PiP mode.        -->
+        <!-- Displays a scaled snapshot of the video in the corner.       -->
+        <!-- Additive: default playback path is byte-unchanged.            -->
+        <!-- ============================================================= -->
+        <!-- PiP snapshot image node -->
+        <Rectangle height="200" width="340" translation="[920,500]"
+                   color="#000000"
+                   visible="false"
+                   id="pipSnapshotContainer">
+            <Poster height="190" width="330" translation="[5,5]" id="pipSnapshotImage" />
+            <Button height="40" width="80" translation="[5,5]"
+                    title="Exit"
+                    id="pipExitButton" />
         </Rectangle>
     </children>
 </component>

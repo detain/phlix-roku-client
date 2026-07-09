@@ -47,6 +47,36 @@ sub Init()
         m.skipButton.ObserveField("buttonSelected", "OnSkipButtonSelected")
     end if
 
+    ' ============================================================= '
+    ' P3-S4 Sleep Timer: init and wire up UI nodes. Additive -        '
+    ' default playback path is byte-unchanged when never used.        '
+    ' ============================================================= '
+    m.sleepTimerLabel = m.top.FindNode("sleepTimerLabel")
+    m.sleepTimerPanel = m.top.FindNode("sleepTimerPanel")
+    m.sleepTimerPresetList = m.top.FindNode("sleepTimerPresetList")
+    m.sleepTimerCancelButton = m.top.FindNode("sleepTimerCancelButton")
+    m.sleepTimerStatusLabel = m.top.FindNode("sleepTimerStatusLabel")
+    m.sleepTimer = SleepTimer()
+    m.sleepTimer.init(m.sleepTimerLabel, m.sleepTimerPanel, m.sleepTimerPresetList, m.sleepTimerStatusLabel)
+    m.sleepTimer.setVideoPlayer(m.videoPlayer)
+    m.sleepTimer.onTimerFire = SleepTimerFire
+
+    if m.sleepTimerPresetList <> invalid then m.sleepTimerPresetList.ObserveField("itemSelected", "OnSleepTimerPresetSelected")
+    if m.sleepTimerCancelButton <> invalid then m.sleepTimerCancelButton.ObserveField("buttonSelected", "OnSleepTimerCancelPressed")
+
+    ' ============================================================= '
+    ' P3-S4 Picture-in-Picture: PiP snapshot overlay. Additive -      '
+    ' default playback path is byte-unchanged when never used.        '
+    ' ============================================================= '
+    m.pipButton = m.top.FindNode("pipButton")
+    m.pipSnapshotContainer = m.top.FindNode("pipSnapshotContainer")
+    m.pipSnapshotImage = m.top.FindNode("pipSnapshotImage")
+    m.pipExitButton = m.top.FindNode("pipExitButton")
+    m.pipActive = false
+
+    if m.pipButton <> invalid then m.pipButton.ObserveField("buttonSelected", "OnPipButtonPressed")
+    if m.pipExitButton <> invalid then m.pipExitButton.ObserveField("buttonSelected", "OnPipExitPressed")
+
     ' ApiTask: transcode start/status (observed). progressTask: session +
     ' progress reporting (NOT observed - fire-and-forget).
     m.apiTask = CreateObject("roSGNode", "ApiTask")
@@ -110,6 +140,8 @@ sub Init()
     m.variants = []                 ' parsed A7 ladder ({id,label,url}); empty until a transcode
     m.masterUrl = ""                ' the multi-variant master url (Auto / native ABR)
     m.qualityPanelOpen = false      ' true while the picker overlay is visible
+    m.sleepTimerPanelOpen = false   ' true while the sleep-timer panel is visible
+    m.pipActive = false            ' true while PiP snapshot overlay is active
     m.qualityIds = []               ' parallel id array for qualityList rows ("auto" + rung ids)
     m.switchingQuality = false      ' one-shot guard: a content swap is in flight (see OnPlayerStateChange)
 
@@ -704,6 +736,24 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
     if press then
+        ' --- P3-S4 Sleep Timer panel handling. ---
+        if m.sleepTimerPanelOpen then
+            if key = "back" or key = "sleep" then
+                CloseSleepTimerPanel()
+                handled = true
+            end if
+            return handled
+        end if
+
+        ' --- P3-S4 PiP snapshot overlay: back/exit closes PiP mode. ---
+        if m.pipActive then
+            if key = "back" or key = "pip" then
+                ExitPipMode()
+                handled = true
+            end if
+            return handled
+        end if
+
         ' --- F13 SyncPlay: panel handling (additive). When the panel is open,
         '     "back"/"options" close it and the panel widgets own the rest. ---
         if m.syncPanelOpen then
@@ -1689,3 +1739,139 @@ function TrackSubtitleIdToLabel(id as String) as String
     end for
     return id
 end function
+
+' ===================================================================== '
+' P3-S4 Sleep Timer - additive. Default playback path is byte-unchanged '
+' when the timer is never set.                                          '
+' ===================================================================== '
+
+' Open/close the Sleep Timer panel.
+sub ToggleSleepTimerPanel()
+    if m.sleepTimerPanelOpen then
+        CloseSleepTimerPanel()
+        return
+    end if
+
+    m.sleepTimerPanelOpen = true
+    if m.sleepTimerPanel <> invalid then
+        m.sleepTimerPanel.visible = true
+        m.sleepTimerPresetList.content = m.sleepTimer.buildPresetContent()
+    end if
+    if m.sleepTimerPresetList <> invalid then m.sleepTimerPresetList.SetFocus(true)
+end sub
+
+sub CloseSleepTimerPanel()
+    m.sleepTimerPanelOpen = false
+    if m.sleepTimerPanel <> invalid then m.sleepTimerPanel.visible = false
+    m.top.SetFocus(true)
+end sub
+
+' Handle preset item selection from the sleep timer list.
+sub OnSleepTimerPresetSelected(event as Object)
+    list = event.getRoSGNode()
+    index = list.itemSelected
+    content = list.content
+    if content = invalid or index < 0 then return
+
+    item = content.getChild(index)
+    if item = invalid then return
+
+    presetIndex = item.presetIndex
+
+    if presetIndex = -1 then
+        ' Cancel selected
+        m.sleepTimer.cancel()
+        CloseSleepTimerPanel()
+        return
+    end if
+
+    ' Start the timer with the selected preset
+    m.sleepTimer.startFromPreset(presetIndex)
+    CloseSleepTimerPanel()
+end sub
+
+' Handle the Cancel button press on the Sleep Timer panel.
+sub OnSleepTimerCancelPressed()
+    m.sleepTimer.cancel()
+    CloseSleepTimerPanel()
+end sub
+
+' Called when the Sleep Timer fires (playback stops).
+sub SleepTimerFire()
+    print "SleepTimer fired - stopping playback"
+    if m.videoPlayer <> invalid then
+        m.videoPlayer.control = "stop"
+    end if
+    CloseSleepTimerPanel()
+end sub
+
+' ===================================================================== '
+' P3-S4 Picture-in-Picture - additive. Uses a snapshot of the video   '
+' rendered to a floating overlay. Default playback path is              '
+' byte-unchanged when PiP is never used.                                '
+' ===================================================================== '
+
+' Enter PiP mode: shrink the video to a small corner window.
+' On Roku there is no native system PiP - this minimizes the Video node
+' to a floating corner tile with a "tap to exit" overlay.
+sub EnterPipMode()
+    if m.pipActive then return
+    if m.videoPlayer = invalid then return
+
+    m.pipActive = true
+
+    ' Shrink video to bottom-right corner tile (simulated PiP)
+    m.videoPlayer.width = 340
+    m.videoPlayer.height = 200
+    m.videoPlayer.translation = [920, 500]
+
+    ' Show the PiP overlay (Exit button)
+    if m.pipSnapshotContainer <> invalid then
+        m.pipSnapshotContainer.visible = true
+    end if
+
+    ' Hide main controls overlay
+    if m.controlsOverlay <> invalid then
+        m.controlsOverlay.visible = false
+    end if
+
+    print "Entered PiP mode"
+end sub
+
+' Exit PiP mode: restore the video to full screen.
+sub ExitPipMode()
+    if not m.pipActive then return
+
+    m.pipActive = false
+
+    ' Hide the PiP overlay
+    if m.pipSnapshotContainer <> invalid then
+        m.pipSnapshotContainer.visible = false
+    end if
+
+    ' Restore video to full screen
+    if m.videoPlayer <> invalid then
+        m.videoPlayer.width = 1280
+        m.videoPlayer.height = 720
+        m.videoPlayer.translation = [0, 0]
+    end if
+
+    ' Show controls overlay again
+    ShowControls(true)
+
+    print "Exited PiP mode"
+end sub
+
+' Handle PiP button press on the player controls.
+sub OnPipButtonPressed()
+    if m.pipActive then
+        ExitPipMode()
+    else
+        EnterPipMode()
+    end if
+end sub
+
+' Handle PiP exit button press inside the PiP overlay.
+sub OnPipExitPressed()
+    ExitPipMode()
+end sub
