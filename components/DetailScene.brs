@@ -16,6 +16,7 @@ sub Init()
     m.infoLabel = m.top.FindNode("infoLabel")
     m.favoriteButton = m.top.FindNode("favoriteButton")
     m.ratingButton = m.top.FindNode("ratingButton")
+    m.ratingBadge = m.top.FindNode("ratingBadge")
 
     if m.backButton <> invalid then
         m.backButton.ObserveField("buttonSelected", "OnBackPressed")
@@ -130,7 +131,7 @@ sub RenderItem()
         m.posterImage.uri = item.poster_url
     end if
 
-    ' Info line: year + runtime (MINUTES) + content-rating LABEL.
+    ' Info line: year + runtime (MINUTES) + content-rating LABEL + chapter count.
     if m.infoLabel <> invalid then
         info = ""
         if item.year <> invalid then
@@ -143,6 +144,11 @@ sub RenderItem()
         if item.rating <> invalid and item.rating <> "" then
             if info <> "" then info = info + " • "
             info = info + item.rating
+        end if
+        ' P2-S5: show chapter count if chapters are available on the item.
+        if item.chapters <> invalid and type(item.chapters) = "roArray" and item.chapters.count() > 0 then
+            if info <> "" then info = info + " • "
+            info = info + str(item.chapters.count()).trim() + " chapters"
         end if
         m.infoLabel.text = info
     end if
@@ -178,6 +184,9 @@ sub RenderItem()
         RenderFavorite()
         RenderRating()
     end if
+
+    ' Render aggregate rating (star badge showing the average score)
+    RenderAggregateRating()
 end sub
 
 sub RenderFavorite()
@@ -200,6 +209,56 @@ sub RenderRating()
         m.ratingButton.title = "Rating: " + str(m.pendingRating).trim() + "/10"
     else
         m.ratingButton.title = "Rating: not set"
+    end if
+end sub
+
+sub RenderAggregateRating()
+    if m.ratingBadge = invalid then return
+
+    item = m.item
+    aggregateScore = invalid
+
+    ' Try to extract aggregate rating from item data.
+    ' Check common paths: ratings.aggregate.score, ratings.aggregate, rating
+    if item <> invalid then
+        if item.DoesExist("ratings") and item.ratings <> invalid then
+            ratings = item.ratings
+            if type(ratings) = "roAssociativeArray" then
+                ' Try aggregate sub-object
+                if ratings.DoesExist("aggregate") then
+                    agg = ratings.aggregate
+                    if type(agg) = "roAssociativeArray" then
+                        if agg.DoesExist("score") then
+                            aggregateScore = agg.score
+                        else if agg.DoesExist("rating") then
+                            aggregateScore = agg.rating
+                        end if
+                    else if type(agg) = "Float" or type(agg) = "roFloat" or type(agg) = "Integer" or type(agg) = "roInt" then
+                        ' Direct numeric aggregate rating
+                        aggregateScore = agg
+                    end if
+                end if
+            end if
+        end if
+
+        ' Fallback: direct rating field if numeric and 0-10 range
+        if aggregateScore = invalid and item.DoesExist("rating") then
+            r = item.rating
+            if type(r) = "Float" or type(r) = "roFloat" or type(r) = "Integer" or type(r) = "roInt" then
+                if r >= 0 and r <= 10 then
+                    aggregateScore = r
+                end if
+            end if
+        end if
+    end if
+
+    ' Set the score on the badge (0 if not found - badge handles "N/A")
+    if m.ratingBadge <> invalid then
+        if aggregateScore = invalid then
+            m.ratingBadge.score = 0
+        else
+            m.ratingBadge.score = aggregateScore
+        end if
     end if
 end sub
 
@@ -257,9 +316,23 @@ end sub
 sub PlayItem()
     playerScene = CreateObject("roSGNode", "PlayerScene")
     m.top.Append(playerScene)
+    ' P2-S5: pass trickplay sprite/timeline paths if available on the item.
+    trickplay = {}
+    if m.item.trickplay_sprite_path <> invalid and m.item.trickplay_sprite_path <> "" then
+        trickplay.sprite_path = m.item.trickplay_sprite_path
+    end if
+    if m.item.trickplay_timeline_path <> invalid and m.item.trickplay_timeline_path <> "" then
+        trickplay.timeline_path = m.item.trickplay_timeline_path
+    end if
+    trickplayArg = invalid
+    if trickplay.count() > 0 then
+        trickplayArg = trickplay
+    end if
+
     playerScene.Show(m.itemId, {
         item: m.item
         playbackInfo: m.playbackInfo
+        trickplay: trickplayArg
     })
 end sub
 

@@ -44,6 +44,10 @@
                        color="#AAAAAA"
                        id="infoLabel" />
 
+                <!-- Aggregate Rating Badge -->
+                <RatingBadge height="50" width="160" translation="[700,62]"
+                             id="ratingBadge" />
+
                 <Rectangle height="200" width="860" translation="[10,120]">
                     <Label height="200" width="860"
                            font="font:SmallSystemFont"
