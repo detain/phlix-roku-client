@@ -36,6 +36,12 @@ sub Init()
         m.collectionsButton.ObserveField("buttonSelected", "OnCollectionsPressed")
     end if
 
+    ' For You entry (header). Opens the RecommendationsScene.
+    m.forYouButton = m.top.FindNode("forYouButton")
+    if m.forYouButton <> invalid then
+        m.forYouButton.ObserveField("buttonSelected", "OnForYouPressed")
+    end if
+
     ' Admin entry (header, beside Collections). Hidden by default (visible="false"
     ' in XML); revealed only when the current user is_admin (see OnMeResponse).
     ' Opens the AdminScene menu.
@@ -56,7 +62,7 @@ sub Init()
     m.continueItems = []
     m.currentRail = "library"
     ' Which header button is focused while m.currentRail = "search":
-    ' "search", "favorites", "collections" or "admin" (default "search").
+    ' "search", "forYou", "favorites", "collections" or "admin" (default "search").
     ' "admin" is only ever reached when m.isAdmin (the button is otherwise hidden).
     m.headerCol = "search"
     m.isAdmin = false
@@ -335,6 +341,12 @@ sub OnCollectionsPressed(event as Object)
     scene.SetFocus(true)
 end sub
 
+sub OnForYouPressed(event as Object)
+    scene = CreateObject("roSGNode", "RecommendationsScene")
+    m.top.Append(scene)
+    scene.SetFocus(true)
+end sub
+
 ' Open the admin menu (AdminScene). Only reachable via the admin header button,
 ' which is shown only when m.isAdmin. Mirrors OnCollectionsPressed.
 sub OnAdminPressed(event as Object)
@@ -346,7 +358,9 @@ end sub
 ' Move focus into the header (search) zone, onto whichever header button
 ' m.headerCol currently points at (default "search"). Sets m.currentRail.
 sub FocusHeaderZone()
-    if m.headerCol = "favorites" and m.favoritesButton <> invalid then
+    if m.headerCol = "forYou" and m.forYouButton <> invalid then
+        m.forYouButton.SetFocus(true)
+    else if m.headerCol = "favorites" and m.favoritesButton <> invalid then
         m.favoritesButton.SetFocus(true)
     else if m.headerCol = "collections" and m.collectionsButton <> invalid then
         m.collectionsButton.SetFocus(true)
@@ -355,6 +369,9 @@ sub FocusHeaderZone()
     else if m.searchButton <> invalid then
         m.searchButton.SetFocus(true)
         m.headerCol = "search"
+    else if m.forYouButton <> invalid then
+        m.forYouButton.SetFocus(true)
+        m.headerCol = "forYou"
     else if m.favoritesButton <> invalid then
         m.favoritesButton.SetFocus(true)
         m.headerCol = "favorites"
@@ -381,13 +398,21 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
                 m.favoritesButton.SetFocus(true)
                 m.headerCol = "favorites"
                 handled = true
-            else if m.headerCol = "favorites" and m.searchButton <> invalid then
+            else if m.headerCol = "favorites" and m.forYouButton <> invalid then
+                m.forYouButton.SetFocus(true)
+                m.headerCol = "forYou"
+                handled = true
+            else if m.headerCol = "forYou" and m.searchButton <> invalid then
                 m.searchButton.SetFocus(true)
                 m.headerCol = "search"
                 handled = true
             end if
         else if key = "right" and m.currentRail = "search" then
-            if m.headerCol = "search" and m.favoritesButton <> invalid then
+            if m.headerCol = "search" and m.forYouButton <> invalid then
+                m.forYouButton.SetFocus(true)
+                m.headerCol = "forYou"
+                handled = true
+            else if m.headerCol = "forYou" and m.favoritesButton <> invalid then
                 m.favoritesButton.SetFocus(true)
                 m.headerCol = "favorites"
                 handled = true

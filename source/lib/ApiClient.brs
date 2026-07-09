@@ -525,6 +525,18 @@ function ApiClient(baseUrl as String) as Object
             return m.request("GET", "/me/continue-watching", invalid)
         end function
 
+        ' GET /me/recommendations -> {recommendations:[...]} ; returns whole object.
+        getRecommendations: function(options = {} as Object) as Object
+            limit = 20
+            if options.DoesExist("limit") then limit = options.limit
+
+            params = []
+            params.push("limit=" + str(limit).trim())
+
+            query = "?" + JoinStrings(params, "&")
+            return m.request("GET", "/me/recommendations" + query, invalid)
+        end function
+
         ' ---------------------------------------------------------------------
         ' Favorites + ratings (per-user, account-level). itemId is a UUID and
         ' goes straight into the path (no UrlEncode, consistent with getItem).
