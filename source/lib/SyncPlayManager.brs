@@ -113,10 +113,27 @@ function SyncPlayManager(api as Object) as Object
                 currentState = result.currentState
             end if
 
+            ' Derive the hub origin for WebSocket from the ApiClient baseUrl.
+            ' In hub mode, baseUrl = {hubUrl}/api/v1/servers/{id}/proxy so we strip
+            ' the suffix. In direct mode, baseUrl is already the server origin.
+            serverUrl = ""
+            if m.api.DoesExist("baseUrl") and m.api.baseUrl <> invalid and m.api.baseUrl <> "" then
+                base = m.api.baseUrl
+                ' Strip scheme:// if present
+                schemeIdx = Instr(1, base, "://")
+                if schemeIdx > 0 then base = Mid(base, schemeIdx + 3)
+                ' Strip any /api/v1/... suffix to get the origin
+                slashIdx = Instr(1, base, "/")
+                if slashIdx > 0 then base = Left(base, slashIdx - 1)
+                ' Strip trailing / if present
+                if Right(base, 1) = "/" then base = Left(base, Len(base) - 1)
+                if base <> "" then serverUrl = base
+            end if
+
             m._session = {
                 roomId: roomId
                 sessionId: result.sessionId
-                serverUrl: ""
+                serverUrl: serverUrl
                 roomName: ""
                 isHost: false
                 members: members
@@ -219,7 +236,7 @@ function SyncPlayManager(api as Object) as Object
             if host = "" then return invalid
 
             ' Extract port if present
-            port = 8097
+            port = 8804
             if colonIdx > 0 then
                 portStr = Mid(rest, colonIdx + 1)
                 portVal = 0
