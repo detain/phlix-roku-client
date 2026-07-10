@@ -229,5 +229,28 @@
                     title="Exit"
                     id="pipExitButton" />
         </Rectangle>
+
+        <!-- ============================================================= -->
+        <!-- P5-S5 Access/Stream limit error overlay.                       -->
+        <!-- Shown when server returns 403 AccessSchedule or 429          -->
+        <!-- StreamLimitExceeded. Pauses playback and displays the error   -->
+        <!-- with an OK button to return to browse/home.                   -->
+        <!-- ============================================================= -->
+        <Rectangle height="720" width="1280" color="#000000" transparency="0.6" visible="false" id="errorOverlay">
+            <Rectangle height="320" width="520" translation="[380,200]" color="#1a1a2e">
+                <Label height="60" width="460" translation="[30,30]"
+                       text="Playback Error"
+                       font="font:LargeBoldSystemFont"
+                       color="#ff6b6b" />
+                <Label height="120" width="460" translation="[30,100]"
+                       wrap="true"
+                       font="font:MediumSystemFont"
+                       color="#FFFFFF"
+                       id="errorMessageLabel" />
+                <Button height="60" width="200" translation="[160,240]"
+                        title="OK"
+                        id="errorOkButton" />
+            </Rectangle>
+        </Rectangle>
     </children>
 </component>

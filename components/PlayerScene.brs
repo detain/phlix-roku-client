@@ -174,6 +174,15 @@ sub Init()
     if m.settingsList <> invalid then m.settingsList.ObserveField("itemSelected", "OnSettingsRowSelected")
     if m.trackList <> invalid then m.trackList.ObserveField("itemSelected", "OnTrackSelected")
     if m.trackListBackButton <> invalid then m.trackListBackButton.ObserveField("buttonSelected", "OnTrackListBackPressed")
+
+    ' ============================================================= '
+    ' P5-S5 Access/Stream limit error overlay.                        '
+    ' ============================================================= '
+    m.errorOverlay = m.top.FindNode("errorOverlay")
+    m.errorMessageLabel = m.top.FindNode("errorMessageLabel")
+    m.errorOkButton = m.top.FindNode("errorOkButton")
+
+    if m.errorOkButton <> invalid then m.errorOkButton.ObserveField("buttonSelected", "OnErrorOkPressed")
 end sub
 
 sub Show(itemId as String, args as Object)
@@ -327,6 +336,20 @@ end sub
 sub OnApiResponse(event as Object)
     resp = event.getData()
     if resp = invalid then return
+
+    ' P5-S5: Check for access/stream-limit errors before processing success.
+    ' Server returns 403/429 with {error:"AccessSchedule"|"StreamLimitExceeded"}
+    ' in the data field even when resp.ok is true (envelope wraps it).
+    if resp.data <> invalid and type(resp.data) = "roAssociativeArray" then
+        err = resp.data.error
+        if err = "AccessSchedule" then
+            ShowAccessError()
+            return
+        else if err = "StreamLimitExceeded" then
+            ShowStreamLimitError()
+            return
+        end if
+    end if
 
     if resp.op = "startTranscode" then
         if not resp.ok or resp.data = invalid then
@@ -866,6 +889,44 @@ end sub
 ' is never opened, m.syncTask stays invalid and every guard is false, so '
 ' the default playback path is byte-unchanged.                          '
 ' ===================================================================== '
+
+' ===================================================================== '
+' P5-S5 AccessSchedule (403) / StreamLimitExceeded (429) error display. '
+' Pauses playback and shows a modal overlay with the error message and    '
+' an OK button that returns to the browse/home screen.                   '
+' ===================================================================== '
+
+' Show access-schedule error (403). Called when server returns a 403 with
+' body {error:"AccessSchedule"}.
+sub ShowAccessError()
+    StopPlayback()
+    if m.errorOverlay <> invalid then
+        if m.errorMessageLabel <> invalid then
+            m.errorMessageLabel.text = "Playback blocked by access schedule. Try again during allowed hours."
+        end if
+        m.errorOverlay.visible = true
+        if m.errorOkButton <> invalid then m.errorOkButton.SetFocus(true)
+    end if
+end sub
+
+' Show stream-limit exceeded error (429). Called when server returns a 429
+' with body {error:"StreamLimitExceeded"}.
+sub ShowStreamLimitError()
+    StopPlayback()
+    if m.errorOverlay <> invalid then
+        if m.errorMessageLabel <> invalid then
+            m.errorMessageLabel.text = "Stream limit reached. Stop another stream to continue watching."
+        end if
+        m.errorOverlay.visible = true
+        if m.errorOkButton <> invalid then m.errorOkButton.SetFocus(true)
+    end if
+end sub
+
+' Handle OK button press on the error overlay. Returns to home/browse.
+sub OnErrorOkPressed()
+    if m.errorOverlay <> invalid then m.errorOverlay.visible = false
+    ClosePlayer()
+end sub
 
 ' Open/close the panel. On first open: gate hub mode out, fetch the REST group
 ' snapshot, and lazily create + connect the SyncPlayTask. roStreamSocket is
@@ -1455,6 +1516,11 @@ end sub
 
 ' Build and open the audio track list. "Off" is NOT offered for audio
 ' (the server always provides at least one track; default = first/only).
+'
+' KNOWN PLATFORM GAP: Roku HLS player does not support runtime audio track
+' switching — audio track selection is informational only and has no effect on
+' playback. The track list is displayed so users can see which audio tracks
+' are available, but selecting a different track will not switch to it.
 sub OpenAudioTrackList()
     m.trackListType = "audio"
     if m.trackListTitle <> invalid then m.trackListTitle.text = "Audio Tracks"

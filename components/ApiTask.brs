@@ -59,6 +59,11 @@ sub ExecRequest()
         else if req.op = "getContinueWatching" then
             result.data = api.getContinueWatching()
             result.ok = (result.data <> invalid)
+        else if req.op = "getWatchHistory" then
+            opts = req.options
+            if opts = invalid then opts = {}
+            result.data = api.getWatchHistory(opts)
+            result.ok = (result.data <> invalid)
         else if req.op = "getRecommendations" then
             opts = req.options
             if opts = invalid then opts = {}
