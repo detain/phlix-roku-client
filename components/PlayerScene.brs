@@ -855,6 +855,9 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
         else if key = "right" then
             SeekRelative(30)
             handled = true
+        else if key = "C" then
+            ToggleChapterPicker()
+            handled = true
         end if
     end if
 
@@ -1603,6 +1606,83 @@ sub CloseTrackListPanel()
     if m.settingsList <> invalid then m.settingsList.SetFocus(true)
 end sub
 
+' P2-S5: Open/close the chapter picker. Shows a list of all chapters when
+' user presses "C" during playback. Reuses the existing trackListPanel.
+sub ToggleChapterPicker()
+    if m.trackListPanelOpen and m.trackListType = "chapter" then
+        CloseTrackListPanel()
+        m.trackListType = ""
+        return
+    end if
+
+    ' Chapters come from playbackInfo.chapters: [{start_seconds, end_seconds, title}, ...]
+    if m.playbackInfo = invalid or m.playbackInfo.chapters = invalid then
+        ShowErrorDialog("No chapters available for this content")
+        return
+    end if
+
+    chapters = m.playbackInfo.chapters
+    if type(chapters) <> "roArray" or chapters.Count() = 0 then
+        ShowErrorDialog("No chapters available for this content")
+        return
+    end if
+
+    OpenChapterPicker()
+end sub
+
+' Build and open the chapter list using the trackListPanel.
+sub OpenChapterPicker()
+    m.trackListType = "chapter"
+    if m.trackListTitle <> invalid then m.trackListTitle.text = "Chapters"
+
+    chapters = m.playbackInfo.chapters
+    if chapters.Count() = 0 then
+        SetTrackListStatus("No chapters available")
+        if m.trackList <> invalid then m.trackList.content = CreateObject("roSGNode", "ContentNode")
+        if m.trackListBackButton <> invalid then m.trackListBackButton.SetFocus(true)
+        m.trackListPanelOpen = true
+        if m.trackListPanel <> invalid then m.trackListPanel.visible = true
+        return
+    end if
+
+    m.chapterIds = []
+    content = CreateObject("roSGNode", "ContentNode")
+
+    for each ch in chapters
+        if ch <> invalid then
+            startSec = 0
+            title = "Chapter"
+            if ch.DoesExist("start_seconds") and ch.start_seconds <> invalid then startSec = ch.start_seconds
+            if ch.DoesExist("title") and ch.title <> invalid and ch.title <> "" then title = ch.title
+
+            m.chapterIds.Push(startSec)
+            ' Format start time as HH:MM:SS or MM:SS
+            timeStr = FormatTime(startSec)
+            content.AddChild({ title: timeStr + "  " + title })
+        end if
+    end for
+
+    if m.trackList <> invalid then m.trackList.content = content
+    SetTrackListStatus(chapters.Count().toStr() + " chapter(s)")
+
+    m.trackListPanelOpen = true
+    if m.trackListPanel <> invalid then m.trackListPanel.visible = true
+    if m.trackList <> invalid then m.trackList.SetFocus(true)
+end sub
+
+' Handle chapter selection from the picker - seek to chapter start.
+sub OnChapterSelected(index as Integer)
+    if index < 0 or index >= m.chapterIds.Count() then return
+    startSec = m.chapterIds[index]
+
+    if m.videoPlayer <> invalid then
+        m.videoPlayer.seek = startSec
+    end if
+
+    CloseTrackListPanel()
+    m.trackListType = ""
+end sub
+
 sub OnTrackListBackPressed()
     CloseTrackListPanel()
 end sub
@@ -1611,8 +1691,9 @@ sub SetTrackListStatus(text as String)
     if m.trackListStatusLabel <> invalid then m.trackListStatusLabel.text = text
 end sub
 
-' Track selected from the audio or subtitle list. Persist the preference
-' and apply it to the Video node.
+' Track selected from the audio, subtitle, or chapter list. Persist the
+' preference (audio/subtitle) and apply it to the Video node; for chapters,
+' seek to the selected chapter's start position.
 sub OnTrackSelected(event as Object)
     index = event.getData()
     if index = invalid then return
@@ -1621,6 +1702,8 @@ sub OnTrackSelected(event as Object)
         OnAudioTrackSelected(index)
     else if m.trackListType = "subtitle" then
         OnSubtitleTrackSelected(index)
+    else if m.trackListType = "chapter" then
+        OnChapterSelected(index)
     end if
 end sub
 
