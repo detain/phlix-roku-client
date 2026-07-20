@@ -5,6 +5,26 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — Play button for audio/track/audiobook/video items
+
+- **`DetailScene` no longer gates playback on a hardcoded `movie`/`episode`
+  pair.** Both the Play-button visibility check and `OnPlayPressed` now call the
+  new shared `IsPlayableItem()` / `IsPlayableType()` helpers in
+  `source/lib/Utilities.brs`, whose allowlist (`PlayableTypes()`) is the set of
+  playable **leaf** members of the server's `media_items.type` ENUM: `movie`,
+  `episode`, `video`, `audio`, `track`, `audiobook`. Containers (`series`,
+  `season`, `album`, `artist`, `music`) and stream-less types (`book`, `photo`)
+  stay non-playable.
+- Previously an `audio`/`track`/`audiobook`/`video` item opened a detail page
+  with **no Play button**, and pressing Play was a **silent no-op**. This was
+  latent: before phlix-server#527 the server's `MediaItemShaper` coerced every
+  unlisted type to `"movie"`, so these items reached the client disguised as
+  movies and got a Play button by accident. Not user-visible on current
+  production data (episode/movie/season/series rows only) — it matters once
+  music/audiobook libraries populate.
+- Unknown types are treated as **not** playable, so a future ENUM member loses
+  its Play button rather than presenting a dead one.
+
 ### Added — in-player quality selection (G4)
 
 - **Quality picker overlay** in the player — press **Up** during playback to open a

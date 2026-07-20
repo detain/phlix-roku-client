@@ -162,13 +162,10 @@ sub RenderItem()
         m.infoLabel.text = info
     end if
 
-    ' Show play button only for playable video types (canonical lowercase).
+    ' Show play button only for playable leaf types (see PlayableTypes() - it
+    ' covers audio/track/audiobook/video too, not just movie/episode).
     if m.playButton <> invalid then
-        if item.type = "movie" or item.type = "episode" then
-            m.playButton.visible = true
-        else
-            m.playButton.visible = false
-        end if
+        m.playButton.visible = IsPlayableItem(item)
     end if
 
     ' Favorite + rating strip: only when the server injected user_data (auth'd
@@ -315,8 +312,10 @@ end sub
 sub OnPlayPressed()
     if m.itemId = "" or m.item = invalid then return
 
-    ' Only play video content.
-    if m.item.type = "movie" or m.item.type = "episode" then
+    ' Only playable leaf types have a stream to request. This mirrors the
+    ' play-button visibility gate above, so Play is never a silent no-op for an
+    ' item whose button we chose to show.
+    if IsPlayableItem(m.item) then
         m.apiTask.request = { op: "getItemPlaybackInfo", itemId: m.itemId }
         m.apiTask.control = "run"
     end if
