@@ -686,6 +686,56 @@ function IsTruthyFlag(container as Object, key as String) as Boolean
     return false
 end function
 
+' The playable leaf members of the server's `media_items.type` ENUM - the types
+' that actually resolve to a video/audio stream, so the only ones worth offering
+' a Play button for.
+'
+' The full ENUM is:
+'   movie, series, season, episode, track, music, album, artist, video, audio,
+'   book, photo, audiobook
+'
+' Excluded on purpose: series/season/album/artist/music are CONTAINERS (they
+' drill down to children, they have no stream of their own), and book/photo
+' carry no video or audio track at all.
+'
+' Keep this in sync with the server-side allowlist if the ENUM ever grows - an
+' unknown type is treated as NOT playable, so a new type silently loses its Play
+' button until it is added here (safe default: no dead button).
+' @return Object - roArray of canonical lowercase type strings
+function PlayableTypes() as Object
+    return ["movie", "episode", "video", "audio", "track", "audiobook"]
+end function
+
+' Is this a playable leaf type? Comparison is case-insensitive on a defensive
+' copy - a non-string `itemType` would CRASH a bare `=` compare against a string
+' (same type-guard rationale as IsTruthyFlag).
+' @param itemType Dynamic - the raw item type (may be invalid / non-string)
+' @return Boolean - true only for a member of PlayableTypes()
+function IsPlayableType(itemType as Dynamic) as Boolean
+    if itemType = invalid then return false
+    t = type(itemType)
+    if t <> "String" and t <> "roString" then return false
+
+    needle = itemType.Trim().Lower()
+    if needle = "" then return false
+
+    for each candidate in PlayableTypes()
+        if candidate = needle then return true
+    end for
+    return false
+end function
+
+' Convenience wrapper: is THIS item playable? Guards the container and the
+' missing/invalid `type` key so callers stay one-liners.
+' @param item Object - a media item assocarray (may be invalid)
+' @return Boolean - true only when item.type is a playable leaf type
+function IsPlayableItem(item as Object) as Boolean
+    if item = invalid then return false
+    if type(item) <> "roAssociativeArray" then return false
+    if not item.DoesExist("type") then return false
+    return IsPlayableType(item.type)
+end function
+
 ' Map a content-rating int (0-6) to its label. Out-of-range -> "UNRATED".
 ' (0=G,1=PG,2=PG-13,3=R,4=NC-17,5=X,6=UNRATED.)
 ' @param n Integer - the rating int

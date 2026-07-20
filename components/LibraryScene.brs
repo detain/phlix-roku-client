@@ -96,7 +96,8 @@ sub OnItemSelected(event as Object)
     if item = invalid then return
 
     ' F2: a series drills into its seasons (SeriesScene); every other top-level
-    ' type (movie/audio/image) opens the detail scene directly.
+    ' type (movie/audio/photo/...) opens the detail scene directly, which decides
+    ' for itself whether the item is playable (see IsPlayableItem).
     if item.type = "series" then
         ShowSeries(item.id, item.name)
     else

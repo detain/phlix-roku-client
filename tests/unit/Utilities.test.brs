@@ -84,3 +84,52 @@ sub TestGetStreamFormat()
 
     print "TestGetStreamFormat passed"
 end sub
+sub TestIsPlayableType()
+    ' Every playable leaf member of the media_items.type ENUM.
+    assertTrue(IsPlayableType("movie"))
+    assertTrue(IsPlayableType("episode"))
+    assertTrue(IsPlayableType("video"))
+    assertTrue(IsPlayableType("audio"))
+    assertTrue(IsPlayableType("track"))
+    assertTrue(IsPlayableType("audiobook"))
+
+    ' Containers drill down; they have no stream of their own.
+    assertFalse(IsPlayableType("series"))
+    assertFalse(IsPlayableType("season"))
+    assertFalse(IsPlayableType("album"))
+    assertFalse(IsPlayableType("artist"))
+    assertFalse(IsPlayableType("music"))
+
+    ' No video/audio track at all.
+    assertFalse(IsPlayableType("book"))
+    assertFalse(IsPlayableType("photo"))
+
+    ' Unknown / malformed input is never playable.
+    assertFalse(IsPlayableType(""))
+    assertFalse(IsPlayableType("bogus"))
+    assertFalse(IsPlayableType(invalid))
+    assertFalse(IsPlayableType(42))
+    assertFalse(IsPlayableType({ type: "movie" }))
+
+    ' Case and surrounding whitespace are normalized.
+    assertTrue(IsPlayableType("Movie"))
+    assertTrue(IsPlayableType("AUDIOBOOK"))
+    assertTrue(IsPlayableType("  track  "))
+
+    print "TestIsPlayableType passed"
+end sub
+
+sub TestIsPlayableItem()
+    assertTrue(IsPlayableItem({ id: "1", type: "movie" }))
+    assertTrue(IsPlayableItem({ id: "2", type: "audio" }))
+    assertFalse(IsPlayableItem({ id: "3", type: "series" }))
+    assertFalse(IsPlayableItem({ id: "4", type: "photo" }))
+
+    ' Missing/invalid containers and keys must not crash.
+    assertFalse(IsPlayableItem(invalid))
+    assertFalse(IsPlayableItem({}))
+    assertFalse(IsPlayableItem({ id: "5" }))
+    assertFalse(IsPlayableItem({ id: "6", type: invalid }))
+
+    print "TestIsPlayableItem passed"
+end sub
