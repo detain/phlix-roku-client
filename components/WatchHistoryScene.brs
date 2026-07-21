@@ -14,7 +14,11 @@
 ' FavoritesScene:
 '   series  -> SeriesScene (LoadSeries)
 '   season  -> SeasonScene (LoadSeason)
-'   else    -> DetailScene (LoadItem)   (movie/episode/audio/image)
+'   else    -> DetailScene (LoadItem)   (every other media_items.type:
+'                                        movie/episode/video/audio/track/
+'                                        music/album/artist/book/photo/
+'                                        audiobook -- note `photo`, there
+'                                        is no `image` member)
 
 sub Init()
     m.top.SetFocus(true)

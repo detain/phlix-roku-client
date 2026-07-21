@@ -14,7 +14,9 @@
 ' season/episode rows). Selecting a result routes exactly like LibraryScene:
 '   series  -> SeriesScene
 '   season  -> SeasonScene
-'   else    -> DetailScene (movie/episode/audio/image)
+'   else    -> DetailScene (every other media_items.type: movie/episode/video/
+'              audio/track/music/album/artist/book/photo/audiobook -- note
+'              `photo`, there is no `image` member)
 '
 ' Query is debounced: a non-repeating ~1s Timer is restarted on each keystroke
 ' and only fires the search when the trimmed query length is >= 2.
