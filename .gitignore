@@ -1,5 +1,6 @@
 .logs
 .caliber/
+__pycache__/
 
 # brighterscript (bsc) gate install artifacts - this is a Roku (zip) repo, not a
 # Node project; bsconfig.json/package.json are tracked but the install output is not.
