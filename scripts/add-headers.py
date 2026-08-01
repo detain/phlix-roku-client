@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""
-Add copyright headers to BrightScript (.brs) and XML (.xml) source files.
+"""Add copyright headers to BrightScript (.brs) and XML (.xml) source files.
+
 Idempotent: skips files that already contain the copyright notice.
 """
 
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -117,7 +116,7 @@ def main():
     skipped = 0
 
     for filepath in all_files:
-        was_updated, was_skipped = process_file(filepath)
+        was_updated, _ = process_file(filepath)
         if was_updated:
             updated += 1
             print(f"  UPDATED: {filepath.relative_to(repo_root)}")
