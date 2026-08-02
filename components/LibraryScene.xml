@@ -6,6 +6,7 @@
 
 <component name="LibraryScene" extends="Scene">
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <function name="LoadLibrary" />
     </interface>
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />

@@ -6,6 +6,7 @@
 
 <component name="PlayerScene" extends="Scene">
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <field id="itemId" type="string" />
         <field id="playbackInfo" type="assocarray" />
         <function name="Show" />

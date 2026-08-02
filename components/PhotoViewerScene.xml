@@ -6,6 +6,7 @@
 
 <component name="PhotoViewerScene" extends="Scene">
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <function name="LoadPhotos" />
     </interface>
     <!-- Transitive closure: a component scope does NOT auto-include pkg:/source.

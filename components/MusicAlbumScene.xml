@@ -6,6 +6,7 @@
 
 <component name="MusicAlbumScene" extends="Scene">
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <function name="LoadAlbum" />
     </interface>
     <!-- Transitive closure: a component scope does NOT auto-include pkg:/source.

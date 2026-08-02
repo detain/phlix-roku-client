@@ -6,6 +6,7 @@
 
 <component name="CollectionScene" extends="Scene">
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <function name="LoadCollection" />
     </interface>
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />

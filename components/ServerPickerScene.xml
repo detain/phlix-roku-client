@@ -14,6 +14,7 @@
          Transitive closure: a component scope does NOT auto-include
          pkg:/source. -->
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <field id="serverPicked" type="boolean" value="false" />
     </interface>
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />

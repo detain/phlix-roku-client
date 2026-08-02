@@ -11,6 +11,7 @@
          loginSucceeded). Transitive closure: a component scope does NOT
          auto-include pkg:/source; no AuthManager needed here. -->
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <field id="connected" type="boolean" value="false" />
     </interface>
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />

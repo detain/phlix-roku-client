@@ -14,6 +14,7 @@
 -->
 <component name="ParentalControlsScene" extends="Scene">
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <function name="LoadProfile" />
     </interface>
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />

@@ -6,6 +6,7 @@
 
 <component name="SeasonScene" extends="Scene">
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <function name="LoadSeason" />
     </interface>
     <!-- Transitive closure: a component scope does NOT auto-include pkg:/source.

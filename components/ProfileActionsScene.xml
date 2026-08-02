@@ -11,6 +11,7 @@
          runtime failure). Transitive closure: a component scope does NOT
          auto-include pkg:/source. -->
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <function name="LoadProfile" />
     </interface>
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />

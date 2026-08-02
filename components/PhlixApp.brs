@@ -46,6 +46,11 @@
 sub Init()
     print "Phlix App Init"
 
+    ' Screen stack for tracking pushed scenes. Each entry is the roSGNode that
+    ' was pushed. Bootstrap scenes (Connect, Login, ServerPicker, Home) are NOT
+    ' tracked here; they are managed by Show* methods + On* handlers.
+    m.screenStack = []
+
     ' Initialize the shared API client (restores token/session from Storage)
     m.api = GetApiClient()
 
@@ -83,6 +88,73 @@ sub Init()
         ' Show login screen
         ShowLogin()
     end if
+end sub
+
+' PushScreen - Creates, shows, and tracks a child scene on the screen stack.
+'
+' Creates a node of the given type, appends it as a child of m.top, sets focus
+' on it, records it on the stack, and returns it. The caller may then call
+' additional setup methods on the returned node (LoadLibrary, Show, etc.).
+'
+' @param nodeType {String} - The SceneGraph node type name (e.g. "LibraryScene")
+' @param params {Object} - Optional params passed to setup methods (unused here;
+'                          caller drives setup after PushScreen returns the node)
+' @returns {Object} - The newly created roSGNode
+function PushScreen(nodeType as String, params as Object) as Object
+    scene = CreateObject("roSGNode", nodeType)
+    ' Observe requestClose so the child can ask to be popped without touching
+    ' its parent. When the child sets m.top.requestClose = true, this handler
+    ' fires and PopScreen is called.
+    scene.ObserveField("requestClose", "OnChildRequestClose")
+    m.top.Append(scene)
+    scene.SetFocus(true)
+    m.screenStack.Push(scene)
+    return scene
+end function
+
+' PopScreen - Removes the top scene from the stack and restores focus.
+'
+' Removes the most-recently-pushed scene (if any), removes it from m.top,
+' calls SetFocus(true) on the newly-exposed node so the remote stays alive,
+' and returns true. If the stack is empty returns false so the caller knows
+' to exit the channel.
+'
+' @returns {Boolean} - True if a scene was popped; false if the stack is
+'                      empty, signaling the caller should exit the channel
+function PopScreen() as Boolean
+    if m.screenStack.Count() = 0 then
+        return false
+    end if
+
+    popped = m.screenStack.Pop()
+    ' Unobserve to prevent leaks after removal; then remove from the scene tree.
+    popped.UnObserveField("requestClose")
+    m.top.RemoveChild(popped)
+
+    ' Restore focus to the newly-exposed node so the remote stays alive.
+    ' Per Roku SceneGraph focus rules, SetFocus on a Scene node makes it the
+    ' focused scene. The child is responsible for ensuring one of its
+    ' interactive children has focus when its Init runs.
+    ' Ref: https://developer.roku.com/docs/developer-program/core-concepts/
+    '          focus-management.md
+    if m.screenStack.Count() > 0 then
+        topNode = m.screenStack.Peek()
+        topNode.SetFocus(true)
+    end if
+
+    return true
+end function
+
+' OnChildRequestClose - Called when a pushed child scene raises requestClose.
+'
+' The child has set m.top.requestClose = true to request removal without
+' knowing its parent. This handler is registered by PushScreen for every node
+' that is added to the stack.
+'
+' @param event {Object} - The roSGNodeEvent (unused; the field value is always
+'                         true by the time this fires)
+sub OnChildRequestClose(event as Object)
+    PopScreen()
 end sub
 
 sub ShowConnect()
@@ -174,7 +246,9 @@ sub OnLogout()
     GetStorage().delete("active_server_id")
     GetStorage().delete("active_server_name")
 
-    ' Remove all children and show login
+    ' Clear the screen stack (stale references to removed nodes) and remove all
+    ' children so the next Show* call starts from a clean scene tree.
+    m.screenStack.Clear()
     while m.top.GetChildCount() > 0
         m.top.RemoveChild(m.top.GetChild(0))
     end while
@@ -187,11 +261,12 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
 
     if press then
         if key = "back" then
-            ' Handle back button
-            if m.top.GetChildCount() > 1 then
-                m.top.RemoveChild(m.top.GetChild(m.top.GetChildCount() - 1))
-                handled = true
-            end if
+            ' Handle back button via the screen stack. PopScreen removes the top
+            ' pushed scene and calls SetFocus(true) on the newly-exposed node,
+            ' fixing the pre-stack bug where the remote went dead after one Back.
+            ' PopScreen returns false when the stack is empty, meaning we are at
+            ' the root and the channel should exit (certification item 6).
+            handled = PopScreen()
         end if
     end if
 

@@ -17,6 +17,7 @@ Launched from PlayerScene via SyncPlay button (Options key).
 
 <component name="SyncPlayScene" extends="Scene">
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <!-- Fires when user selects a room action: "join", "create", "leave" -->
         <field id="action" type="string" value="" />
     </interface>

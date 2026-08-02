@@ -6,6 +6,7 @@
 
 <component name="LoginScene" extends="Scene">
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <field id="loginSucceeded" type="boolean" value="false" />
         <!-- F12b: fired (instead of loginSucceeded) when the post-login
              /me/servers probe finds a hub -> PhlixApp shows the ServerPicker. -->

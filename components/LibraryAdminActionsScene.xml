@@ -10,6 +10,7 @@
          NOT catch a missing one - it is a runtime failure). Transitive closure:
          a component scope does NOT auto-include pkg:/source. -->
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <function name="LoadLibrary" />
     </interface>
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />

@@ -3,6 +3,7 @@
 <!-- @license   MIT -->
 <component name="RecommendationsScene" extends="Scene">
   <interface>
+    <field id="requestClose" type="boolean" alwaysNotify="true" />
     <field id="focusPercent" type="float" />
   </interface>
   <children>

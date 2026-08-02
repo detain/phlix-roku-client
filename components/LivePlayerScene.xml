@@ -6,6 +6,7 @@
 
 <component name="LivePlayerScene" extends="Scene">
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <function name="LoadStream" />
     </interface>
 

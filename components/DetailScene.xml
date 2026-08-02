@@ -6,6 +6,7 @@
 
 <component name="DetailScene" extends="Scene">
     <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
         <field id="itemId" type="string" />
         <function name="LoadItem" />
     </interface>
