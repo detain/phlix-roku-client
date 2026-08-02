@@ -84,6 +84,7 @@ sub Init()
     m.apiTask = CreateObject("roSGNode", "ApiTask")
     m.apiTask.ObserveField("response", "OnApiResponse")
     m.progressTask = CreateObject("roSGNode", "ApiTask")
+    m.progressTask.ObserveField("response", "OnProgressResponse")
     m.transcodePollTask = CreateObject("roSGNode", "ApiTask")
     m.transcodePollTask.ObserveField("response", "OnTranscodePollResponse")
 
@@ -99,6 +100,13 @@ sub Init()
     m.transcodePollCount = 0
     m.resumeSeconds = 0.0
     m.resumeApplied = false
+
+    ' R1.5: consecutive progress-report failures for non-blocking warning
+    m.progressConsecutiveFailures = 0
+    ' Named constant (value fixed, naming convention signals intent):
+    ' failures before showing a non-blocking warning.
+    ' Do not retry aggressively — progress fires every 10 seconds.
+    m.progressFailuresBeforeWarning = 3
 
     ' ============================================================= '
     ' F13 SyncPlay "Watch Together" - additive, gated behind the panel. '
@@ -196,6 +204,8 @@ sub Show(itemId as String, args as Object)
     m.transcodeAttempted = false
     m.transcodeJobId = ""
     m.transcodePollCount = 0
+    ' R1.5: reset progress failure counter for the new item
+    m.progressConsecutiveFailures = 0
 
     ' Optional resume position (F3 continue-watching). DetailScene omits it ->
     ' stays 0 -> playback starts from the beginning (no behavior change).
@@ -503,6 +513,90 @@ sub ReportProgress(positionSeconds as Float)
     m.progressTask.control = "run"
 end sub
 
+' R1.5: Observe the progress task response so failures are no longer silent.
+' Three distinct outcomes:
+'   1. Success  -> clear any warning state
+'   2. Auth failure (401 after refresh) -> session is dead, surface to user
+'   3. Other failure -> log, count consecutive failures, show warning after
+'      PROGRESS_FAILURES_BEFORE_WARNING consecutive hits (do not interrupt)
+'
+' DEPENDENCY: This handler infers auth failure from a null data field. R3.2/R3.3
+' (HTTP status propagation through ApiClient.request -> ApiTask.ok) will make
+' the 401 detection explicit rather than inferred.
+sub OnProgressResponse(event as Object)
+    resp = event.getData()
+
+    ' Guard: resp being invalid is itself a failure.
+    if resp = invalid then
+        m.progressConsecutiveFailures = m.progressConsecutiveFailures + 1
+        if m.progressConsecutiveFailures >= m.progressFailuresBeforeWarning then
+            SetProgressWarning("Progress not being saved — check connection")
+        end if
+        return
+    end if
+
+    if resp.ok and resp.data <> invalid then
+        ' Success: clear any lingering warning state and reset failure counter.
+        m.progressConsecutiveFailures = 0
+        ClearProgressWarning()
+        return
+    end if
+
+    ' resp.ok = false OR resp.data = invalid -> treat as failure.
+    ' Inferred auth failure: when the refresh token was exhausted, ApiClient.request
+    ' clears credentials and the server returns 401 (data becomes invalid). The
+    ' session is dead — playback continues but progress is lost. Surface it.
+    ' DEPENDENCY: This inference is the best we can do without R3.2/R3.3 HTTP status.
+    ' R3.2/R3.3 will provide explicit HTTP status; until then, invalid data = auth
+    ' failure (most likely) or network error.
+    if resp.data = invalid then
+        ShowProgressAuthError()
+        m.progressConsecutiveFailures = 0
+        return
+    end if
+
+    ' Other failure (server error, timeout, etc.) — count for non-blocking warning.
+    print "OnProgressResponse: progress report failed, consecutive=" m.progressConsecutiveFailures
+    m.progressConsecutiveFailures = m.progressConsecutiveFailures + 1
+    if m.progressConsecutiveFailures >= m.progressFailuresBeforeWarning then
+        SetProgressWarning("Progress not being saved — check connection")
+    end if
+end sub
+
+' Set a non-blocking progress warning using the SyncPlay status label
+' (safe — SyncPlay status is inert during normal playback).
+sub SetProgressWarning(msg as String)
+    ' Don't overwrite live SyncPlay status while the panel is open.
+    if m.syncPanel <> invalid and m.syncPanel.visible then return
+
+    if m.syncStatusLabel <> invalid then
+        m.syncStatusLabel.text = msg
+    end if
+end sub
+
+' Clear any progress warning; called on success.
+sub ClearProgressWarning()
+    ' Only clear if the warning was set by us (matches our pattern).
+    ' Leave any SyncPlay-derived status intact.
+    if m.syncStatusLabel <> invalid and Left(m.syncStatusLabel.text, 7) = "Progress" then
+        m.syncStatusLabel.text = ""
+    end if
+end sub
+
+' Surface a 401-after-refresh auth failure. The session is dead and progress
+' can no longer be saved. Use the existing P5-S5 error overlay (non-blocking
+' modal) so the user sees the problem and has a path to re-authenticate.
+sub ShowProgressAuthError()
+    StopPlayback()
+    if m.errorOverlay <> invalid then
+        if m.errorMessageLabel <> invalid then
+            m.errorMessageLabel.text = "Your session has expired. Please sign in again to continue saving progress."
+        end if
+        m.errorOverlay.visible = true
+        if m.errorOkButton <> invalid then m.errorOkButton.SetFocus(true)
+    end if
+end sub
+
 ' P2-S5: Build chapter tick markers on the seekbar.
 ' Chapters come from playbackInfo.chapters: [{start_seconds, end_seconds, title}, ...]
 ' Each marker is a small colored Rectangle positioned at the chapter start.
@@ -687,6 +781,11 @@ sub ClosePlayer()
     ' Stop observing the API task.
     if m.apiTask <> invalid then
         m.apiTask.UnObserveField("response")
+    end if
+
+    ' R1.5: Stop observing the progress task (paired in Init).
+    if m.progressTask <> invalid then
+        m.progressTask.UnObserveField("response")
     end if
 
     ' --- F13 SyncPlay teardown (pairs every ObserveField from Init/open). ---

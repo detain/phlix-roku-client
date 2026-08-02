@@ -56,6 +56,9 @@ sub ExecRequest()
         else if req.op = "reportProgress" then
             result.data = api.reportProgress(req.mediaItemId, req.positionTicks, req.durationTicks, req.isPaused)
             result.ok = true
+            if result.data = invalid then
+                result.ok = false
+            end if
         else if req.op = "getContinueWatching" then
             result.data = api.getContinueWatching()
             result.ok = (result.data <> invalid)
