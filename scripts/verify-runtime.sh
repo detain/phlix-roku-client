@@ -5,6 +5,7 @@ set -euo pipefail
 REPO="/home/sites/phlix/phlix-roku-client"
 cd "$REPO"
 FOUND=0
+VIOLATIONS=0
 
 echo "=== Check 1: Storage.factory misuse (R0.2 regression) ==="
 while IFS=: read -r file line; do
@@ -86,4 +87,49 @@ done
 [[ $FOUND -eq 0 ]] && echo "  PASS"
 
 echo ""
-echo "=== Checks 8-10 not yet implemented ==="
+echo "=== Check 8: m.videoPlayer invalid fields (maps to §5.6) ==="
+# Allow-list of real Video node fields (Roku SceneGraph SDK)
+# https://developer.roku.com/docs/references/scenegraph/media-playback-nodes/video.md
+ALLOW_LIST="command content control currentTime duration endpoint errorMsg focusRing isFullscreen isPhoto loggingUrl manifestHDRType maxHeight maxWidth position rate retargetHeight retargetWidth secureChainingUrl securityKey stream streamFormat streamInfo subtitleStream textTrackTrack track transferType videoLocation videoNode wasPlaying wideAsync"
+VIOLATIONS=0
+while IFS=: read -r file line; do
+  field=$(echo "$line" | sed 's/.*m\.videoPlayer\.\([a-zA-Z_][a-zA-Z0-9_]*\).*/\1/' | grep -oP '[a-zA-Z_][a-zA-Z0-9_]*' | head -1)
+  if [[ -n "$field" ]] && ! echo "$ALLOW_LIST" | grep -qw "$field"; then
+    echo "  $file — CHECK8: m.videoPlayer.$field is not a real Video node field"
+    VIOLATIONS=1
+  fi
+done < <(git grep -n 'm\.videoPlayer\.' -- '*.brs' 2>/dev/null || true)
+[[ $VIOLATIONS -eq 0 ]] && echo "  PASS"
+
+echo ""
+echo "=== Check 9: OnKeyEvent invalid Roku remote keys (maps to §3.6) ==="
+# Valid Roku remote keys per https://developer.roku.com/docs/references/scenegraph/remote-control-events.md
+ALLOW_KEYS="back up down left right OK replay play rewind fastforward options info"
+VIOLATIONS=0
+for brs in $(git ls-files -- '*.brs'); do
+  if [[ "$brs" == tests/* ]]; then continue; fi
+  if grep -q 'sub OnKeyEvent' "$brs"; then
+    keys=$(grep -oP 'key\s*[=!]=\s*"\K[^"]+' "$brs" 2>/dev/null || true)
+    for key in $keys; do
+      if ! echo "$ALLOW_KEYS" | grep -qw "$key"; then
+        line_num=$(grep -n "[\"']$key[\"']" "$brs" | head -1 | cut -d: -f1)
+        echo "  $brs:$line_num — CHECK9: OnKeyEvent compares key '$key' which is not a valid Roku remote key"
+        VIOLATIONS=1
+      fi
+    done
+  fi
+done
+[[ $VIOLATIONS -eq 0 ]] && echo "  PASS"
+
+echo ""
+echo "=== Check 10: blocking network outside ApiTask (maps to §5.3) ==="
+VIOLATIONS=0
+while IFS=: read -r file line; do
+  if [[ "$file" != components/ApiTask* ]]; then
+    echo "  $file:$line — CHECK10: blocking network call (ApiClient.wait/sync) on render thread"
+    VIOLATIONS=1
+  fi
+done < <(git grep -rn 'ApiClient\.\(wait\|sync\)' -- '*.brs' 2>/dev/null || true)
+[[ $VIOLATIONS -eq 0 ]] && echo "  PASS"
+
+[[ $VIOLATIONS -eq 1 ]] && exit 1

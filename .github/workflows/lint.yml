@@ -20,6 +20,9 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
 
+      - name: verify-runtime (checks 1-10)
+        run: make verify-runtime
+
       - name: brighterscript (zero-error gate)
         run: npx bsc --project bsconfig.json
 
