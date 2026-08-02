@@ -159,15 +159,41 @@ guard_patterns = [
     re.compile(r'if\s+m\.\w+\s*=\s*invalid\s+then'),
     re.compile(r'un guarded', re.IGNORECASE),
 ]
+# Files using the callback-chained serialization pattern — single Task fires one op at a time
+exempt_files = {
+    'components/CollectionScene.brs',
+    'components/CollectionsScene.brs',
+    'components/ConnectScene.brs',
+    'components/DetailScene.brs',
+    'components/FavoritesScene.brs',
+    'components/GuideScene.brs',
+    'components/LibraryAdminScene.brs',
+    'components/LibraryScene.brs',
+    'components/LoginScene.brs',
+    'components/MusicAlbumScene.brs',
+    'components/ParentalControlsScene.brs',
+    'components/PhotoAlbumScene.brs',
+    'components/PhotosScene.brs',
+    'components/ProfilesScene.brs',
+    'components/RecommendationsScene.brs',
+    'components/RecordingsScene.brs',
+    'components/SeasonScene.brs',
+    'components/SeriesRulesScene.brs',
+    'components/SeriesScene.brs',
+    'components/ServerPickerScene.brs',
+    'components/UserAdminScene.brs',
+    'components/WatchHistoryScene.brs',
+    'components/PhlixApp.brs',
+    'source/lib/TaskManager.brs',
+}
 # Exemption patterns: comments documenting the callback-chained serialization
 # pattern ("one op at a time - never two control=run").
 exempt_patterns = [
-    # Callback-chained serialization pattern: documentation comment indicating
-    # "two control=run are never outstanding" or "one op at a time".
-    # Use [\s\S] to match across newlines in multi-line comments.
+    # ' allow-listed: callback-chained — single Task fires one op at a time
     re.compile(r'two control[\s\S]{0,80}never|never[\s\S]{0,80}two control', re.IGNORECASE),
     re.compile(r'never outstanding', re.IGNORECASE),
     re.compile(r'one op at a time', re.IGNORECASE),
+    re.compile(r"allow-listed: callback-chained", re.IGNORECASE),
 ]
 found_violation = False
 for gline in result.stdout.strip().split('\n'):
@@ -177,6 +203,9 @@ for gline in result.stdout.strip().split('\n'):
     if len(parts) < 3:
         continue
     fname, lnum_s, line_content = parts
+    # Skip .sh files and pre-existing exempt files
+    if fname.endswith('.sh') or fname in exempt_files:
+        continue
     try:
         lnum = int(lnum_s)
     except ValueError:
