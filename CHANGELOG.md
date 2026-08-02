@@ -74,6 +74,18 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Unknown types are treated as **not** playable, so a future ENUM member loses
   its Play button rather than presenting a dead one.
 
+### Fixed — `<ContentEmitter />` stub removed from component XML (R0.5)
+
+- **Removed from 10 XML files** (11 total occurrences — HomeScene had 2):
+  `components/HomeScene.xml`, `components/FavoritesScene.xml`,
+  `components/MusicScene.xml`, `components/CollectionsScene.xml`,
+  `components/DetailScene.xml`, `components/LibraryScene.xml`,
+  `components/SearchScene.xml`, `components/SeriesScene.xml`,
+  `components/SeasonScene.xml`, `components/WatchHistoryScene.xml`
+- `ContentEmitter` is **not a real SceneGraph node type** — it has no
+  runtime counterpart in the Roku SceneGraph SDK. Removing it cleans up
+  the component tree and prevents potential confusion during debugging.
+
 ### Added — in-player quality selection (G4)
 
 - **Quality picker overlay** in the player — press **Up** during playback to open a
