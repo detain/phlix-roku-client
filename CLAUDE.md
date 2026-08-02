@@ -25,6 +25,16 @@ Running a single test: there is no host runner. To execute a test you must sidel
 
 `.github/workflows/{lint,test}.yml` invoke every step with `|| true`. Combined with `make lint`/`make test` never failing on their own, CI is effectively informational — a green check does **not** mean the code is correct. Don't trust CI as a quality gate; verify changes by sideloading.
 
+## Before committing
+
+Run these locally to catch issues before pushing:
+
+- `npx bsc --project bsconfig.json` — brighterscript zero-error gate
+- `make verify-runtime` — 10 grep-based runtime-defect checks (scripts/verify-runtime.sh)
+- `make validate-manifest` / `make validate-xml` — manifest and XML validation
+
+All three must pass before pushing. `make verify-runtime` is also a hard CI gate in `.github/workflows/lint.yml`.
+
 ## Architecture
 
 ### Layering

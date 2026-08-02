@@ -5,6 +5,24 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — Static runtime-defect checker (R0.7)
+
+`scripts/verify-runtime.sh` implements 10 grep-based checks that catch the defect
+classes `bsc` structurally cannot see:
+- CHECK1: Storage.factory misuse (`Storage.get/set/delete/clear` → `GetStorage()`) — §5.1
+- CHECK2: `m.top.Close()` calls → `m.top.requestClose = true` — §5.2 / R0.4
+- CHECK3: `<ContentEmitter />` stub XML — R0.5
+- CHECK4: `caption1Icon`/`handle://` invalid PosterGrid field/URI — R0.5
+- CHECK5: `halign=` wrong Label attribute (should be `horizAlign=`) — R0.6
+- CHECK6: `ObserveField` callback without matching `sub/function` — §5.5
+- CHECK7: `FindNode` target absent from component XML `<children>` — §5.5
+- CHECK8: `m.videoPlayer` assignments to non-existent Video node fields — §5.6
+- CHECK9: `OnKeyEvent` comparisons to invalid Roku remote keys — §3.6
+- CHECK10: `ApiClient.wait/sync` blocking calls outside `components/ApiTask*` — §5.3
+
+Wired as `make verify-runtime` and as a hard CI gate in `.github/workflows/lint.yml`.
+All 20 mutation proofs confirmed (10 checks × fire-then-pass).
+
 ### Removed — Deleted unused broken GridItem and RecommendationCard components (R0.6)
 
 - `components/GridItem.{brs,xml}` and `components/RecommendationCard.{brs,xml}` — never
