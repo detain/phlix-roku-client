@@ -37,7 +37,6 @@
                     basePosterSize="[220, 330]"
                     caption1Icon="handle://leftbottom"
                     id="itemsGrid">
-            <ContentEmitter />
         </PosterGrid>
 
         <!-- Description Area -->

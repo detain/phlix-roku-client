@@ -33,7 +33,6 @@
                     basePosterSize="[180, 270]"
                     caption1Icon="handle://leftbottom"
                     id="resultsGrid">
-            <ContentEmitter />
         </PosterGrid>
 
         <!-- Status / empty hint -->

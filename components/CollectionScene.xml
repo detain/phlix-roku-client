@@ -31,7 +31,6 @@
                     basePosterSize="[220, 330]"
                     caption1Icon="handle://leftbottom"
                     id="itemsGrid">
-            <ContentEmitter />
         </PosterGrid>
         <Rectangle height="40" width="1280" translation="[0,640]" color="#0d0d1a">
             <Label height="40" width="1200" translation="[40,8]"

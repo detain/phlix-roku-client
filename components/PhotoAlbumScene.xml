@@ -33,7 +33,6 @@
                     itemSpacing="[16, 16]"
                     basePosterSize="[180, 180]"
                     id="photosGrid">
-            <ContentEmitter />
         </PosterGrid>
 
         <!-- Status / empty hint -->

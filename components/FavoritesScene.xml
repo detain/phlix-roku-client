@@ -29,7 +29,6 @@
                     basePosterSize="[180, 270]"
                     caption1Icon="handle://leftbottom"
                     id="favoritesGrid">
-            <ContentEmitter />
         </PosterGrid>
 
         <!-- Status / empty hint -->

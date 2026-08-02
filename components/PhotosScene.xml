@@ -34,7 +34,6 @@
                     basePosterSize="[220, 220]"
                     caption1Icon="handle://leftbottom"
                     id="albumsGrid">
-            <ContentEmitter />
         </PosterGrid>
 
         <!-- Status / empty hint -->
