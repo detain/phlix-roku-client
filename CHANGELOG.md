@@ -5,6 +5,12 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed — Deleted unused broken GridItem and RecommendationCard components (R0.6)
+
+- `components/GridItem.{brs,xml}` and `components/RecommendationCard.{brs,xml}` — never
+  instantiated, broken in 4 ways: wrong `DoesExist` API, `FindNode` targeting absent node,
+  unwired `focusChanged` handler, `halign` vs `horizAlign` XML attribute
+
 ### Added — Screen navigation stack (R0.3)
 
 - **`PushScreen(nodeType, params)`** — creates a child scene, appends it to `m.top`,
