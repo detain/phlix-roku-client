@@ -5,6 +5,28 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — Screen navigation stack (R0.3)
+
+- **`PushScreen(nodeType, params)`** — creates a child scene, appends it to `m.top`,
+  sets focus, records it on the screen stack, and returns the node. The caller drives
+  post-push setup (e.g. `scene.LoadLibrary(id, name)`).
+- **`PopScreen() as Boolean`** — removes the top scene from the stack, removes it from
+  `m.top`, calls `SetFocus(true)` on the newly-exposed node (fixing the pre-stack bug where
+  the remote went dead after one Back press), and returns `true`. Returns `false` when the
+  stack is empty — the caller must return `false` from `OnKeyEvent` so the Roku OS handles
+  the back press and exits the channel (certification item 6).
+- **`requestClose` contract** — every pushed child scene declares
+  `<field id="requestClose" type="boolean" alwaysNotify="true" />` in its `<interface>`.
+  When a scene sets `m.top.requestClose = true` (e.g. an internal Back handler), `PhlixApp`
+  automatically calls `PopScreen()` via a registered observer. This lets a child close itself
+  without knowing its parent or having a reference to `PhlixApp`.
+- **`m.top.Close()` removed** — `Close()` exists on `roSGScreen`, not on `Scene` or `Group`
+  nodes. All 22 pushed component XMLs had a `requestClose` field added; no component calls
+  `m.top.Close()`.
+- **Certification item 6 fixed** — the previous `OnKeyEvent` swallowed Back at the root
+  (returned `true` unconditionally) so the channel never exited. `PopScreen()` returning
+  `false` from an empty stack now correctly defers to the Roku OS.
+
 ### Fixed — Storage factory misuse causes runtime error `&hEC` on launch
 
 - **`Storage()` can no longer be called directly as an object.** The `source/lib/Storage.brs`

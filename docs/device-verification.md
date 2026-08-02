@@ -34,7 +34,11 @@ This document records the first-boot verification procedure for the Phlix Roku c
 
 7. **Test §5.2 (`m.top.Close()`)**: Press Back from the home screen. Navigate into a library view, then press Back again to exit. Capture all console output.
 
-8. **Save the console output** to `docs/first-boot-console.log`.
+8. **Test certification item 6 (Back exits at root)**: From the home screen (root), press Back.
+   The channel must exit — the Roku home screen must appear. If the channel stays open or
+   shows an error, cert item 6 is not satisfied. Capture all console output.
+
+9. **Save the console output** to `docs/first-boot-console.log`.
 
 ## Known Defects to Look For
 
@@ -62,11 +66,22 @@ This document records the first-boot verification procedure for the Phlix Roku c
 
 ---
 
+### §5.3 — Back at root does not exit channel (certification item 6)
+
+**What it means:** The back-handler in `PhlixApp.OnKeyEvent` always returned `true` (handled) even when the screen stack was empty, preventing the Roku OS from handling the back press and exiting the channel. Users were stuck on the home screen.
+
+**When to expect it:** Press Back from the home screen (or any root screen). The channel must exit and return to the Roku home screen.
+
+**How to confirm it's cleared:** After navigating into a library or detail view and pressing Back until the stack is empty, one more Back press must exit the channel. The Roku home screen appears. No error in the telnet console.
+
+---
+
 ## Status
 
 | Defect | Status | Notes |
 |--------|--------|-------|
 | §5.1 `Storage` factory (`&hEC`) | NOT REACHED | No device available for testing |
 | §5.2 `m.top.Close()` (`&hF4`) | NOT REACHED | No device available for testing |
+| §5.3 Back at root (`&h06` / cert item 6) | NOT REACHED | No device available for testing |
 
 *This document was created because `ROKU_HOST` is unset — no physical hardware was available for sideload verification.*

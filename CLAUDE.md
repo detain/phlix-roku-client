@@ -43,7 +43,14 @@ source/data/Theme.brs      → constants
 > in `AppContext.brs` + `ServerPickerScene` (see "Boot / connection gate" below). Don't resurrect
 > those files or their guessed envelope shapes.
 
-Each scene is an XML file declaring nodes + interface fields, paired with a `.brs` file implementing `Init`, `OnKeyEvent`, and field observers. Scene navigation happens by `CreateObject("roSGNode", "<SceneName>")` and `m.top.Append(scene)` — see `PhlixApp.brs`.
+Each scene is an XML file declaring nodes + interface fields, paired with a `.brs` file implementing `Init`, `OnKeyEvent`, and field observers. Two navigation patterns coexist:
+
+- **Bootstrap scenes** (Connect, Login, ServerPicker, Home) are managed by `Show*` methods
+  and `On*` handlers. They are direct children of `m.top` added via `CreateObject` + `m.top.Append`
+  and removed via explicit `RemoveChild` in transition handlers.
+- **Pushed screens** (Library, Detail, Player, Search, etc.) use the screen stack:
+  `PushScreen(nodeType, params)` creates/registers/pushes, `PopScreen()` removes/top pops,
+  and the **`requestClose` contract** (see `PhlixApp.brs` and `docs/navigation.md`).
 
 ### Factory pattern for lib modules
 
@@ -127,8 +134,12 @@ These are conventions enforced informally (sometimes by `make lint`'s greps); fo
 ## When editing scenes
 
 - Component XML and its `.brs` are coupled by file name and the `<script uri="…">` tag — rename both together.
+- **Pushed screens** (any scene opened via `PushScreen`, i.e. on top of Home) **must**
+  declare `<field id="requestClose" type="boolean" alwaysNotify="true" />` in their `<interface>`.
+  This is how a scene closes itself without knowing its parent. Do not call `m.top.Close()`
+  — that method does not exist on `Scene`/`Group` nodes and throws `&hF4`.
 - Observers registered with `ObserveField` must be paired with `UnObserveField` when the scene tears down, or they leak.
-- Focus management is explicit: `SetFocus(true)` only on the currently-visible interactive node. Multiple `SetFocus` calls in one frame fight each other.
+- Focus management is explicit: `SetFocus(true)` only on the currently-visible interactive node. Multiple `SetFocus` calls in one frame fight each other. `PopScreen` calls `SetFocus(true)` on the newly-exposed node automatically.
 
 ## Reference docs already in the repo
 
