@@ -50,15 +50,7 @@
                          secure="true"
                          id="passwordInput" />
 
-            <!-- Error Label -->
-            <Label height="30" width="460" translation="[20,270]"
-                   text=""
-                   font="font:SmallSystemFont"
-                   color="#FF4444"
-                   visible="false"
-                   id="errorLabel" />
-
-            <!-- Status Label -->
+            <!-- Status Label (shown during async operations) -->
             <Label height="30" width="460" translation="[20,270]"
                    text=""
                    font="font:SmallSystemFont"
@@ -70,6 +62,14 @@
             <Button height="60" width="460" translation="[20,310]"
                     title="Login"
                     id="loginButton" />
+
+            <!-- Error Label (distinct failure messages, shown below button) -->
+            <Label height="30" width="460" translation="[20,380]"
+                   text=""
+                   font="font:SmallSystemFont"
+                   color="#FF4444"
+                   visible="false"
+                   id="errorLabel" />
         </Rectangle>
     </children>
 </component>

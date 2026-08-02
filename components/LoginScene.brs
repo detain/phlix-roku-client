@@ -27,6 +27,11 @@ sub Init()
     m.statusLabel = m.top.FindNode("statusLabel")
     m.errorLabel = m.top.FindNode("errorLabel")
 
+    ' ApiTask for async login + getMyServers (prevents render-thread freeze)
+    m.apiTask = CreateObject("roSGNode", "ApiTask")
+    m.apiTask.ObserveField("response", "OnLoginResponse")
+    m.top.Append(m.apiTask)
+
     ' Set up button handlers
     if m.loginButton <> invalid then
         m.loginButton.ObserveField("buttonSelected", "OnLoginPressed")
@@ -41,6 +46,9 @@ sub Init()
     end if
 end sub
 
+' OnLoginPressed - fires login on ApiTask and returns immediately.
+' The render thread stays responsive while the network call runs off-thread.
+' Immediate feedback: button disabled + "Signing in..." status shown.
 sub OnLoginPressed()
     username = ""
     password = ""
@@ -53,48 +61,108 @@ sub OnLoginPressed()
         password = m.passwordInput.text
     end if
 
-    ' Validate inputs
+    ' Validate inputs (fail fast before any async work)
     if username = "" or password = "" then
         ShowError("Please enter username and password")
         return
     end if
 
-    ' Save username (server_url is owned by the Connect screen now). m.api is
-    ' already bound to the connected server_url via GetApiClient in Init.
+    ' Save username (server_url is owned by the Connect screen now)
     GetStorage().set("username", username)
 
-    ' Show loading status
-    ShowStatus("Logging in...")
+    ' Immediate UI feedback: disable button + show status
+    if m.loginButton <> invalid then
+        m.loginButton.disabled = true
+    end if
+    ShowStatus("Signing in...")
 
-    ' Perform login
-    result = m.auth.login(username, password)
+    ' Fire login on ApiTask (off render thread) and return immediately.
+    ' The task will call GetHubApiClient() + AuthManager.login() internally.
+    m.apiTask.request = { op: "login", username: username, password: password }
+    m.apiTask.control = "run"
+end sub
 
-    if result.success then
-        ' Clear any errors
+' OnLoginResponse - single handler for both login and getMyServers responses.
+' Distinguished by result.op. Serializes login -> getMyServers so they never
+' run concurrently on the same task node.
+'
+' Four distinct failure outcomes:
+'   1. Wrong credentials (401)          -> "Invalid username or password."
+'   2. Server unreachable (no data)    -> "Cannot connect to server. Check your network."
+'   3. Server error (5xx, other 4xx)   -> "Server error: <detail>"
+'   4. Login ok but getMyServers fails -> "Unable to load servers. Try again."
+sub OnLoginResponse(event as Object)
+    result = event.GetData()
+
+    ' Stop any stale task state
+    if m.apiTask <> invalid then
+        m.apiTask.control = "stop"
+    end if
+
+    if result.op = "login" then
+        ' ---- LOGIN RESPONSE ----
+        ' Case 1 & 2 & 3: login failed
+        if result = invalid or result.ok <> true or result.data = invalid or result.data.success <> true then
+            ReEnableButton()
+            HideStatus()
+
+            ' Distinguish the failure cases by examining result.data.error
+            if result = invalid or result.data = invalid then
+                ' Case 2: server unreachable / network error
+                ShowError("Cannot connect to server. Check your network.")
+            else if result.data.error <> invalid and result.data.error <> "" then
+                errMsg = result.data.error
+                ' Case 1: wrong credentials (common error strings from server)
+                if instr(1, lcase(errMsg), "invalid") > 0 or instr(1, lcase(errMsg), "credential") > 0 or instr(1, lcase(errMsg), "unauthorized") > 0 or instr(1, lcase(errMsg), "401") > 0 then
+                    ShowError("Invalid username or password.")
+                else
+                    ' Case 3: server error with detail
+                    ShowError("Server error: " + errMsg)
+                end if
+            else
+                ' Generic fallback
+                ShowError("Login failed. Please check your credentials.")
+            end if
+            return
+        end if
+
+        ' Login succeeded. Clear errors and proceed to getMyServers (serialized).
         HideError()
+        ShowStatus("Loading servers...")
+
+        m.apiTask.request = { op: "getMyServers" }
+        m.apiTask.control = "run"
+
+    else if result.op = "getMyServers" then
+        ' ---- GETMYSEVERS RESPONSE ----
         HideStatus()
 
-        ' F12b hub detection: a hub exposes GET /me/servers ({servers:[...]});
-        ' a direct server does not (404 -> no .servers array). m.api was built
-        ' from GetApiClient in Init; at login active_server_id is empty so the
-        ' media base falls back to the bare connect url -> this probes the
-        ' actual endpoint we logged into. Persist the kind, then fire the
-        ' matching transition field (PhlixApp observes both).
-        serversResp = m.api.getMyServers()
-        if serversResp <> invalid and serversResp.DoesExist("servers") and type(serversResp.servers) = "roArray" then
+        ' Case 4: getMyServers failed
+        if result = invalid or result.ok <> true or result.data = invalid then
+            ReEnableButton()
+            ShowError("Unable to load servers. Try again.")
+            return
+        end if
+
+        ' Hub detection: a hub exposes GET /me/servers ({servers:[...]});
+        ' a direct server does not (404 -> no .servers array).
+        serversResp = result.data
+        if serversResp <> invalid and serversResp.DoesExist("servers") and type(serversResp.servers) = "roArray" and serversResp.servers.count() > 0 then
             ' It's a hub -> let PhlixApp show the server picker.
             GetStorage().set("connection_kind", "hub")
-            Print "Hub detected"
             m.top.hubDetected = true
         else
             ' Direct server -> go straight to Home.
             GetStorage().set("connection_kind", "direct")
-            Print "Login successful"
             m.top.loginSucceeded = true
         end if
-    else
-        ShowError("Login failed. Please check your credentials.")
-        HideStatus()
+    end if
+end sub
+
+' ReEnableButton - re-enables the login button on every failure path.
+sub ReEnableButton()
+    if m.loginButton <> invalid then
+        m.loginButton.disabled = false
     end if
 end sub
 

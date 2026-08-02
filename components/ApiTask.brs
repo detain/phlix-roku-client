@@ -120,6 +120,25 @@ sub ExecRequest()
         else if req.op = "getMe" then
             result.data = api.getMe()
             result.ok = (result.data <> invalid)
+        else if req.op = "checkAuth" then
+            ' Session restore + /auth/me validation on the task thread (not render).
+            ' Runs on GetApiClient (relay base in hub mode, direct base in direct mode).
+            result.ok = api.restoreSession()
+            result.data = api.user
+        else if req.op = "checkAuthHub" then
+            ' Hub boot auth: uses GetHubApiClient (bare hub url) so /auth/me hits
+            ' the hub directly, not through the relay (where hub-user /auth/me is
+            ' unreliable). Follows same restoreSession pattern as checkAuth.
+            hubApi = GetHubApiClient()
+            result.ok = hubApi.restoreSession()
+            result.data = hubApi.user
+        else if req.op = "login" then
+            ' Login on the task thread so the render thread never blocks.
+            ' Uses GetHubApiClient (bare hub url) so login hits the hub directly,
+            ' matching the original LoginScene login target.
+            hubApi = GetHubApiClient()
+            result.data = hubApi.login(req.username, req.password)
+            result.ok = (result.data <> invalid and result.data.success = true)
         else if req.op = "getMyServers" then
             ' Hub detection / server list. At pick-time active_server_id is empty,
             ' so GetApiClient binds to the bare hub url -> this hits the hub.
