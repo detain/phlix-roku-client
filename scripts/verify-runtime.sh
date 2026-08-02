@@ -49,5 +49,41 @@ while IFS=: read -r file line; do
 done < <(git grep -rn 'halign=' -- '*.xml' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
+FOUND=0
 echo ""
-echo "=== Checks 6-10 not yet implemented ==="
+echo "=== Check 6: ObserveField callback defined (maps to §5.5) ==="
+for brs in $(git ls-files -- '*.brs'); do
+  callbacks=$(grep -oP 'ObserveField\s*\(\s*"[^"]+"\s*,\s*"\K[^"]+' "$brs" 2>/dev/null || true)
+  for cb in $callbacks; do
+    if ! grep -qP "^(sub|function)\s+$cb\b" "$brs" 2>/dev/null; then
+      line=$(grep -n "ObserveField.*\"$cb\"" "$brs" | head -1 | cut -d: -f1)
+      echo "  $brs:$line — CHECK6: ObserveField target '$cb' has no matching sub/function"
+      FOUND=1
+    fi
+  done
+done
+[[ $FOUND -eq 0 ]] && echo "  PASS"
+
+FOUND=0
+echo ""
+echo "=== Check 7: FindNode target exists in XML (maps to §5.5) ==="
+for brs in $(git ls-files -- '*.brs'); do
+  if [[ "$brs" == tests/* ]]; then continue; fi
+  base="${brs%.brs}"
+  xml="${base}.xml"
+  if [[ ! -f "$xml" ]]; then continue; fi
+  while IFS=: read -r line content; do
+    ids=$(echo "$content" | grep -oP 'FindNode\s*\(\s*"\K[^"]+' 2>/dev/null || true)
+    for id in $ids; do
+      if [[ "$id" == *'$'* ]] || [[ "$id" == *'{'* ]]; then continue; fi
+      if ! grep -A200 '<children>' "$xml" 2>/dev/null | grep -B200 '</children>' | grep -q "id=\"$id\"" 2>/dev/null; then
+        echo "  $brs:$line — CHECK7: FindNode(\"$id\") but no id=\"$id\" in $xml <children>"
+        FOUND=1
+      fi
+    done
+  done < <(grep -n 'FindNode' "$brs" 2>/dev/null || true)
+done
+[[ $FOUND -eq 0 ]] && echo "  PASS"
+
+echo ""
+echo "=== Checks 8-10 not yet implemented ==="
