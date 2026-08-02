@@ -30,7 +30,7 @@ Running a single test: there is no host runner. To execute a test you must sidel
 Run these locally to catch issues before pushing:
 
 - `npx bsc --project bsconfig.json` — brighterscript zero-error gate
-- `make verify-runtime` — 10 grep-based runtime-defect checks (scripts/verify-runtime.sh)
+- `make verify-runtime` — 11 grep-based runtime-defect checks (scripts/verify-runtime.sh)
 - `make validate-manifest` / `make validate-xml` — manifest and XML validation
 
 All three must pass before pushing. `make verify-runtime` is also a hard CI gate in `.github/workflows/lint.yml`.
@@ -190,6 +190,13 @@ These are conventions enforced informally (sometimes by `make lint`'s greps); fo
   — that method does not exist on `Scene`/`Group` nodes and throws `&hF4`.
 - Observers registered with `ObserveField` must be paired with `UnObserveField` when the scene tears down, or they leak.
 - Focus management is explicit: `SetFocus(true)` only on the currently-visible interactive node. Multiple `SetFocus` calls in one frame fight each other. `PopScreen` calls `SetFocus(true)` on the newly-exposed node automatically.
+- **Busy-guard on Task nodes** — when starting a `Task` node with `control = "run"`, always
+  guard first. Two policies are in use:
+  - **Replace** (`ReportProgress`): if `m.state = "run"`, overwrite the in-flight job — use
+    `if m.state <> "run" then m.state = "run" : m.top.control = "run" : end if`.
+  - **Skip-if-busy** (`OnTranscodePollFire`): if `m.state = "run"`, silently return — use
+    `if m.state = "run" then return else m.state = "run" : m.top.control = "run" : end if`.
+  Unguarded `control = "run"` is caught by CHECK 11 in `make verify-runtime`.
 
 ## Reference docs already in the repo
 

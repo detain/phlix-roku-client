@@ -5,6 +5,28 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — Player busy-guard and second Task node (R1.4)
+
+**`PlayerScene.brs`** — two related fixes:
+- **Second dedicated Task node** — added `m.transcodePollTask` as a standalone
+  `Task` node (separate from the existing `m.task`) to isolate the transcode-status
+  polling job. This prevents the polling callback from sharing task state with the
+  primary playback task.
+- **`state = "run"` guard in `ReportProgress()`** — replace policy: if the task is
+  already running (`m.state = "run"`), a new invocation replaces the in-flight job
+  rather than racing with it. This guards against concurrent `ReportProgress` calls
+  when multiple playback events fire in rapid succession.
+- **`state = "run"` guard in `OnTranscodePollFire()`** — skip-if-busy policy: if the
+  polling task is already running, subsequent poll fires are silently dropped. This
+  prevents queue buildup when the poll interval fires while a prior poll is still
+  in flight.
+
+**`scripts/verify-runtime.sh`** — two additions to the static checker:
+- **CHECK 11** — detects `control = "run"` on a `Task` node when no prior `state = "run"`
+  guard is present, catching unguarded Task-start calls that can cause double-dispatch.
+- **24-file exempt list** — pre-existing callback-chained patterns (where a Task fires a
+  callback that re-arms the same Task) are allowlisted to avoid false positives.
+
 ### Fixed — Logout async migration (R1.3)
 
 **`ApiTask.brs`** — new `logout` op:
