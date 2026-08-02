@@ -264,7 +264,7 @@ sub ExecRequest()
             ' if the calling scene has already cleared m.api.baseUrl.
             logoutApi = ApiClient(GetServerUrl())
             sessionId = GetStorage().get("session_id")
-            if sessionId <> invalid and sessionId <> "" then
+            if sessionId <> "" then
                 logoutApi.request("DELETE", "/sessions/" + sessionId, invalid)
             end if
             result.ok = true
