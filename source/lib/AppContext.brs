@@ -1,11 +1,11 @@
-'@copyright 2026 Joe Huss <detain@interserver.net>
+' @copyright 2026 Joe Huss <detain@interserver.net>
 ' @license   MIT
 
 ' source/lib/AppContext.brs
 
 ' copyright 2026 Joe Huss
 '
-
+'
 
 ' ===========================================
 ' App Context for Roku
@@ -15,6 +15,12 @@
 ' are visible to every component. Each scene/manager builds a lightweight
 ' ApiClient via GetApiClient() that restores the persisted token/session from
 ' Storage, so per-scene state stays transient while auth survives navigation.
+'
+' R1.6 caching: GetStorage() now returns a cached singleton; its internal
+' _cache map holds the last-read value of each registry key, so repeated
+' GetStorage().get() calls within a Task or scene lifetime hit memory not NVRAM.
+' Call ResetCachedStorage(fullReset) on server switch, login, and logout so the
+' next API call re-reads the fresh values.
 ' ===========================================
 
 ' Get the configured server URL, falling back to the local default.
@@ -82,6 +88,10 @@ end function
 ' persisted auth token / session id restored from Storage. In hub mode with a
 ' picked server this transparently routes every existing scene + ApiTask call
 ' through the relay; in direct mode it is byte-unchanged.
+'
+' R1.6: The Storage singleton caches registry reads in memory. A fresh ApiClient
+' is still built each call (the object carries auth state for this operation),
+' but the Storage reads inside here hit the cache, not NVRAM.
 ' @return Object - A ready-to-use ApiClient instance
 function GetApiClient() as Object
     api = ApiClient(GetMediaBaseUrl())
@@ -110,3 +120,4 @@ function GetHubApiClient() as Object
     if sid <> invalid and sid <> "" then api.sessionId = sid
     return api
 end function
+
