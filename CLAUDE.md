@@ -76,7 +76,33 @@ Managers (`AuthManager`, `SessionManager`, `LibraryManager`, `TaskManager`) are 
 
 `main.brs` boots the `PhlixApp` scene. `PhlixApp.Init` builds the managers, then gates on whether a server has been chosen: `if not IsServerConnected()` → `ShowConnect()`, else it branches on **connection kind**. `IsServerConnected()` (in `source/lib/AppContext.brs`) just checks that the persisted `server_url` is set and non-empty.
 
-On first run that path is `ShowConnect()` → the user picks a server on `ConnectScene` → on success `OnConnected()` removes the Connect scene, rebuilds `m.api`/`m.auth`/`m.session`/`m.library` against the now-connected `server_url`, then falls through to `ShowLogin()` (or `ShowHome()` if a session was restored). The persisted key is `server_url`, consumed by `GetMediaBaseUrl()` / `GetServerUrl()`.
+On first run that path is `ShowConnect()` → the user picks a server on `ConnectScene` → on success `OnConnected()` removes the Connect scene, rebuilds `m.api`/`m.auth`/`m.session`/`m.library` against the now-connected `server_url`, then fires `StartAuthCheck()` (same async pattern as the boot flow below).
+
+#### Async boot auth (R1.1)
+
+When a server is already connected, `PhlixApp.Init` immediately shows a loading
+label (`bootLoadingLabel`) and fires session validation on an `ApiTask` (off the
+render thread) with a **20-second scene-level timeout**:
+
+- **Direct mode** → `StartAuthCheck()` → `ApiTask` `checkAuth` op → `GetApiClient().restoreSession()` + `GET /auth/me`.
+- **Hub mode** → `StartHubAuthCheck()` → `ApiTask` `checkAuthHub` op → `GetHubApiClient().restoreSession()` + `GET /auth/me` (bare hub URL, **not** the relay, because the relay's `/auth/me` is the server's perspective on the hub user and is unreliable).
+
+Four distinct outcomes per mode:
+1. Authenticated → `ShowHome()`
+2. Not authenticated / server error → `ShowLogin()`
+3. Hub mode only: authenticated + no `active_server_id` → `ShowServerPicker()`
+4. Timeout already fired → response ignored; the error UI is already shown.
+
+On timeout, `OnAuthTimeout()` shows the `bootErrorGroup` (error label + retry button)
+and increments a retry counter. After ≤ 3 retries the message is "Can't reach the
+server"; after > 3 it is "Unable to connect after multiple attempts". The retry
+button re-fires `StartAuthCheck()`.
+
+The boot UI nodes (`bootLoadingLabel`, `bootErrorGroup`, `bootErrorLabel`,
+`bootRetryButton`) are declared as children in `PhlixApp.xml` and referenced by
+`FindNode` in `Init`. The `bootRetryButton` observer is registered lazily on first
+display of the error group so that timeout-triggered and manually-triggered error
+states both wire the same handler.
 
 #### Hub vs direct (F12b)
 

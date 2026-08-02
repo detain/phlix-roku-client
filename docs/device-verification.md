@@ -78,6 +78,24 @@ This document records the first-boot verification procedure for the Phlix Roku c
 
 ---
 
+## R1.1 Boot Auth Smoke Test
+
+After R1.1 the boot sequence shows a "Loading…" label while session validation
+runs on `ApiTask` (off the render thread). A 20-second timeout replaces the
+previous render-thread block.
+
+1. Launch the channel. Confirm the "Loading…" label appears **before** any
+   network activity reaches the telnet console.
+2. Wait for home screen. Authenticated session should resolve within a few
+   seconds; confirm no render-thread blocking.
+3. **Timeout test** (requires a unreachable server or firewall):
+   - After 20 s the error group must appear with "Can't reach the server".
+   - Press the **Retry** button. A new auth check should fire.
+   - After 3 retries the message should escalate to "Unable to connect after
+     multiple attempts".
+4. **Hub mode**: Repeat steps 1–2 on a hub connection. The first boot should
+   land on `ServerPickerScene` if no `active_server_id` is persisted.
+
 ## Status
 
 | Defect | Status | Notes |
@@ -85,5 +103,6 @@ This document records the first-boot verification procedure for the Phlix Roku c
 | §5.1 `Storage` factory (`&hEC`) | NOT REACHED | No device available for testing |
 | §5.2 `m.top.Close()` (`&hF4`) | FIXED R0.4 | Code migrated; device smoke test still recommended for un-wired branches |
 | §5.3 Back at root (`&h06` / cert item 6) | NOT REACHED | No device available for testing |
+| R1.1 Boot auth async | NOT REACHED | No device available for testing |
 
 *This document was created because `ROKU_HOST` is unset — no physical hardware was available for sideload verification.*

@@ -5,6 +5,45 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — Boot auth async migration (R1.1)
+
+The boot auth flow was restructured to move session validation off the render thread,
+show a loading frame immediately, and handle failure gracefully with a retry affordance.
+
+**`ApiTask.brs`** — two new ops:
+- `checkAuth` — session restore + `GET /auth/me` validation via `GetApiClient()`.
+  Runs on the relay base in hub mode, direct base in direct mode. Returns
+  `{ ok, data: user }` or `{ ok: false, data: invalid }`.
+- `checkAuthHub` — hub boot auth using `GetHubApiClient()` (bare hub URL, **not**
+  the relay) so `GET /auth/me` hits the hub directly where the user token is
+  meaningful. Same response shape as `checkAuth`.
+
+**`PhlixApp.xml`** — added boot UI children:
+- `bootLoadingLabel` — "Loading…" label, shown immediately on boot while auth
+  check runs on the task thread.
+- `bootErrorGroup` — `Group` containing `bootErrorLabel` + `bootRetryButton`,
+  shown after the 20 s timeout or when the auth response is an error.
+
+**`PhlixApp.brs`** — `Init` restructured into three paths:
+- **No server** (`IsServerConnected() = false`) → `ShowConnect()` (unchanged).
+- **Hub mode** → `StartHubAuthCheck()` → fires `checkAuthHub` on `ApiTask`.
+- **Direct mode** → `StartAuthCheck()` → fires `checkAuth` on `ApiTask`.
+
+Both `Start*` methods show `bootLoadingLabel` immediately, create a single
+`ApiTask`, register a 20 s `Timer` for scene-level timeout, and observe the
+`response` field. The task runs entirely off the render thread.
+
+Four distinct outcomes per mode (direct / hub):
+1. Authenticated → `ShowHome()`
+2. Not authenticated → `ShowLogin()`
+3. Authenticated + no server picked (hub only) → `ShowServerPicker()`
+4. Timeout already fired → response ignored (error UI already shown)
+
+`OnAuthTimeout()` stops the task, increments `retryCount`, shows the error
+group with either "Can't reach the server" (≤ 3 retries) or "Unable to connect
+after multiple attempts" (> 3 retries). `OnBootRetryButton()` re-fires
+`StartAuthCheck()`.
+
 ### Added — Static runtime-defect checker (R0.7)
 
 `scripts/verify-runtime.sh` implements 10 grep-based checks that catch the defect
