@@ -34,7 +34,6 @@
                     visible="false"
                     id="adminButton" />
         </Rectangle>
-
         <!-- Continue Watching rail (single row, hidden until populated) -->
         <Label height="36" width="1200" translation="[40,104]"
                text="Continue Watching"
@@ -57,7 +56,6 @@
                font="font:MediumBoldSystemFont"
                color="#FFFFFF"
                id="libraryLabel" />
-
         <!-- Library Grid -->
         <PosterGrid height="200" width="1280" translation="[0,484]"
                     numColumns="5" numRows="2"
@@ -66,7 +64,6 @@
                     caption1Icon="handle://leftbottom"
                     id="libraryGrid">
         </PosterGrid>
-
         <!-- Description Area -->
         <Rectangle height="40" width="1280" translation="[0,680]" color="#0d0d1a">
             <Label height="40" width="1200" translation="[40,8]"
@@ -77,3 +74,4 @@
         </Rectangle>
     </children>
 </component>
+
