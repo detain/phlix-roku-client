@@ -5,6 +5,30 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — Player progress task response observation (R1.5)
+
+**`PlayerScene.brs`** — three additions:
+- **`ObserveField("response", "OnProgressResponse")` in Init** — observes the
+  `ApiTask` `reportProgress` op response so the scene can act on it off the
+  render thread.
+- **`OnProgressResponse`** — 3-outcome handler:
+  1. `ok: true` → `ClearProgressWarning()` (clears any stale warning label).
+  2. Auth failure (401/403 on the `data` envelope) → `ShowProgressAuthError()`
+     (session-expiry overlay; no consecutive-count increment).
+  3. Other failure → increments consecutive counter; shows warning after
+     `m.progressFailuresBeforeWarning = 3` failures.
+- **Helper methods** — `SetProgressWarning(msg)`, `ClearProgressWarning()`,
+  `ShowProgressAuthError()`.
+
+**`ApiTask.brs`** — `reportProgress` op: sets `ok = false` when `data` is
+`invalid`, so the scene's 3-outcome handler receives a consistent envelope.
+
+**`ClosePlayer`** — unobserves the progress task `response` field so the
+observer is torn down when the player exits.
+
+**`m.progressFailuresBeforeWarning = 3`** — named threshold constant (not a
+magic number) for the consecutive-failure-before-warning policy.
+
 ### Fixed — Player busy-guard and second Task node (R1.4)
 
 **`PlayerScene.brs`** — two related fixes:

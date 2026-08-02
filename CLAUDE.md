@@ -189,6 +189,14 @@ These are conventions enforced informally (sometimes by `make lint`'s greps); fo
   This is how a scene closes itself without knowing its parent. Do not call `m.top.Close()`
   — that method does not exist on `Scene`/`Group` nodes and throws `&hF4`.
 - Observers registered with `ObserveField` must be paired with `UnObserveField` when the scene tears down, or they leak.
+- **3-outcome task response observer** — when a scene fires a `Task` and
+  observes its `response` field, always handle all three logical outcomes:
+  1. `ok: true` → success path.
+  2. Auth/401 failure → dedicated auth-error path (e.g. session expiry overlay).
+  3. Other failure → increment failure counter, warn after N consecutive
+     failures (`m.progressFailuresBeforeWarning = 3`).
+  Always pair `ObserveField` with `UnObserveField` in the scene's teardown
+  path (e.g. `ClosePlayer`) so observers do not outlive the scene.
 - Focus management is explicit: `SetFocus(true)` only on the currently-visible interactive node. Multiple `SetFocus` calls in one frame fight each other. `PopScreen` calls `SetFocus(true)` on the newly-exposed node automatically.
 - **Busy-guard on Task nodes** — when starting a `Task` node with `control = "run"`, always
   guard first. Two policies are in use:
