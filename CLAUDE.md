@@ -121,6 +121,12 @@ The connect URL may be a **direct Phlix server** or a **Phlix Hub** — both exp
 - **Relay-base `GetApiClient`.** `GetApiClient()` binds to `GetMediaBaseUrl()` (was `GetServerUrl()`). `GetMediaBaseUrl()` returns `{hubUrl}/api/v1/servers/{activeServerId}/proxy` **only** when `connection_kind="hub"` AND `active_server_id` is non-empty; otherwise it falls back to the bare `GetServerUrl()`. So in hub mode every scene/`ApiTask` transparently routes through the hub relay (the **hub** Bearer is the relay auth — the hub strips client auth, verifies ownership, injects `X-Phlix-Relay-User`), and **direct mode is byte-unchanged**. The fallback is what lets login and the `/me/servers` probe hit the bare hub URL before a server is picked.
 - **Hub-scoped calls use `GetHubApiClient()`** (bare hub URL + restored token), NOT `GetApiClient()`. Boot session-validation in hub mode runs `GetHubApiClient()` + `AuthManager.checkAuth()` (so `/auth/me` hits the hub, not the relay where it is unreliable): valid + server picked → `ShowHome()`; valid + no server → `ShowServerPicker()`; else `ShowLogin()`.
 - **Logout** clears `connection_kind`/`active_server_id`/`active_server_name` but **keeps** `server_url`.
+- **Logout order guarantee (R1.3):** `OnLogout` clears all six registry keys
+  (`auth_token`, `refresh_token`, `session_id`, `connection_kind`, `active_server_id`,
+  `active_server_name`) synchronously on the render thread **first**, then navigates to
+  `ShowLogin()`, then fires the `ApiTask` `logout` op off-thread. This order ensures local
+  state is committed before the async server call fires, so a rapid re-login on the same
+  device cannot observe stale session data.
 
 > **Known hub-mode limitation:** the hub registers only `GET`/`POST` on its relay proxy, so `PUT`/`DELETE` (favorites-remove, rating set/clear, server-side session-end) don't reach the server in hub mode; and hub-token refresh-over-relay is not wired (re-auth on expiry). Both are documented follow-ups in `README.md` ("Hub / multi-server mode"). Direct mode is unaffected.
 

@@ -5,6 +5,18 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — Logout async migration (R1.3)
+
+**`ApiTask.brs`** — new `logout` op:
+- Fire-and-forget `DELETE /sessions/{session_id}` via `GetApiClient()`.
+- Runs off the render thread; no response observed (fire-and-forget).
+
+**`PhlixApp.brs`** — `OnLogout` restructured with **clear-local-state-first** order guarantee:
+1. **Clear all six registry keys synchronously** — `auth_token`, `refresh_token`, `session_id`,
+   `connection_kind`, `active_server_id`, `active_server_name`.
+2. **Navigate to login** immediately.
+3. **Fire `ApiTask` `logout` op** only after steps 1+2 complete.
+
 ### Fixed — Login async migration (R1.2)
 
 **`ApiTask.brs`** — new `login` op:
