@@ -31,7 +31,7 @@ Running a single test: there is no host runner. To execute a test you must sidel
 
 ```
 source/main.brs            → boots an roSGScreen, instantiates the PhlixApp scene, runs the message loop
-components/*.{brs,xml}      → SceneGraph scenes + Task nodes (PhlixApp, Connect, Login, ServerPicker, Home, Library, Detail, Player, Recommendations, GridItem, ApiTask, SyncPlayTask, …)
+components/*.{brs,xml}      → SceneGraph scenes + Task nodes (PhlixApp, Connect, Login, ServerPicker, Home, Library, Detail, Player, Recommendations, ApiTask, SyncPlayTask, …)
 source/lib/*.brs           → pure BrightScript modules, all using the factory-object pattern (incl. SyncPlayProtocol)
 source/pages/*.brs         → page controllers used by scenes
 source/data/Theme.brs      → constants

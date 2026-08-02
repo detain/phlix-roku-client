@@ -629,8 +629,7 @@ phlix-roku/
 │   │   ├── SyncPlayTask.{xml,brs} # Long-lived Task running the SyncPlay ws:// socket off the render thread (roStreamSocket; RunSocket loop; flat syncplay_* frames)
 │   │   ├── ConnectScene.brs    # First-run "Connect to server" screen (normalizes + probes /health, persists server_url, then proceeds to login)
 │   │   ├── LoginScene.brs      # Login screen (username/password only); after login probes GET /me/servers to detect hub vs direct
-│   │   ├── ServerPickerScene.brs # Hub mode: "Choose a server" list (one-shot GET /me/servers); pick persists active_server_id → relay routing
-│   │   └── GridItem.brs        # Grid item component
+│   │   └── ServerPickerScene.brs # Hub mode: "Choose a server" list (one-shot GET /me/servers); pick persists active_server_id → relay routing
 │   ├── player/
 │   │   └── SkipButton.brs      # Skip intro/outro button
 │   ├── pages/
