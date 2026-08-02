@@ -160,6 +160,7 @@ sub ShowSeries(seriesId as String, seriesName as String)
 
     scene = CreateObject("roSGNode", "SeriesScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadSeries(seriesId, name)
 end sub
 
@@ -169,12 +170,14 @@ sub ShowSeason(seasonId as String, seasonName as String)
 
     scene = CreateObject("roSGNode", "SeasonScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadSeason(seasonId, name)
 end sub
 
 sub ShowItemDetail(itemId as String)
     scene = CreateObject("roSGNode", "DetailScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadItem(itemId)
 end sub
 
@@ -187,6 +190,11 @@ sub Teardown()
     if m.apiTask <> invalid then
         m.apiTask.UnObserveField("response")
     end if
+end sub
+
+' Bubble requestClose from a child scene up to PhlixApp (which holds PopScreen).
+sub OnChildRequestClose()
+    m.top.requestClose = true
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean

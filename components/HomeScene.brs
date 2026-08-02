@@ -291,6 +291,7 @@ sub OnResumePlaybackInfoResponse(resp as Object)
 
     scene = CreateObject("roSGNode", "PlayerScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.Show(m.pendingResume.mediaItemId, {
         item: m.pendingResume.item
         playbackInfo: resp.data
@@ -303,6 +304,7 @@ end sub
 sub ShowLibrary(libraryId as String, libraryName as String)
     scene = CreateObject("roSGNode", "LibraryScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadLibrary(libraryId, libraryName)
 end sub
 
@@ -311,6 +313,7 @@ end sub
 sub ShowMusic()
     scene = CreateObject("roSGNode", "MusicScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.SetFocus(true)
 end sub
 
@@ -322,30 +325,35 @@ sub ShowPhotos(libraryId as String, libraryName as String)
 
     scene = CreateObject("roSGNode", "PhotosScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadLibrary(libraryId, name)
 end sub
 
 sub OnSearchPressed(event as Object)
     scene = CreateObject("roSGNode", "SearchScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.SetFocus(true)
 end sub
 
 sub OnFavoritesPressed(event as Object)
     scene = CreateObject("roSGNode", "FavoritesScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.SetFocus(true)
 end sub
 
 sub OnCollectionsPressed(event as Object)
     scene = CreateObject("roSGNode", "CollectionsScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.SetFocus(true)
 end sub
 
 sub OnForYouPressed(event as Object)
     scene = CreateObject("roSGNode", "RecommendationsScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.SetFocus(true)
 end sub
 
@@ -354,6 +362,7 @@ end sub
 sub OnAdminPressed(event as Object)
     scene = CreateObject("roSGNode", "AdminScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.SetFocus(true)
 end sub
 
@@ -379,6 +388,11 @@ sub FocusHeaderZone()
         m.headerCol = "favorites"
     end if
     m.currentRail = "search"
+end sub
+
+' Bubble requestClose from a child scene up to PhlixApp (which holds PopScreen).
+sub OnChildRequestClose()
+    m.top.requestClose = true
 end sub
 
 sub OnKeyEvent(key as String, press as Boolean) as Boolean

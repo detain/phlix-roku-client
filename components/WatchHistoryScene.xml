@@ -5,6 +5,9 @@
 <!-- copyright 2026 Joe Huss -->
 
 <component name="WatchHistoryScene" extends="Scene">
+    <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
+    </interface>
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />

@@ -361,6 +361,7 @@ end sub
 sub PlayItem()
     playerScene = CreateObject("roSGNode", "PlayerScene")
     m.top.Append(playerScene)
+    playerScene.ObserveField("requestClose", "OnChildRequestClose")
     ' P2-S5: pass trickplay sprite/timeline paths if available on the item.
     trickplay = {}
     if m.item.trickplay_sprite_path <> invalid and m.item.trickplay_sprite_path <> "" then
@@ -379,6 +380,11 @@ sub PlayItem()
         playbackInfo: m.playbackInfo
         trickplay: trickplayArg
     })
+end sub
+
+' Bubble requestClose from a child scene up to PhlixApp (which holds PopScreen).
+sub OnChildRequestClose()
+    m.top.requestClose = true
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean

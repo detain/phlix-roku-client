@@ -5,9 +5,11 @@
 <!-- copyright 2026 Joe Huss -->
 
 <component name="LibraryAdminScene" extends="Scene">
-    <!-- AdminScene self-creates + appends + focuses this scene, so NO interface
-         function is required. Transitive closure: a component scope does NOT
-         auto-include pkg:/source. -->
+    <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
+    </interface>
+    <!-- AdminScene self-creates + appends + focuses this scene. Transitive
+         closure: a component scope does NOT auto-include pkg:/source. -->
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />

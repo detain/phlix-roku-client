@@ -297,6 +297,7 @@ sub OnPlayPlaybackInfoResponse(resp as Object)
 
     scene = CreateObject("roSGNode", "PlayerScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.Show(m.pendingPlay.id, {
         item: m.pendingPlay.item
         playbackInfo: playbackInfo
@@ -308,6 +309,7 @@ end sub
 sub ShowAlbum(albumName as String)
     scene = CreateObject("roSGNode", "MusicAlbumScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadAlbum(albumName)
 end sub
 
@@ -334,6 +336,11 @@ sub Teardown()
         m.musicList.UnObserveField("itemFocused")
     end if
     if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
+end sub
+
+' Bubble requestClose from a child scene up to PhlixApp (which holds PopScreen).
+sub OnChildRequestClose()
+    m.top.requestClose = true
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean

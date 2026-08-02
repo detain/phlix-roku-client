@@ -111,6 +111,7 @@ sub ShowCollection(collectionId as String, collectionName as String)
 
     scene = CreateObject("roSGNode", "CollectionScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadCollection(collectionId, name)
 end sub
 
@@ -121,6 +122,11 @@ sub Teardown()
         m.collectionsList.UnObserveField("itemFocused")
     end if
     if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
+end sub
+
+' Bubble requestClose from a child scene up to PhlixApp (which holds PopScreen).
+sub OnChildRequestClose()
+    m.top.requestClose = true
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean
