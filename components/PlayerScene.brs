@@ -77,11 +77,15 @@ sub Init()
     if m.pipButton <> invalid then m.pipButton.ObserveField("buttonSelected", "OnPipButtonPressed")
     if m.pipExitButton <> invalid then m.pipExitButton.ObserveField("buttonSelected", "OnPipExitPressed")
 
-    ' ApiTask: transcode start/status (observed). progressTask: session +
-    ' progress reporting (NOT observed - fire-and-forget).
+    ' ApiTask: one-shot transcode start (observed).
+    ' progressTask: session + progress reporting (guarded by state check).
+    ' transcodePollTask: dedicated for getTranscodeStatus polling (separate node
+    ' to avoid conjoining poll and start ops on the same task).
     m.apiTask = CreateObject("roSGNode", "ApiTask")
     m.apiTask.ObserveField("response", "OnApiResponse")
     m.progressTask = CreateObject("roSGNode", "ApiTask")
+    m.transcodePollTask = CreateObject("roSGNode", "ApiTask")
+    m.transcodePollTask.ObserveField("response", "OnTranscodePollResponse")
 
     m.itemId = ""
     m.item = invalid
@@ -274,6 +278,7 @@ sub Show(itemId as String, args as Object)
 
     ' Create a session once so progress reports have a session_id (persisted to
     ' Storage by ApiClient.createSession; a later fresh GetApiClient restores it).
+    ' un guarded: one-shot at playback start - m.transcodeAttempted gates re-entry.
     m.progressTask.request = { op: "createSession" }
     m.progressTask.control = "run"
 
@@ -305,6 +310,7 @@ sub OnPlayerStateChange(event as Object)
             if m.titleLabel <> invalid and m.item <> invalid then
                 m.titleLabel.text = m.item.name + " (Preparing...)"
             end if
+            ' un guarded: m.transcodeAttempted is set above; this block runs once.
             m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
             m.apiTask.control = "run"
         else
@@ -365,17 +371,23 @@ sub OnApiResponse(event as Object)
             m.transcodePollCount = 0
             startTranscodePollTimer()
         end if
-    else if resp.op = "getTranscodeStatus" then
-        if not resp.ok or resp.data = invalid then return
-        data = resp.data
-        if data.status = "ready" or data.playlist_ready = true then
-            stopTranscodePollTimer()
-            CaptureVariants(data)
-            PlayPreferredOrMaster()
-        else if data.status = "failed" then
-            stopTranscodePollTimer()
-            ShowErrorDialog("Transcode failed.")
-        end if
+    end if
+    ' Note: getTranscodeStatus is now handled by OnTranscodePollResponse on
+    ' m.transcodePollTask (separate node to avoid conjoining poll and start ops).
+end sub
+
+' Handles getTranscodeStatus responses from the dedicated transcodePollTask.
+sub OnTranscodePollResponse(event as Object)
+    resp = event.getData()
+    if resp = invalid or resp.ok = false or resp.data = invalid then return
+    data = resp.data
+    if data.status = "ready" or data.playlist_ready = true then
+        stopTranscodePollTimer()
+        CaptureVariants(data)
+        PlayPreferredOrMaster()
+    else if data.status = "failed" then
+        stopTranscodePollTimer()
+        ShowErrorDialog("Transcode failed.")
     end if
 end sub
 
@@ -475,6 +487,10 @@ end sub
 ' positionSeconds is in SECONDS. Ticks are 100ns; SecondsToTicks uses Double math
 ' returning LongInteger so values past ~214s do not overflow a 32-bit Integer.
 sub ReportProgress(positionSeconds as Float)
+    ' Replace policy: if the task is still running from a prior call (which can
+    ' happen when the server is slow), skip this call. A stale position is
+    ' worthless — the next timer tick will carry the current position.
+    if m.progressTask.state = "run" then return
     positionTicks = SecondsToTicks(positionSeconds)
     durationTicks = SecondsToTicks(m.videoPlayer.duration)
     m.progressTask.request = {
@@ -625,6 +641,12 @@ sub ClosePlayer()
     stopTranscodePollTimer()
     stopProgressTimer()
 
+    ' Unobserve and clear the dedicated transcode poll task.
+    if m.transcodePollTask <> invalid then
+        m.transcodePollTask.UnObserveField("response")
+        m.transcodePollTask = invalid
+    end if
+
     ' Clean up skip button
     if m.skipButtonComponent <> invalid then
         m.skipButtonComponent.cleanup()
@@ -751,8 +773,13 @@ sub OnTranscodePollFire()
         return
     end if
 
-    m.apiTask.request = { op: "getTranscodeStatus", jobId: m.transcodeJobId }
-    m.apiTask.control = "run"
+    ' Guard: if the poll task is still running from a prior call, skip this
+    ' tick. getTranscodeStatus completes in well under 2 s; if it hasn't, the
+    ' next timer fire will carry the same jobId and produce an equivalent poll.
+    if m.transcodePollTask.state = "run" then return
+
+    m.transcodePollTask.request = { op: "getTranscodeStatus", jobId: m.transcodeJobId }
+    m.transcodePollTask.control = "run"
 end sub
 
 sub OnKeyEvent(key as String, press as Boolean) as Boolean
@@ -959,6 +986,7 @@ sub ToggleSyncPanel()
 
     ' Refresh the room list snapshot.
     m.syncListTask.request = { op: "getSyncPlayRooms" }
+    ' un guarded: panel is opened once; syncListTask is lazily created
     m.syncListTask.control = "run"
 
     ' Lazily create + connect the socket task.
@@ -995,6 +1023,8 @@ sub ConnectSyncTask()
         memberName: memberName
     }
     m.syncActive = true
+    ' un guarded: call site gates with "if m.syncTask = invalid then" so this only
+    ' fires once per session (ConnectSyncTask is never called again after init).
     m.syncTask.control = "run"
     SetSyncStatus("Connecting…")
 end sub
