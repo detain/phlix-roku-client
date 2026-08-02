@@ -136,7 +136,7 @@ sub ShowItemDetail(itemId as String)
 end sub
 
 sub OnBackPressed()
-    m.top.Close()
+    m.top.requestClose = true
 end sub
 
 sub OnKeyEvent(key as String, press as Boolean) as Boolean
@@ -144,7 +144,7 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
 
     if press then
         if key = "back" then
-            m.top.Close()
+            m.top.requestClose = true
             handled = true
         end if
     end if

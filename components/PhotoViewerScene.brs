@@ -158,7 +158,7 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
             ' F7b: stop the slideshow + tear down the Timer observer before close.
             StopSlideshow()
             Teardown()
-            m.top.Close()
+            m.top.requestClose = true
             handled = true
         end if
     end if

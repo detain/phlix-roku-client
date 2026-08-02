@@ -306,7 +306,7 @@ sub RenderContentRating()
 end sub
 
 sub OnBackPressed()
-    m.top.Close()
+    m.top.requestClose = true
 end sub
 
 sub OnPlayPressed()
@@ -386,7 +386,7 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     if press then
         if key = "back" then
-            m.top.Close()
+            m.top.requestClose = true
             handled = true
         else if key = "play" then
             ' Dedicated Play remote button always plays.

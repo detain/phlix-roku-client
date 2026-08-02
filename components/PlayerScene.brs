@@ -688,7 +688,7 @@ sub ClosePlayer()
     if m.trackListBackButton <> invalid then m.trackListBackButton.UnObserveField("buttonSelected")
 
     ' Navigate back
-    m.top.Close()
+    m.top.requestClose = true
 end sub
 
 ' Progress timer (SceneGraph Timer node - roTimer is not usable in SceneGraph)

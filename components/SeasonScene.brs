@@ -130,7 +130,7 @@ end sub
 
 sub OnBackPressed()
     Teardown()
-    m.top.Close()
+    m.top.requestClose = true
 end sub
 
 ' Pair every ObserveField with an UnObserveField so the scene does not leak.
@@ -153,7 +153,7 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
     if press then
         if key = "back" then
             Teardown()
-            m.top.Close()
+            m.top.requestClose = true
             handled = true
         end if
     end if

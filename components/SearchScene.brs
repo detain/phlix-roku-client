@@ -267,7 +267,7 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
             end if
         else if key = "back" then
             Teardown()
-            m.top.Close()
+            m.top.requestClose = true
             handled = true
         end if
     end if
