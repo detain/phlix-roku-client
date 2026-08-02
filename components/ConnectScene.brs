@@ -38,7 +38,7 @@ sub Init()
     end if
 
     ' Prefill any previously-entered server URL (defensive; first run is empty).
-    savedServerUrl = Storage.get("server_url")
+    savedServerUrl = GetStorage().get("server_url")
     if savedServerUrl <> invalid and savedServerUrl <> "" then
         if m.serverInput <> invalid then m.serverInput.text = savedServerUrl
     end if
@@ -119,7 +119,7 @@ end sub
 ' Persist the chosen url and notify PhlixApp (observes `connected`).
 sub Connect(url as String)
     if url = invalid or url = "" then return
-    Storage.set("server_url", url)
+    GetStorage().set("server_url", url)
     HideError()
     HideStatus()
     m.top.connected = true

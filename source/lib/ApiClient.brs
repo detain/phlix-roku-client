@@ -51,9 +51,9 @@ function ApiClient(baseUrl as String) as Object
         setToken: function(token as String) as Void
             m.token = token
             if token <> "" then
-                Storage.set("auth_token", token)
+                GetStorage().set("auth_token", token)
             else
-                Storage.delete("auth_token")
+                GetStorage().delete("auth_token")
             end if
         end function
 
@@ -61,9 +61,9 @@ function ApiClient(baseUrl as String) as Object
         setRefreshToken: function(refreshToken as String) as Void
             m.refreshToken = refreshToken
             if refreshToken <> "" then
-                Storage.set("refresh_token", refreshToken)
+                GetStorage().set("refresh_token", refreshToken)
             else
-                Storage.delete("refresh_token")
+                GetStorage().delete("refresh_token")
             end if
         end function
 
@@ -71,17 +71,17 @@ function ApiClient(baseUrl as String) as Object
         setSession: function(sessionId as String) as Void
             m.sessionId = sessionId
             if sessionId <> "" then
-                Storage.set("session_id", sessionId)
+                GetStorage().set("session_id", sessionId)
             else
-                Storage.delete("session_id")
+                GetStorage().delete("session_id")
             end if
         end function
 
         ' Restore session from storage and validate via GET /auth/me
         restoreSession: function() as Boolean
-            token = Storage.get("auth_token")
-            refreshToken = Storage.get("refresh_token")
-            sessionId = Storage.get("session_id")
+            token = GetStorage().get("auth_token")
+            refreshToken = GetStorage().get("refresh_token")
+            sessionId = GetStorage().get("session_id")
 
             if token <> invalid and token <> "" then
                 m.token = token
@@ -998,10 +998,10 @@ function ApiClient(baseUrl as String) as Object
     }
 
     ' Generate device ID if not exists
-    obj.deviceId = Storage.get("device_id")
+    obj.deviceId = GetStorage().get("device_id")
     if obj.deviceId = "" or obj.deviceId = invalid then
         obj.deviceId = "roku-" + str(Rnd(999999999)).trim() + "-" + str(Rnd(999999999)).trim()
-        Storage.set("device_id", obj.deviceId)
+        GetStorage().set("device_id", obj.deviceId)
     end if
 
     return obj

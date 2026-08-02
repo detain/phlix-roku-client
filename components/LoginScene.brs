@@ -33,7 +33,7 @@ sub Init()
     end if
 
     ' Load saved credentials
-    savedUsername = Storage.get("username")
+    savedUsername = GetStorage().get("username")
     if savedUsername <> "" and savedUsername <> invalid then
         if m.usernameInput <> invalid then
             m.usernameInput.text = savedUsername
@@ -61,7 +61,7 @@ sub OnLoginPressed()
 
     ' Save username (server_url is owned by the Connect screen now). m.api is
     ' already bound to the connected server_url via GetApiClient in Init.
-    Storage.set("username", username)
+    GetStorage().set("username", username)
 
     ' Show loading status
     ShowStatus("Logging in...")
@@ -83,12 +83,12 @@ sub OnLoginPressed()
         serversResp = m.api.getMyServers()
         if serversResp <> invalid and serversResp.DoesExist("servers") and type(serversResp.servers) = "roArray" then
             ' It's a hub -> let PhlixApp show the server picker.
-            Storage.set("connection_kind", "hub")
+            GetStorage().set("connection_kind", "hub")
             Print "Hub detected"
             m.top.hubDetected = true
         else
             ' Direct server -> go straight to Home.
-            Storage.set("connection_kind", "direct")
+            GetStorage().set("connection_kind", "direct")
             Print "Login successful"
             m.top.loginSucceeded = true
         end if

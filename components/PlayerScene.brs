@@ -246,9 +246,9 @@ sub Show(itemId as String, args as Object)
     end if
 
     ' Restore persisted track preferences.
-    m.selectedAudioTrackId = Storage.get("preferred_audio_track")
+    m.selectedAudioTrackId = GetStorage().get("preferred_audio_track")
     if m.selectedAudioTrackId = invalid then m.selectedAudioTrackId = ""
-    m.selectedSubtitleTrackId = Storage.get("preferred_subtitle_track")
+    m.selectedSubtitleTrackId = GetStorage().get("preferred_subtitle_track")
     if m.selectedSubtitleTrackId = invalid then m.selectedSubtitleTrackId = "off"
 
     ' P2-S5: build chapter markers on the seekbar once duration is known.
@@ -985,7 +985,7 @@ sub ConnectSyncTask()
     m.syncTask = CreateObject("roSGNode", "SyncPlayTask")
     m.syncTask.ObserveField("event", "OnSyncEvent")
 
-    memberName = Storage.get("device_name")
+    memberName = GetStorage().get("device_name")
     if memberName = invalid or memberName = "" then memberName = "Roku"
 
     m.syncTask.config = {
@@ -1021,7 +1021,7 @@ function BuildSyncPlayWsParts() as Object
     if colonIdx > 0 then host = Left(rest, colonIdx - 1)
     if host = "" then return invalid
 
-    token = Storage.get("auth_token")
+    token = GetStorage().get("auth_token")
     if token = invalid then token = ""
 
     path = "/syncplay?token=" + UrlEncode(token)
@@ -1100,7 +1100,7 @@ end sub
 ' Create a new group (no on-screen keyboard - name is derived from the device).
 sub OnSyncCreatePressed()
     if m.syncTask = invalid then return
-    deviceName = Storage.get("device_name")
+    deviceName = GetStorage().get("device_name")
     if deviceName = invalid or deviceName = "" then deviceName = "Roku"
     SetSyncStatus("Creating group…")
     m.syncTask.command = { kind: "create", group_name: deviceName + "'s Room" }
@@ -1345,7 +1345,7 @@ end sub
 ' job's clamped ladder (e.g. a 1080p pin against a 720p-max source). With no
 ' ladder this is byte-identical to the old PlayHls(master_url) behaviour.
 sub PlayPreferredOrMaster()
-    pref = Storage.get("preferred_quality")
+    pref = GetStorage().get("preferred_quality")
     if pref = invalid then pref = ""
 
     url = m.masterUrl
@@ -1405,7 +1405,7 @@ end sub
 ' Caption for a row; the currently-persisted preference is marked "(current)".
 ' (Plain text - the Roku system font has no reliable check-mark glyph.)
 function QualityRowCaption(id as String, label as String) as String
-    pref = Storage.get("preferred_quality")
+    pref = GetStorage().get("preferred_quality")
     if pref = invalid or pref = "" then pref = "auto"
     if id = pref then return label + "  (current)"
     return label
@@ -1420,7 +1420,7 @@ sub OnQualitySelected(event as Object)
     if index < 0 or index >= m.qualityIds.Count() then return
     id = m.qualityIds[index]
 
-    Storage.set("preferred_quality", id)
+    GetStorage().set("preferred_quality", id)
 
     ' Resolve the target stream url first so the (live) content swap happens
     ' exactly once. Auto -> the multi-variant master; a pinned rung -> its own
@@ -1711,7 +1711,7 @@ sub OnAudioTrackSelected(index as Integer)
     if index < 0 or index >= m.audioTrackIds.Count() then return
     id = m.audioTrackIds[index]
 
-    Storage.set("preferred_audio_track", id)
+    GetStorage().set("preferred_audio_track", id)
     m.selectedAudioTrackId = id
 
     ' BrightScript/Roku Video node does not expose per-track audio selection
@@ -1728,7 +1728,7 @@ sub OnSubtitleTrackSelected(index as Integer)
     if index < 0 or index >= m.subtitleTrackIds.Count() then return
     id = m.subtitleTrackIds[index]
 
-    Storage.set("preferred_subtitle_track", id)
+    GetStorage().set("preferred_subtitle_track", id)
     m.selectedSubtitleTrackId = id
 
     ' Apply subtitle track to the Video node.

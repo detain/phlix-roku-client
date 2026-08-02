@@ -12,6 +12,15 @@
 ' Uses roRegistry for key-value storage
 ' ===========================================
 
+' Returns a Storage instance. Components should cache this in m.storage
+' to avoid repeated instantiation.
+' @return Object - storage object with get/set/delete/clear methods
+function GetStorage() as Object
+    return Storage()
+end function
+
+' Factory function - creates a new storage instance with roRegistrySection.
+' @return Object - storage object with get/set/delete/clear methods
 function Storage() as Object
     obj = {
         registry: CreateObject("roRegistrySection", "phlix")

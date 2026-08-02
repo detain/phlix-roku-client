@@ -20,7 +20,7 @@
 ' Get the configured server URL, falling back to the local default.
 ' @return String - The server base URL
 function GetServerUrl() as String
-    url = Storage.get("server_url")
+    url = GetStorage().get("server_url")
     if url = invalid or url = "" then url = "http://localhost:8096"
     return url
 end function
@@ -31,7 +31,7 @@ end function
 ' defensive default for any code path that reaches it before connect completes.
 ' @return Boolean - true when a non-empty server_url is persisted
 function IsServerConnected() as Boolean
-    url = Storage.get("server_url")
+    url = GetStorage().get("server_url")
     return (url <> invalid and url <> "")
 end function
 
@@ -41,7 +41,7 @@ end function
 ' /me/servers post-login to detect a hub and persists this.
 ' @return String - "hub" or "direct"
 function GetConnectionKind() as String
-    kind = Storage.get("connection_kind")
+    kind = GetStorage().get("connection_kind")
     if kind = "hub" then return "hub"
     return "direct"
 end function
@@ -51,7 +51,7 @@ end function
 ' a stringified value by the picker (the relay path needs a String segment).
 ' @return String - the active server id, or ""
 function GetActiveServerId() as String
-    id = Storage.get("active_server_id")
+    id = GetStorage().get("active_server_id")
     if id = invalid then return ""
     return id
 end function
@@ -85,11 +85,11 @@ end function
 ' @return Object - A ready-to-use ApiClient instance
 function GetApiClient() as Object
     api = ApiClient(GetMediaBaseUrl())
-    token = Storage.get("auth_token")
+    token = GetStorage().get("auth_token")
     if token <> invalid and token <> "" then api.token = token
-    refreshToken = Storage.get("refresh_token")
+    refreshToken = GetStorage().get("refresh_token")
     if refreshToken <> invalid and refreshToken <> "" then api.refreshToken = refreshToken
-    sid = Storage.get("session_id")
+    sid = GetStorage().get("session_id")
     if sid <> invalid and sid <> "" then api.sessionId = sid
     return api
 end function
@@ -102,11 +102,11 @@ end function
 ' @return Object - A ready-to-use ApiClient instance bound to the bare hub url
 function GetHubApiClient() as Object
     api = ApiClient(GetServerUrl())
-    token = Storage.get("auth_token")
+    token = GetStorage().get("auth_token")
     if token <> invalid and token <> "" then api.token = token
-    refreshToken = Storage.get("refresh_token")
+    refreshToken = GetStorage().get("refresh_token")
     if refreshToken <> invalid and refreshToken <> "" then api.refreshToken = refreshToken
-    sid = Storage.get("session_id")
+    sid = GetStorage().get("session_id")
     if sid <> invalid and sid <> "" then api.sessionId = sid
     return api
 end function

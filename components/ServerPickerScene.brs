@@ -152,8 +152,8 @@ sub OnRowSelected(event as Object)
         name = server.serverName
     end if
 
-    Storage.set("active_server_id", id)
-    Storage.set("active_server_name", name)
+    GetStorage().set("active_server_id", id)
+    GetStorage().set("active_server_name", name)
 
     ' Notify PhlixApp (observes `serverPicked`) -> rebuild m.api + Home.
     m.top.serverPicked = true

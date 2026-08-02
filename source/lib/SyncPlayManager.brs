@@ -252,7 +252,7 @@ function SyncPlayManager(api as Object) as Object
             end if
 
             ' Build path with roomId and token
-            token = Storage.get("auth_token")
+            token = GetStorage().get("auth_token")
             if token = invalid then token = ""
 
             path = "/syncplay/" + m._session.roomId + "?token=" + UrlEncode(token)

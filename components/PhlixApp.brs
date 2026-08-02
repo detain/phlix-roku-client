@@ -170,9 +170,9 @@ sub OnLogout()
     ' Clear hub-mode keys so we return to a clean login on the same server/hub.
     ' KEEP server_url (the connect endpoint) so we don't re-prompt for it.
     ' auth.logout already cleared the token/refresh/session.
-    Storage.delete("connection_kind")
-    Storage.delete("active_server_id")
-    Storage.delete("active_server_name")
+    GetStorage().delete("connection_kind")
+    GetStorage().delete("active_server_id")
+    GetStorage().delete("active_server_name")
 
     ' Remove all children and show login
     while m.top.GetChildCount() > 0
