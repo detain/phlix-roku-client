@@ -7,10 +7,17 @@
 '
 
 
-' ===========================================
-' Persistent Storage for Roku
-' Uses roRegistry for key-value storage
-' ===========================================
+ ' ===========================================
+ ' Persistent Storage for Roku
+ ' Uses roRegistry for key-value storage
+ ' ===========================================
+
+ ' TODO R0.7: add static check to catch Storage.factory misuse at lint time
+ ' Components should call Storage() (the factory) once and cache the result in m.storage.
+ ' Direct calls to get/set/delete/clear (instance methods) bypass the cache and cause
+ ' roRegistrySection re-creation overhead. A lint rule must flag any direct get/set/delete/clear
+ ' usage that isn't on a cached instance.
+ '
 
 ' Returns a Storage instance. Components should cache this in m.storage
 ' to avoid repeated instantiation.
