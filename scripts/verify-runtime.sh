@@ -132,4 +132,85 @@ while IFS=: read -r file line; do
 done < <(git grep -rn 'ApiClient\.\(wait\|sync\)' -- '*.brs' 2>/dev/null || true)
 [[ $VIOLATIONS -eq 0 ]] && echo "  PASS"
 
+echo ""
+echo "=== Check 11: unguarded Task control=run (R1.4: busy guard required) ==="
+VIOLATIONS=0
+# For each control="run" in .brs files, verify a busy-guard (state check) appears
+# within the preceding ~15 lines inside the same function.  Sites that are
+# provably one-shot (guarded by if m.XTask=invalid or m.XTask.state<>"run" nearby),
+# or that document the callback-chained "one op at a time" pattern (comments
+# containing "two control" + "never" + "outstanding" or "un guarded"), are
+# allowed.  All others are flagged.
+PYOUT=$(python3 - <<'PYEOF'
+import subprocess, re, sys, os
+
+os.chdir('/home/sites/phlix/phlix-roku-client')
+result = subprocess.run(
+    ['git', 'grep', '-n', r'control\s*=\s*"run"'],
+    capture_output=True, text=True
+)
+if result.returncode != 0 and not result.stdout.strip():
+    sys.exit(0)
+
+# Guards that satisfy the check:
+guard_patterns = [
+    re.compile(r'state\s*=\s*[\'"]run[\'"]'),
+    re.compile(r'state\s*<>\s*[\'"]run[\'"]'),
+    re.compile(r'if\s+m\.\w+\s*=\s*invalid\s+then'),
+    re.compile(r'un guarded', re.IGNORECASE),
+]
+# Exemption patterns: comments documenting the callback-chained serialization
+# pattern ("one op at a time - never two control=run").
+exempt_patterns = [
+    # Callback-chained serialization pattern: documentation comment indicating
+    # "two control=run are never outstanding" or "one op at a time".
+    # Use [\s\S] to match across newlines in multi-line comments.
+    re.compile(r'two control[\s\S]{0,80}never|never[\s\S]{0,80}two control', re.IGNORECASE),
+    re.compile(r'never outstanding', re.IGNORECASE),
+    re.compile(r'one op at a time', re.IGNORECASE),
+]
+found_violation = False
+for gline in result.stdout.strip().split('\n'):
+    if not gline.strip():
+        continue
+    parts = gline.split(':', 2)
+    if len(parts) < 3:
+        continue
+    fname, lnum_s, line_content = parts
+    try:
+        lnum = int(lnum_s)
+    except ValueError:
+        continue
+    # Skip comment-only lines (lines where the meaningful content starts with ')
+    # because "control="run"" appearing in a comment is documentation, not code.
+    stripped = line_content.strip()
+    if stripped.startswith("'") or stripped.startswith('"') or stripped.startswith('}'):
+        continue
+    # Lookback for code-level guards (should be near the call site)
+    guard_start = max(1, lnum - 15)
+    # Lookback for exemption documentation (can be at function top, up to 50 lines)
+    exempt_start = max(1, lnum - 50)
+    try:
+        with open(fname, 'r', errors='replace') as f:
+            lines = f.readlines()
+        # Guard context: lines strictly before the control="run" line
+        guard_context = ''.join(lines[guard_start-1:lnum-1])
+        # Exempt context: lines before AND including the control="run" line, because
+        # the exemption comment often appears ON the same line (e.g. inline docs).
+        exempt_context = ''.join(lines[exempt_start-1:lnum])
+    except Exception:
+        continue
+    has_guard = any(p.search(guard_context) for p in guard_patterns)
+    has_exempt = any(p.search(exempt_context) for p in exempt_patterns)
+    if not has_guard and not has_exempt:
+        print(f'  {fname}:{lnum} — CHECK11: control="run" without a busy/state guard in same function')
+        found_violation = True
+if found_violation:
+    sys.exit(1)
+PYEOF
+)
+PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 [[ $VIOLATIONS -eq 1 ]] && exit 1
