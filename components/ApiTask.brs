@@ -257,6 +257,17 @@ sub ExecRequest()
         else if req.op = "updateProfileStreamLimits" then
             result.data = api.updateProfileStreamLimits(req.profileId, req.limits)
             result.ok = (result.data <> invalid)
+        else if req.op = "logout" then
+            ' Fire-and-forget server-side session teardown.
+            ' Local credentials have already been cleared by OnLogout before this
+            ' task is dispatched. Uses a fresh ApiClient so the baseUrl is live even
+            ' if the calling scene has already cleared m.api.baseUrl.
+            logoutApi = ApiClient(GetServerUrl())
+            sessionId = GetStorage().get("session_id")
+            if sessionId <> invalid and sessionId <> "" then
+                logoutApi.request("DELETE", "/sessions/" + sessionId, invalid)
+            end if
+            result.ok = true
         end if
     end if
 

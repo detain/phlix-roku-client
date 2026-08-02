@@ -60,9 +60,18 @@ sub Init()
     m.library = LibraryManager(m.api)
     m.tasks = TaskManager()
 
+    ' Bootstrap auth state tracking
+    m.authCheckDone = false
+    m.retryCount = 0
+    m.bootLoadingLabel = m.top.FindNode("bootLoadingLabel")
+    m.bootErrorGroup = m.top.FindNode("bootErrorGroup")
+    m.bootErrorLabel = m.top.FindNode("bootErrorLabel")
+    m.bootRetryButton = m.top.FindNode("bootRetryButton")
+
     ' First-run gate: with no server chosen yet, show the Connect screen. Only
     ' once a server_url is persisted do we run the normal auth flow.
     if not IsServerConnected() then
+        HideBootUI()
         ShowConnect()
     else if GetConnectionKind() = "hub" then
         ' Hub mode: validate the HUB session against the BARE hub url - /auth/me
@@ -72,20 +81,203 @@ sub Init()
         ' server is picked).
         m.hubApi = GetHubApiClient()
         m.hubAuth = AuthManager(m.hubApi)
-        if m.hubAuth.checkAuth() then
-            if GetActiveServerId() <> "" then
-                ShowHome()
-            else
-                ShowServerPicker()
-            end if
-        else
-            ShowLogin()
+        ' Show loading frame immediately; auth check runs on ApiTask with timeout
+        StartHubAuthCheck()
+    else
+        ' Show loading frame immediately; auth check runs on ApiTask with timeout
+        StartAuthCheck()
+    end if
+end sub
+
+' StartAuthCheck - fires the direct-mode auth check on ApiTask (off render thread).
+' Shows the loading label immediately so the user sees a frame before any network.
+sub StartAuthCheck()
+    m.authCheckDone = false
+    m.retryCount = 0
+    ShowBootLoading()
+
+    ' Unhook any stale observers before replacing the old task/timer
+    if m.authTask <> invalid then
+        m.authTask.UnObserveField("response")
+    end if
+    if m.authTimer <> invalid then
+        m.authTimer.UnObserveField("fire")
+    end if
+
+    ' Create single ApiTask for boot auth (serialized, not concurrent)
+    m.authTask = CreateObject("roSGNode", "ApiTask")
+    m.authTask.ObserveField("response", "OnAuthResponse")
+    m.top.Append(m.authTask)
+
+    ' 20-second scene-level timeout
+    m.authTimer = CreateObject("roSGNode", "Timer")
+    m.authTimer.SetDuration(20000)
+    m.authTimer.ObserveField("fire", "OnAuthTimeout")
+    m.authTimer.control = "start"
+
+    m.authTask.request = { op: "checkAuth" }
+    m.authTask.control = "run"
+end sub
+
+' StartHubAuthCheck - fires the hub-mode auth check on ApiTask.
+sub StartHubAuthCheck()
+    m.authCheckDone = false
+    m.retryCount = 0
+    ShowBootLoading()
+
+    ' Unhook any stale observers before replacing the old task/timer
+    if m.authTask <> invalid then
+        m.authTask.UnObserveField("response")
+    end if
+    if m.authTimer <> invalid then
+        m.authTimer.UnObserveField("fire")
+    end if
+
+    m.authTask = CreateObject("roSGNode", "ApiTask")
+    m.authTask.ObserveField("response", "OnHubAuthResponse")
+    m.top.Append(m.authTask)
+
+    m.authTimer = CreateObject("roSGNode", "Timer")
+    m.authTimer.SetDuration(20000)
+    m.authTimer.ObserveField("fire", "OnAuthTimeout")
+    m.authTimer.control = "start"
+
+    m.authTask.request = { op: "checkAuthHub" }
+    m.authTask.control = "run"
+end sub
+
+sub ShowBootLoading()
+    if m.bootLoadingLabel <> invalid then
+        m.bootLoadingLabel.visible = true
+    end if
+    if m.bootErrorGroup <> invalid then
+        m.bootErrorGroup.visible = false
+    end if
+end sub
+
+sub ShowBootError(msg as String)
+    if m.bootLoadingLabel <> invalid then
+        m.bootLoadingLabel.visible = false
+    end if
+    if m.bootErrorGroup <> invalid then
+        m.bootErrorGroup.visible = true
+        if m.bootErrorLabel <> invalid then
+            m.bootErrorLabel.text = msg
         end if
-    else if m.auth.checkAuth() then
-        ' Direct mode: user is already logged in, show home
+    end if
+    ' Wire retry button so timeout-triggered AND manually-shown errors both retry
+    if m.bootRetryButton <> invalid then
+        m.bootRetryButton.ObserveField("buttonSelected", "OnBootRetryButton")
+    end if
+end sub
+
+sub HideBootUI()
+    if m.bootLoadingLabel <> invalid then
+        m.bootLoadingLabel.visible = false
+    end if
+    if m.bootErrorGroup <> invalid then
+        m.bootErrorGroup.visible = false
+    end if
+end sub
+
+' OnAuthTimeout - scene-level 20s timeout for boot auth.
+' Fires when ApiTask has not responded in 20s (server unreachable).
+sub OnAuthTimeout()
+    if m.authCheckDone then return
+    m.authCheckDone = true
+
+    ' Clean up the pending task
+    if m.authTask <> invalid then
+        m.top.RemoveChild(m.authTask)
+        m.authTask = invalid
+    end if
+    if m.authTimer <> invalid then
+        m.authTimer.Stop()
+    end if
+
+    m.retryCount = m.retryCount + 1
+    if m.retryCount <= 3 then
+        ShowBootError("Can't reach the server")
+    else
+        ShowBootError("Unable to connect after multiple attempts")
+    end if
+end sub
+
+' OnBootRetryButton - handles retry button press on the boot error screen.
+sub OnBootRetryButton()
+    ' Reset so StartAuthCheck can re-fire
+    m.authCheckDone = false
+    ' Stop any stale timer before starting a fresh one
+    if m.authTimer <> invalid then
+        m.authTimer.Stop()
+    end if
+    StartAuthCheck()
+end sub
+
+' OnAuthResponse - handles the direct-mode auth check result.
+' Four distinct outcomes:
+'   1. Authenticated -> ShowHome()
+'   2. Not authenticated -> ShowLogin()
+'   3. Timeout already fired -> ignore (error was already shown)
+'   4. (Server error maps to outcome 2 - ShowLogin)
+sub OnAuthResponse(event as Object)
+    if m.authCheckDone then return
+    m.authCheckDone = true
+
+    if m.authTimer <> invalid then
+        m.authTimer.Stop()
+    end if
+
+    if m.authTask = invalid or m.authTask <> event.GetNode() then return
+
+    result = event.GetData()
+    HideBootUI()
+
+    ' Remove task from scene tree
+    m.top.RemoveChild(m.authTask)
+    m.authTask = invalid
+
+    if result <> invalid and result.ok and result.data <> invalid then
+        ' Outcome 1: Authenticated -> show home
         ShowHome()
     else
-        ' Show login screen
+        ' Outcome 2: Not authenticated or server error -> show login
+        ShowLogin()
+    end if
+end sub
+
+' OnHubAuthResponse - handles the hub-mode auth check result.
+' Four distinct outcomes:
+'   1. Authenticated + server picked -> ShowHome()
+'   2. Authenticated + no server picked -> ShowServerPicker()
+'   3. Not authenticated -> ShowLogin()
+'   4. Timeout already fired -> ignore (error was already shown)
+sub OnHubAuthResponse(event as Object)
+    if m.authCheckDone then return
+    m.authCheckDone = true
+
+    if m.authTimer <> invalid then
+        m.authTimer.Stop()
+    end if
+
+    if m.authTask = invalid or m.authTask <> event.GetNode() then return
+
+    result = event.GetData()
+    HideBootUI()
+
+    m.top.RemoveChild(m.authTask)
+    m.authTask = invalid
+
+    if result <> invalid and result.ok and result.data <> invalid then
+        ' Outcome 1: Authenticated + server picked -> show home
+        if GetActiveServerId() <> "" then
+            ShowHome()
+        else
+            ' Outcome 2: Authenticated + no server picked -> show server picker
+            ShowServerPicker()
+        end if
+    else
+        ' Outcome 3: Not authenticated -> show login
         ShowLogin()
     end if
 end sub
@@ -175,12 +367,9 @@ sub OnConnected()
     m.session = SessionManager(m.api)
     m.library = LibraryManager(m.api)
 
-    ' First run: checkAuth is false -> ShowLogin.
-    if m.auth.checkAuth() then
-        ShowHome()
-    else
-        ShowLogin()
-    end if
+    ' Fire auth check on ApiTask (off render thread). Uses the same 20s timeout
+    ' and boot UI as the boot flow. Server unreachable shows error with retry.
+    StartAuthCheck()
 end sub
 
 sub ShowLogin()
@@ -235,13 +424,11 @@ sub OnLoginSuccess()
 end sub
 
 sub OnLogout()
-    ' Clean up sessions
-    m.session.endSession()
-    m.auth.logout()
-
-    ' Clear hub-mode keys so we return to a clean login on the same server/hub.
-    ' KEEP server_url (the connect endpoint) so we don't re-prompt for it.
-    ' auth.logout already cleared the token/refresh/session.
+    ' R1.3: Clear local state FIRST so logout works even if server unreachable.
+    ' Order: clear tokens/session → navigate → fire network call (fire-and-forget).
+    GetStorage().delete("auth_token")
+    GetStorage().delete("refresh_token")
+    GetStorage().delete("session_id")
     GetStorage().delete("connection_kind")
     GetStorage().delete("active_server_id")
     GetStorage().delete("active_server_name")
@@ -254,6 +441,15 @@ sub OnLogout()
     end while
 
     ShowLogin()
+
+    ' Fire server-side session teardown off the render thread (fire-and-forget).
+    ' Uses GetServerUrl() directly so baseUrl is correct even though m.api.baseUrl
+    ' may have been cleared above. OnLogout has already cleared local credentials
+    ' so the user is safely logged out locally regardless of server reachability.
+    logoutTask = CreateObject("roSGNode", "ApiTask")
+    logoutTask.request = { op: "logout" }
+    m.top.Append(logoutTask)
+    logoutTask.control = "run"
 end sub
 
 sub OnKeyEvent(key as String, press as Boolean) as Boolean

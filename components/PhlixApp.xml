@@ -20,5 +20,12 @@
     <script type="text/brightscript" uri="pkg:/source/lib/TaskManager.brs" />
     <script type="text/brightscript" uri="pkg:/components/PhlixApp.brs" />
     <children>
+        <!-- Boot loading state: shown immediately while auth check runs on ApiTask -->
+        <Label id="bootLoadingLabel" text="Loading..." translation="[350,300]" />
+        <!-- Boot error state: shown after 20s timeout with retry affordance -->
+        <Group id="bootErrorGroup" visible="false">
+            <Label id="bootErrorLabel" text="Can't reach the server" translation="[250,280]" />
+            <Button id="bootRetryButton" text="Retry" translation="[350,340]" />
+        </Group>
     </children>
 </component>
