@@ -96,6 +96,26 @@ previous render-thread block.
 4. **Hub mode**: Repeat steps 1–2 on a hub connection. The first boot should
    land on `ServerPickerScene` if no `active_server_id` is persisted.
 
+## R1.2 Login Async Smoke Test
+
+After R1.2 the login screen shows immediate feedback (button disabled, "Signing in…"
+label) before the network request fires, and re-enables the button on every failure.
+
+1. Open the login screen (`LoginScene`). Confirm the button is enabled and no
+   status label is visible.
+2. Press **Login** with valid credentials. Confirm:
+   - Button is disabled **immediately** (before any network activity).
+   - "Signing in…" (or equivalent) status label appears.
+   - Home screen appears on success.
+3. Press **Login** with **invalid credentials**. Confirm:
+   - Button is disabled immediately.
+   - Error message appears.
+   - Button is **re-enabled** (can press Login again).
+4. **Network-error path** (requires an unreachable server or firewall):
+   - After the request fails, button must be re-enabled and an error label shown.
+5. **Hub mode**: Repeat steps 1–2 on a hub connection. `getMyServers` chains
+   correctly and `ServerPickerScene` appears if no `active_server_id` is persisted.
+
 ## Status
 
 | Defect | Status | Notes |
@@ -104,5 +124,6 @@ previous render-thread block.
 | §5.2 `m.top.Close()` (`&hF4`) | FIXED R0.4 | Code migrated; device smoke test still recommended for un-wired branches |
 | §5.3 Back at root (`&h06` / cert item 6) | NOT REACHED | No device available for testing |
 | R1.1 Boot auth async | NOT REACHED | No device available for testing |
+| R1.2 Login async | NOT REACHED | No device available for testing |
 
 *This document was created because `ROKU_HOST` is unset — no physical hardware was available for sideload verification.*

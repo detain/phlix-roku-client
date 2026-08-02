@@ -104,6 +104,14 @@ The boot UI nodes (`bootLoadingLabel`, `bootErrorGroup`, `bootErrorLabel`,
 display of the error group so that timeout-triggered and manually-triggered error
 states both wire the same handler.
 
+#### Async login flow (R1.2)
+
+`LoginScene.OnLoginPressed` mirrors the async boot-auth pattern:
+1. **Render-thread feedback first** — button disabled, status label set before any I/O.
+2. **Task dispatch** — `ApiTask` with `login` op, observed on `response` field.
+3. **`OnLoginResponse`** — `ok: true` chains `getMyServers`; `ok: false` shows error + `ReEnableButton()`.
+4. **`ReEnableButton()`** is the mandatory teardown on every failure branch — no exceptions.
+
 #### Hub vs direct (F12b)
 
 The connect URL may be a **direct Phlix server** or a **Phlix Hub** — both expose `/health` and `POST /api/v1/auth/login`, so connect + login are identical. `AppContext.brs` persists `connection_kind` (`"hub"`/`"direct"`; absent/unrecognized → `"direct"`) and, in hub mode, `active_server_id` + `active_server_name`.

@@ -5,6 +5,25 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — Login async migration (R1.2)
+
+**`ApiTask.brs`** — new `login` op:
+- Fires `POST /auth/login` on `GetApiClient()`, stores `{ ok, data: { token, user } }` or
+  `{ ok: false, data: { message } }` on `response`.
+
+**`LoginScene.brs`** — `OnLoginPressed` rewritten:
+- **Immediate feedback**: disables the login button and shows a status label ("Signing in…")
+  synchronously on the render thread before firing the task.
+- **Async dispatch**: creates an `ApiTask`, sets the `login` op, invokes `task.control`,
+  and observes `response`.
+- **`OnLoginResponse`** unified handler: on `ok: true` → proceeds to `getMyServers`; on
+  `ok: false` → shows error label + `ReEnableButton()`. On `getMyServers` response →
+  same `hubDetected`/`loginSucceeded` branching as before.
+- **`ReEnableButton()`** called on **all** failure paths — invalid credentials, network
+  error, timeout, and server error — so the button is never left disabled.
+
+**`LoginScene.xml`** — repositioned status/error labels to avoid overlap with the button row.
+
 ### Fixed — Boot auth async migration (R1.1)
 
 The boot auth flow was restructured to move session validation off the render thread,
