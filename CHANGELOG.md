@@ -5,6 +5,20 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — Storage factory misuse causes runtime error `&hEC` on launch
+
+- **`Storage()` can no longer be called directly as an object.** The `source/lib/Storage.brs`
+  factory was being used directly at approximately 40 call sites (e.g. `Storage().get(key)`),
+  which fails at runtime with error `&hEC` ("Dot operator attempted with invalid left-hand side")
+  because `Storage` is a factory function — calling `.get()` on the function value itself is
+  invalid BrightScript. A new `GetStorage()` function wraps the factory call and returns the
+  object; all 43 call sites across `AppContext`, `ApiClient`, `SyncPlayManager`, `PlayerScene`,
+  `PhlixApp`, `LoginScene`, `ServerPickerScene`, and `ConnectScene` have been migrated to use
+  `GetStorage()`.
+- **User-visible effect:** the channel now boots to the home screen without erroring out on the
+  first frame of `PhlixApp.Init`. Before this fix the channel crashed immediately with `&hEC`
+  because every code path during init called into Storage before the registry was usable.
+
 ### Fixed — Play button for audio/track/audiobook/video items
 
 - **`DetailScene` no longer gates playback on a hardcoded `movie`/`episode`
