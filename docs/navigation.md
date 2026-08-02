@@ -18,6 +18,11 @@ Additionally, the pre-stack back handler (`PhlixApp.OnKeyEvent`) called
 After one Back press, the remote control became unresponsive because the newly-visible
 scene never received focus.
 
+**Status: Fixed in R0.4.** The migration replaced all 34 `m.top.Close()` calls with
+`m.top.requestClose = true`. The `requestClose` field was added to all relevant XMLs and
+8 primary parent scenes are wired. See the Known Limitation note in CHANGELOG.md for the
+remaining gap.
+
 ## The Screen Stack
 
 ### PushScreen(nodeType as String, params as Object) as Object
@@ -96,3 +101,21 @@ nodes as children, not nested `Scene` nodes. The stack mechanism works correctly
 with the nested-Scene pattern, but a future refactor should consider flattening to
 the idiomatic `Group`-as-child pattern. That refactor is deliberately out of scope
 for this step to keep the diff reviewable.
+
+## Known Limitations
+
+### Un-wired parent scenes (~13 remaining)
+
+Approximately 13 parent scenes (~21 `m.top.Append` calls) are **not yet wired** with an
+`ObserveField("requestClose", "OnChildRequestClose")` handler. Child scenes in those
+branches that call `m.top.requestClose = true` will have the signal silently ignored.
+
+Affected branches include:
+- `SearchScene` → `SeriesScene` / `SeasonScene` / `DetailScene`
+- `WatchHistoryScene` → `…`
+- And others listed in `CHANGELOG.md` under the R0.4 fix entry.
+
+This is a **pre-existing gap** — not a regression introduced by R0.4. R0.4 wired the
+8 primary parent scenes (HomeScene, FavoritesScene, MusicScene, AdminScene,
+CollectionsScene, DetailScene, LibraryAdminScene, LiveTvScene). Future work should
+wire the remaining branches.

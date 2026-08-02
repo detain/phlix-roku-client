@@ -54,15 +54,17 @@ This document records the first-boot verification procedure for the Phlix Roku c
 
 ---
 
-### §5.2 — `m.top.Close()` Member Function Not Found
+### §5.2 — `m.top.Close()` Member Function Not Found (FIXED R0.4)
 
 **Error code:** `&hF4` ("Member function not found in BrightScript Component or interface")
 
-**What it means:** Code calls `m.top.Close()` on a node that does not have a `Close()` method. This is a SceneGraph API misuse — `Close()` is not a valid method on `roList` or similar nodes.
+**What it means:** Code calls `m.top.Close()` on a node that does not have a `Close()` method. This is a SceneGraph API misuse — `Close()` is not a valid method on `Scene` or `Group` nodes.
 
-**When to expect it:** On the first Back press from the home screen or when exiting a library view.
+**When to expect it (pre-R0.4):** On the first Back press from the home screen or when exiting a library view.
 
-**How to confirm it's cleared:** The channel navigates back without this error appearing in the telnet console.
+**Status:** Fixed in R0.4. All 34 call sites were migrated to `m.top.requestClose = true`. The `requestClose` field was added to all relevant component XMLs and the 8 primary parent scenes (HomeScene, FavoritesScene, MusicScene, AdminScene, CollectionsScene, DetailScene, LibraryAdminScene, LiveTvScene) are wired with `ObserveField("requestClose", "OnChildRequestClose")`.
+
+**How to confirm it's cleared:** Navigate into any pushed screen (Library, Detail, etc.) and press Back. The channel navigates back cleanly with no `&hF4` error in the telnet console. A residual ~13 parent scenes are not wired (see the Known Limitation note in CHANGELOG.md) — if you encounter a branch that silently ignores Back, that is an un-wired scene, not the `&hF4` error.
 
 ---
 
@@ -81,7 +83,7 @@ This document records the first-boot verification procedure for the Phlix Roku c
 | Defect | Status | Notes |
 |--------|--------|-------|
 | §5.1 `Storage` factory (`&hEC`) | NOT REACHED | No device available for testing |
-| §5.2 `m.top.Close()` (`&hF4`) | NOT REACHED | No device available for testing |
+| §5.2 `m.top.Close()` (`&hF4`) | FIXED R0.4 | Code migrated; device smoke test still recommended for un-wired branches |
 | §5.3 Back at root (`&h06` / cert item 6) | NOT REACHED | No device available for testing |
 
 *This document was created because `ROKU_HOST` is unset — no physical hardware was available for sideload verification.*

@@ -27,6 +27,19 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (returned `true` unconditionally) so the channel never exited. `PopScreen()` returning
   `false` from an empty stack now correctly defers to the Roku OS.
 
+### Fixed — `m.top.Close()` replaced with `m.top.requestClose = true` (R0.4)
+
+- **34 call sites migrated** across 29 `.brs` component files in `components/`
+- **13 missing XML field declarations added** (`<field id="requestClose" type="boolean" alwaysNotify="true" />`)
+- **8 parent scenes wired** with `ObserveField("requestClose", "OnChildRequestClose")` + handler:
+  HomeScene, FavoritesScene, MusicScene, AdminScene, CollectionsScene, DetailScene,
+  LibraryAdminScene, LiveTvScene
+
+> ⚠️ **Known limitation:** ~13 more parent scenes (~21 `m.top.Append` calls) are **not yet wired**
+> with observers. Child scenes in those branches (SearchScene→Series/Season/Detail,
+> WatchHistoryScene→…, etc.) that call `m.top.requestClose = true` will have the signal
+> silently ignored. This is a pre-existing gap — not a regression introduced by R0.4.
+
 ### Fixed — Storage factory misuse causes runtime error `&hEC` on launch
 
 - **`Storage()` can no longer be called directly as an object.** The `source/lib/Storage.brs`
