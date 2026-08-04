@@ -160,7 +160,7 @@ function ApiClient(baseUrl as String) as Object
                 end if
             end if
 
-            result = { code: 0, json: invalid }
+            result = { code: 0, json: invalid, started: started }
             if not started then
                 return result
             end if
@@ -228,11 +228,19 @@ function ApiClient(baseUrl as String) as Object
             ' got a HTTP response. Distinguish timeout vs connect failure.
             if status = 0 then
                 ok = false
-                ' raw.json = invalid means AsyncGetToString/AsyncPostFromString
-                ' failed to start (connect error). If it started but timed out,
-                ' we already called AsyncCancel and the body is also invalid,
-                ' so we use a single "connect" label for both transport failures.
-                error = "connect"
+                if raw.started then
+                    error = "timeout"   ' connection started but timed out
+                else
+                    error = "connect"    ' never started (DNS, refused, etc.)
+                end if
+            end if
+
+            if status >= 400 then
+                if data <> invalid and data.DoesExist("error") then
+                    error = data.error
+                else
+                    error = "http_" + str(status).trim()
+                end if
             end if
 
             return {
