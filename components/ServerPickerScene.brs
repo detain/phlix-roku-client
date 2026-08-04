@@ -56,9 +56,19 @@ sub OnApiResponse(event as Object)
 
     if resp.op = "getMyServers" then
         ' getMyServers() returns the WHOLE envelope {servers:[...]}.
-        m.servers = []
-        if resp.ok and resp.data <> invalid and resp.data.DoesExist("servers") and type(resp.data.servers) = "roArray" then
-            m.servers = resp.data.servers
+        if not resp.ok then
+            ' Request failed - show error dialog
+            errorMsg = "Unable to load servers"
+            if resp.error <> invalid and resp.error <> "" then
+                errorMsg = resp.error
+            end if
+            ShowErrorDialog(m.top, "Error", errorMsg)
+            m.servers = []
+        else
+            m.servers = []
+            if resp.data <> invalid and resp.data.DoesExist("servers") and type(resp.data.servers) = "roArray" then
+                m.servers = resp.data.servers
+            end if
         end if
 
         content = CreateObject("roSGNode", "ContentNode")

@@ -242,6 +242,12 @@ sub OnAuthResponse(event as Object)
         ShowHome()
     else
         ' Outcome 2: Not authenticated or server error -> show login
+        ' Derive error message since restoreSession doesn't populate result.error
+        if result <> invalid and result.data = invalid then
+            ShowErrorDialog(m.top, "Connection Error", "Unable to reach server. Please check your network.")
+        else
+            ShowErrorDialog(m.top, "Session Expired", "Your session has expired. Please log in again.")
+        end if
         ShowLogin()
     end if
 end sub
@@ -278,6 +284,12 @@ sub OnHubAuthResponse(event as Object)
         end if
     else
         ' Outcome 3: Not authenticated -> show login
+        ' Derive error message since restoreSession doesn't populate result.error
+        if result <> invalid and result.data = invalid then
+            ShowErrorDialog(m.top, "Connection Error", "Unable to reach server. Please check your network.")
+        else
+            ShowErrorDialog(m.top, "Session Expired", "Your session has expired. Please log in again.")
+        end if
         ShowLogin()
     end if
 end sub
