@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @copyright 2026 Joe Huss <detain@interserver.net> -->
+<!-- @license   MIT -->
+
+<!-- components/PosterMetaTask.xml -->
+
+<!-- PosterMetaTask — fetches image dimensions (width, height, aspect ratio) for a
+     batch of poster URLs off the render thread using roBitmap. This prevents
+     synchronous image decoding during scroll which would otherwise cause frame drops.
+
+     Thread rule: this function runs on the task thread; it may ONLY read its own
+     m.top.urls and write m.top.results. It must NOT touch UI/parent nodes. -->
+<component name="PosterMetaTask" extends="Task">
+    <interface>
+        <!-- Array of poster URL strings to fetch metadata for -->
+        <field id="urls" type="string" />
+        <!-- Results array: [{url, width, height, aspectRatio, ok}, ...] -->
+        <field id="results" type="assocarray" alwaysNotify="true" />
+    </interface>
+
+    <!-- Transitive closure: Task scope does NOT auto-include pkg:/source -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/components/PosterMetaTask.brs" />
+</component>
