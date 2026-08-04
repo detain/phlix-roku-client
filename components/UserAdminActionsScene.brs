@@ -209,7 +209,8 @@ end sub
 
 ' Read the message-or-error key from an action response (LANDMINE: an {error}
 ' body still arrives with result.ok = TRUE). Prefer message (success), else
-' error (failure), else a generic depending on resp.ok.
+' error (failure), else resp.error (transport/API error), else a generic
+' depending on resp.ok.
 function MessageOf(resp as Object) as String
     if resp <> invalid and resp.data <> invalid then
         if resp.data.DoesExist("message") and resp.data.message <> invalid and resp.data.message <> "" then
@@ -221,6 +222,7 @@ function MessageOf(resp as Object) as String
     end if
 
     if resp <> invalid and resp.ok then return "Done"
+    if resp <> invalid and resp.error <> invalid and resp.error <> "" then return resp.error
     return "Request failed"
 end function
 

@@ -34,9 +34,15 @@ function DeriveResponseOk(data as Object) as Boolean
     ' Wrapped helper: data is the full envelope from request() with .ok field
     if type(data) = "roAssociativeArray" and data.DoesExist("ok") then
         if data.ok = false then return false
-        ' HTTP ok - now check for API-level {success: false} in data.data
-        if type(data.data) = "roAssociativeArray" and data.data.DoesExist("success") then
-            return (data.data.success <> false)
+        ' HTTP ok - now check for API-level {success: false} OR {error: ...} in data.data
+        if type(data.data) = "roAssociativeArray" then
+            if data.data.DoesExist("success") then
+                return (data.data.success <> false)
+            end if
+            ' Admin actions return {error: "..."} on failure (no success key)
+            if data.data.DoesExist("error") and data.data.error <> invalid and data.data.error <> "" then
+                return false
+            end if
         end if
         return true
     end if

@@ -146,7 +146,7 @@ sub OnApiResponse(event as Object)
             ' already cleared above, so this is a fresh serialized call).
             RefreshStatus()
         else
-            SetStatus("Request failed")
+            SetStatus(MessageOf(resp))
         end if
     end if
 end sub
@@ -181,6 +181,24 @@ function ScanStatusSummary(job as Object) as String
     end for
 
     return summary
+end function
+
+' Read the message-or-error key from an action response. Prefer message
+' (success), else error (failure), else resp.error (transport/API error),
+' else a generic depending on resp.ok.
+function MessageOf(resp as Object) as String
+    if resp <> invalid and resp.data <> invalid then
+        if resp.data.DoesExist("message") and resp.data.message <> invalid and resp.data.message <> "" then
+            return resp.data.message
+        end if
+        if resp.data.DoesExist("error") and resp.data.error <> invalid and resp.data.error <> "" then
+            return resp.data.error
+        end if
+    end if
+
+    if resp <> invalid and resp.ok then return "Job queued"
+    if resp <> invalid and resp.error <> invalid and resp.error <> "" then return resp.error
+    return "Request failed"
 end function
 
 sub SetStatus(text as String)
