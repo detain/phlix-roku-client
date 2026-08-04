@@ -186,11 +186,6 @@ function CreatePosterContent(item as Object) as Object
     return content
 end function
 
-' Sleep for specified milliseconds
-function SleepMs(milliseconds as Integer)
-    sleep(milliseconds)
-end function
-
 ' Generate random ID
 function GenerateRandomId() as String
     return str(Rnd(999999999)).trim() + "-" + str(Rnd(999999999)).trim()
@@ -251,11 +246,54 @@ function SecondsToTicks(seconds as Double) as LongInteger
     return seconds * 10000000.0
 end function
 
-' Show an error to the user. Placeholder logging implementation; the player /
-' detail slices replace this with a proper SceneGraph Dialog.
-' @param message String - the error message
-sub ShowErrorDialog(message as String)
-    print "Error: " + message
+' Show a SceneGraph Dialog node attached to the given scene.
+' Supports two shapes:
+'   - Info dialog: one button ("OK") — just dismisses.
+'   - Retry dialog: two buttons ("Retry", "Cancel") — callback is called with
+'     button index (0 = Retry, 1 = Cancel) so the caller can retry the failed op.
+' @param scene Object - the scene to attach the dialog to (m.top of the scene)
+' @param title String - dialog title
+' @param message String - dialog message
+' @param buttons Object - optional array of button labels (default ["OK"])
+' @param callback Function - optional(buttonIndex as Integer) callback for retry dialogs
+sub ShowErrorDialog(scene as Object, title as String, message as String, buttons = ["OK"] as Object, callback = invalid as Function)
+    if scene = invalid then return
+    if buttons = invalid or (type(buttons) = "roArray" and buttons.Count() = 0) then buttons = ["OK"]
+
+    dialog = CreateObject("roSGNode", "Dialog")
+    dialog.title = title
+    dialog.message = message
+    dialog.buttons = buttons
+
+    ' Store callback on the dialog node so observers can invoke it.
+    if callback <> invalid then
+        dialog.observeField("buttonSelected", "OnDialogButtonSelected")
+        dialog.callback = callback
+    end if
+
+    dialog.observeField("wasClosed", "OnDialogClosed")
+    scene.dialog = dialog
+end sub
+
+' Observer handler for dialog buttonSelected — fires when user presses a button.
+' Invokes the stored callback with the button index, then clears the dialog reference.
+sub OnDialogButtonSelected(event as Object)
+    dialog = event.GetNode()
+    index = event.GetData()
+    if dialog.callback <> invalid then
+        dialog.callback(index)
+    end if
+    dialog.Close = true
+end sub
+
+' Observer handler for dialog wasClosed — fires when user dismisses via Back.
+' Clears the dialog reference from the scene without invoking any callback.
+sub OnDialogClosed(event as Object)
+    dialog = event.GetNode()
+    ' wasClosed fires after any button press too; guard to avoid double-close.
+    if dialog.Close <> true then
+        dialog.Close = true
+    end if
 end sub
 
 ' Coerce a media-item's numeric sort key to an Integer, mapping invalid/missing

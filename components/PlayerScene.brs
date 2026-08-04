@@ -273,7 +273,7 @@ sub Show(itemId as String, args as Object)
     streamUrl = invalid
     if m.item <> invalid then streamUrl = m.item.stream_url
     if streamUrl = invalid or streamUrl = "" then
-        ShowErrorDialog("No stream URL available")
+        ShowErrorDialog(m.top, "Error", "No stream URL available")
         return
     end if
 
@@ -324,7 +324,7 @@ sub OnPlayerStateChange(event as Object)
             m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
             m.apiTask.control = "run"
         else
-            ShowErrorDialog("Playback failed. Please try again.")
+            ShowErrorDialog(m.top, "Error", "Playback failed. Please try again.", ["Retry", "Cancel"], OnPlaybackRetry)
         end if
     else if state = "playing" then
         m.isPlaying = true
@@ -369,7 +369,7 @@ sub OnApiResponse(event as Object)
 
     if resp.op = "startTranscode" then
         if not resp.ok or resp.data = invalid then
-            ShowErrorDialog("Could not start transcode.")
+            ShowErrorDialog(m.top, "Error", "Could not start transcode.", ["Retry", "Cancel"], OnStartTranscodeRetry)
             return
         end if
         data = resp.data
@@ -397,13 +397,13 @@ sub OnTranscodePollResponse(event as Object)
         PlayPreferredOrMaster()
     else if data.status = "failed" then
         stopTranscodePollTimer()
-        ShowErrorDialog("Transcode failed.")
+        ShowErrorDialog(m.top, "Error", "Transcode failed.", ["Retry", "Cancel"], OnTranscodeFailedRetry)
     end if
 end sub
 
 sub PlayHls(url as Object)
     if url = invalid or url = "" then
-        ShowErrorDialog("Transcode produced no stream URL.")
+        ShowErrorDialog(m.top, "Error", "Transcode produced no stream URL.", ["Retry", "Cancel"], OnTranscodeNoStreamRetry)
         return
     end if
 
@@ -868,7 +868,7 @@ sub OnTranscodePollFire()
     m.transcodePollCount = m.transcodePollCount + 1
     if m.transcodePollCount > 30 then
         stopTranscodePollTimer()
-        ShowErrorDialog("Transcode timed out. Please try again.")
+        ShowErrorDialog(m.top, "Error", "Transcode timed out. Please try again.", ["Retry", "Cancel"], OnTranscodeTimeoutRetry)
         return
     end if
 
@@ -1068,7 +1068,7 @@ sub ToggleSyncPanel()
 
     ' Hub mode: no WS relay path (hub SP1 pending) -> disabled with a message.
     if GetConnectionKind() = "hub" then
-        ShowErrorDialog("Watch Together isn't available in hub mode yet")
+        ShowErrorDialog(m.top, "Notice", "Watch Together isn't available in hub mode yet")
         return
     end if
 
@@ -1754,13 +1754,13 @@ sub ToggleChapterPicker()
 
     ' Chapters come from playbackInfo.chapters: [{start_seconds, end_seconds, title}, ...]
     if m.playbackInfo = invalid or m.playbackInfo.chapters = invalid then
-        ShowErrorDialog("No chapters available for this content")
+        ShowErrorDialog(m.top, "Notice", "No chapters available for this content")
         return
     end if
 
     chapters = m.playbackInfo.chapters
     if type(chapters) <> "roArray" or chapters.Count() = 0 then
-        ShowErrorDialog("No chapters available for this content")
+        ShowErrorDialog(m.top, "Notice", "No chapters available for this content")
         return
     end if
 
@@ -2162,4 +2162,52 @@ end sub
 ' Handle PiP exit button press inside the PiP overlay.
 sub OnPipExitPressed()
     ExitPipMode()
+end sub
+
+' =========================================================== '
+' Dialog retry callbacks                                        '
+' =========================================================== '
+
+' Retry callback: re-attempt transcode after a playback error.
+sub OnPlaybackRetry(index as Integer)
+    if index <> 0 then return
+    if m.item = invalid or m.itemId = invalid then return
+    m.transcodeAttempted = true
+    if m.titleLabel <> invalid then
+        m.titleLabel.text = m.item.name + " (Preparing...)"
+    end if
+    m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
+    m.apiTask.control = "run"
+end sub
+
+' Retry callback: re-fire the startTranscode request after it failed.
+sub OnStartTranscodeRetry(index as Integer)
+    if index <> 0 then return
+    if m.itemId = invalid then return
+    m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
+    m.apiTask.control = "run"
+end sub
+
+' Retry callback: restart transcode job after it reported failed.
+sub OnTranscodeFailedRetry(index as Integer)
+    if index <> 0 then return
+    if m.itemId = invalid then return
+    m.transcodeJobId = invalid
+    m.transcodePollCount = 0
+    m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
+    m.apiTask.control = "run"
+end sub
+
+' Retry callback: re-invoke PlayPreferredOrMaster using the stored master URL.
+sub OnTranscodeNoStreamRetry(index as Integer)
+    if index <> 0 then return
+    PlayPreferredOrMaster()
+end sub
+
+' Retry callback: reset poll count and restart transcode polling.
+sub OnTranscodeTimeoutRetry(index as Integer)
+    if index <> 0 then return
+    if m.transcodeJobId = invalid or m.transcodeJobId = "" then return
+    m.transcodePollCount = 0
+    startTranscodePollTimer()
 end sub
