@@ -23,8 +23,8 @@ sub Init()
     m.createButton = m.top.FindNode("createButton")
     m.roomList = m.top.FindNode("roomList")
     m.statusLabel = m.top.FindNode("statusLabel")
-    m.currentRoomName = m.top.FindNode("currentRoomName")
-    m.roomStatus = m.top.FindNode("roomStatus")
+    m.currentGroupName = m.top.FindNode("currentRoomName")
+    m.groupStatus = m.top.FindNode("roomStatus")
     m.memberList = m.top.FindNode("memberList")
     m.syncStatusLabel = m.top.FindNode("syncStatusLabel")
     m.leaveButton = m.top.FindNode("leaveButton")
@@ -40,7 +40,7 @@ sub Init()
         m.leaveButton.ObserveField("buttonSelected", "OnLeavePressed")
     end if
     if m.roomList <> invalid then
-        m.roomList.ObserveField("itemSelected", "OnRoomSelected")
+        m.roomList.ObserveField("itemSelected", "OnGroupSelected")
     end if
 
     ' Initialize SyncPlayManager
@@ -72,17 +72,17 @@ sub PopulateRoomList()
     content = CreateObject("roSGNode", "ContentNode")
     for each room in m.rooms
         if room <> invalid then
-            content.AddChild({ title: RoomCaption(room) })
+            content.AddChild({ title: GroupCaption(room) })
         end if
     end for
     m.roomList.content = content
 end sub
 
-' Caption for a room row: "<name> (<n> members) [public/private]"
-function RoomCaption(room as Object) as String
+' Caption for a group row: "<name> (<n> members) [public/private]"
+function GroupCaption(room as Object) as String
     if room = invalid then return ""
 
-    name = "Room"
+    name = "Group"
     if room.DoesExist("name") and type(room.name) = "roString" and room.name <> "" then
         name = room.name
     else if room.DoesExist("roomName") and type(room.roomName) = "roString" and room.roomName <> "" then
@@ -134,8 +134,8 @@ sub OnCreatePressed()
     m.top.action = "created:" + session.roomId
 end sub
 
-' Join selected room from list
-sub OnRoomSelected(event as Object)
+' Join selected group from list
+sub OnGroupSelected(event as Object)
     index = event.getData()
     if index = invalid then return
     if index < 0 or index >= m.rooms.Count() then return
@@ -186,7 +186,7 @@ end sub
 ' Back button pressed
 sub OnBackPressed()
     ' If in a group, leave first
-    if m.syncMgr.isInRoom() then
+    if m.syncMgr.isInGroup() then
         m.syncMgr.leaveGroup()
     end if
 
@@ -206,17 +206,17 @@ sub ShowRoomInfoPanel()
     if m.roomInfoPanel <> invalid then m.roomInfoPanel.visible = true
     if m.leaveButton <> invalid then m.leaveButton.SetFocus(true)
 
-    ' Update room info display
-    if m.currentRoomName <> invalid then
-        m.currentRoomName.text = m.syncMgr.getRoomName()
+    ' Update group info display
+    if m.currentGroupName <> invalid then
+        m.currentGroupName.text = m.syncMgr.getGroupName()
     end if
-    if m.roomStatus <> invalid then
+    if m.groupStatus <> invalid then
         role = "Guest"
         if m.syncMgr.isHost() then role = "Host"
-        m.roomStatus.text = role + " - " + str(m.syncMgr.getMemberCount()).Trim() + " members"
+        m.groupStatus.text = role + " - " + str(m.syncMgr.getMemberCount()).Trim() + " members"
     end if
     if m.syncStatusLabel <> invalid then
-        m.syncStatusLabel.text = "Connected to room"
+        m.syncStatusLabel.text = "Connected to group"
     end if
 end sub
 

@@ -73,12 +73,12 @@ sub TestSyncPlayManagerLeaveGroupWithNoSession()
     print "TestSyncPlayManagerLeaveGroupWithNoSession passed"
 end sub
 
-sub TestSyncPlayManagerIsInRoom()
-    ' Test isInRoom returns false initially
+sub TestSyncPlayManagerIsInGroup()
+    ' Test isInGroup returns false initially
     api = ApiClient("http://localhost:8096")
     mgr = SyncPlayManager(api)
-    assertFalse(mgr.isInRoom())
-    print "TestSyncPlayManagerIsInRoom passed"
+    assertFalse(mgr.isInGroup())
+    print "TestSyncPlayManagerIsInGroup passed"
 end sub
 
 sub TestSyncPlayManagerIsHostWhenNoSession()
@@ -89,12 +89,12 @@ sub TestSyncPlayManagerIsHostWhenNoSession()
     print "TestSyncPlayManagerIsHostWhenNoSession passed"
 end sub
 
-sub TestSyncPlayManagerGetRoomIdWhenNoSession()
-    ' Test getRoomId returns empty string when no session
+sub TestSyncPlayManagerGetGroupIdWhenNoSession()
+    ' Test getGroupId returns empty string when no session
     api = ApiClient("http://localhost:8096")
     mgr = SyncPlayManager(api)
-    assertEqual(mgr.getRoomId(), "")
-    print "TestSyncPlayManagerGetRoomIdWhenNoSession passed"
+    assertEqual(mgr.getGroupId(), "")
+    print "TestSyncPlayManagerGetGroupIdWhenNoSession passed"
 end sub
 
 sub TestSyncPlayManagerGetSessionIdWhenNoSession()
@@ -113,12 +113,12 @@ sub TestSyncPlayManagerGetServerUrlWhenNoSession()
     print "TestSyncPlayManagerGetServerUrlWhenNoSession passed"
 end sub
 
-sub TestSyncPlayManagerGetRoomNameWhenNoSession()
-    ' Test getRoomName returns empty string when no session
+sub TestSyncPlayManagerGetGroupNameWhenNoSession()
+    ' Test getGroupName returns empty string when no session
     api = ApiClient("http://localhost:8096")
     mgr = SyncPlayManager(api)
-    assertEqual(mgr.getRoomName(), "")
-    print "TestSyncPlayManagerGetRoomNameWhenNoSession passed"
+    assertEqual(mgr.getGroupName(), "")
+    print "TestSyncPlayManagerGetGroupNameWhenNoSession passed"
 end sub
 
 sub TestSyncPlayManagerGetMemberCountWhenNoSession()

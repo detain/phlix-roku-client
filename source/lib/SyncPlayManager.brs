@@ -164,8 +164,8 @@ function SyncPlayManager(api as Object) as Object
             return m._session
         end function
 
-        ' True if currently in a SyncPlay room.
-        isInRoom: function() as Boolean
+        ' True if currently in a SyncPlay group.
+        isInGroup: function() as Boolean
             return m._session <> invalid
         end function
 
@@ -175,8 +175,8 @@ function SyncPlayManager(api as Object) as Object
             return m._session.isHost
         end function
 
-        ' Get the room ID of the current session.
-        getRoomId: function() as String
+        ' Get the group ID of the current session.
+        getGroupId: function() as String
             if m._session = invalid then return ""
             return m._session.roomId
         end function
@@ -193,8 +193,8 @@ function SyncPlayManager(api as Object) as Object
             return m._session.serverUrl
         end function
 
-        ' Get the room name.
-        getRoomName: function() as String
+        ' Get the group name.
+        getGroupName: function() as String
             if m._session = invalid then return ""
             return m._session.roomName
         end function
