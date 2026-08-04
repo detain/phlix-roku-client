@@ -13,7 +13,7 @@
 <component name="PosterMetaTask" extends="Task">
     <interface>
         <!-- Array of poster URL strings to fetch metadata for -->
-        <field id="urls" type="string" />
+        <field id="urls" type="stringarray" />
         <!-- Results array: [{url, width, height, aspectRatio, ok}, ...] -->
         <field id="results" type="assocarray" alwaysNotify="true" />
     </interface>
