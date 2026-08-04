@@ -201,8 +201,10 @@ function ApiClient(baseUrl as String) as Object
 
         ' High-level request. Sends the request and, on a 401 with a refresh
         ' token available, refreshes the access token and retries once. On a
-        ' failed refresh the tokens are cleared. Returns the parsed JSON body
-        ' (or invalid).
+        ' failed refresh the tokens are cleared. Returns a structured result:
+        ' { status: Integer, ok: Boolean, data: Object, error: String }
+        ' ok is true when status is 200-299. Transport failures produce
+        ' ok=false, status=0, and a non-empty error string.
         request: function(method as String, path as String, body as Object) as Object
             raw = m.sendRaw(method, path, body)
 
@@ -217,7 +219,28 @@ function ApiClient(baseUrl as String) as Object
                 end if
             end if
 
-            return raw.json
+            status = raw.code
+            ok = (status >= 200 and status <= 299)
+            data = raw.json
+            error = ""
+
+            ' Transport failure: code=0 with no body means the request never
+            ' got a HTTP response. Distinguish timeout vs connect failure.
+            if status = 0 then
+                ok = false
+                ' raw.json = invalid means AsyncGetToString/AsyncPostFromString
+                ' failed to start (connect error). If it started but timed out,
+                ' we already called AsyncCancel and the body is also invalid,
+                ' so we use a single "connect" label for both transport failures.
+                error = "connect"
+            end if
+
+            return {
+                status: status,
+                ok: ok,
+                data: data,
+                error: error
+            }
         end function
 
         ' ---------------------------------------------------------------------

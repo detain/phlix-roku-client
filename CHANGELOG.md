@@ -5,6 +5,34 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — User-visible error dialogs replace print-only ShowErrorDialog (R3.1)
+
+**Users see errors instead of silent failures.** The channel previously printed
+every error to the telnet console — `"No stream URL available"`,
+`"Playback failed"`, `"Could not start transcode"`, `"Transcode failed"`,
+`"Transcode timed out"`, `"No chapters available"`, and
+`"Watch Together isn't available in hub mode yet"` — on a console no user
+has access to. All error paths now surface a real `Dialog` node.
+
+**`source/lib/Utilities.brs`** — `ShowErrorDialog` rewritten:
+- **Signature:** `sub ShowErrorDialog(scene, title, message, buttons=["OK"], callback=invalid)`
+  — scene must be passed explicitly so the dialog attaches to the right node tree.
+- **Real Dialog node** — created via `CreateObject("roSGNode", "Dialog")`, set with
+  `title`, `message`, and `buttons`, and attached via `scene.dialog = dialog`.
+- **Observes `buttonSelected`** and `wasClosed` for dismissal handling.
+- **Two shapes:** *info* (single `"OK"` button) and *retry* (`"Retry"` + `"Cancel"`).
+- **Focus discipline** — Dialog node takes focus when attached; `SetFocus(true)` restores
+  focus to the previously-active node on dismiss.
+
+**`components/PlayerScene.brs`** — all 9 call sites updated; 5 retry callback
+handlers added (`OnPlaybackRetry`, `OnStartTranscodeRetry`,
+`OnTranscodeFailedRetry`, `OnTranscodeNoStreamRetry`, `OnTranscodeTimeoutRetry`).
+
+**`SleepMs` deleted** — it wrapped blocking `sleep()` on the render thread, was
+unused, and was flagged in the audit as a hazard.
+
+**`print "Error:"` eliminated** — zero `print` error output remains in any call path.
+
 ### Fixed — Storage caching: 149→7 NVRAM reads per 60-second playback (R1.6)
 
 **NVRAM read reduction.** Before R1.6, a 60-second playback session caused **149 NVRAM
