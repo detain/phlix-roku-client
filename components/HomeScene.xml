@@ -72,6 +72,10 @@
                    color="#AAAAAA"
                    id="descriptionLabel" />
         </Rectangle>
+        <!-- Loading Indicator -->
+        <Label id="loadingLabel" text="Loading..."
+               translation="[640, 340]"
+               horizAlign="center" color="#888888" visible="false" />
     </children>
 </component>
 

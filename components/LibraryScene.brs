@@ -18,6 +18,7 @@ sub Init()
     m.backButton = m.top.FindNode("backButton")
     m.titleLabel = m.top.FindNode("titleLabel")
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
+    m.loadingLabel = m.top.FindNode("loadingLabel")
 
     if m.backButton <> invalid then
         m.backButton.ObserveField("buttonSelected", "OnBackPressed")
@@ -44,6 +45,11 @@ end sub
 sub RefreshItems()
     if m.libraryId = "" then return
 
+    ' Show loading indicator while data loads off the render thread.
+    if m.loadingLabel <> invalid then
+        m.loadingLabel.visible = true
+    end if
+
     m.apiTask.request = {
         op: "getLibraryItems"
         libraryId: m.libraryId
@@ -57,6 +63,11 @@ sub OnApiResponse(event as Object)
     if resp = invalid then return
 
     if resp.op = "getLibraryItems" then
+        ' Hide loading indicator.
+        if m.loadingLabel <> invalid then
+            m.loadingLabel.visible = false
+        end if
+
         if not resp.ok or resp.data = invalid or resp.data.items = invalid then return
 
         m.items = resp.data.items

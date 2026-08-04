@@ -42,6 +42,7 @@ sub Init()
     end if
     m.titleLabel = m.top.FindNode("titleLabel")
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
+    m.loadingLabel = m.top.FindNode("loadingLabel")
 
     ' Route all data access through the ApiTask node (off the render thread).
     m.apiTask = CreateObject("roSGNode", "ApiTask")
@@ -64,6 +65,11 @@ sub LoadCollection(collectionId as String, collectionName as String)
 
     if m.collectionId = "" then return
 
+    ' Show loading indicator while data loads off the render thread.
+    if m.loadingLabel <> invalid then
+        m.loadingLabel.visible = true
+    end if
+
     m.apiTask.request = { op: "getCollection", collectionId: m.collectionId }
     m.apiTask.control = "run"
 end sub
@@ -73,6 +79,11 @@ sub OnApiResponse(event as Object)
     if resp = invalid then return
 
     if resp.op = "getCollection" then
+        ' Hide loading indicator.
+        if m.loadingLabel <> invalid then
+            m.loadingLabel.visible = false
+        end if
+
         if not resp.ok or resp.data = invalid or resp.data.items = invalid or type(resp.data.items) <> "roArray" then
             m.items = []
             if m.itemsGrid <> invalid then

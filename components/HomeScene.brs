@@ -53,6 +53,7 @@ sub Init()
     end if
 
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
+    m.loadingLabel = m.top.FindNode("loadingLabel")
 
     ' Route all data access through a SINGLE observed ApiTask node (off the
     ' render thread). Every op is serialized through this one task so two
@@ -79,6 +80,11 @@ end sub
 ' Fetch the current user (GET /auth/me). The response gates the admin button and
 ' then continues the original chain (libraries -> continue-watching).
 sub LoadMe()
+    ' Show loading indicator while data loads off the render thread.
+    if m.loadingLabel <> invalid then
+        m.loadingLabel.visible = true
+    end if
+
     m.apiTask.request = { op: "getMe" }
     m.apiTask.control = "run"
 end sub
@@ -136,6 +142,11 @@ end sub
 ' getMe response: gate the admin button via IsAdminUser, then continue the
 ' original load chain (libraries -> continue-watching) regardless of admin state.
 sub OnMeResponse(resp as Object)
+    ' Hide loading indicator.
+    if m.loadingLabel <> invalid then
+        m.loadingLabel.visible = false
+    end if
+
     if resp.ok and resp.data <> invalid then
         m.isAdmin = IsAdminUser(resp.data)
         if m.isAdmin and m.adminButton <> invalid then m.adminButton.visible = true

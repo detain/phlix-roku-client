@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @copyright 2026 Joe Huss <detain@interserver.net> -->
+<!-- @license   MIT -->
+
+<!-- components/ListTask.xml -->
+
+<!-- ListTask — unified async list loader for Live TV data.
+     Replaces GuideTask, RecordingsListTask, and ChannelListTask with a single
+     Task that dispatches based on the `op` field.
+
+     Supported ops:
+       getGuide       -> /admin/livetv/guide     -> m.top.items = programs array
+       getRecordings  -> /admin/livetv/recordings -> m.top.items = recordings array
+       getChannels    -> /admin/livetv/channels  -> m.top.items = channels array
+
+     Each op builds a ready-to-assign ContentNode with row captions and sets
+     m.top.ok = true on success. All work happens off the render thread.
+
+     Thread rule: this function runs on the task thread; it may ONLY read its
+     own m.top.op/fields and write m.top.content/items/ok. It must NOT touch
+     UI/parent nodes. Only assocarray/string/number/node data crosses the
+     thread boundary. -->
+<component name="ListTask" extends="Task">
+    <interface>
+        <!-- Operation: "getGuide" | "getRecordings" | "getChannels" -->
+        <field id="op" type="string" />
+        <!-- Built ContentNode with rows (assign directly to labelList.content) -->
+        <field id="content" type="node" alwaysNotify="true" />
+        <!-- Raw items array (programs/recordings/channels) for scene navigation -->
+        <field id="items" type="stringarray" alwaysNotify="true" />
+        <!-- Boolean success flag -->
+        <field id="ok" type="boolean" alwaysNotify="true" />
+    </interface>
+
+    <!-- Transitive closure: Task scope does NOT auto-include pkg:/source.
+         GetApiClient needs Storage + Utilities + ApiClient + AppContext. -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/ListTask.brs" />
+</component>

@@ -8,16 +8,16 @@
 
 '
 ' TV Guide list: a one-shot LabelList of upcoming live-TV programs. Uses
-' GuideTask (extends Task) which fetches AND builds the ContentNode on its own
+' ListTask (extends Task) which fetches AND builds the ContentNode on its own
 ' thread — the scene receives a ready-to-assign ContentNode plus the raw
 ' programs array for navigation. This keeps the render thread free.
 '
 ' Data flow:
-'   Init() -> GuideTask.control = "run"
-'   GuideTask (task thread) -> api.getGuide() + ContentNode build
-'   GuideTask.content -> OnGuideContent() -> programList.content = content
-'   GuideTask.programs -> OnGuidePrograms() -> m.programs = programs
-'   GuideTask.ok -> OnGuideOk() -> SetStatus("")
+'   Init() -> ListTask.op = "getGuide" : ListTask.control = "run"
+'   ListTask (task thread) -> api.getGuide() + ContentNode build
+'   ListTask.content -> OnGuideContent() -> programList.content = content
+'   ListTask.items -> OnGuidePrograms() -> m.items = programs
+'   ListTask.ok -> OnGuideOk() -> SetStatus("")
 '
 ' This is a READ-ONLY admin view: selecting a row is inert (guide programs are
 ' not playable, no second op). AdminScene self-creates + focuses this scene, so
@@ -36,19 +36,20 @@
 
     m.statusLabel = m.top.FindNode("statusLabel")
 
-    ' Route all data access through the GuideTask node (off the render thread).
-    ' GuideTask fetches AND builds the ContentNode on its own thread, then
+    ' Route all data access through the ListTask node (off the render thread).
+    ' ListTask fetches AND builds the ContentNode on its own thread, then
     ' ships the ready-to-assign content + raw programs array to this scene.
-    m.guideTask = CreateObject("roSGNode", "GuideTask")
+    m.guideTask = CreateObject("roSGNode", "ListTask")
     m.guideTask.ObserveField("content", "OnGuideContent")
-    m.guideTask.ObserveField("programs", "OnGuidePrograms")
+    m.guideTask.ObserveField("items", "OnGuidePrograms")
     m.guideTask.ObserveField("ok", "OnGuideOk")
 
-    m.programs = []
+    m.items = []
 
     SetStatus("Loading…")
 
     ' One-shot load on Init (no query params = upcoming across all channels).
+    m.guideTask.op = "getGuide"
     m.guideTask.control = "run"
 end sub
 
@@ -62,14 +63,14 @@ end sub
 
 ' Raw programs array arrived — store for navigation (itemFocused uses it).
 sub OnGuidePrograms(event as Object)
-    m.programs = event.getData()
+    m.items = event.getData()
 end sub
 
 ' Success flag arrived — update status text.
 sub OnGuideOk(event as Object)
     ok = event.getData()
     if ok then
-        if m.programs.Count() = 0 then
+        if m.items.Count() = 0 then
             SetStatus("No programs")
         else
             SetStatus("")
@@ -110,9 +111,9 @@ end sub
 sub OnRowFocused(event as Object)
     index = event.getData()
     if index = invalid then return
-    if index < 0 or index >= m.programs.Count() then return
+    if index < 0 or index >= m.items.Count() then return
 
-    program = m.programs[index]
+    program = m.items[index]
     if program = invalid then return
 
     SetStatus(ProgramRowCaption(program))
@@ -132,7 +133,7 @@ sub Teardown()
     end if
     if m.guideTask <> invalid then
         m.guideTask.UnObserveField("content")
-        m.guideTask.UnObserveField("programs")
+        m.guideTask.UnObserveField("items")
         m.guideTask.UnObserveField("ok")
     end if
 end sub

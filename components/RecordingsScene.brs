@@ -6,17 +6,17 @@
 '
 '
 ' Recordings list: a one-shot LabelList of the server's live-TV recordings.
-' Uses RecordingsListTask (extends Task) to fetch AND build the ContentNode off
-' the render thread, so the UI never blocks while loading. The Task fires once
-' on Init via RecordingsListTask.control = "run" (no status filter = all).
+' Uses ListTask (extends Task) to fetch AND build the ContentNode off the render
+' thread, so the UI never blocks while loading. The Task fires once on Init via
+' ListTask.op = "getRecordings" : ListTask.control = "run".
 ' This is a READ-ONLY admin view: selecting a row is inert (recordings have no
 ' scouted playback route, no second op). AdminScene self-creates + focuses this
 ' scene, so it has NO <interface>.
 '
 ' NOTE: getRecordings() returns the WHOLE envelope {success,recordings:[...]}
-' (admin getters do not unwrap). RecordingsListTask checks resp.data.recordings
-' DoesExist AND type = "roArray"; the key's absence = Live TV unavailable /
-' not configured (routes 404, or a non-admin 403/JSON {error} body).
+' (admin getters do not unwrap). ListTask checks data.recordings DoesExist AND
+' type = "roArray"; the key's absence = Live TV unavailable / not configured
+' (routes 404, or a non-admin 403/JSON {error} body).
 
 sub Init()
     m.top.SetFocus(true)
@@ -31,12 +31,12 @@ sub Init()
 
     m.statusLabel = m.top.FindNode("statusLabel")
 
-    ' Route all data access through the RecordingsListTask node (off the render thread).
+    ' Route all data access through the ListTask node (off the render thread).
     ' This Task fetches AND builds the ContentNode on its own thread, so the
     ' render thread never blocks while loading.
-    m.recordingsTask = CreateObject("roSGNode", "RecordingsListTask")
+    m.recordingsTask = CreateObject("roSGNode", "ListTask")
     m.recordingsTask.ObserveField("content", "OnRecordingsContentChanged")
-    m.recordingsTask.ObserveField("recordings", "OnRecordingsDataChanged")
+    m.recordingsTask.ObserveField("items", "OnRecordingsDataChanged")
     m.recordingsTask.ObserveField("ok", "OnRecordingsDataChanged")
 
     m.recordings = []
@@ -44,6 +44,7 @@ sub Init()
     SetStatus("Loading…")
 
     ' One-shot load on Init (no status filter = all recordings).
+    m.recordingsTask.op = "getRecordings"
     m.recordingsTask.control = "run"
 end sub
 
@@ -57,7 +58,7 @@ end sub
 
 ' Raw recordings array from the Task + ok flag - update state and status.
 sub OnRecordingsDataChanged(event as Object)
-    if event.getField() = "recordings" then
+    if event.getField() = "items" then
         recordings = event.getData()
         if recordings <> invalid then
             m.recordings = recordings
@@ -144,7 +145,7 @@ sub Teardown()
     end if
     if m.recordingsTask <> invalid then
         m.recordingsTask.UnObserveField("content")
-        m.recordingsTask.UnObserveField("recordings")
+        m.recordingsTask.UnObserveField("items")
         m.recordingsTask.UnObserveField("ok")
     end if
 end sub
