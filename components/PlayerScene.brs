@@ -1505,13 +1505,18 @@ sub ToggleQualityPanel()
     m.qualityPanelOpen = true
     if m.qualityPanel <> invalid then m.qualityPanel.visible = true
 
+    ' R1.6: Read preferred_quality ONCE before the loop instead of per-row.
+    ' This collapses N registry reads (N = variant count + 1) into a single read.
+    prefQuality = GetStorage().get("preferred_quality")
+    if prefQuality = invalid or prefQuality = "" then prefQuality = "auto"
+
     m.qualityIds = ["auto"]
     content = CreateObject("roSGNode", "ContentNode")
-    content.AddChild({ title: QualityRowCaption("auto", "Auto") })
+    content.AddChild({ title: QualityRowCaption("auto", "Auto", prefQuality) })
     for each v in m.variants
         if v <> invalid then
             m.qualityIds.Push(v.id)
-            content.AddChild({ title: QualityRowCaption(v.id, v.label) })
+            content.AddChild({ title: QualityRowCaption(v.id, v.label, prefQuality) })
         end if
     end for
     if m.qualityList <> invalid then m.qualityList.content = content
@@ -1531,11 +1536,13 @@ sub CloseQualityPanel()
     m.top.SetFocus(true)
 end sub
 
-' Caption for a row; the currently-persisted preference is marked "(current)".
+' Caption for a row; the already-read preferred_quality is passed in so
+' we don't hit the registry per row. The current preference is marked "(current)".
 ' (Plain text - the Roku system font has no reliable check-mark glyph.)
-function QualityRowCaption(id as String, label as String) as String
-    pref = GetStorage().get("preferred_quality")
-    if pref = invalid or pref = "" then pref = "auto"
+' @param id String - the quality rung id (e.g. "auto", "1080p", "720p")
+' @param label String - display label for this rung
+' @param pref String - the persisted preferred_quality value (already read once)
+function QualityRowCaption(id as String, label as String, pref as String) as String
     if id = pref then return label + "  (current)"
     return label
 end function
@@ -1550,6 +1557,7 @@ sub OnQualitySelected(event as Object)
     id = m.qualityIds[index]
 
     GetStorage().set("preferred_quality", id)
+    GetStorage().flush()  ' R1.6: batched flush after deliberate user choice
 
     ' Resolve the target stream url first so the (live) content swap happens
     ' exactly once. Auto -> the multi-variant master; a pinned rung -> its own
@@ -1841,6 +1849,7 @@ sub OnAudioTrackSelected(index as Integer)
     id = m.audioTrackIds[index]
 
     GetStorage().set("preferred_audio_track", id)
+    GetStorage().flush()  ' R1.6: batched flush after user preference change
     m.selectedAudioTrackId = id
 
     ' BrightScript/Roku Video node does not expose per-track audio selection
@@ -1858,6 +1867,7 @@ sub OnSubtitleTrackSelected(index as Integer)
     id = m.subtitleTrackIds[index]
 
     GetStorage().set("preferred_subtitle_track", id)
+    GetStorage().flush()  ' R1.6: batched flush after user preference change
     m.selectedSubtitleTrackId = id
 
     ' Apply subtitle track to the Video node.

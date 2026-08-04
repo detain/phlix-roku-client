@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @copyright 2026 Joe Huss <detain@interserver.net> -->
+<!-- @license   MIT -->
+
+<!-- components/EpisodeListTask.xml -->
+
+<!-- EpisodeListTask — loads episode/season list data off the render thread.
+     Fetches items via getLibraryItems, sorts by episode order, and builds a
+     ready-to-assign ContentNode — all on the task thread, not the render thread.
+
+     Thread rule: this function runs on the task thread; it may ONLY read its own
+     m.top.libraryId/parentId/itemType and write m.top.content/ok. -->
+<component name="EpisodeListTask" extends="Task">
+    <interface>
+        <!-- Library ID to query -->
+        <field id="libraryId" type="string" />
+        <!-- Parent ID (series or season) for direct-children mode -->
+        <field id="parentId" type="string" />
+        <!-- Item type: "series" (seasons+episodes) or "season" (episodes only) -->
+        <field id="itemType" type="string" />
+        <!-- Built ContentNode with sorted children (assign directly to postergrid.content) -->
+        <field id="content" type="node" alwaysNotify="true" />
+        <!-- Raw sorted items array for scene to use in navigation -->
+        <field id="items" type="stringarray" alwaysNotify="true" />
+        <!-- Boolean success flag -->
+        <field id="ok" type="boolean" alwaysNotify="true" />
+    </interface>
+
+    <!-- Transitive closure: Task scope does NOT auto-include pkg:/source.
+         GetApiClient needs Storage + Utilities + ApiClient + AppContext. -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/EpisodeListTask.brs" />
+</component>

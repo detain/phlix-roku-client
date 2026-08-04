@@ -93,6 +93,29 @@ sub LoadContinueWatching()
     m.apiTask.control = "run"
 end sub
 
+' ===========================================
+' Async row loaders — each creates its own dedicated Task node so the two
+' HTTP calls run in parallel (GET /libraries and GET /history/continue).
+' Both are launched from OnMeResponse after the getMe op completes.
+' m.apiTask stays reserved for serialized resume ops (getItem + playbackInfo).
+' ===========================================
+sub LoadLibrariesAsync()
+    ' Each call creates a fresh task node → runs on its own task thread.
+    ' No result tracking needed — the observer (OnLibrariesResponse) handles
+    ' the content assignment directly.
+    task = CreateObject("roSGNode", "ApiTask")
+    task.ObserveField("response", "OnLibrariesResponse")
+    task.request = { op: "getLibraries" }
+    task.control = "run"
+end sub
+
+sub LoadContinueWatchingAsync()
+    task = CreateObject("roSGNode", "ApiTask")
+    task.ObserveField("response", "OnContinueWatchingResponse")
+    task.request = { op: "getContinueWatching" }
+    task.control = "run"
+end sub
+
 sub OnApiResponse(event as Object)
     resp = event.getData()
     if resp = invalid then return
@@ -117,7 +140,13 @@ sub OnMeResponse(resp as Object)
         m.isAdmin = IsAdminUser(resp.data)
         if m.isAdmin and m.adminButton <> invalid then m.adminButton.visible = true
     end if
-    LoadLibraries()   ' continue the original chain regardless of admin state
+
+    ' getMe is done - launch BOTH row loads in parallel (not chained anymore).
+    ' This cuts row population latency roughly in half vs the old sequential chain.
+    ' m.apiTask is now free for resume ops (getItem/getItemPlaybackInfo) which
+    ' MUST stay serialized through the original single-task instance.
+    LoadLibrariesAsync()
+    LoadContinueWatchingAsync()
 end sub
 
 sub OnLibrariesResponse(resp as Object)
@@ -138,9 +167,8 @@ sub OnLibrariesResponse(resp as Object)
         end for
         m.libraryGrid.content = content
     end if
-
-    ' Chain continue-watching AFTER libraries (serialized through one task).
-    LoadContinueWatching()
+    ' NOTE: no chain to continue-watching here - it's now launched in parallel
+    ' from OnMeResponse via LoadContinueWatchingAsync()
 end sub
 
 sub OnContinueWatchingResponse(resp as Object)

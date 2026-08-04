@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @copyright 2026 Joe Huss <detain@interserver.net> -->
+<!-- @license   MIT -->
+
+<!-- components/RecordingsListTask.xml -->
+
+<!-- RecordingsListTask — loads live-TV recordings off the render thread.
+     Fetches recordings via getRecordings(), builds a ready-to-assign ContentNode
+     with recording captions — all on the task thread, not the render thread.
+
+     Thread rule: this function runs on the task thread; it may ONLY read its own
+     m.top fields and write m.top.content/recordings/ok. -->
+<component name="RecordingsListTask" extends="Task">
+    <interface>
+        <!-- Built ContentNode with recording rows (assign directly to labelList.content) -->
+        <field id="content" type="node" alwaysNotify="true" />
+        <!-- Raw recordings array for scene to use in navigation -->
+        <field id="recordings" type="stringarray" alwaysNotify="true" />
+        <!-- Boolean success flag -->
+        <field id="ok" type="boolean" alwaysNotify="true" />
+    </interface>
+
+    <!-- Transitive closure: Task scope does NOT auto-include pkg:/source.
+         GetApiClient needs Storage + Utilities + ApiClient + AppContext. -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/RecordingsListTask.brs" />
+</component>

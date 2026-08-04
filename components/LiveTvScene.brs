@@ -38,8 +38,15 @@ sub Init()
 
     m.statusLabel = m.top.FindNode("statusLabel")
 
-    ' Route all data access through a SINGLE observed ApiTask node (off the
-    ' render thread). Both ops are serialized through this one task.
+    ' Channel list loads through a dedicated Task (off the render thread) to
+    ' avoid UI blocking on large lists. ContentNode + raw channels array arrive
+    ' ready-built.
+    m.channelListTask = CreateObject("roSGNode", "ChannelListTask")
+    m.channelListTask.ObserveField("response", "OnChannelListResponse")
+
+    ' ApiTask is reserved ONLY for getChannelStreamUrl (row selection). One op
+    ' at a time is enforced by m.pendingOp guard so a select while a request
+    ' is in flight is ignored.
     m.apiTask = CreateObject("roSGNode", "ApiTask")
     m.apiTask.ObserveField("response", "OnApiResponse")
 
@@ -52,11 +59,12 @@ sub Init()
 
     SetStatus("Loading…")
 
-    ' One-shot load on Init.
-    m.apiTask.request = { op: "getChannels" }
-    m.apiTask.control = "run"
+    ' One-shot channel list load on Init.
+    m.channelListTask.control = "run"
 end sub
 
+' R2.7: Channel list loads through ChannelListTask — this handler is now
+' ONLY for getChannelStreamUrl (row selection).
 sub OnApiResponse(event as Object)
     resp = event.getData()
     if resp = invalid then return
@@ -65,32 +73,7 @@ sub OnApiResponse(event as Object)
     ' call (or a later row select) is a fresh serialized request.
     m.pendingOp = invalid
 
-    if resp.op = "getChannels" then
-        ' getChannels() returns the WHOLE envelope {channels:[...]}.
-        m.channels = []
-        if resp.ok and resp.data <> invalid and resp.data.DoesExist("channels") and type(resp.data.channels) = "roArray" then
-            m.channels = resp.data.channels
-
-            content = CreateObject("roSGNode", "ContentNode")
-            for each channel in m.channels
-                if channel <> invalid then
-                    content.AddChild({ title: ChannelRowCaption(channel) })
-                end if
-            end for
-
-            if m.channelList <> invalid then m.channelList.content = content
-
-            if m.channels.Count() = 0 then
-                SetStatus("No channels")
-            else
-                SetStatus("")
-            end if
-        else
-            ' resp.data invalid / no channels key -> Live TV not configured or
-            ' unavailable (routes 404, or a non-admin 403/JSON {error} body).
-            SetStatus("Live TV unavailable")
-        end if
-    else if resp.op = "getChannelStreamUrl" then
+    if resp.op = "getChannelStreamUrl" then
         streamUrl = ""
         if resp.ok and resp.data <> invalid and resp.data.DoesExist("stream_url") and resp.data.stream_url <> invalid then
             streamUrl = resp.data.stream_url
@@ -102,6 +85,30 @@ sub OnApiResponse(event as Object)
         else
             SetStatus("Couldn't start channel")
         end if
+    end if
+end sub
+
+' R2.7: Handle async channel list load from ChannelListTask.
+' The task builds the ContentNode and ships it ready-to-assign; we only
+' need to plumb it into the LabelList and update status.
+sub OnChannelListResponse(event as Object)
+    resp = event.getData()
+    if resp = invalid then return
+
+    if resp.ok and resp.channels <> invalid and type(resp.channels) = "roArray" then
+        m.channels = resp.channels
+
+        if m.channelList <> invalid then m.channelList.content = resp.content
+
+        if m.channels.Count() = 0 then
+            SetStatus("No channels")
+        else
+            SetStatus("")
+        end if
+    else
+        ' resp.data invalid / no channels key -> Live TV not configured or
+        ' unavailable (routes 404, or a non-admin 403/JSON {error} body).
+        SetStatus("Live TV unavailable")
     end if
 end sub
 
@@ -196,6 +203,7 @@ sub Teardown()
         m.channelList.UnObserveField("itemSelected")
         m.channelList.UnObserveField("itemFocused")
     end if
+    if m.channelListTask <> invalid then m.channelListTask.UnObserveField("response")
     if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
 end sub
 

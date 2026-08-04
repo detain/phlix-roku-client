@@ -154,6 +154,7 @@ sub OnRowSelected(event as Object)
 
     GetStorage().set("active_server_id", id)
     GetStorage().set("active_server_name", name)
+    GetStorage().flush()  ' R1.6: batched flush after user picks a server
 
     ' Notify PhlixApp (observes `serverPicked`) -> rebuild m.api + Home.
     m.top.serverPicked = true

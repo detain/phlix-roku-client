@@ -396,6 +396,10 @@ sub ShowServerPicker()
 end sub
 
 sub OnServerPicked()
+    ' R1.6: Invalidate the storage read cache so the next GetApiClient call
+    ' picks up the new active_server_id without reading stale cached values.
+    ResetCachedStorage(false)
+
     ' Remove the picker child.
     m.top.RemoveChild(m.top.GetChild(m.top.GetChildCount() - 1))
 
@@ -425,13 +429,9 @@ end sub
 
 sub OnLogout()
     ' R1.3: Clear local state FIRST so logout works even if server unreachable.
-    ' Order: clear tokens/session → navigate → fire network call (fire-and-forget).
-    GetStorage().delete("auth_token")
-    GetStorage().delete("refresh_token")
-    GetStorage().delete("session_id")
-    GetStorage().delete("connection_kind")
-    GetStorage().delete("active_server_id")
-    GetStorage().delete("active_server_name")
+    ' R1.6: ResetCachedStorage(fullReset) uses DeleteAll+Flush (1 NVRAM write
+    ' instead of 6 separate delete+flush cycles) and invalidates the read cache.
+    ResetCachedStorage(true)
 
     ' Clear the screen stack (stale references to removed nodes) and remove all
     ' children so the next Show* call starts from a clean scene tree.

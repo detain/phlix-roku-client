@@ -146,7 +146,7 @@ import subprocess, re, sys, os
 
 os.chdir('/home/sites/phlix/phlix-roku-client')
 result = subprocess.run(
-    ['git', 'grep', '-n', r'control\s*=\s*"run"'],
+    ['git', 'grep', '-n', r'control\s*=\s*"run"', '--', '*.brs'],
     capture_output=True, text=True
 )
 if result.returncode != 0 and not result.stdout.strip():

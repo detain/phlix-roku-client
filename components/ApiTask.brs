@@ -23,8 +23,22 @@ sub Init()
 end sub
 
 sub ExecRequest()
+    ' R1.6: Invalidate the Storage read cache so we re-read the freshest values
+    ' from the registry. This is the ONLY ResetCachedStorage call per Task run —
+    ' all subsequent GetStorage().get() calls within this execution (GetApiClient's
+    ' three token reads, any other storage reads) hit the in-memory cache, not NVRAM.
+    ResetCachedStorage(false)
+
+    ' R1.6: Build the ApiClient ONCE and reuse it for all operations on this Task.
+    ' Previously each if-branch called GetApiClient() fresh → 3 NVRAM reads per call.
+    ' Caching it here means 3 reads total for the entire Task lifetime instead of
+    ' 3 × number_of_operations.
+    if m.api = invalid then
+        m.api = GetApiClient()
+    end if
+
+    api = m.api
     req = m.top.request
-    api = GetApiClient()
     result = { op: "", ok: false, data: invalid }
 
     if req <> invalid and req.op <> invalid then

@@ -7,20 +7,23 @@
 '
 
 '
-' TV Guide list: a one-shot LabelList of upcoming live-TV programs. Mirrors
-' LiveTvScene's LabelList + ApiTask + OnApiResponse idiom - the load fires once on
-' Init via the `getGuide` op (no query params = upcoming across ALL channels,
-' capped server-side). This is a READ-ONLY admin view: selecting a row is inert
-' (guide programs are not playable, no second op). AdminScene self-creates +
-' focuses this scene, so it has NO <interface>.
+' TV Guide list: a one-shot LabelList of upcoming live-TV programs. Uses
+' GuideTask (extends Task) which fetches AND builds the ContentNode on its own
+' thread — the scene receives a ready-to-assign ContentNode plus the raw
+' programs array for navigation. This keeps the render thread free.
 '
-' NOTE: getGuide() returns the WHOLE envelope {success,programs:[...]} (admin
-' getters do not unwrap), so OnApiResponse reads resp.data.programs and checks
-' resp.data.DoesExist("programs") AND type(resp.data.programs) = "roArray"; the
-' key's absence = Live TV unavailable / not configured (routes 404, or a non-admin
-' 403/JSON {error} body).
+' Data flow:
+'   Init() -> GuideTask.control = "run"
+'   GuideTask (task thread) -> api.getGuide() + ContentNode build
+'   GuideTask.content -> OnGuideContent() -> programList.content = content
+'   GuideTask.programs -> OnGuidePrograms() -> m.programs = programs
+'   GuideTask.ok -> OnGuideOk() -> SetStatus("")
+'
+' This is a READ-ONLY admin view: selecting a row is inert (guide programs are
+' not playable, no second op). AdminScene self-creates + focuses this scene, so
+' it has NO <interface>.
 
-sub Init()
+ sub Init()
     m.top.SetFocus(true)
 
     ' Text list of programs.
@@ -33,48 +36,48 @@ sub Init()
 
     m.statusLabel = m.top.FindNode("statusLabel")
 
-    ' Route all data access through the ApiTask node (off the render thread).
-    m.apiTask = CreateObject("roSGNode", "ApiTask")
-    m.apiTask.ObserveField("response", "OnApiResponse")
+    ' Route all data access through the GuideTask node (off the render thread).
+    ' GuideTask fetches AND builds the ContentNode on its own thread, then
+    ' ships the ready-to-assign content + raw programs array to this scene.
+    m.guideTask = CreateObject("roSGNode", "GuideTask")
+    m.guideTask.ObserveField("content", "OnGuideContent")
+    m.guideTask.ObserveField("programs", "OnGuidePrograms")
+    m.guideTask.ObserveField("ok", "OnGuideOk")
 
     m.programs = []
 
     SetStatus("Loading…")
 
     ' One-shot load on Init (no query params = upcoming across all channels).
-    m.apiTask.request = { op: "getGuide" }
-    m.apiTask.control = "run"
+    m.guideTask.control = "run"
 end sub
 
-sub OnApiResponse(event as Object)
-    resp = event.getData()
-    if resp = invalid then return
+' ContentNode is ready — assign directly to the LabelList.
+sub OnGuideContent(event as Object)
+    content = event.getData()
+    if m.programList <> invalid then
+        m.programList.content = content
+    end if
+end sub
 
-    if resp.op = "getGuide" then
-        ' getGuide() returns the WHOLE envelope {programs:[...]}.
-        m.programs = []
-        if resp.ok and resp.data <> invalid and resp.data.DoesExist("programs") and type(resp.data.programs) = "roArray" then
-            m.programs = resp.data.programs
+' Raw programs array arrived — store for navigation (itemFocused uses it).
+sub OnGuidePrograms(event as Object)
+    m.programs = event.getData()
+end sub
 
-            content = CreateObject("roSGNode", "ContentNode")
-            for each program in m.programs
-                if program <> invalid then
-                    content.AddChild({ title: ProgramRowCaption(program) })
-                end if
-            end for
-
-            if m.programList <> invalid then m.programList.content = content
-
-            if m.programs.Count() = 0 then
-                SetStatus("No programs")
-            else
-                SetStatus("")
-            end if
+' Success flag arrived — update status text.
+sub OnGuideOk(event as Object)
+    ok = event.getData()
+    if ok then
+        if m.programs.Count() = 0 then
+            SetStatus("No programs")
         else
-            ' resp.data invalid / no programs key -> Live TV not configured or
-            ' unavailable (routes 404, or a non-admin 403/JSON {error} body).
-            SetStatus("Live TV unavailable")
+            SetStatus("")
         end if
+    else
+        ' Guide load failed -> Live TV not configured or unavailable
+        ' (routes 404, or a non-admin 403/JSON {error} body).
+        SetStatus("Live TV unavailable")
     end if
 end sub
 
@@ -127,7 +130,11 @@ sub Teardown()
         m.programList.UnObserveField("itemSelected")
         m.programList.UnObserveField("itemFocused")
     end if
-    if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
+    if m.guideTask <> invalid then
+        m.guideTask.UnObserveField("content")
+        m.guideTask.UnObserveField("programs")
+        m.guideTask.UnObserveField("ok")
+    end if
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean

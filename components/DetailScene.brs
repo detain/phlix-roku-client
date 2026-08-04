@@ -20,6 +20,7 @@ sub Init()
     m.ratingButton = m.top.FindNode("ratingButton")
     m.ratingBadge = m.top.FindNode("ratingBadge")
     m.contentRatingLabel = m.top.FindNode("contentRatingLabel")
+    m.loadingLabel = m.top.FindNode("loadingLabel")
 
     if m.backButton <> invalid then
         m.backButton.ObserveField("buttonSelected", "OnBackPressed")
@@ -54,6 +55,12 @@ end sub
 
 sub LoadItem(itemId as String)
     m.itemId = itemId
+
+    ' Show loading indicator while data loads off the render thread.
+    if m.loadingLabel <> invalid then
+        m.loadingLabel.visible = true
+    end if
+
     m.apiTask.request = { op: "getItem", itemId: itemId }
     m.apiTask.control = "run"
 end sub
@@ -64,6 +71,12 @@ sub OnApiResponse(event as Object)
 
     if resp.op = "getItem" then
         if not resp.ok or resp.data = invalid then return
+
+        ' Hide loading indicator.
+        if m.loadingLabel <> invalid then
+            m.loadingLabel.visible = false
+        end if
+
         m.item = resp.data
         RenderItem()
     else if resp.op = "getItemPlaybackInfo" then

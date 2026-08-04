@@ -39,6 +39,11 @@
                     id="itemsGrid">
         </PosterGrid>
 
+        <!-- Loading Indicator -->
+        <Label id="loadingLabel" text="Loading..."
+               translation="[640, 340]"
+               horizAlign="center" color="#888888" />
+
         <!-- Description Area -->
         <Rectangle height="40" width="1280" translation="[0,640]" color="#0d0d1a">
             <Label height="40" width="1200" translation="[40,8]"

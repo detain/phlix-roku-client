@@ -24,14 +24,16 @@ sub Init()
     m.backButton = m.top.FindNode("backButton")
     m.titleLabel = m.top.FindNode("titleLabel")
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
+    m.loadingLabel = m.top.FindNode("loadingLabel")
 
     if m.backButton <> invalid then
         m.backButton.ObserveField("buttonSelected", "OnBackPressed")
     end if
 
-    ' Route all data access through the ApiTask node (off the render thread).
-    m.apiTask = CreateObject("roSGNode", "ApiTask")
-    m.apiTask.ObserveField("response", "OnApiResponse")
+    ' Route all data access through the EpisodeListTask node (off the render thread).
+    ' This handles both the API call AND ContentNode building off the render thread.
+    m.listTask = CreateObject("roSGNode", "EpisodeListTask")
+    m.listTask.ObserveField("content", "OnListContent")
 
     m.seasonId = ""
     m.children = []
@@ -48,50 +50,34 @@ sub LoadSeason(seasonId as String, seasonName as String)
 
     if m.seasonId = "" then return
 
-    ' parentId switches getLibraryItems to direct-children mode and omits
-    ' topLevel; limit is high enough to return every episode at once.
-    m.apiTask.request = {
-        op: "getLibraryItems"
-        libraryId: m.seasonId
-        options: { parentId: m.seasonId, limit: 200 }
-    }
-    m.apiTask.control = "run"
+    ' Show loading indicator while data loads off the render thread.
+    if m.loadingLabel <> invalid then
+        m.loadingLabel.visible = true
+    end if
+
+    ' EpisodeListTask handles fetch + sort + ContentNode build off the render thread.
+    m.listTask.libraryId = m.seasonId
+    m.listTask.parentId = m.seasonId
+    m.listTask.itemType = "season"
+    m.listTask.control = "run"
 end sub
 
-sub OnApiResponse(event as Object)
-    resp = event.getData()
-    if resp = invalid then return
+' Handle EpisodeListTask response — content + items are both ready when
+' m.top.content is set (task thread sets content, items, ok in sequence).
+sub OnListContent(event as Object)
+    content = event.getData()
+    if content = invalid then return
 
-    if resp.op = "getLibraryItems" then
-        if not resp.ok or resp.data = invalid or resp.data.items = invalid then return
+    ' Hide loading indicator.
+    if m.loadingLabel <> invalid then
+        m.loadingLabel.visible = false
+    end if
 
-        ' API returns children ORDER BY name; re-sort by season then episode.
-        m.children = SortByEpisodeOrder(resp.data.items)
-
-        content = CreateObject("roSGNode", "ContentNode")
-        for each item in m.children
-            caption = EpisodeCaption(item)
-
-            contentItem = content.AddChild({
-                Title: caption
-                ShortDescriptionLine1: caption
-                Type: item.type
-                id: item.id
-            })
-
-            if item.overview <> invalid then
-                contentItem.Description = item.overview
-            end if
-
-            ' poster_url is an absolute URL (TMDB or local) or null.
-            if item.poster_url <> invalid and item.poster_url <> "" then
-                contentItem.HDPosterUrl = item.poster_url
-            else
-                contentItem.HDPosterUrl = "pkg:/images/placeholder.png"
-            end if
-        end for
-
-        m.posterGrid.content = content
+    ' m.listTask.items holds the raw sorted items for navigation (id, name, type).
+    ' m.listTask.content holds the ready-to-assign ContentNode for display.
+    if m.listTask.ok then
+        m.children = m.listTask.items
+        m.posterGrid.content = m.listTask.content
     end if
 end sub
 
@@ -142,8 +128,8 @@ sub Teardown()
     if m.backButton <> invalid then
         m.backButton.UnObserveField("buttonSelected")
     end if
-    if m.apiTask <> invalid then
-        m.apiTask.UnObserveField("response")
+    if m.listTask <> invalid then
+        m.listTask.UnObserveField("content")
     end if
 end sub
 

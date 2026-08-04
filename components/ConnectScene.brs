@@ -120,6 +120,7 @@ end sub
 sub Connect(url as String)
     if url = invalid or url = "" then return
     GetStorage().set("server_url", url)
+    GetStorage().flush()  ' R1.6: persist the URL before the first boot auth check
     HideError()
     HideStatus()
     m.top.connected = true

@@ -80,5 +80,10 @@
                         id="ratingButton" />
             </Rectangle>
         </Rectangle>
+
+        <!-- Loading Indicator -->
+        <Label id="loadingLabel" text="Loading..."
+               translation="[640, 340]"
+               horizAlign="center" color="#888888" />
     </children>
 </component>

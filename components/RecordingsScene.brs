@@ -4,20 +4,19 @@
 
 ' copyright 2026 Joe Huss
 '
-
 '
 ' Recordings list: a one-shot LabelList of the server's live-TV recordings.
-' Mirrors GuideScene's LabelList + ApiTask + OnApiResponse idiom - the load fires
-' once on Init via the `getRecordings` op (no status filter = all recordings).
+' Uses RecordingsListTask (extends Task) to fetch AND build the ContentNode off
+' the render thread, so the UI never blocks while loading. The Task fires once
+' on Init via RecordingsListTask.control = "run" (no status filter = all).
 ' This is a READ-ONLY admin view: selecting a row is inert (recordings have no
 ' scouted playback route, no second op). AdminScene self-creates + focuses this
 ' scene, so it has NO <interface>.
 '
 ' NOTE: getRecordings() returns the WHOLE envelope {success,recordings:[...]}
-' (admin getters do not unwrap), so OnApiResponse reads resp.data.recordings and
-' checks resp.data.DoesExist("recordings") AND type(resp.data.recordings) =
-' "roArray"; the key's absence = Live TV unavailable / not configured (routes 404,
-' or a non-admin 403/JSON {error} body).
+' (admin getters do not unwrap). RecordingsListTask checks resp.data.recordings
+' DoesExist AND type = "roArray"; the key's absence = Live TV unavailable /
+' not configured (routes 404, or a non-admin 403/JSON {error} body).
 
 sub Init()
     m.top.SetFocus(true)
@@ -32,48 +31,49 @@ sub Init()
 
     m.statusLabel = m.top.FindNode("statusLabel")
 
-    ' Route all data access through the ApiTask node (off the render thread).
-    m.apiTask = CreateObject("roSGNode", "ApiTask")
-    m.apiTask.ObserveField("response", "OnApiResponse")
+    ' Route all data access through the RecordingsListTask node (off the render thread).
+    ' This Task fetches AND builds the ContentNode on its own thread, so the
+    ' render thread never blocks while loading.
+    m.recordingsTask = CreateObject("roSGNode", "RecordingsListTask")
+    m.recordingsTask.ObserveField("content", "OnRecordingsContentChanged")
+    m.recordingsTask.ObserveField("recordings", "OnRecordingsDataChanged")
+    m.recordingsTask.ObserveField("ok", "OnRecordingsDataChanged")
 
     m.recordings = []
 
     SetStatus("Loading…")
 
     ' One-shot load on Init (no status filter = all recordings).
-    m.apiTask.request = { op: "getRecordings" }
-    m.apiTask.control = "run"
+    m.recordingsTask.control = "run"
 end sub
 
-sub OnApiResponse(event as Object)
-    resp = event.getData()
-    if resp = invalid then return
+' ContentNode built by the Task - assign directly to the LabelList.
+sub OnRecordingsContentChanged(event as Object)
+    content = event.getData()
+    if content <> invalid and m.recordingList <> invalid then
+        m.recordingList.content = content
+    end if
+end sub
 
-    if resp.op = "getRecordings" then
-        ' getRecordings() returns the WHOLE envelope {recordings:[...]}.
-        m.recordings = []
-        if resp.ok and resp.data <> invalid and resp.data.DoesExist("recordings") and type(resp.data.recordings) = "roArray" then
-            m.recordings = resp.data.recordings
-
-            content = CreateObject("roSGNode", "ContentNode")
-            for each recording in m.recordings
-                if recording <> invalid then
-                    content.AddChild({ title: RecordingRowCaption(recording) })
-                end if
-            end for
-
-            if m.recordingList <> invalid then m.recordingList.content = content
-
-            if m.recordings.Count() = 0 then
-                SetStatus("No recordings")
-            else
-                SetStatus("")
-            end if
-        else
-            ' resp.data invalid / no recordings key -> Live TV not configured or
-            ' unavailable (routes 404, or a non-admin 403/JSON {error} body).
-            SetStatus("Live TV unavailable")
+' Raw recordings array from the Task + ok flag - update state and status.
+sub OnRecordingsDataChanged(event as Object)
+    if event.getField() = "recordings" then
+        recordings = event.getData()
+        if recordings <> invalid then
+            m.recordings = recordings
         end if
+    end if
+
+    ' Check ok to determine final status (ok is set last by the Task).
+    if m.recordingsTask.ok = true then
+        if m.recordings.Count() = 0 then
+            SetStatus("No recordings")
+        else
+            SetStatus("")
+        end if
+    else if m.recordingsTask.ok = false then
+        ' Task completed but ok=false means Live TV unavailable / not configured.
+        SetStatus("Live TV unavailable")
     end if
 end sub
 
@@ -142,7 +142,11 @@ sub Teardown()
         m.recordingList.UnObserveField("itemSelected")
         m.recordingList.UnObserveField("itemFocused")
     end if
-    if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
+    if m.recordingsTask <> invalid then
+        m.recordingsTask.UnObserveField("content")
+        m.recordingsTask.UnObserveField("recordings")
+        m.recordingsTask.UnObserveField("ok")
+    end if
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean

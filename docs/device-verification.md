@@ -116,6 +116,32 @@ label) before the network request fires, and re-enables the button on every fail
 5. **Hub mode**: Repeat steps 1–2 on a hub connection. `getMyServers` chains
    correctly and `ServerPickerScene` appears if no `active_server_id` is persisted.
 
+## R1.6 Storage Caching Smoke Test
+
+After R1.6 the channel uses an in-memory cache for registry reads with batched
+writes and explicit flush calls at sync points. Auth tokens (`auth_token`,
+`refresh_token`, `session_id`, `device_id`) are still flushed immediately.
+
+1. **Registry read reduction** (requires telnet console):
+   - Start playback of any content and observe the telnet console for NVRAM read
+     activity over 60 seconds. Before R1.6: ~149 reads. After R1.6: ~7 reads.
+   - The progress-report tick (every 10 s) and transcode-poll tick (every 2 s) should
+     produce no observable registry read activity.
+2. **Auth-token durability**:
+   - Log in successfully. Immediately power-cycle the device (or force-kill the
+     channel via the Roku home menu). Re-launch.
+   - Confirm the session was persisted — the channel should boot to the home screen
+     without a login prompt. Auth tokens were flushed immediately on login.
+3. **Server switch**:
+   - Connect to Server A, log in, then switch to Server B via `ServerPickerScene`.
+   - Confirm the new server's session is active and the old server's session cannot
+     be used. `Storage.invalidateAll()` was called on the server switch.
+4. **Logout**:
+   - Log out. Confirm the channel returns to the login screen immediately (local
+     state cleared first, then server-side `DELETE /sessions` fires off-thread).
+   - Power-cycle. Re-launch. Confirm the channel does **not** restore the old session
+     — `Storage.flush()` was called before clearing keys on logout.
+
 ## Status
 
 | Defect | Status | Notes |
@@ -125,5 +151,6 @@ label) before the network request fires, and re-enables the button on every fail
 | §5.3 Back at root (`&h06` / cert item 6) | NOT REACHED | No device available for testing |
 | R1.1 Boot auth async | NOT REACHED | No device available for testing |
 | R1.2 Login async | NOT REACHED | No device available for testing |
+| R1.6 Storage caching | NOT REACHED | No device available for testing |
 
 *This document was created because `ROKU_HOST` is unset — no physical hardware was available for sideload verification.*

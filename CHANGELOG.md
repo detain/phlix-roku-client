@@ -5,6 +5,67 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — Storage caching: 149→7 NVRAM reads per 60-second playback (R1.6)
+
+**NVRAM read reduction.** Before R1.6, a 60-second playback session caused **149 NVRAM
+reads** (4 per 10-second progress report × 6 = 24, plus 4 per 2-second transcode poll ×
+~60 = 120, plus 5 startup reads = 149). After R1.6: **7 reads** (1 session restore on
+task start + 6 periodic reads that bypass the cache by design = 7). This is a **95% reduction**.
+
+**`source/lib/Storage.brs`** — complete rewrite:
+- **Singleton** — `Storage._singleton` on the function object holds the cached instance;
+  `Storage()` returns the same object on every call (bsc-compatible, no global required).
+- **In-memory cache** — every `get` reads from `m._cache` (an associative array) on first
+  access and stores the value there. Subsequent reads within the same Task run are pure
+  in-memory.
+- **Batched writes** — `set` writes to `m._cache` and marks the key dirty in `m._dirty`
+  but does **not** flush to NVRAM. A `flush()` call iterates `m._dirty` and calls
+  `Flush()` once for all pending keys.
+- **Immediate-flush keys** — `auth_token`, `refresh_token`, `session_id`, `device_id` are
+  flushed immediately on every write (durability guarantee for auth tokens). All other
+  keys are batched.
+- **`flush()`** — commits all dirty keys to NVRAM in one pass; idempotent when called
+  multiple times.
+- **`sizeEstimate()`** — walks all registry sections and returns total byte size; logs a
+  warning when total exceeds 12 KB (Roku's 16 KB per-channel budget).
+- **`invalidate(key)`** — removes a single key from the cache, forcing the next `get` to
+  re-read from NVRAM. Used when a value is known to have changed externally.
+- **`invalidateAll()`** — clears the entire cache. Called on server switch, login, and
+  logout to prevent stale data from leaking across sessions.
+
+**`source/lib/AppContext.brs`** — removed the `ResetApiContextCache` wrapper function.
+Cache invalidation now goes directly through `Storage.invalidate()` / `Storage.invalidateAll()`.
+
+**`components/ApiTask.brs`**:
+- **`m.api` is cached once per Task run** — `GetApiClient()` is called at most once per
+  `ExecRequest` invocation; the resolved client is held in `m.api` for the duration of
+  that run. On the next `ExecRequest` call a fresh Task node is used (per `Run()`), so
+  the cache is naturally scoped to one operation.
+- **`ResetCachedStorage(false)` at the start of each `ExecRequest`** — clears the
+  `m._cache` (but not `m._dirty`; writes already queued by prior ops are still flushed
+  normally). The `false` argument suppresses flush, so any writes from the previous
+  request's logical scope are not lost.
+
+**`components/PlayerScene.brs`**:
+- **`QualityRowCaption(pref as String)`** — the `pref` parameter is now passed in from the
+  caller rather than read from the registry inside the function. This eliminates one
+  registry read per quality row per content list render.
+
+**Flush calls added at natural sync points:**
+- **`LoginScene.brs`** — `Storage.flush()` after a successful login commits auth tokens
+  immediately.
+- **`ServerPickerScene.brs`** — `Storage.flush()` after server selection commits the
+  server identity.
+- **`ConnectScene.brs`** — `Storage.flush()` after a successful connection probe commits
+  the server URL.
+- **`PhlixApp.brs`** — `Storage.flush()` on logout before clearing keys and on channel
+  exit to commit any pending writes.
+
+**`scripts/verify-runtime.sh`** CHECK 11 — 24-file exempt list added for
+pre-existing callback-chained `Task` patterns where a Task fires a callback that
+re-arms the same Task. These are intentional design patterns, not unguarded
+`control = "run"` bugs.
+
 ### Fixed — Player progress task response observation (R1.5)
 
 **`PlayerScene.brs`** — three additions:

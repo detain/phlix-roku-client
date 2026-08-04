@@ -150,10 +150,12 @@ sub OnLoginResponse(event as Object)
         if serversResp <> invalid and serversResp.DoesExist("servers") and type(serversResp.servers) = "roArray" and serversResp.servers.count() > 0 then
             ' It's a hub -> let PhlixApp show the server picker.
             GetStorage().set("connection_kind", "hub")
+            GetStorage().flush()  ' R1.6: persist before scene transition to ServerPicker
             m.top.hubDetected = true
         else
             ' Direct server -> go straight to Home.
             GetStorage().set("connection_kind", "direct")
+            GetStorage().flush()  ' R1.6: persist before scene transition to Home
             m.top.loginSucceeded = true
         end if
     end if
