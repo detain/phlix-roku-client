@@ -110,6 +110,7 @@ function Storage() as Object
             m._cache.Delete(key)
             m.registry.Delete(key)
             m.registry.Flush()
+            m._dirty.Delete(key)
         end function,
 
         ' Delete all keys. Always Flush() immediately.
