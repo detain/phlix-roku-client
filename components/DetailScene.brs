@@ -94,7 +94,7 @@ sub OnApiResponse(event as Object)
                 m.userData.favorite = false
                 RenderFavorite()
             end if
-            print "Phlix: add favorite failed"
+            ShowErrorDialog(m.top, "Error", "Couldn't save your favourite. Please try again.")
         end if
     else if resp.op = "unfavorite" then
         if not resp.ok then
@@ -102,7 +102,7 @@ sub OnApiResponse(event as Object)
                 m.userData.favorite = true
                 RenderFavorite()
             end if
-            print "Phlix: remove favorite failed"
+            ShowErrorDialog(m.top, "Error", "Couldn't remove your favourite. Please try again.")
         end if
     else if resp.op = "setRating" then
         if not resp.ok then
@@ -114,7 +114,7 @@ sub OnApiResponse(event as Object)
                 end if
                 RenderRating()
             end if
-            print "Phlix: set rating failed"
+            ShowErrorDialog(m.top, "Error", "Couldn't save your rating. Please try again.")
         end if
     else if resp.op = "clearRating" then
         if not resp.ok then
@@ -125,7 +125,7 @@ sub OnApiResponse(event as Object)
                 end if
                 RenderRating()
             end if
-            print "Phlix: clear rating failed"
+            ShowErrorDialog(m.top, "Error", "Couldn't clear your rating. Please try again.")
         end if
     end if
 end sub
