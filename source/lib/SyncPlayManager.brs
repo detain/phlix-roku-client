@@ -11,18 +11,23 @@
 ' Coordinates REST API calls and WebSocket connection for SyncPlay (watch-together).
 ' ===========================================
 '
-' Types (mirroring @phlix/contracts v0.3.6):
-'   SyncPlaySession: { roomId, sessionId, serverUrl }
-'   SyncPlayGroup: { id, name, isPublic, memberCount }
-'   SyncPlayUser: { sessionId, displayName }
+' Types (mirroring @phlix/contracts + actual server fields):
+'   SyncPlaySession: { roomId, sessionId, serverUrl, roomName, isHost, members }
+'     NOTE: sessionId is set client-side from WS yourId, not from server response.
+'           serverUrl is derived client-side from ApiClient baseUrl (ws://host:8097).
+'   SyncPlayGroup: { id, name, member_count, has_password, current_media, is_playing }
+'     (list response — snake_case per SyncPlaySnapshotService.php:149-156)
+'   SyncPlayUser/SyncPlayMember: { id, name, is_host, joined_at }
+'     (from GroupState.php getState() members dict — SyncPlay.d.ts:71-76)
 '   SyncPlayPlaybackCommand: { type: 'play' | 'pause' | 'seek', position?: number, timestamp: number }
 '
-' API Endpoints:
-'   GET  /api/v1/syncplay/groups        - public groups list
-'   POST /api/v1/syncplay/groups        - create group { name, isPublic } -> { roomId, sessionId, serverUrl }
-'   POST /api/v1/syncplay/groups/{id}/join   - join group -> { sessionId, members, currentState }
-'   POST /api/v1/syncplay/groups/{id}/leave  - leave group
-'   WS   /api/v1/syncplay/{roomId}?token=JWT - WebSocket for real-time sync
+' API Endpoints (all under /api/v1/syncplay):
+'   GET  /syncplay/groups        -> {groups:[{id,name,member_count,has_password,current_media,is_playing}]}
+'   POST /syncplay/groups        -> {success,group:{group_id,group_name,members:{...},...}}
+'                                  body: {name,is_public?} — is_public IGNORED by server
+'   POST /syncplay/groups/{id}/join -> {success,group:{group_id,group_name,members:{...},...}}
+'   POST /syncplay/groups/{id}/leave -> {success,message?:string}
+'   WS   /syncplay/{roomId}?token=JWT  -> real-time sync (ws://host:8097/syncplay/{roomId}?token=...)
 '
 ' Usage:
 '   syncMgr = SyncPlayManager(GetApiClient())
@@ -44,7 +49,8 @@ function SyncPlayManager(api as Object) as Object
         ' Group List (REST)
         ' ============================================================= '
 
-        ' GET /syncplay/groups -> {groups:[{id,name,isPublic,memberCount}]}
+        ' GET /syncplay/groups -> {groups:[{id,name,member_count,has_password,current_media,is_playing}]}
+        ' Server returns snake_case fields (per SyncPlaySnapshotService.php:127-160).
         ' Returns array of public groups or empty array on failure.
         getGroups: function() as Object
             if m.api = invalid then return []
@@ -65,8 +71,9 @@ function SyncPlayManager(api as Object) as Object
         ' Group Management (REST)
         ' ============================================================= '
 
-        ' POST /syncplay/groups {name,isPublic} -> {roomId,sessionId,serverUrl}
-        ' Creates a new group and returns the session info for WebSocket connection.
+        ' POST /syncplay/groups {name,is_public} -> {success,group:{group_id,...}}
+        ' Creates a new group. Server does NOT return roomId/sessionId/serverUrl;
+        ' roomId is derived from group.group_id in the response.
         ' Returns invalid on failure.
         createGroup: function(name as String, isPublic as Boolean) as Object
             if m.api = invalid then return invalid
@@ -74,24 +81,52 @@ function SyncPlayManager(api as Object) as Object
             result = m.api.createSyncPlayGroup(name, isPublic)
             if result = invalid then return invalid
 
-            ' Parse response: {roomId, sessionId, serverUrl}
+            ' Parse response: {success, group:{group_id,group_name,member_count,...}}
+            ' Source: SyncPlayController.php (controller) + SyncPlayManager.php createGroup (manager)
+            '   - group.group_id  -> roomId
+            '   - group.group_name -> roomName
+            '   - group.members   -> members (associative array, keyed by memberId)
+            '   - sessionId/serverUrl are NOT returned by the server; sessionId will be
+            '     set to the host's memberId once the WS event confirms our yourId.
             if type(result) <> "roAssociativeArray" then return invalid
-            if not result.DoesExist("roomId") then return invalid
+            if not result.DoesExist("group") then return invalid
+            g = result.group
+            if type(g) <> "roAssociativeArray" then return invalid
+            if not g.DoesExist("group_id") then return invalid
+
+            roomId = ""
+            if g.DoesExist("group_id") and g.group_id <> invalid then roomId = StringifyId(g.group_id)
+
+            ' Extract members from the group object (associative array keyed by memberId)
+            members = []
+            if g.DoesExist("members") and type(g.members) = "roAssociativeArray" then
+                ' Convert the members dict (keyed by memberId) into an array for the session
+                for each k in g.members
+                    members.Push(g.members[k])
+                end for
+            end if
+
+            ' Derive roomName from group_name, falling back to the original name param
+            roomName = name
+            if g.DoesExist("group_name") and type(g.group_name) = "roString" and g.group_name <> "" then
+                roomName = g.group_name
+            end if
 
             m._session = {
-                roomId: result.roomId
-                sessionId: result.sessionId
-                serverUrl: result.serverUrl
-                roomName: name
+                roomId: roomId
+                sessionId: ""  ' Will be set to our memberId from the WS group_state event
+                serverUrl: ""  ' Derived from ApiClient baseUrl (ws://host:8097)
+                roomName: roomName
                 isHost: true
-                members: []
+                members: members
             }
 
             return m._session
         end function
 
-        ' POST /syncplay/groups/{id}/join -> {sessionId,members,currentState}
-        ' Joins an existing group by roomId.
+        ' POST /syncplay/groups/{id}/join -> {success,group:{group_id,group_name,members,...}}
+        ' Joins an existing group by roomId. Server does NOT return sessionId at top level;
+        ' sessionId is set to our own memberId from the WS group_state event.
         ' Returns invalid on failure.
         joinGroup: function(roomId as String) as Object
             if m.api = invalid then return invalid
@@ -99,18 +134,37 @@ function SyncPlayManager(api as Object) as Object
             result = m.api.joinSyncPlayGroup(roomId)
             if result = invalid then return invalid
 
-            ' Parse response: {sessionId, members:[...], currentState:{...}}
+            ' Parse response: {success, group:{group_id,group_name,members:{...},...}}
+            ' Source: SyncPlayController.php joinGroup + SyncPlayManager.php joinGroup
+            '   - roomId comes from the path parameter (not result.group.group_id)
+            '   - group.group_name -> roomName
+            '   - group.members    -> members (associative array keyed by memberId)
+            '   - currentState fields (playback_position, playback_state) are at group level
+            '   - sessionId is NOT returned at top level; we use our own memberId as sessionId
             if type(result) <> "roAssociativeArray" then return invalid
-            if not result.DoesExist("sessionId") then return invalid
+            if not result.DoesExist("group") then return invalid
+            g = result.group
+            if type(g) <> "roAssociativeArray" then return invalid
 
+            ' Extract members from the group object (associative array keyed by memberId)
             members = []
-            if result.DoesExist("members") and type(result.members) = "roArray" then
-                members = result.members
+            if g.DoesExist("members") and type(g.members) = "roAssociativeArray" then
+                for each k in g.members
+                    members.Push(g.members[k])
+                end for
             end if
 
+            ' currentState equivalent: playback_position + playback_state at group level
             currentState = invalid
-            if result.DoesExist("currentState") and type(result.currentState) = "roAssociativeArray" then
-                currentState = result.currentState
+            if g.DoesExist("playback_position") or g.DoesExist("playback_state") then
+                pbPos = 0
+                if g.DoesExist("playback_position") then pbPos = g.playback_position
+                pbState = "stopped"
+                if g.DoesExist("playback_state") then pbState = g.playback_state
+                currentState = {
+                    playback_position: pbPos
+                    playback_state: pbState
+                }
             end if
 
             ' Derive the hub origin for WebSocket from the ApiClient baseUrl.
@@ -130,11 +184,17 @@ function SyncPlayManager(api as Object) as Object
                 if base <> "" then serverUrl = base
             end if
 
+            ' Derive roomName from group_name
+            roomName = ""
+            if g.DoesExist("group_name") and type(g.group_name) = "roString" and g.group_name <> "" then
+                roomName = g.group_name
+            end if
+
             m._session = {
                 roomId: roomId
-                sessionId: result.sessionId
+                sessionId: ""  ' Set to our own memberId from WS group_state event
                 serverUrl: serverUrl
-                roomName: ""
+                roomName: roomName
                 isHost: false
                 members: members
                 currentState: currentState

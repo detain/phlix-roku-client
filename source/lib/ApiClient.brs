@@ -948,16 +948,59 @@ function ApiClient(baseUrl as String) as Object
 
         ' ---------------------------------------------------------------------
         ' SyncPlay (F13 / P8-S4). REST endpoints for group management.
-        ' GET /syncplay/groups -> {groups:[{id,name,isPublic,memberCount}]}
-        '   (read-only snapshot for the join list).
-        ' POST /syncplay/groups {name,isPublic} -> {roomId,sessionId,serverUrl}
-        '   creates a group and returns WebSocket connection info.
-        ' POST /syncplay/groups/{id}/join -> {sessionId,members,currentState}
-        '   joins an existing group.
-        ' POST /syncplay/groups/{id}/leave -> {message}
-        '   leaves the group.
-        ' Returns the WHOLE envelope (whole-envelope convention). WebSocket
-        ' connection for real-time sync uses the serverUrl returned from create/join.
+        '
+        ' Source citations (phlix-server):
+        '   SyncPlayController.php  - HTTP entry points (lines noted below)
+        '   SyncPlaySnapshotService.php - listGroups response shape (lines 127-160)
+        '   SyncPlayManager.php     - createGroup/joinGroup/leaveGroup return values
+        '   GroupState.php          - getState() / serialize() field names
+        '   SyncPlay.d.ts (phlix-contracts) - intended contract shapes
+        '
+        ' Route 1: GET /api/v1/syncplay/groups
+        '   -> {groups:[{id, name, member_count, has_password, current_media, is_playing}]}
+        '   Source: SyncPlayController.php:65 (listGroups)
+        '           SyncPlaySnapshotService.php:127-160 (listGroups returns snake_case)
+        '           Contract: SyncPlayGroupListItem (SyncPlay.d.ts:45-52)
+        '
+        ' Route 2: POST /api/v1/syncplay/groups {name, is_public}
+        '   Body: {name:string, is_public?:bool} -- is_public is IGNORED by server
+        '   <- {success:true, group:{group_id,group_name,member_count,members:{...},
+        '               host_id,current_media_id,current_media_duration,
+        '               playback_position,playback_state,queue,created_at,last_activity_at}}
+        '   Source: SyncPlayController.php:81-108 (createGroup reads body['name'],body['password'] only)
+        '           SyncPlayManager.php:325-373 (createGroup returns $group->getState())
+        '           GroupState.php:677-703 (getState() field names)
+        '   NOTE: server does NOT return roomId/sessionId/serverUrl at top level.
+        '         is_public sent by client is NOT read by server controller.
+        '
+        ' Route 3: POST /api/v1/syncplay/groups/{id}/join
+        '   Body: {password?:string, memberId?:string, memberName?:string}
+        '   <- {success:true, group:{group_id,group_name,member_count,members:{...},...}}
+        '   Source: SyncPlayController.php:148-175 (joinGroup)
+        '           SyncPlayManager.php:396-453 (joinGroup)
+        '   NOTE: server does NOT return sessionId or currentState at top level.
+        '         Playback state fields are inside group (playback_position,playback_state).
+        '
+        ' Route 4: POST /api/v1/syncplay/groups/{id}/leave
+        '   Body: {memberId?:string}
+        '   <- {success:true, message?:string}
+        '   Source: SyncPlayController.php:187-211 (leaveGroup)
+        '           SyncPlayManager.php:471-509 (leaveGroup)
+        '
+        ' Route 5: GET /api/v1/syncplay/groups/{id}
+        '   <- {group:{group_id,group_name,member_count,members:{...},...}}
+        '   Source: SyncPlayController.php:121-136 (getGroup)
+        '           SyncPlaySnapshotService.php:171-200 (getGroupState)
+        '
+        ' WebSocket: ws://{host}:8097/syncplay/{roomId}?token={jwt}
+        '   (serverUrl is derived client-side from ApiClient baseUrl, not returned by server)
+        '
+        ' Contract disagreements to report for phlix-contracts:
+        '   1. is_public is NOT tracked by server — not returned in listGroups, not stored
+        '   2. createGroup/joinGroup do NOT return sessionId or serverUrl
+        '   3. joinGroup response has no top-level currentState; playback state is inside group
+        '   4. Contract SyncPlayGroupListItem has no is_public field (correct — server doesn't store it)
+        '   5. members is a dict/object (associative array keyed by memberId), not SyncPlayMember[]
         ' ---------------------------------------------------------------------
 
         ' GET /syncplay/groups -> {groups:[...]}
@@ -965,9 +1008,10 @@ function ApiClient(baseUrl as String) as Object
             return m.request("GET", "/syncplay/groups", invalid)
         end function
 
-        ' POST /syncplay/groups {name,isPublic} -> {roomId,sessionId,serverUrl}
+        ' POST /syncplay/groups {name,is_public} -> {success,group:{group_id,...}}
+        ' NOTE: is_public is sent but NOT read by the server (controller only reads name/password).
         createSyncPlayGroup: function(name as String, isPublic as Boolean) as Object
-            return m.request("POST", "/syncplay/groups", { name: name, isPublic: isPublic })
+            return m.request("POST", "/syncplay/groups", { name: name, is_public: isPublic })
         end function
 
         ' POST /syncplay/groups/{id}/join -> {sessionId,members,currentState}
