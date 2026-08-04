@@ -947,37 +947,37 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
-        ' SyncPlay (F13 / P8-S4). REST endpoints for room management.
-        ' GET /syncplay/rooms -> {rooms:[{id,name,isPublic,memberCount}]}
+        ' SyncPlay (F13 / P8-S4). REST endpoints for group management.
+        ' GET /syncplay/groups -> {groups:[{id,name,isPublic,memberCount}]}
         '   (read-only snapshot for the join list).
-        ' POST /syncplay/rooms {name,isPublic} -> {roomId,sessionId,serverUrl}
-        '   creates a room and returns WebSocket connection info.
-        ' POST /syncplay/rooms/{id}/join -> {sessionId,members,currentState}
-        '   joins an existing room.
-        ' DELETE /syncplay/rooms/{id}/leave -> {message}
-        '   leaves the room.
+        ' POST /syncplay/groups {name,isPublic} -> {roomId,sessionId,serverUrl}
+        '   creates a group and returns WebSocket connection info.
+        ' POST /syncplay/groups/{id}/join -> {sessionId,members,currentState}
+        '   joins an existing group.
+        ' POST /syncplay/groups/{id}/leave -> {message}
+        '   leaves the group.
         ' Returns the WHOLE envelope (whole-envelope convention). WebSocket
         ' connection for real-time sync uses the serverUrl returned from create/join.
         ' ---------------------------------------------------------------------
 
-        ' GET /syncplay/rooms -> {rooms:[...]}
-        getSyncPlayRooms: function() as Object
-            return m.request("GET", "/syncplay/rooms", invalid)
+        ' GET /syncplay/groups -> {groups:[...]}
+        getSyncPlayGroups: function() as Object
+            return m.request("GET", "/syncplay/groups", invalid)
         end function
 
-        ' POST /syncplay/rooms {name,isPublic} -> {roomId,sessionId,serverUrl}
-        createSyncPlayRoom: function(name as String, isPublic as Boolean) as Object
-            return m.request("POST", "/syncplay/rooms", { name: name, isPublic: isPublic })
+        ' POST /syncplay/groups {name,isPublic} -> {roomId,sessionId,serverUrl}
+        createSyncPlayGroup: function(name as String, isPublic as Boolean) as Object
+            return m.request("POST", "/syncplay/groups", { name: name, isPublic: isPublic })
         end function
 
-        ' POST /syncplay/rooms/{id}/join -> {sessionId,members,currentState}
-        joinSyncPlayRoom: function(roomId as String) as Object
-            return m.request("POST", "/syncplay/rooms/" + roomId + "/join", invalid)
+        ' POST /syncplay/groups/{id}/join -> {sessionId,members,currentState}
+        joinSyncPlayGroup: function(roomId as String) as Object
+            return m.request("POST", "/syncplay/groups/" + roomId + "/join", invalid)
         end function
 
-        ' DELETE /syncplay/rooms/{id}/leave -> {message}
-        leaveSyncPlayRoom: function(roomId as String) as Object
-            return m.request("DELETE", "/syncplay/rooms/" + roomId + "/leave", invalid)
+        ' POST /syncplay/groups/{id}/leave -> {message}
+        leaveSyncPlayGroup: function(roomId as String) as Object
+            return m.request("POST", "/syncplay/groups/" + roomId + "/leave", invalid)
         end function
 
         ' ---------------------------------------------------------------------

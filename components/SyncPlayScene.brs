@@ -49,17 +49,17 @@ sub Init()
     ' Room data cache
     m.rooms = []
 
-    ' Load public rooms list
-    LoadRooms()
+    ' Load public groups list
+    LoadGroups()
 end sub
 
-' Load public rooms from REST API
-sub LoadRooms()
-    SetStatus("Loading rooms...")
-    m.rooms = m.syncMgr.getRooms()
+' Load public groups from REST API
+sub LoadGroups()
+    SetStatus("Loading groups...")
+    m.rooms = m.syncMgr.getGroups()
     PopulateRoomList()
     if m.rooms.Count() = 0 then
-        SetStatus("No public rooms available. Create one to start!")
+        SetStatus("No public groups available. Create one to start!")
     else
         SetStatus("")
     end if
@@ -122,9 +122,9 @@ sub OnCreatePressed()
         isPublic = m.publicToggle.checked
     end if
 
-    SetStatus("Creating room...")
+    SetStatus("Creating group...")
 
-    session = m.syncMgr.createRoom(roomName, isPublic)
+    session = m.syncMgr.createGroup(roomName, isPublic)
     if session = invalid or session.roomId = invalid or session.roomId = "" then
         SetStatus("Failed to create room")
         return
@@ -156,9 +156,9 @@ sub OnRoomSelected(event as Object)
         return
     end if
 
-    SetStatus("Joining room...")
+    SetStatus("Joining group...")
 
-    session = m.syncMgr.joinRoom(roomId)
+    session = m.syncMgr.joinGroup(roomId)
     if session = invalid then
         SetStatus("Failed to join room")
         return
@@ -168,26 +168,26 @@ sub OnRoomSelected(event as Object)
     m.top.action = "joined:" + roomId
 end sub
 
-' Leave current room
+' Leave current group
 sub OnLeavePressed()
-    result = m.syncMgr.leaveRoom()
+    result = m.syncMgr.leaveGroup()
     if result = invalid then
-        SetStatus("Failed to leave room")
+        SetStatus("Failed to leave group")
         return
     end if
 
     ' Show room list panel again
     ShowRoomListPanel()
-    LoadRooms()
+    LoadGroups()
 
     m.top.action = "left"
 end sub
 
 ' Back button pressed
 sub OnBackPressed()
-    ' If in a room, leave first
+    ' If in a group, leave first
     if m.syncMgr.isInRoom() then
-        m.syncMgr.leaveRoom()
+        m.syncMgr.leaveGroup()
     end if
 
     m.top.action = "back"

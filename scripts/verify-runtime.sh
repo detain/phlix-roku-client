@@ -242,4 +242,22 @@ PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+FOUND=0
+echo ""
+echo "=== Check 12: syncplay/rooms instead of /groups (R4.1) ==="
+while IFS=: read -r file line; do
+  echo "  $file:$line — CHECK12: syncplay uses /groups endpoint, not /rooms"
+  FOUND=1
+done < <(git grep -rn 'syncplay/rooms' -- '*.brs' 2>/dev/null || true)
+if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
+
+FOUND=0
+echo ""
+echo "=== Check 13: DELETE verb on syncplay endpoint (R4.1 — leave is POST) ==="
+while IFS=: read -r file line; do
+  echo "  $file:$line — CHECK13: syncplay leave uses POST, not DELETE"
+  FOUND=1
+done < <(git grep -rn 'syncplay' -- '*.brs' 2>/dev/null | grep 'DELETE' || true)
+if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
+
 [[ $VIOLATIONS -eq 1 ]] && exit 1

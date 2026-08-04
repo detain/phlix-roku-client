@@ -22,55 +22,55 @@ sub TestSyncPlayManagerInitWithInvalidApi()
     print "TestSyncPlayManagerInitWithInvalidApi passed"
 end sub
 
-sub TestSyncPlayManagerGetRoomsWithInvalidApi()
-    ' Test getRooms returns empty array when no API
+sub TestSyncPlayManagerGetGroupsWithInvalidApi()
+    ' Test getGroups returns empty array when no API
     mgr = SyncPlayManager(invalid)
-    rooms = mgr.getRooms()
-    assertTrue(rooms <> invalid)
-    assertEqual(rooms.Count(), 0)
-    print "TestSyncPlayManagerGetRoomsWithInvalidApi passed"
+    groups = mgr.getGroups()
+    assertTrue(groups <> invalid)
+    assertEqual(groups.Count(), 0)
+    print "TestSyncPlayManagerGetGroupsWithInvalidApi passed"
 end sub
 
-sub TestSyncPlayManagerGetRoomsWithNonArrayResult()
-    ' Test getRooms handles non-array result
+sub TestSyncPlayManagerGetGroupsWithNonArrayResult()
+    ' Test getGroups handles non-array result
     api = ApiClient("http://localhost:8096")
     mgr = SyncPlayManager(api)
-    ' Passing a result that's not an assocarray or has no rooms key
-    assertEqual(mgr.getRooms().Count(), 0)
-    print "TestSyncPlayManagerGetRoomsWithNonArrayResult passed"
+    ' Passing a result that's not an assocarray or has no groups key
+    assertEqual(mgr.getGroups().Count(), 0)
+    print "TestSyncPlayManagerGetGroupsWithNonArrayResult passed"
 end sub
 
-sub TestSyncPlayManagerCreateRoomWithInvalidApi()
-    ' Test createRoom returns invalid with no API
+sub TestSyncPlayManagerCreateGroupWithInvalidApi()
+    ' Test createGroup returns invalid with no API
     mgr = SyncPlayManager(invalid)
-    result = mgr.createRoom("Test Room", true)
+    result = mgr.createGroup("Test Group", true)
     assertEqual(result, invalid)
-    print "TestSyncPlayManagerCreateRoomWithInvalidApi passed"
+    print "TestSyncPlayManagerCreateGroupWithInvalidApi passed"
 end sub
 
-sub TestSyncPlayManagerJoinRoomWithInvalidApi()
-    ' Test joinRoom returns invalid with no API
+sub TestSyncPlayManagerJoinGroupWithInvalidApi()
+    ' Test joinGroup returns invalid with no API
     mgr = SyncPlayManager(invalid)
-    result = mgr.joinRoom("room-123")
+    result = mgr.joinGroup("room-123")
     assertEqual(result, invalid)
-    print "TestSyncPlayManagerJoinRoomWithInvalidApi passed"
+    print "TestSyncPlayManagerJoinGroupWithInvalidApi passed"
 end sub
 
-sub TestSyncPlayManagerLeaveRoomWithInvalidApi()
-    ' Test leaveRoom returns invalid when no API
+sub TestSyncPlayManagerLeaveGroupWithInvalidApi()
+    ' Test leaveGroup returns invalid when no API
     mgr = SyncPlayManager(invalid)
-    result = mgr.leaveRoom()
+    result = mgr.leaveGroup()
     assertEqual(result, invalid)
-    print "TestSyncPlayManagerLeaveRoomWithInvalidApi passed"
+    print "TestSyncPlayManagerLeaveGroupWithInvalidApi passed"
 end sub
 
-sub TestSyncPlayManagerLeaveRoomWithNoSession()
-    ' Test leaveRoom returns invalid when no session
+sub TestSyncPlayManagerLeaveGroupWithNoSession()
+    ' Test leaveGroup returns invalid when no session
     api = ApiClient("http://localhost:8096")
     mgr = SyncPlayManager(api)
-    result = mgr.leaveRoom()
+    result = mgr.leaveGroup()
     assertEqual(result, invalid)
-    print "TestSyncPlayManagerLeaveRoomWithNoSession passed"
+    print "TestSyncPlayManagerLeaveGroupWithNoSession passed"
 end sub
 
 sub TestSyncPlayManagerIsInRoom()

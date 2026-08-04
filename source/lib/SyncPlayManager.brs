@@ -13,23 +13,23 @@
 '
 ' Types (mirroring @phlix/contracts v0.3.6):
 '   SyncPlaySession: { roomId, sessionId, serverUrl }
-'   SyncPlayRoom: { id, name, isPublic, memberCount }
+'   SyncPlayGroup: { id, name, isPublic, memberCount }
 '   SyncPlayUser: { sessionId, displayName }
 '   SyncPlayPlaybackCommand: { type: 'play' | 'pause' | 'seek', position?: number, timestamp: number }
 '
 ' API Endpoints:
-'   GET  /api/v1/syncplay/rooms        - public rooms list
-'   POST /api/v1/syncplay/rooms        - create room { name, isPublic } -> { roomId, sessionId, serverUrl }
-'   POST /api/v1/syncplay/rooms/{id}/join   - join room -> { sessionId, members, currentState }
-'   DELETE /api/v1/syncplay/rooms/{id}/leave - leave room
+'   GET  /api/v1/syncplay/groups        - public groups list
+'   POST /api/v1/syncplay/groups        - create group { name, isPublic } -> { roomId, sessionId, serverUrl }
+'   POST /api/v1/syncplay/groups/{id}/join   - join group -> { sessionId, members, currentState }
+'   POST /api/v1/syncplay/groups/{id}/leave  - leave group
 '   WS   /api/v1/syncplay/{roomId}?token=JWT - WebSocket for real-time sync
 '
 ' Usage:
 '   syncMgr = SyncPlayManager(GetApiClient())
-'   rooms = syncMgr.getRooms()
-'   session = syncMgr.createRoom("My Room", true)
-'   syncMgr.joinRoom(session.roomId)
-'   syncMgr.leaveRoom()
+'   groups = syncMgr.getGroups()
+'   session = syncMgr.createGroup("My Group", true)
+'   syncMgr.joinGroup(session.roomId)
+'   syncMgr.leaveGroup()
 '
 
 function SyncPlayManager(api as Object) as Object
@@ -41,37 +41,37 @@ function SyncPlayManager(api as Object) as Object
         _session: invalid
 
         ' ============================================================= '
-        ' Room List (REST)
+        ' Group List (REST)
         ' ============================================================= '
 
-        ' GET /syncplay/rooms -> {rooms:[{id,name,isPublic,memberCount}]}
-        ' Returns array of public rooms or empty array on failure.
-        getRooms: function() as Object
+        ' GET /syncplay/groups -> {groups:[{id,name,isPublic,memberCount}]}
+        ' Returns array of public groups or empty array on failure.
+        getGroups: function() as Object
             if m.api = invalid then return []
 
-            result = m.api.getSyncPlayRooms()
+            result = m.api.getSyncPlayGroups()
             if result = invalid then return []
 
-            ' The response is {rooms: [...]} per ApiClient convention
+            ' The response is {groups: [...]} per ApiClient convention
             if type(result) <> "roAssociativeArray" then return []
-            if not result.DoesExist("rooms") then return []
-            rooms = result.rooms
-            if type(rooms) <> "roArray" then return []
+            if not result.DoesExist("groups") then return []
+            groups = result.groups
+            if type(groups) <> "roArray" then return []
 
-            return rooms
+            return groups
         end function
 
         ' ============================================================= '
-        ' Room Management (REST)
+        ' Group Management (REST)
         ' ============================================================= '
 
-        ' POST /syncplay/rooms {name,isPublic} -> {roomId,sessionId,serverUrl}
-        ' Creates a new room and returns the session info for WebSocket connection.
+        ' POST /syncplay/groups {name,isPublic} -> {roomId,sessionId,serverUrl}
+        ' Creates a new group and returns the session info for WebSocket connection.
         ' Returns invalid on failure.
-        createRoom: function(name as String, isPublic as Boolean) as Object
+        createGroup: function(name as String, isPublic as Boolean) as Object
             if m.api = invalid then return invalid
 
-            result = m.api.createSyncPlayRoom(name, isPublic)
+            result = m.api.createSyncPlayGroup(name, isPublic)
             if result = invalid then return invalid
 
             ' Parse response: {roomId, sessionId, serverUrl}
@@ -90,13 +90,13 @@ function SyncPlayManager(api as Object) as Object
             return m._session
         end function
 
-        ' POST /syncplay/rooms/{id}/join -> {sessionId,members,currentState}
-        ' Joins an existing room by roomId.
+        ' POST /syncplay/groups/{id}/join -> {sessionId,members,currentState}
+        ' Joins an existing group by roomId.
         ' Returns invalid on failure.
-        joinRoom: function(roomId as String) as Object
+        joinGroup: function(roomId as String) as Object
             if m.api = invalid then return invalid
 
-            result = m.api.joinSyncPlayRoom(roomId)
+            result = m.api.joinSyncPlayGroup(roomId)
             if result = invalid then return invalid
 
             ' Parse response: {sessionId, members:[...], currentState:{...}}
@@ -143,13 +143,13 @@ function SyncPlayManager(api as Object) as Object
             return m._session
         end function
 
-        ' DELETE /syncplay/rooms/{id}/leave -> {message}
-        ' Leaves the current room and clears session state.
-        leaveRoom: function() as Object
+        ' POST /syncplay/groups/{id}/leave -> {message}
+        ' Leaves the current group and clears session state.
+        leaveGroup: function() as Object
             if m.api = invalid or m._session = invalid then return invalid
 
             roomId = m._session.roomId
-            result = m.api.leaveSyncPlayRoom(roomId)
+            result = m.api.leaveSyncPlayGroup(roomId)
 
             m._session = invalid
             return result

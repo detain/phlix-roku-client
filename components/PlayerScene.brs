@@ -1084,7 +1084,7 @@ sub ToggleSyncPanel()
     end if
 
     ' Refresh the room list snapshot.
-    m.syncListTask.request = { op: "getSyncPlayRooms" }
+    m.syncListTask.request = { op: "getSyncPlayGroups" }
     ' un guarded: panel is opened once; syncListTask is lazily created
     m.syncListTask.control = "run"
 
@@ -1161,18 +1161,18 @@ end function
 sub OnSyncListResponse(event as Object)
     resp = event.getData()
     if resp = invalid then return
-    if resp.op <> "getSyncPlayRooms" then return
+    if resp.op <> "getSyncPlayGroups" then return
 
     m.syncGroupIds = []
     content = CreateObject("roSGNode", "ContentNode")
 
-    rooms = invalid
-    if resp.ok and resp.data <> invalid and resp.data.DoesExist("rooms") and type(resp.data.rooms) = "roArray" then
-        rooms = resp.data.rooms
+    groups = invalid
+    if resp.ok and resp.data <> invalid and resp.data.DoesExist("groups") and type(resp.data.groups) = "roArray" then
+        groups = resp.data.groups
     end if
 
-    if rooms <> invalid then
-        for each g in rooms
+    if groups <> invalid then
+        for each g in groups
             if g <> invalid then
                 ' id may be a number -> stringify before any later URL/wire use.
                 gid = ""
