@@ -38,6 +38,14 @@ sub Init()
 
     m.seriesId = ""
     m.children = []
+
+    ' Paging state for infinite scroll
+    m.offset = 0
+    m.limit = 50
+    m.hasMore = true
+    m.loadingPage = false
+    m.contentNode = invalid
+    m.prefetchThreshold = 15 ' one screen (5 cols x 3 rows = 15 visible)
 end sub
 
 ' Cross-component callable (declared in the <interface>). Loads the children of
@@ -51,16 +59,47 @@ sub LoadSeries(seriesId as String, seriesName as String)
 
     if m.seriesId = "" then return
 
+    ' Reset paging state for fresh series load
+    m.offset = 0
+    m.hasMore = true
+    m.loadingPage = false
+    m.children = []
+    m.contentNode = invalid
+
+    RefreshItems()
+end sub
+
+' Show loading indicator and run the EpisodeListTask with current offset.
+sub RefreshItems()
+    if m.seriesId = "" then return
+
     ' Show loading indicator while data loads off the render thread.
     if m.loadingLabel <> invalid then
         m.loadingLabel.visible = true
+        if m.offset > 0 then
+            m.loadingLabel.text = "Loading more..."
+        else
+            m.loadingLabel.text = "Loading..."
+        end if
     end if
 
     ' EpisodeListTask handles fetch + sort + ContentNode build off the render thread.
     m.listTask.libraryId = m.seriesId
     m.listTask.parentId = m.seriesId
     m.listTask.itemType = "series"
+    m.listTask.offset = m.offset
+    m.listTask.limit = m.limit
     m.listTask.control = "run"
+end sub
+
+' Load next page of items. Guard prevents concurrent page requests.
+sub LoadMoreItems()
+    ' Guard: do not run two page requests at once
+    if m.loadingPage then return
+    if not m.hasMore then return
+
+    m.loadingPage = true
+    RefreshItems()
 end sub
 
 ' Handle EpisodeListTask response — content + items are both ready when
@@ -77,8 +116,32 @@ sub OnListContent(event as Object)
     ' m.listTask.items holds the raw sorted items for navigation (id, name, type).
     ' m.listTask.content holds the ready-to-assign ContentNode for display.
     if m.listTask.ok then
-        m.children = m.listTask.items
-        m.posterGrid.content = m.listTask.content
+        newItems = m.listTask.items
+        newContent = m.listTask.content
+        itemCount = newItems.Count()
+
+        ' First page: create ContentNode; subsequent pages: append to existing
+        if m.offset = 0 then
+            m.children = newItems
+            m.contentNode = newContent
+            m.posterGrid.content = m.contentNode
+        else
+            m.children.Append(newItems)
+            ' Append children from newContent to existing ContentNode
+            if newContent <> invalid and m.contentNode <> invalid then
+                for each child in newContent.GetChildren(-1, 0)
+                    m.contentNode.AppendChild(child)
+                end for
+            end if
+        end if
+
+        ' Update paging state
+        m.offset = m.offset + itemCount
+        m.hasMore = (itemCount = m.limit)
+        m.loadingPage = false
+    else
+        m.loadingPage = false
+        m.hasMore = false
     end if
 end sub
 
@@ -128,6 +191,12 @@ sub OnItemFocused(event as Object)
                 m.descriptionLabel.text = BuildCaption(item)
             end if
         end if
+    end if
+
+    ' Prefetch: trigger LoadMoreItems when focus approaches end of loaded set
+    ' (within one screen = 15 items for a 5x3 grid)
+    if m.children.Count() > 0 and index >= m.children.Count() - m.prefetchThreshold then
+        LoadMoreItems()
     end if
 end sub
 

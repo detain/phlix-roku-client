@@ -18,6 +18,10 @@
         <field id="parentId" type="string" />
         <!-- Item type: "series" (seasons+episodes) or "season" (episodes only) -->
         <field id="itemType" type="string" />
+        <!-- Pagination offset (number of items to skip) -->
+        <field id="offset" type="integer" />
+        <!-- Pagination limit (items per page, default 50 to avoid memory pressure on 512 MB Roku Express) -->
+        <field id="limit" type="integer" />
         <!-- Built ContentNode with sorted children (assign directly to postergrid.content) -->
         <field id="content" type="node" alwaysNotify="true" />
         <!-- Raw sorted items array for scene to use in navigation -->

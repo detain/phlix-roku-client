@@ -31,6 +31,10 @@ sub LoadList()
     libraryId = m.top.libraryId
     parentId = m.top.parentId
     itemType = m.top.itemType
+    offset = 0
+    limit = 50
+    if m.top.offset <> invalid then offset = m.top.offset
+    if m.top.limit <> invalid then limit = m.top.limit
 
     if libraryId = invalid or parentId = invalid or libraryId = "" or parentId = "" then
         m.top.content = invalid
@@ -48,7 +52,8 @@ sub LoadList()
     end if
 
     ' Fetch children via getLibraryItems (direct-children mode via parentId).
-    data = api.getLibraryItems(libraryId, { parentId: parentId, limit: 200 })
+    ' offset and limit support paging — limit=50 per page to manage memory on 512 MB Roku Express.
+    data = api.getLibraryItems(libraryId, { parentId: parentId, offset: offset, limit: limit })
     if data = invalid or data.items = invalid then
         m.top.content = invalid
         m.top.items = []
