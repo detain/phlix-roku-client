@@ -18,6 +18,10 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `source/lib/Utilities.brs`: `NormalizeServerUrl()` now correctly validates the RFC1918 172.16.0.0/12 range (172.16.x.x – 172.31.x.x) instead of the overly broad 172.0.0.0/8. Also fixed the 10.x.x.x check to avoid incorrectly flagging hostnames.
 
+### Fixed — Use real device identifier from roDeviceInfo (R4.8)
+
+- `source/lib/AppContext.brs`: replaced unseeded `Rnd(999999999)` device ID with `roDeviceInfo.GetChannelClientId()` to prevent two factory-reset devices from colliding on the same ID. Also replaced hardcoded `"Roku"` device name with `roDeviceInfo.GetModelDisplayName()`. First usage of `roDeviceInfo` in the repo.
+
 ### Added — CHECK 14: media_items.type ENUM drift detection (R4.5)
 
 `make verify-runtime` now includes **CHECK 14**, a Python check that:
