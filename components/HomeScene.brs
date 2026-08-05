@@ -20,6 +20,15 @@ sub Init()
     m.continueGrid.ObserveField("itemSelected", "OnContinueItemSelected")
     m.continueGrid.ObserveField("itemFocused", "OnContinueItemFocused")
 
+    ' R7.2: Up Next rail (single row, hidden until populated).
+    m.upNextGrid = m.top.FindNode("upNextGrid")
+    m.upNextLabel = m.top.FindNode("upNextLabel")
+    m.upNextItems = []
+    if m.upNextGrid <> invalid then
+        m.upNextGrid.ObserveField("itemSelected", "OnUpNextItemSelected")
+        m.upNextGrid.ObserveField("itemFocused", "OnUpNextItemFocused")
+    end if
+
     ' Search entry (header). Opens the SearchScene.
     m.searchButton = m.top.FindNode("searchButton")
     if m.searchButton <> invalid then
@@ -76,6 +85,8 @@ sub Init()
     m.headerCol = "search"
     m.isAdmin = false
     m.pendingResume = invalid
+    ' R7.2: Pending up-next item while fetching its playback info.
+    m.pendingUpNext = invalid
     ' Guards against the async continue-watching response stealing focus when the
     ' user has already moved focus away from the continue rail (line 208). Only
     ' set focus on the FIRST successful load; subsequent refreshes skip the focus
@@ -133,6 +144,14 @@ sub LoadContinueWatchingAsync()
     task.control = "run"
 end sub
 
+' R7.2: Load Up Next item (single row, hidden until populated).
+sub LoadUpNextAsync()
+    task = CreateObject("roSGNode", "ApiTask")
+    task.ObserveField("response", "OnUpNextResponse")
+    task.request = { op: "getNextUp" }
+    task.control = "run"
+end sub
+
 sub OnApiResponse(event as Object)
     resp = event.getData()
     if resp = invalid then return
@@ -143,10 +162,22 @@ sub OnApiResponse(event as Object)
         OnLibrariesResponse(resp)
     else if resp.op = "getContinueWatching" then
         OnContinueWatchingResponse(resp)
+    else if resp.op = "getNextUp" then
+        OnUpNextResponse(resp)
     else if resp.op = "getItem" then
-        OnResumeItemResponse(resp)
+        ' R7.2: Distinguish up-next getItem from resume getItem
+        if m.pendingUpNext <> invalid then
+            OnUpNextItemLoaded(resp)
+        else
+            OnResumeItemResponse(resp)
+        end if
     else if resp.op = "getItemPlaybackInfo" then
-        OnResumePlaybackInfoResponse(resp)
+        ' R7.2: Distinguish up-next playback info from resume
+        if m.pendingUpNext <> invalid then
+            OnUpNextPlaybackInfoLoaded(resp)
+        else
+            OnResumePlaybackInfoResponse(resp)
+        end if
     end if
 end sub
 
@@ -169,6 +200,8 @@ sub OnMeResponse(resp as Object)
     ' MUST stay serialized through the original single-task instance.
     LoadLibrariesAsync()
     LoadContinueWatchingAsync()
+    ' R7.2: Also fetch the Up Next item for the rail.
+    LoadUpNextAsync()
 end sub
 
 sub OnLibrariesResponse(resp as Object)
@@ -221,6 +254,94 @@ sub OnContinueWatchingResponse(resp as Object)
         m.continueGrid.SetFocus(true)
         m.currentRail = "continue"
         m.continueGridFirstLoaded = true
+    end if
+end sub
+
+' R7.2: Handle getNextUp response — populate the Up Next rail.
+sub OnUpNextResponse(resp as Object)
+    if not resp.ok or resp.data = invalid then return
+
+    ' getNextUp returns {item: {...}} — extract the item
+    item = resp.data
+    if item = invalid then return
+    if type(item) <> "roAssociativeArray" then return
+
+    m.upNextItems = [item]
+
+    content = CreateObject("roSGNode", "ContentNode")
+    content.AddChild({
+        Title: item.name
+        ShortDescriptionLine1: item.name
+        Type: "upnext"
+        HDPosterUrl: UpNextPosterUrl(item)
+    })
+    if m.upNextGrid <> invalid then m.upNextGrid.content = content
+
+    if m.upNextLabel <> invalid then m.upNextLabel.visible = true
+    if m.upNextGrid <> invalid then m.upNextGrid.visible = true
+end sub
+
+' R7.2: Best-effort poster for an up-next tile.
+function UpNextPosterUrl(item as Object) as String
+    if item <> invalid then
+        ' Try metadata.poster_url or metadata.poster
+        if item.DoesExist("metadata") and type(item.metadata) = "roAssociativeArray" then
+            meta = item.metadata
+            if meta.DoesExist("poster_url") and meta.poster_url <> invalid and meta.poster_url <> "" then
+                return meta.poster_url
+            end if
+            if meta.DoesExist("poster") and meta.poster <> invalid and meta.poster <> "" then
+                return meta.poster
+            end if
+        end if
+        ' Direct poster field
+        if item.DoesExist("poster_url") and item.poster_url <> invalid and item.poster_url <> "" then
+            return item.poster_url
+        end if
+        if item.DoesExist("poster") and item.poster <> invalid and item.poster <> "" then
+            return item.poster
+        end if
+    end if
+    return "pkg:/images/placeholder.png"
+end function
+
+' R7.2: Handle Up Next item selection — fetch playback info and launch PlayerScene.
+sub OnUpNextItemSelected(event as Object)
+    index = event.getData()
+    if index < 0 or index >= m.upNextItems.Count() then return
+
+    item = m.upNextItems[index]
+    if item = invalid then return
+
+    mediaItemId = ""
+    if item.DoesExist("id") then
+        mediaItemId = item.id
+    else if item.DoesExist("media_item_id") then
+        mediaItemId = item.media_item_id
+    end if
+
+    if mediaItemId = "" then return
+
+    ' Start the serialized launch chain: getItem -> getItemPlaybackInfo -> PlayerScene.Show
+    m.pendingUpNext = {
+        mediaItemId: mediaItemId
+        item: invalid
+    }
+    m.apiTask.request = { op: "getItem", itemId: mediaItemId }
+    m.apiTask.control = "run"
+end sub
+
+sub OnUpNextItemFocused(event as Object)
+    m.currentRail = "upnext"
+
+    index = event.getData()
+    if index < 0 or index >= m.upNextItems.Count() then return
+
+    item = m.upNextItems[index]
+    if item = invalid then return
+
+    if m.descriptionLabel <> invalid and item.name <> invalid then
+        m.descriptionLabel.text = item.name
     end if
 end sub
 
@@ -353,6 +474,42 @@ sub OnResumePlaybackInfoResponse(resp as Object)
     })
 
     m.pendingResume = invalid
+end sub
+
+' R7.2: Handle getItem response for an up-next item.
+sub OnUpNextItemLoaded(resp as Object)
+    if m.pendingUpNext = invalid then return
+
+    if not resp.ok or resp.data = invalid then
+        m.pendingUpNext = invalid
+        return
+    end if
+
+    m.pendingUpNext.item = resp.data
+    m.apiTask.request = { op: "getItemPlaybackInfo", itemId: m.pendingUpNext.mediaItemId }
+    m.apiTask.control = "run"
+end sub
+
+' R7.2: Handle getItemPlaybackInfo response — launch PlayerScene for the up-next item.
+sub OnUpNextPlaybackInfoLoaded(resp as Object)
+    if m.pendingUpNext = invalid then return
+
+    if not resp.ok or resp.data = invalid then
+        m.pendingUpNext = invalid
+        return
+    end if
+
+    scene = CreateObject("roSGNode", "PlayerScene")
+    m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
+
+    scene.Show(m.pendingUpNext.mediaItemId, {
+        item: m.pendingUpNext.item
+        playbackInfo: resp.data
+        resumeSeconds: 0!
+    })
+
+    m.pendingUpNext = invalid
 end sub
 
 sub ShowLibrary(libraryId as String, libraryName as String)

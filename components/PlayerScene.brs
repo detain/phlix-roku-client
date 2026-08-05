@@ -160,6 +160,9 @@ sub Init()
     ' extra ApiTask node nor observer when SyncPlay is never used.
     m.syncListTask = invalid
 
+    ' R7.2: Pending up-next item while fetching its playback info (invalid when not in up-next flow).
+    m.pendingUpNextItem = invalid
+
     ' ============================================================= '
     ' G4 Quality picker (multi-variant ABR) - additive, inert until the '
     ' user opens the panel (the Up key). "Auto" = the multi-variant       '
@@ -446,6 +449,8 @@ sub OnPlayerStateChange(event as Object)
         ' Playback reached the end naturally — send completion before tearing down.
         m.isPlaying = false
         StopPlayback()
+        ' R7.2: Show Up Next card with 10s countdown
+        ShowUpNextCard()
         ClosePlayer()
     end if
 end sub
@@ -488,6 +493,19 @@ sub OnApiResponse(event as Object)
         ' Show a non-blocking warning so the user knows.
         if not resp.ok or resp.data = invalid then
             SetProgressWarning("Could not mark as watched — item may remain in Continue Watching")
+        end if
+    else if resp.op = "getNextUp" then
+        OnUpNextResponse(event)
+    else if resp.op = "getItem" then
+        ' R7.2: Distinguish up-next getItem from any other getItem call
+        ' by checking m.pendingUpNextItem (set only in OnUpNextPlayNow).
+        if m.pendingUpNextItem <> invalid then
+            OnUpNextItemResponse(resp)
+        end if
+    else if resp.op = "getItemPlaybackInfo" then
+        ' R7.2: Distinguish up-next playback info from any other.
+        if m.pendingUpNextItem <> invalid then
+            OnUpNextPlaybackInfoResponse(resp)
         end if
     end if
     ' Note: getTranscodeStatus is now handled by OnTranscodePollResponse on
@@ -2737,3 +2755,224 @@ sub OnTranscodeTimeoutRetry(index as Integer)
     m.transcodePollInterval  = 1.0
     startTranscodePollTimer()
 end sub
+
+' ===================================================================== '
+' R7.2 Next episode autoplay - Up Next card with 10s countdown.       '
+' ===================================================================== '
+
+' R7.2: Show "Up Next" overlay with next item from API, 10s countdown,
+' and Play Now/Cancel buttons. Called when playback finishes naturally.
+sub ShowUpNextCard()
+    ' Reset state
+    m.upNextItem = invalid
+    m.upNextCountdown = 10
+
+    ' Fetch next up item from API via m.apiTask (one-shot)
+    ' The response is handled by OnUpNextResponse
+    m.apiTask.request = { op: "getNextUp" }
+    m.apiTask.control = "run"
+end sub
+
+' R7.2: Handle the getNextUp API response.
+sub OnUpNextResponse(event as Object)
+    resp = event.getData()
+    if resp = invalid then return
+    if resp.op <> "getNextUp" then return
+
+    if not resp.ok or resp.data = invalid then
+        ' No up next item available — silently skip
+        return
+    end if
+
+    m.upNextItem = resp.data
+
+    ' Find the upNextCard overlay node and populate it
+    m.upNextCard = m.top.FindNode("upNextCard")
+    m.upNextCardTitle = m.top.FindNode("upNextCardTitle")
+    m.upNextCardCountdown = m.top.FindNode("upNextCardCountdown")
+    m.upNextPlayButton = m.top.FindNode("upNextPlayButton")
+    m.upNextCancelButton = m.top.FindNode("upNextCancelButton")
+
+    if m.upNextCard = invalid then return
+
+    ' Set title
+    if m.upNextCardTitle <> invalid and m.upNextItem <> invalid and m.upNextItem.name <> invalid then
+        m.upNextCardTitle.text = "Up Next: " + m.upNextItem.name
+    else if m.upNextCardTitle <> invalid then
+        m.upNextCardTitle.text = "Up Next"
+    end if
+
+    ' Show the card
+    m.upNextCard.visible = true
+
+    ' Wire up button observers if not already
+    if m.upNextPlayButton <> invalid then
+        m.upNextPlayButton.UnObserveField("buttonSelected")
+        m.upNextPlayButton.ObserveField("buttonSelected", "OnUpNextPlayNow")
+    end if
+    if m.upNextCancelButton <> invalid then
+        m.upNextCancelButton.UnObserveField("buttonSelected")
+        m.upNextCancelButton.ObserveField("buttonSelected", "OnUpNextCancel")
+    end if
+
+    ' Start the countdown timer
+    StartUpNextTimer()
+end sub
+
+' R7.2: Start the 1-second countdown timer.
+sub StartUpNextTimer()
+    if m.upNextTimer <> invalid then
+        m.upNextTimer.control = "stop"
+        m.upNextTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.upNextTimer)
+    end if
+
+    m.upNextTimer = CreateObject("roSGNode", "Timer")
+    m.upNextTimer.duration = 1
+    m.upNextTimer.repeat = false
+    m.upNextTimer.ObserveField("fire", "OnUpNextTimerFire")
+    m.top.Append(m.upNextTimer)
+    m.upNextTimer.control = "start"
+end sub
+
+' R7.2: Called every second during the Up Next countdown.
+sub OnUpNextTimerFire()
+    if m.upNextCard = invalid or not m.upNextCard.visible then
+        ' Card was dismissed — stop the timer
+        if m.upNextTimer <> invalid then
+            m.upNextTimer.control = "stop"
+            m.upNextTimer.UnObserveField("fire")
+            m.top.RemoveChild(m.upNextTimer)
+            m.upNextTimer = invalid
+        end if
+        return
+    end if
+
+    m.upNextCountdown = m.upNextCountdown - 1
+
+    ' Update countdown label
+    if m.upNextCardCountdown <> invalid then
+        m.upNextCardCountdown.text = "Playing in " + m.upNextCountdown.toStr() + "s"
+    end if
+
+    if m.upNextCountdown <= 0 then
+        ' Countdown reached 0 — auto-play
+        OnUpNextPlayNow()
+    else
+        ' Reschedule for the next second
+        StartUpNextTimer()
+    end if
+end sub
+
+' R7.2: Play the next item in m.upNextItem, dismiss the card.
+sub OnUpNextPlayNow()
+    ' Stop the countdown timer
+    if m.upNextTimer <> invalid then
+        m.upNextTimer.control = "stop"
+        m.upNextTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.upNextTimer)
+        m.upNextTimer = invalid
+    end if
+
+    ' Dismiss the card
+    if m.upNextCard <> invalid then
+        m.upNextCard.visible = false
+    end if
+
+    if m.upNextItem = invalid then return
+
+    ' Fetch playback info and start the next item
+    mediaItemId = ""
+    if m.upNextItem.DoesExist("id") then
+        mediaItemId = m.upNextItem.id
+    else if m.upNextItem.DoesExist("media_item_id") then
+        mediaItemId = m.upNextItem.media_item_id
+    end if
+
+    if mediaItemId = "" then return
+
+    ' Fire getItem -> getItemPlaybackInfo -> PlayerScene.Show (same pattern as HomeScene resume)
+    m.pendingUpNextItem = m.upNextItem
+    m.apiTask.request = { op: "getItem", itemId: mediaItemId }
+    m.apiTask.control = "run"
+end sub
+
+' R7.2: Handle getItem response for the up-next item.
+sub OnUpNextItemResponse(resp as Object)
+    if m.pendingUpNextItem = invalid then return
+
+    if not resp.ok or resp.data = invalid then
+        m.pendingUpNextItem = invalid
+        return
+    end if
+
+    item = resp.data
+    mediaItemId = ""
+    if m.pendingUpNextItem.DoesExist("id") then
+        mediaItemId = m.pendingUpNextItem.id
+    else if m.pendingUpNextItem.DoesExist("media_item_id") then
+        mediaItemId = m.pendingUpNextItem.media_item_id
+    end if
+
+    if mediaItemId = "" then
+        m.pendingUpNextItem = invalid
+        return
+    end if
+
+    ' Fetch playback info
+    m.upNextItem = item
+    m.apiTask.request = { op: "getItemPlaybackInfo", itemId: mediaItemId }
+    m.apiTask.control = "run"
+end sub
+
+' R7.2: Handle getItemPlaybackInfo response — launch PlayerScene for the up-next item.
+sub OnUpNextPlaybackInfoResponse(resp as Object)
+    if m.pendingUpNextItem = invalid then return
+
+    if not resp.ok or resp.data = invalid then
+        m.pendingUpNextItem = invalid
+        return
+    end if
+
+    scene = CreateObject("roSGNode", "PlayerScene")
+    m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
+
+    mediaItemId = ""
+    if m.pendingUpNextItem.DoesExist("id") then
+        mediaItemId = m.pendingUpNextItem.id
+    else if m.pendingUpNextItem.DoesExist("media_item_id") then
+        mediaItemId = m.pendingUpNextItem.media_item_id
+    end if
+
+    scene.Show(mediaItemId, {
+        item: m.upNextItem
+        playbackInfo: resp.data
+        resumeSeconds: 0!
+    })
+
+    m.pendingUpNextItem = invalid
+end sub
+
+' R7.2: Dismiss the Up Next card and return to the previous screen.
+sub OnUpNextCancel()
+    ' Stop the countdown timer
+    if m.upNextTimer <> invalid then
+        m.upNextTimer.control = "stop"
+        m.upNextTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.upNextTimer)
+        m.upNextTimer = invalid
+    end if
+
+    ' Dismiss the card
+    if m.upNextCard <> invalid then
+        m.upNextCard.visible = false
+    end if
+
+    ' Reset the item
+    m.upNextItem = invalid
+end sub
+
+' ===================================================================== '
+' End R7.2 Next episode autoplay                                   '
+' ===================================================================== '

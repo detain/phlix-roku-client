@@ -1059,6 +1059,25 @@ function ApiClient(baseUrl as String) as Object
         updateProfileStreamLimits: function(profileId as String, limits as Object) as Object
             return m.request("PUT", "/profiles/" + profileId + "/stream-limits", limits)
         end function
+
+        ' ---------------------------------------------------------------------
+        ' Playback preferences (R7.1). GET /me/playback/preferences -> {prefs}.
+        ' ---------------------------------------------------------------------
+        getPlaybackPreferences: function() as Object
+            return m.request("GET", "/me/playback/preferences", invalid)
+        end function
+
+        ' PUT /me/playback/preferences {preferences} -> {message}
+        updatePlaybackPreferences: function(preferences as Object) as Object
+            return m.request("PUT", "/me/playback/preferences", preferences)
+        end function
+
+        ' ---------------------------------------------------------------------
+        ' Watch history (R7.1). DELETE /api/v1/users/me/history -> {message}.
+        ' ---------------------------------------------------------------------
+        clearWatchHistory: function() as Object
+            return m.request("DELETE", "/users/me/history", invalid)
+        end function
     }
 
     ' roDeviceInfo provides device identification per the ifDeviceInfo interface
