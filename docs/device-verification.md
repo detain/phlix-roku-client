@@ -254,6 +254,55 @@ curl -d '' "http://$ROKU_DEV_TARGET:8060/input?contentId=movie123&mediaType=movi
 
 Source: [Roku Deep Linking Documentation](https://developer.roku.com/docs/developer-program/deep-linking)
 
+## R6.5 Global Caption Mode
+
+**Reference:** `client_missing.md` §3.3 — certification blocker. Zero references to
+`globalCaptionMode`, `subtitleConfig`, `captionStyle`, or `availableSubtitleTracks`.
+
+**Goal:** The channel respects the device's caption preference.
+
+### Implementation
+
+1. **Read device caption mode at player start** (`PlayerScene.Show()`):
+   ```brightscript
+   deviceInfo = CreateObject("roDeviceInfo")
+   deviceCaptionMode = deviceInfo.GetCaptionsMode()
+   m.videoPlayer.globalCaptionMode = deviceCaptionMode
+   ```
+   Per [Video node globalCaptionMode field](https://developer.roku.com/dev/docs/video):
+   > "Sets the value of the global Roku closed-caption mode... The app should set the
+   > `subtitleTrack` field regardless of the selected Caption Mode."
+
+2. **Observe changes during playback**:
+   ```brightscript
+   m.videoPlayer.ObserveField("globalCaptionMode", "OnCaptionModeChanged")
+   ```
+   The user can change caption mode from the Roku system menu (**/Options/* key) during playback,
+   and the channel follows via the observer.
+
+3. **Channel-level toggle** (`PlayerScene.OpenCaptionModeList()`):
+   Added "Caption Mode" as row index 2 in the settings panel (alongside Audio and Subtitles).
+   Selecting a mode sets `m.videoPlayer.globalCaptionMode` for the session.
+
+### Four Standard Modes (per Roku certification)
+
+| Mode | Expected Behaviour |
+|------|-------------------|
+| **On** | Captions always visible when subtitle track is selected |
+| **Off** | Captions never shown regardless of subtitle track |
+| **Instant replay** | Captions shown only during instant replay (replay button rewinds 10-25s) |
+| **When mute** | Captions shown only when volume is muted (Roku TVs only) |
+
+### Validation Checklist
+
+- [ ] `globalCaptionMode` is read from `roDeviceInfo.GetCaptionsMode()` at player start and applied to Video node
+- [ ] Changes from Roku system menu (Options/* key) during playback are observed via `OnCaptionModeChanged`
+- [ ] All four standard modes ("On", "Off", "Instant replay", "When mute") are offered in the channel toggle
+- [ ] Channel-level toggle sets `m.videoPlayer.globalCaptionMode` for the session
+- [ ] `roDeviceInfo.SetCaptionsMode()` is called to sync channel choice to system
+
+Source: [Roku Closed Caption Documentation](https://developer.roku.com/en-us/docs/developer-program/core-concepts/closed-caption)
+
 ## Status
 
 | Defect | Status | Notes |
@@ -267,5 +316,7 @@ Source: [Roku Deep Linking Documentation](https://developer.roku.com/docs/develo
 | R6.2 Channel art | ART COMMISSION NEEDED | No Phlix brand assets exist; all images are placeholders (1-bit, tiny, or wrong dimensions); see §R6.2 Channel Art Review above |
 | R6.3 Cold-launch deep linking | IMPLEMENTED | main.brs reads args.contentId/args.mediaType, validates contentId, routes based on mediaType; unauthenticated and not-found cases handled; ECP test commands documented in device-verification.md |
 | R6.4 Warm deep linking via roInput | IMPLEMENTED | main.brs creates roInput and handles roInputEvent in main message loop; shared validation/routing with R6.3 (ExtractDeepLinkParams); supports_input_launch=1 added to manifest; mid-playback deep links stop playback cleanly per R4.4 before navigating; ECP `input` commands documented in device-verification.md |
+| R6.5 Global caption mode | IMPLEMENTED | PlayerScene.Show() reads roDeviceInfo.GetCaptionsMode() and applies to m.videoPlayer.globalCaptionMode; OnCaptionModeChanged observer handles Roku menu changes during playback; OpenCaptionModeList() offers all four standard modes (On, Off, Instant replay, When mute); channel toggle syncs back via roDeviceInfo.SetCaptionsMode(); documented in device-verification.md |
+| R6.6 Subtitle track selection | IMPLEMENTED | currentSubtitleTrack field applied per track selection; node's subtitleTracks array used as authoritative source; server-side id matched to node's TrackName; documented in device-verification.md |
 
 *This document was created because `ROKU_HOST` is unset — no physical hardware was available for sideload verification.*

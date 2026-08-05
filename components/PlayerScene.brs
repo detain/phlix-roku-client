@@ -24,6 +24,9 @@ sub Init()
     m.videoPlayer.ObserveField("state", "OnPlayerStateChange")
     m.videoPlayer.ObserveField("position", "OnPositionUpdate")
 
+    ' R6.5: Observe globalCaptionMode changes (user can change from Roku menu during playback)
+    m.videoPlayer.ObserveField("globalCaptionMode", "OnCaptionModeChanged")
+
     ' UI nodes
     m.progressBar = m.top.FindNode("progressBar")
     m.timeLabel = m.top.FindNode("timeLabel")
@@ -187,9 +190,12 @@ sub Init()
     m.subtitleTracks = []            ' StreamSubtitleTrack[] from playbackInfo
     m.selectedAudioTrackId = ""      ' persisted audio track id
     m.selectedSubtitleTrackId = ""   ' persisted subtitle track id (or "off")
+    ' R6.5: Caption mode state - one of "On", "Off", "Instant replay", "When mute"
+    ' Read from device via roDeviceInfo.GetCaptionsMode() at player start.
+    m.captionMode = "Off"
     m.settingsPanelOpen = false      ' true while the settings overlay is visible
     m.trackListPanelOpen = false     ' true while the audio/subtitle sub-list is open
-    m.trackListType = ""             ' "audio" or "subtitle"
+    m.trackListType = ""             ' "audio" or "subtitle" or "captionMode"
 
     m.settingsPanel = m.top.FindNode("settingsPanel")
     m.settingsList = m.top.FindNode("settingsList")
@@ -303,6 +309,25 @@ sub Show(itemId as String, args as Object)
     stream.url = streamUrl
     stream.streamformat = "mp4"
     m.videoPlayer.content = stream
+
+    ' R6.5: Read device caption mode and apply to Video node.
+    ' Per https://developer.roku.com/dev/docs/video (globalCaptionMode field):
+    ' "The app should set the globalCaptionMode field... whenever the user switches
+    ' on/off closed caption, it is expected that the global setting will be adjusted
+    ' accordingly."
+    ' The four standard modes are: "On", "Off", "Instant replay", "When mute".
+    ' GetCaptionsMode() returns "" if captions are disabled at the system level.
+    deviceInfo = CreateObject("roDeviceInfo")
+    deviceCaptionMode = deviceInfo.GetCaptionsMode()
+    if deviceCaptionMode <> "" and deviceCaptionMode <> invalid then
+        m.captionMode = deviceCaptionMode
+        m.videoPlayer.globalCaptionMode = deviceCaptionMode
+    else
+        ' Default to Off if system has captions disabled or unavailable.
+        m.captionMode = "Off"
+        m.videoPlayer.globalCaptionMode = "Off"
+    end if
+
     m.videoPlayer.control = "play"
     m.isPlaying = true
 
@@ -1802,6 +1827,7 @@ sub ToggleSettingsPanel()
     content = CreateObject("roSGNode", "ContentNode")
     content.AddChild({ title: "Audio" })
     content.AddChild({ title: "Subtitles" })
+    content.AddChild({ title: "Caption Mode" })
     if m.settingsList <> invalid then m.settingsList.content = content
 
     SetSettingsStatus("Select a setting to configure")
@@ -1819,8 +1845,8 @@ sub SetSettingsStatus(text as String)
     if m.settingsStatusLabel <> invalid then m.settingsStatusLabel.text = text
 end sub
 
-' Row selected: "Audio" (index 0) or "Subtitles" (index 1) -> open the
-' corresponding track list sub-panel.
+' Row selected: "Audio" (index 0), "Subtitles" (index 1), or "Caption Mode" (index 2)
+' -> open the corresponding track list sub-panel.
 sub OnSettingsRowSelected(event as Object)
     index = event.getData()
     if index = invalid then return
@@ -1829,6 +1855,8 @@ sub OnSettingsRowSelected(event as Object)
         OpenAudioTrackList()
     else if index = 1 then
         OpenSubtitleTrackList()
+    else if index = 2 then
+        OpenCaptionModeList()
     end if
 end sub
 
@@ -1909,6 +1937,38 @@ sub OpenSubtitleTrackList()
 
     if m.trackList <> invalid then m.trackList.content = content
     SetTrackListStatus(m.subtitleTracks.Count().toStr() + " subtitle track(s)")
+
+    m.trackListPanelOpen = true
+    if m.trackListPanel <> invalid then m.trackListPanel.visible = true
+    if m.trackList <> invalid then m.trackList.SetFocus(true)
+end sub
+
+' R6.5: Build and open the caption mode selection list.
+' The four standard modes are: "On", "Off", "Instant replay", "When mute".
+' Per https://developer.roku.com/dev/docs/video (globalCaptionMode field):
+' "On" = captions always on
+' "Off" = captions always off
+' "Instant replay" = captions on only during instant replay
+' "When mute" = captions on only when volume is muted (Roku TVs only)
+sub OpenCaptionModeList()
+    m.trackListType = "captionMode"
+    if m.trackListTitle <> invalid then m.trackListTitle.text = "Caption Mode"
+
+    ' The four standard caption modes per Roku certification requirements.
+    captionModes = ["On", "Off", "Instant replay", "When mute"]
+
+    content = CreateObject("roSGNode", "ContentNode")
+
+    for each mode in captionModes
+        if mode <> invalid then
+            label = mode
+            if mode = m.captionMode then label = label + "  (current)"
+            content.AddChild({ title: label })
+        end if
+    end for
+
+    if m.trackList <> invalid then m.trackList.content = content
+    SetTrackListStatus("Current: " + m.captionMode)
 
     m.trackListPanelOpen = true
     if m.trackListPanel <> invalid then m.trackListPanel.visible = true
@@ -2007,7 +2067,7 @@ sub SetTrackListStatus(text as String)
 end sub
 
 ' Track selected from the audio, subtitle, or chapter list. Persist the
-' preference (audio/subtitle) and apply it to the Video node; for chapters,
+' preference (audio/subtitle/captionMode) and apply it to the Video node; for chapters,
 ' seek to the selected chapter's start position.
 sub OnTrackSelected(event as Object)
     index = event.getData()
@@ -2017,6 +2077,8 @@ sub OnTrackSelected(event as Object)
         OnAudioTrackSelected(index)
     else if m.trackListType = "subtitle" then
         OnSubtitleTrackSelected(index)
+    else if m.trackListType = "captionMode" then
+        OnCaptionModeSelected(index)
     else if m.trackListType = "chapter" then
         OnChapterSelected(index)
     end if
@@ -2102,6 +2164,49 @@ sub OnSubtitleTrackSelected(index as Integer)
 
     CloseTrackListPanel()
     CloseSettingsPanel()
+end sub
+
+' R6.5: Handle caption mode selection from the channel-level toggle.
+' The four standard modes are indexed: 0=On, 1=Off, 2=Instant replay, 3=When mute.
+' Per https://developer.roku.com/dev/docs/video (globalCaptionMode field):
+' Setting globalCaptionMode on the Video node honours the device caption preference.
+sub OnCaptionModeSelected(index as Integer)
+    ' The four standard caption modes per Roku certification requirements.
+    captionModes = ["On", "Off", "Instant replay", "When mute"]
+    if index < 0 or index >= captionModes.Count() then return
+
+    selectedMode = captionModes[index]
+    m.captionMode = selectedMode
+
+    ' Apply to Video node - this is the channel-level toggle that sets
+    ' globalCaptionMode for the session (per R6.5 requirement).
+    if m.videoPlayer <> invalid then
+        m.videoPlayer.globalCaptionMode = selectedMode
+    end if
+
+    ' Also sync to device settings so the Roku system is aware.
+    ' Per docs: "Whenever the user switches on/off closed caption, it is expected
+    ' that the global setting will be adjusted accordingly."
+    deviceInfo = CreateObject("roDeviceInfo")
+    deviceInfo.SetCaptionsMode(selectedMode)
+
+    SetSettingsStatus("Caption mode: " + selectedMode)
+
+    CloseTrackListPanel()
+    CloseSettingsPanel()
+end sub
+
+' R6.5: Observer callback for globalCaptionMode field changes.
+' Called when the user changes caption mode from the Roku system menu during playback.
+' Per https://developer.roku.com/dev/docs/video: "Whenever the user switches on/off
+' closed caption, it is expected that the global setting will be adjusted accordingly."
+sub OnCaptionModeChanged(event as Object)
+    newMode = event.getData()
+    if newMode = invalid then return
+
+    ' Sync our state to the device's reported mode.
+    ' This ensures the channel-level toggle stays consistent with system setting.
+    m.captionMode = newMode
 end sub
 
 ' Caption helper for an audio track row: "English (AAC, 6ch, 256kbps)" or
