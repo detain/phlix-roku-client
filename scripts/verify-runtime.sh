@@ -383,4 +383,72 @@ PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo ""
+echo "=== Check 15: hardcoded localhost URL (R4.10) ==="
+PYOUT=$(python3 - <<'PYEOF'
+import re, os, sys
+
+os.chdir('/home/sites/phlix/phlix-roku-client')
+
+# Allow-list: files/patterns that legitimately contain localhost
+exempt_files = {
+    # tests/ — unit tests always use localhost for the mock server
+    'tests/',
+}
+# Allow-list: specific line content patterns that are legitimate
+exempt_line_patterns = [
+    # ConnectScene.xml hint="https://my.phlix.server" placeholder
+    re.compile(r'hint="https://my\.phlix\.server"'),
+    # DEVELOPER.md ApiClient("http://localhost:8096") example
+    re.compile(r'ApiClient\s*\(\s*"http://localhost'),
+]
+# Exempt absolute path:line — specific legitimate code uses
+exempt_locs = {
+    # Utilities.brs: localhost detection for scheme inference
+    ('source/lib/Utilities.brs', 91): re.compile(r'if lower\.Left\(9\) = "localhost"'),
+}
+
+found_violation = False
+for ext in ('brs', 'xml'):
+    for root, dirs, files in os.walk('.'):
+        # Skip hidden dirs
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for fname in files:
+            if not fname.endswith(f'.{ext}'):
+                continue
+            fpath = os.path.join(root, fname)
+            # Normalize path for exempt_files check
+            normalized = fpath.lstrip('./')
+            if any(normalized.startswith(e) for e in exempt_files):
+                continue
+            with open(fpath, errors='replace') as f:
+                for lineno, line in enumerate(f, 1):
+                    if 'localhost' not in line:
+                        continue
+                    # Skip comment-only lines (lines where meaningful content starts with ')
+                    stripped = line.strip()
+                    if stripped.startswith("'") or stripped.startswith('"'):
+                        continue
+                    # Skip exempt line patterns
+                    if any(p.search(line) for p in exempt_line_patterns):
+                        continue
+                    # Skip exempt specific locations
+                    is_exempt_loc = False
+                    for (efile, eline), pattern in exempt_locs.items():
+                        if normalized == efile and lineno == eline and pattern.search(line):
+                            is_exempt_loc = True
+                            break
+                    if is_exempt_loc:
+                        continue
+                    print(f'  {normalized}:{lineno} — CHECK15: hardcoded localhost URL')
+                    found_violation = True
+
+if found_violation:
+    sys.exit(1)
+PYEOF
+)
+PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 [[ $VIOLATIONS -eq 1 ]] && exit 1
