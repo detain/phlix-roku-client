@@ -30,10 +30,25 @@ sub Init()
 
     m.libraryId = ""
     m.items = []
+
+    ' Paging state for infinite scroll
+    m.offset = 0
+    m.limit = 50
+    m.hasMore = true
+    m.loadingPage = false
+    m.contentNode = invalid
+    m.prefetchThreshold = 15 ' one screen (5 cols x 3 rows = 15 visible)
 end sub
 
 sub LoadLibrary(libraryId as String, libraryName as String)
     m.libraryId = libraryId
+
+    ' Reset paging state for fresh library load
+    m.offset = 0
+    m.hasMore = true
+    m.loadingPage = false
+    m.items = []
+    m.contentNode = invalid
 
     if m.titleLabel <> invalid then
         m.titleLabel.text = libraryName
@@ -48,14 +63,29 @@ sub RefreshItems()
     ' Show loading indicator while data loads off the render thread.
     if m.loadingLabel <> invalid then
         m.loadingLabel.visible = true
+        if m.offset > 0 then
+            m.loadingLabel.text = "Loading more..."
+        else
+            m.loadingLabel.text = "Loading..."
+        end if
     end if
 
     m.apiTask.request = {
         op: "getLibraryItems"
         libraryId: m.libraryId
-        options: { topLevel: 1 }
+        options: { topLevel: 1, offset: m.offset, limit: m.limit }
     }
     m.apiTask.control = "run"
+end sub
+
+' Load next page of items. Guard prevents concurrent page requests (R1.4 Task pattern).
+sub LoadMoreItems()
+    ' Guard: do not run two page requests at once
+    if m.loadingPage then return
+    if not m.hasMore then return
+
+    m.loadingPage = true
+    RefreshItems()
 end sub
 
 sub OnApiResponse(event as Object)
@@ -68,13 +98,26 @@ sub OnApiResponse(event as Object)
             m.loadingLabel.visible = false
         end if
 
-        if not resp.ok or resp.data = invalid or resp.data.items = invalid then return
+        if not resp.ok or resp.data = invalid or resp.data.items = invalid then
+            m.loadingPage = false
+            return
+        end if
 
-        m.items = resp.data.items
+        newItems = resp.data.items
+        itemCount = newItems.count()
 
-        content = CreateObject("roSGNode", "ContentNode")
-        for each item in m.items
-            contentItem = content.AddChild({
+        ' First page: create ContentNode; subsequent pages: append to existing
+        if m.offset = 0 then
+            m.items = newItems
+            m.contentNode = CreateObject("roSGNode", "ContentNode")
+            m.posterGrid.content = m.contentNode
+        else
+            m.items.append(newItems)
+        end if
+
+        ' Build ContentNode children for the new items
+        for each item in newItems
+            contentItem = m.contentNode.AddChild({
                 Title: item.name
                 Description: item.overview
                 ShortDescriptionLine1: item.name
@@ -94,7 +137,10 @@ sub OnApiResponse(event as Object)
             end if
         end for
 
-        m.posterGrid.content = content
+        ' Update paging state
+        m.offset = m.offset + itemCount
+        m.hasMore = (itemCount = m.limit)
+        m.loadingPage = false
     end if
 end sub
 
@@ -127,6 +173,12 @@ sub OnItemFocused(event as Object)
             else
                 m.descriptionLabel.text = item.name
             end if
+        end if
+
+        ' Prefetch: trigger LoadMoreItems when focus approaches end of loaded set
+        ' (within one screen = 15 items for a 5x3 grid)
+        if m.items.Count() > 0 and index >= m.items.Count() - m.prefetchThreshold then
+            LoadMoreItems()
         end if
     end if
 end sub
