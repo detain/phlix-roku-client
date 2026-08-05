@@ -23,7 +23,7 @@
 
         <!-- Full-screen image. scaleToFit preserves aspect ratio. -->
         <Poster width="1280" height="720"
-                loadDisplayMode="scaleToFit"
+                loadWidth="1280" loadHeight="720" loadDisplayMode="scaleToFit"
                 id="fullImage" />
 
         <!-- Caption: photo name + "i / N" -->

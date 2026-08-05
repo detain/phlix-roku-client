@@ -30,9 +30,10 @@
         <Rectangle height="580" width="1280" translation="[0,100]">
             <!-- Poster -->
             <Rectangle height="400" width="280" translation="[40,40]">
-                <Poster height="400" width="280" id="posterImage"
-                         failedUrl="pkg:/images/placeholder.png"
-                         defaultUrl="pkg:/images/placeholder.png" />
+            <Poster height="400" width="280" id="posterImage"
+                     loadWidth="280" loadHeight="400" loadDisplayMode="scaleToFit"
+                     failedUrl="pkg:/images/placeholder.png"
+                     defaultUrl="pkg:/images/placeholder.png" />
             </Rectangle>
 
             <!-- Info Panel -->
