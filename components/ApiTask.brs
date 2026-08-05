@@ -680,6 +680,26 @@ sub ExecRequest()
             result.data = api.updateProfileStreamLimits(req.profileId, req.limits)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
+        else if req.op = "getMediaFacets" then
+            libraryId = ""
+            if req.DoesExist("libraryId") and req.libraryId <> invalid then
+                libraryId = req.libraryId
+            end if
+            result.data = api.getMediaFacets(libraryId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+        else if req.op = "getLetterIndex" then
+            libraryId = ""
+            letter = "A"
+            if req.DoesExist("libraryId") and req.libraryId <> invalid then
+                libraryId = req.libraryId
+            end if
+            if req.DoesExist("letter") and req.letter <> invalid then
+                letter = req.letter
+            end if
+            result.data = api.getLetterIndex(libraryId, letter)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
         else if req.op = "logout" then
             ' Fire-and-forget server-side session teardown.
             ' Local credentials have already been cleared by OnLogout before this

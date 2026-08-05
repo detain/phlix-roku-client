@@ -20,24 +20,54 @@
             <Rectangle height="60" width="160" translation="[20,20]">
                 <Button height="60" width="160" title="Back" id="backButton" />
             </Rectangle>
-            <Label height="60" width="800" translation="[200,20]"
+            <Label height="60" width="600" translation="[200,20]"
                    text="Library"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF"
                    id="titleLabel" />
+            <!-- Sort/Filter controls in header -->
+            <Rectangle height="60" width="360" translation="[820,20]">
+                <Button height="60" width="120" title="Sort" id="optionsButton" />
+            </Rectangle>
         </Rectangle>
 
-        <!-- Items Grid -->
-        <PosterGrid height="540" width="1280" translation="[0,100]"
-                    numColumns="5" numRows="3"
+        <!-- Sort/Filter Labels Row -->
+        <Rectangle height="40" width="1280" translation="[0,100]" color="#16213e">
+            <Label height="40" width="300" translation="[20,8]"
+                   text="Sort: Name"
+                   font="font:SmallSystemFont"
+                   color="#AAAAAA"
+                   id="sortLabel" />
+            <Label height="40" width="300" translation="[340,8]"
+                   text="Filter: All"
+                   font="font:SmallSystemFont"
+                   color="#AAAAAA"
+                   id="filterLabel" />
+        </Rectangle>
+
+        <!-- Items Grid - adjusted position to account for new row -->
+        <PosterGrid height="460" width="1280" translation="[0,140]"
+                    numColumns="5" numRows="2"
                     itemSpacing="[20, 15]"
                     basePosterSize="[220, 330]"
                     caption1Icon="handle://leftbottom"
                     id="itemsGrid">
         </PosterGrid>
 
+        <!-- A-Z Jump Bar -->
+        <Rectangle height="50" width="1280" translation="[0,600]" color="#0d0d1a">
+            <Label height="30" width="100" translation="[20,10]"
+                   text="Jump to:"
+                   font="font:SmallSystemFont"
+                   color="#888888" />
+            <!-- A-Z buttons row - 26 letters + # -->
+            <Rectangle id="azBar" height="40" translation="[120,5]">
+                <!-- A-Z jump buttons will be created programmatically -->
+            </Rectangle>
+        </Rectangle>
+
         <!-- Description Area -->
-        <Rectangle height="40" width="1280" translation="[0,640]" color="#0d0d1a">
+        <Rectangle height="40" width="1280" translation="[0,650]" color="#0d0d1a">
             <Label height="40" width="1200" translation="[40,8]"
                    text="Select an item"
                    font="font:MediumSystemFont"

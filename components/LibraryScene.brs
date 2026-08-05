@@ -4,9 +4,27 @@
 
 ' copyright 2026 Joe Huss
 '
-
+'
+'
 
 sub Init()
+    ' Supported sort field values (must match server-side ItemRepository values).
+    ' These are local to Init() but copied to m.* for access by other subs.
+    m.sortName = "name"
+    m.sortYear = "year"
+    m.sortRating = "rating"
+    m.sortDateAdded = "date_added"
+    m.sortRuntime = "runtime"
+
+    ' Sort field display labels
+    m.sortLabels = {
+        name: "Name (A-Z)",
+        year: "Year (Newest)",
+        rating: "Rating",
+        date_added: "Date Added",
+        runtime: "Runtime"
+    }
+
     m.top.SetFocus(true)
 
     ' Create poster grid for items
@@ -19,9 +37,17 @@ sub Init()
     m.titleLabel = m.top.FindNode("titleLabel")
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
     m.loadingLabel = m.top.FindNode("loadingLabel")
+    m.optionsButton = m.top.FindNode("optionsButton")
+    m.sortLabel = m.top.FindNode("sortLabel")
+    m.filterLabel = m.top.FindNode("filterLabel")
+    m.azBar = m.top.FindNode("azBar")
 
     if m.backButton <> invalid then
         m.backButton.ObserveField("buttonSelected", "OnBackPressed")
+    end if
+
+    if m.optionsButton <> invalid then
+        m.optionsButton.ObserveField("buttonSelected", "OnOptionsPressed")
     end if
 
     ' Route all data access through the ApiTask node (off the render thread).
@@ -38,10 +64,21 @@ sub Init()
     m.loadingPage = false
     m.contentNode = invalid
     m.prefetchThreshold = 15 ' one screen (5 cols x 3 rows = 15 visible)
+
+    ' Sort/filter state
+    m.sortField = m.sortName
+    m.sortOrder = "asc"
+    m.selectedGenre = ""
+    m.selectedLetter = ""
+    m.availableGenres = []
+    m.letterIndex = []
 end sub
 
 sub LoadLibrary(libraryId as String, libraryName as String)
     m.libraryId = libraryId
+
+    ' Load persisted sort preference for this library
+    LoadSortPreference(libraryId)
 
     ' Reset paging state for fresh library load
     m.offset = 0
@@ -49,11 +86,154 @@ sub LoadLibrary(libraryId as String, libraryName as String)
     m.loadingPage = false
     m.items = []
     m.contentNode = invalid
+    m.selectedLetter = ""
 
     if m.titleLabel <> invalid then
         m.titleLabel.text = libraryName
     end if
 
+    ' Update sort/filter labels
+    UpdateSortFilterLabels()
+
+    ' Fetch facets and letter index, then load items
+    FetchFacets()
+    FetchLetterIndex()
+end sub
+
+sub LoadSortPreference(libraryId as String)
+    key = "sort_" + libraryId
+    stored = GetStorage().get(key)
+    if stored <> "" and stored <> invalid then
+        ' Parse JSON stored preference
+        json = ParseJson(stored)
+        if json <> invalid then
+            if json.DoesExist("sort") then m.sortField = json.sort
+            if json.DoesExist("order") then m.sortOrder = json.order
+            ' Validate sortField against known values
+            validFields = [m.sortName, m.sortYear, m.sortRating, m.sortDateAdded, m.sortRuntime]
+            if validFields.find(m.sortField) = -1 then
+                m.sortField = m.sortName
+            end if
+            if m.sortOrder <> "asc" and m.sortOrder <> "desc" then
+                m.sortOrder = "asc"
+            end if
+        end if
+    else
+        m.sortField = m.sortName
+        m.sortOrder = "asc"
+    end if
+end sub
+
+sub SaveSortPreference(libraryId as String)
+    key = "sort_" + libraryId
+    json = {
+        sort: m.sortField
+        order: m.sortOrder
+    }
+    GetStorage().set(key, FormatJson(json))
+end sub
+
+sub FetchFacets()
+    ' Fetch available genres from server
+    m.apiTask.request = {
+        op: "getMediaFacets"
+        libraryId: m.libraryId
+    }
+    m.apiTask.control = "run"
+end sub
+
+sub FetchLetterIndex()
+    ' Fetch A-Z index from server
+    m.apiTask.request = {
+        op: "getLetterIndex"
+        libraryId: m.libraryId
+        letter: "A"
+    }
+    m.apiTask.control = "run"
+end sub
+
+sub UpdateSortFilterLabels()
+    if m.sortLabel <> invalid then
+        ' Show current sort as "Sort: Name" or similar
+        sortDisplay = m.sortLabels[m.sortField]
+        if sortDisplay = invalid then sortDisplay = "Name"
+        m.sortLabel.text = "Sort: " + sortDisplay
+    end if
+
+    if m.filterLabel <> invalid then
+        if m.selectedGenre <> "" then
+            m.filterLabel.text = "Filter: " + m.selectedGenre
+        else
+            m.filterLabel.text = "Filter: All"
+        end if
+    end if
+end sub
+
+sub OnOptionsPressed()
+    ' Show sort options dialog
+    ShowSortOptions()
+end sub
+
+sub ShowSortOptions()
+    ' Build list of sort options with current selection marked
+    sortList = []
+    selectedIndex = 0
+    idx = 0
+    for each field in [m.sortName, m.sortYear, m.sortRating, m.sortDateAdded, m.sortRuntime]
+        label = m.sortLabels[field]
+        if label = invalid then label = field
+        if field = m.sortField then
+            selectedIndex = idx
+            label = label + " *"
+        end if
+        sortList.push(label)
+        idx = idx + 1
+    end for
+
+    ' TODO: Show actual roListDialog or custom picker here
+    ' For now, cycle through options on each press
+    fields = [m.sortName, m.sortYear, m.sortRating, m.sortDateAdded, m.sortRuntime]
+    currentIdx = fields.find(m.sortField)
+    if currentIdx < 0 then currentIdx = 0
+    nextIdx = (currentIdx + 1) mod fields.count()
+    ApplySort(fields[nextIdx], m.sortOrder)
+end sub
+
+sub ApplySort(sortField as String, sortOrder as String)
+    if sortField <> m.sortField or sortOrder <> m.sortOrder then
+        m.sortField = sortField
+        m.sortOrder = sortOrder
+        SaveSortPreference(m.libraryId)
+        UpdateSortFilterLabels()
+        ' Reset to first page and clear loaded items
+        ResetAndRefresh()
+    end if
+end sub
+
+sub OnGenreSelected(genre as String)
+    if genre <> m.selectedGenre then
+        m.selectedGenre = genre
+        UpdateSortFilterLabels()
+        ' Reset to first page and clear loaded items
+        ResetAndRefresh()
+    end if
+end sub
+
+sub OnLetterSelected(letter as String)
+    if letter <> m.selectedLetter then
+        m.selectedLetter = letter
+        ' Reset to first page and clear loaded items
+        ResetAndRefresh()
+    end if
+end sub
+
+sub ResetAndRefresh()
+    ' Reset offset to 0 and clear loaded items
+    m.offset = 0
+    m.hasMore = true
+    m.loadingPage = false
+    m.items = []
+    m.contentNode = invalid
     RefreshItems()
 end sub
 
@@ -70,10 +250,31 @@ sub RefreshItems()
         end if
     end if
 
+    ' Build options with sort, filter, and letter params
+    options = {
+        topLevel: 1
+        offset: m.offset
+        limit: m.limit
+        sort: m.sortField
+        order: m.sortOrder
+    }
+
+    ' Add genre filter if selected
+    if m.selectedGenre <> "" then
+        options.genres = [m.selectedGenre]
+    end if
+
+    ' Add letter filter if selected (for A-Z jump)
+    if m.selectedLetter <> "" then
+        ' The letter filter tells server to filter by first letter of name
+        ' Server uses letter index offset directly
+        options.letter = m.selectedLetter
+    end if
+
     m.apiTask.request = {
         op: "getLibraryItems"
         libraryId: m.libraryId
-        options: { topLevel: 1, offset: m.offset, limit: m.limit }
+        options: options
     }
     m.apiTask.control = "run"
 end sub
@@ -141,6 +342,22 @@ sub OnApiResponse(event as Object)
         m.offset = m.offset + itemCount
         m.hasMore = (itemCount = m.limit)
         m.loadingPage = false
+
+    else if resp.op = "getMediaFacets" then
+        ' Store available genres for filtering
+        if resp.ok and resp.data <> invalid and resp.data.genres <> invalid then
+            m.availableGenres = resp.data.genres
+        else
+            m.availableGenres = []
+        end if
+
+    else if resp.op = "getLetterIndex" then
+        ' Store letter index for A-Z jump
+        if resp.ok and resp.data <> invalid and resp.data.letters <> invalid then
+            m.letterIndex = resp.data.letters
+        else
+            m.letterIndex = []
+        end if
     end if
 end sub
 

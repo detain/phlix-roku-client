@@ -473,6 +473,28 @@ function ApiClient(baseUrl as String) as Object
             return m.request("GET", "/media/" + itemId + "/playback-info", invalid)
         end function
 
+        ' GET /media/facets?libraryId=<id> -> {genres: string[]} of distinct
+        ' genres for the given library (or all libraries if no libraryId).
+        getMediaFacets: function(libraryId = "" as String) as Object
+            path = "/media/facets"
+            if libraryId <> "" then
+                path = path + "?libraryId=" + UrlEncode(libraryId)
+            end if
+            return m.request("GET", path, invalid)
+        end function
+
+        ' GET /media/letter-index?libraryId=<id>&letter=<A-Z> -> {letters: [...]} of
+        ' {letter, offset, count} buckets for A-Z + #, scoped to libraryId. The
+        ' offset values are cumulative and can be used directly as pagination
+        ' offsets to jump to a specific letter's page in the grid.
+        getLetterIndex: function(libraryId as String, letter as String) as Object
+            path = "/media/letter-index?letter=" + UrlEncode(letter)
+            if libraryId <> "" then
+                path = path + "&libraryId=" + UrlEncode(libraryId)
+            end if
+            return m.request("GET", path, invalid)
+        end function
+
         ' ---------------------------------------------------------------------
         ' Transcode (codec fallback)
         ' ---------------------------------------------------------------------
