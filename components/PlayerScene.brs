@@ -110,6 +110,20 @@ sub Init()
     ' Do not retry aggressively — progress fires every 10 seconds.
     m.progressFailuresBeforeWarning = 3
 
+    ' R4.11: API session state for buffered progress reporting.
+    ' Tracks whether we have a valid API session (m.sessionId in ApiClient).
+    ' When false, early progress reports are buffered and sent once session exists.
+    m.apiSessionReady = false
+    ' True when we're buffering a progress report while waiting for the API session.
+    m.waitingForApiSession = false
+    ' True when we've already retried createSession once after failure.
+    m.apiSessionCreateRetry = false
+    ' The buffered position (seconds) from ReportProgress while waiting for session.
+    m.bufferedPosition = 0!
+    ' Tracks the current in-flight operation on m.progressTask so OnProgressResponse
+    ' can distinguish createSession responses from reportProgress responses.
+    m.currentOp = ""
+
     ' ============================================================= '
     ' F13 SyncPlay "Watch Together" - additive, gated behind the panel. '
     ' All state initialised inert; the socket task is created LAZILY on   '
@@ -293,6 +307,13 @@ sub Show(itemId as String, args as Object)
     ' Create a session once so progress reports have a session_id (persisted to
     ' Storage by ApiClient.createSession; a later fresh GetApiClient restores it).
     ' un guarded: one-shot at playback start - m.transcodeAttempted gates re-entry.
+    ' R4.11: Track currentOp so OnProgressResponse can distinguish this response
+    ' from a subsequent reportProgress response, and retry once on failure.
+    m.apiSessionReady = false
+    m.waitingForApiSession = false
+    m.apiSessionCreateRetry = false
+    m.bufferedPosition = 0!
+    m.currentOp = "createSession"
     m.progressTask.request = { op: "createSession" }
     m.progressTask.control = "run"
 
@@ -529,10 +550,22 @@ end sub
 ' positionSeconds is in SECONDS. Ticks are 100ns; SecondsToTicks uses Double math
 ' returning LongInteger so values past ~214s do not overflow a 32-bit Integer.
 sub ReportProgress(positionSeconds as Float)
+    ' R4.11: Buffer early progress reports until API session exists.
+    ' If session creation is still in flight or failed, store the position and
+    ' defer sending until the session is ready. OnProgressResponse will flush
+    ' the buffered position when createSession succeeds.
+    if not m.apiSessionReady then
+        m.waitingForApiSession = true
+        m.bufferedPosition = positionSeconds
+        print "ReportProgress: buffering (waiting for API session, position=" positionSeconds ")"
+        return
+    end if
+
     ' Replace policy: if the task is still running from a prior call (which can
     ' happen when the server is slow), skip this call. A stale position is
     ' worthless — the next timer tick will carry the current position.
     if m.progressTask.state = "run" then return
+    m.currentOp = "reportProgress"
     positionTicks = SecondsToTicks(positionSeconds)
     durationTicks = SecondsToTicks(m.videoPlayer.duration)
     m.progressTask.request = {
@@ -574,8 +607,55 @@ end sub
 ' DEPENDENCY: This handler infers auth failure from a null data field. R3.2/R3.3
 ' (HTTP status propagation through ApiClient.request -> ApiTask.ok) will make
 ' the 401 detection explicit rather than inferred.
+'
+' R4.11: Also handles createSession responses (m.currentOp = "createSession").
+' On failure, retries once before surfacing an error to the user. On success,
+' flushes any buffered progress report that arrived while waiting for session.
 sub OnProgressResponse(event as Object)
     resp = event.getData()
+
+    ' R4.11: Handle createSession response specially (distinct from reportProgress).
+    if m.currentOp = "createSession" then
+        m.currentOp = ""
+
+        ' R4.11: Validate createSession response - must have valid session_id.
+        ' success: {session_id: "..."} comes back as resp.data.session_id
+        if resp <> invalid and resp.data <> invalid and resp.data.session_id <> invalid then
+            ' Session created successfully - mark ready and flush buffered progress.
+            m.apiSessionReady = true
+            if m.waitingForApiSession then
+                m.waitingForApiSession = false
+                if m.bufferedPosition > 0 then
+                    bufferedPos = m.bufferedPosition
+                    m.bufferedPosition = 0!
+                    print "OnProgressResponse: flushing buffered progress, position=" bufferedPos
+                    ' Recursively call ReportProgress with the buffered position.
+                    ' This will send for real now that m.apiSessionReady = true.
+                    ReportProgress(bufferedPos)
+                end if
+            end if
+        else
+            ' R4.11: createSession failed - retry once before surfacing error.
+            if not m.apiSessionCreateRetry then
+                m.apiSessionCreateRetry = true
+                print "OnProgressResponse: createSession failed, retrying..."
+                m.currentOp = "createSession"
+                m.progressTask.request = { op: "createSession" }
+                m.progressTask.control = "run"
+            else
+                ' R4.11: Retry exhausted - surface error to user.
+                print "OnProgressResponse: createSession failed after retry"
+                m.apiSessionCreateRetry = false
+                m.waitingForApiSession = false
+                ShowProgressAuthError()
+            end if
+        end if
+        return
+    end if
+
+    ' R4.11: Handle reportProgress response (m.currentOp = "reportProgress" or empty
+    ' for early code paths that don't set currentOp - backward compat for non-R4.11
+    ' code paths that don't use currentOp).
 
     ' Guard: resp being invalid is itself a failure.
     if resp = invalid then
