@@ -920,6 +920,8 @@ sub ClosePlayer()
         m.syncTask.UnObserveField("event")
         ' Best-effort close of the WS connection.
         m.syncTask.command = { kind: "close" }
+        ' Signal the task thread to stop so it does not linger during player teardown.
+        m.syncTask.control = "stop"
         m.syncTask = invalid
     end if
     if m.syncGroupList <> invalid then m.syncGroupList.UnObserveField("itemSelected")
@@ -1212,9 +1214,11 @@ sub OnErrorOkPressed()
     ClosePlayer()
 end sub
 
-' Open/close the panel. On first open: gate hub mode out, fetch the REST group
-' snapshot, and lazily create + connect the SyncPlayTask. roStreamSocket is
-' plaintext-only -> ws:// against :8097 (see worklog §1e/§2).
+' Open/close the panel. On first open: gate hub mode out and fetch the REST
+' group snapshot. The SyncPlayTask is NOT started here — it is created on
+' demand when the user creates or joins a group (OnSyncGroupSelected /
+' OnSyncCreatePressed), so the 4-second tick thread is never held for a
+' feature the user is not actively using.
 sub ToggleSyncPanel()
     if m.syncPanelOpen then
         CloseSyncPanel()
@@ -1243,9 +1247,6 @@ sub ToggleSyncPanel()
     ' un guarded: panel is opened once; syncListTask is lazily created
     m.syncListTask.control = "run"
 
-    ' Lazily create + connect the socket task.
-    if m.syncTask = invalid then ConnectSyncTask()
-
     if m.syncGroupList <> invalid then m.syncGroupList.SetFocus(true)
 end sub
 
@@ -1253,6 +1254,14 @@ sub CloseSyncPanel()
     m.syncPanelOpen = false
     if m.syncPanel <> invalid then m.syncPanel.visible = false
     m.top.SetFocus(true)
+
+    ' Stop the SyncPlayTask when the panel is closed. The user may re-open
+    ' the panel and reconnect (OnSyncGroupSelected / OnSyncCreatePressed will
+    ' call ConnectSyncTask to start a fresh task).
+    if m.syncTask <> invalid then
+        m.syncTask.control = "stop"
+        m.syncTask = invalid
+    end if
 end sub
 
 ' Build the plaintext ws:// SyncPlay url parts from the connected server origin and
@@ -1368,13 +1377,18 @@ function SyncGroupCaption(g as Object) as String
     return name + count + lock
 end function
 
-' Join the selected group over the WS.
+' Join the selected group over the WS. Creates and starts the SyncPlayTask
+' on demand if not already open, so the tick thread is only held while the user
+' is actually in a group.
 sub OnSyncGroupSelected(event as Object)
     index = event.getData()
     if index = invalid then return
     if index < 0 or index >= m.syncGroupIds.Count() then return
     gid = m.syncGroupIds[index]
     if gid = "" then return
+
+    ' Start the WS task on demand (not when panel opens).
+    if m.syncTask = invalid then ConnectSyncTask()
     if m.syncTask = invalid then return
 
     SetSyncStatus("Joining…")
@@ -1382,15 +1396,20 @@ sub OnSyncGroupSelected(event as Object)
 end sub
 
 ' Create a new group (no on-screen keyboard - name is derived from the device).
+' Creates and starts the SyncPlayTask on demand if not already running.
 sub OnSyncCreatePressed()
+    ' Start the WS task on demand (not when panel opens).
+    if m.syncTask = invalid then ConnectSyncTask()
     if m.syncTask = invalid then return
+
     deviceName = GetStorage().get("device_name")
     if deviceName = invalid or deviceName = "" then deviceName = "Roku"
     SetSyncStatus("Creating group…")
     m.syncTask.command = { kind: "create", group_name: deviceName + "'s Room" }
 end sub
 
-' Leave the current group (also closes the socket task-side).
+' Leave the current group (also closes the socket task-side). Stops the
+' SyncPlayTask thread immediately so it does not linger after leaving.
 sub OnSyncLeavePressed()
     if m.syncTask = invalid then return
     m.syncTask.command = { kind: "leave", group_id: m.syncGroupId }
@@ -1398,6 +1417,10 @@ sub OnSyncLeavePressed()
     m.syncIsHost = false
     m.syncGroupId = ""
     SetSyncStatus("Left the group")
+
+    ' Stop the task thread now that the group session is over.
+    m.syncTask.control = "stop"
+    m.syncTask = invalid
 end sub
 
 ' Task->scene event observer. THREAD-SAFE: only assoc/string/number cross. The

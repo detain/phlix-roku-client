@@ -70,6 +70,11 @@ sub Init()
     m.headerCol = "search"
     m.isAdmin = false
     m.pendingResume = invalid
+    ' Guards against the async continue-watching response stealing focus when the
+    ' user has already moved focus away from the continue rail (line 208). Only
+    ' set focus on the FIRST successful load; subsequent refreshes skip the focus
+    ' move so an async response never yanks focus mid-interaction.
+    m.continueGridFirstLoaded = false
 
     ' Init load chain (serialized through the single task): getMe FIRST (gates the
     ' admin button), which then chains libraries -> continue-watching from the
@@ -204,9 +209,13 @@ sub OnContinueWatchingResponse(resp as Object)
     m.continueLabel.visible = true
     m.continueGrid.visible = true
 
-    ' Surface the rail and move focus to it.
-    m.continueGrid.SetFocus(true)
-    m.currentRail = "continue"
+    ' Surface the rail. Only move focus on first load — never yank focus back
+    ' mid-interaction if the user has already moved elsewhere.
+    if not m.continueGridFirstLoaded then
+        m.continueGrid.SetFocus(true)
+        m.currentRail = "continue"
+        m.continueGridFirstLoaded = true
+    end if
 end sub
 
 ' Best-effort poster for a continue-watching tile. CW items are RAW JOIN rows
