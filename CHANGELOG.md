@@ -5,6 +5,13 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — DetailScene info line displays item.rating as string directly (R4.9)
+
+- `components/DetailScene.brs`: the info line now displays `item.rating` as a
+  ContentRating string (e.g., "R", "PG-13") rather than incorrectly applying
+  `RatingLabel()` which maps integers 0–6 to MPAA labels. `item.rating` is
+  already a ContentRating string per the server contract.
+
 ### Fixed — UrlEncode RFC 3986 allow-list, prevent double-encoding (R4.6)
 
 - `source/lib/Utilities.brs`: `UrlEncode()` now uses an allow-list (RFC 3986
