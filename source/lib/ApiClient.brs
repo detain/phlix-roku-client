@@ -559,24 +559,6 @@ function ApiClient(baseUrl as String) as Object
             return m.request("GET", "/me/continue-watching", invalid)
         end function
 
-        ' ---------------------------------------------------------------------
-        ' Watch history (P4-S6). GET /me/history -> {items:[...]} ; returns
-        ' the whole envelope (mirror getContinueWatching / getFavorites).
-        ' ---------------------------------------------------------------------
-        getWatchHistory: function(options = {} as Object) as Object
-            limit = 100
-            offset = 0
-            if options.DoesExist("limit") then limit = options.limit
-            if options.DoesExist("offset") then offset = options.offset
-
-            params = []
-            params.push("limit=" + str(limit).trim())
-            params.push("offset=" + str(offset).trim())
-
-            query = "?" + JoinStrings(params, "&")
-            return m.request("GET", "/me/history" + query, invalid)
-        end function
-
         ' GET /me/recommendations -> {recommendations:[...]} ; returns whole object.
         getRecommendations: function(options = {} as Object) as Object
             limit = 20

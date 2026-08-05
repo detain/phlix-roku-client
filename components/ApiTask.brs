@@ -144,12 +144,6 @@ sub ExecRequest()
             result.data = api.getContinueWatching()
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
-        else if req.op = "getWatchHistory" then
-            opts = req.options
-            if opts = invalid then opts = {}
-            result.data = api.getWatchHistory(opts)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
         else if req.op = "getRecommendations" then
             opts = req.options
             if opts = invalid then opts = {}
