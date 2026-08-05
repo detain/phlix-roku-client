@@ -441,9 +441,11 @@ sub AddMemberName(payload as Object)
     end if
 end sub
 
-' Send a periodic time_ping (t1 = NowMs()).
-sub SendTimePing()
-    t1 = NowMs()
+ ' Send a periodic time_ping (t1 = NowMs()).
+ ' Skip when not joined to a session (m.yourId is set on group_state, confirming join).
+ sub SendTimePing()
+     if m.yourId = "" or m.yourId = invalid then return
+     t1 = NowMs()
     m.lastPingT1 = t1
     SendMessage("syncplay_time_ping", { client_time: t1 })
 end sub
