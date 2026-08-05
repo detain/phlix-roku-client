@@ -450,4 +450,67 @@ PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+FOUND=0
+echo ""
+echo "=== Check 16: placeholder channel art file size (R6.2) ==="
+# Each image in images/ must be large enough to plausibly contain real art at its
+# declared dimensions.  A 166-byte PNG is not a 290x218 icon — no amount of
+# compression makes a real photograph that small.
+# Minimum bytes per pixel: 0.5 B/px (ultra-flat illustration still needs hundreds
+# of bytes per pixel after DEFLATE; 1-bit placeholder palettes compress to nothing).
+# Fail if: bytes < width * height * 0.5
+PYOUT=$(python3 - <<'PYEOF'
+import os, sys, struct, zlib
+
+repo = '/home/sites/phlix/phlix-roku-client'
+images_dir = os.path.join(repo, 'images')
+if not os.path.isdir(images_dir):
+    print(f"  CHECK16: images/ directory not found at {images_dir}")
+    sys.exit(1)
+
+MIN_BPP = 0.5  # bytes per pixel — ultra-flat art still needs this much
+found_violation = False
+
+for fname in sorted(os.listdir(images_dir)):
+    fpath = os.path.join(images_dir, fname)
+    if not fname.lower().endswith('.png'):
+        continue
+    fsize = os.path.getsize(fpath)
+    # Read PNG header to get width/height
+    try:
+        with open(fpath, 'rb') as f:
+            # PNG signature + IHDR chunk
+            sig = f.read(8)
+            if sig != b'\x89PNG\r\n\x1a\n':
+                print(f"  images/{fname} — CHECK16: not a valid PNG file")
+                found_violation = True
+                continue
+            f.read(4)  # chunk length
+            chunk_type = f.read(4)
+            if chunk_type != b'IHDR':
+                print(f"  images/{fname} — CHECK16: IHDR chunk missing")
+                found_violation = True
+                continue
+            width = struct.unpack('>I', f.read(4))[0]
+            height = struct.unpack('>I', f.read(4))[0]
+    except Exception as e:
+        print(f"  images/{fname} — CHECK16: failed to read PNG dimensions: {e}")
+        found_violation = True
+        continue
+
+    min_bytes = int(width * height * MIN_BPP)
+    if fsize < min_bytes:
+        print(f"  images/{fname} — CHECK16: {fsize} bytes is too small for {width}x{height} (min expected ~{min_bytes} bytes)")
+        found_violation = True
+    else:
+        print(f"  images/{fname} ({width}x{height}, {fsize} bytes) — PASS")
+
+if found_violation:
+    sys.exit(1)
+PYEOF
+)
+PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 [[ $VIOLATIONS -eq 1 ]] && exit 1

@@ -142,6 +142,60 @@ writes and explicit flush calls at sync points. Auth tokens (`auth_token`,
    - Power-cycle. Re-launch. Confirm the channel does **not** restore the old session
      — `Storage.flush()` was called before clearing keys on logout.
 
+## R6.2 Channel Art Review
+
+**Reference:** `client_missing.md` §3.1 — placeholder art assets (166–6,917 bytes) will fail Roku channel certification review.
+
+### Required Channel Art Assets (per Roku specification)
+
+| Asset | Manifest Key | Required Dimensions | Notes |
+|-------|-------------|-------------------|-------|
+| HD Channel Icon (focus) | `mm_icon_focus_hd` | **290 × 218 px** | Primary store listing icon |
+| SD Channel Icon (focus) | `mm_icon_focus_sd` | **246 × 140 px** | SD store listing icon |
+| Side Icon | `mm_icon_side_hd` | **176 × 110 px** | Channel guide sidebar |
+| Splash Screen HD | `splash_screen_hd` | **1,280 × 720 px** | 720p TVs |
+| Splash Screen FHD | — (not in manifest) | **1,920 × 1,080 px** | 1080p TVs |
+| Splash Screen SD | `splash_screen_sd` | **720 × 480 px** | Legacy SD TVs |
+
+Source: Roku Channel Store channel art requirements (290×218 HD icon, 246×140 SD icon, 176×110 side icon; splash screens at 1280×720 HD, 1920×1080 FHD, 720×480 SD).
+
+### Current Asset State (as of R6.2 audit)
+
+| File | Size | Dimensions | Bit Depth | Status |
+|------|------|------------|-----------|--------|
+| `images/icon-focus-hd.png` | 6,917 B | 540×405 | 16-bit RGB | **Wrong dimensions** — should be 290×218; placeholder quality |
+| `images/icon-focus-sd.png` | — | — | — | **Missing** — referenced in manifest but not present |
+| `images/icon-side-hd.png` | 166 B | 175×29 | 1-bit colormap | **Placeholder** — trivially small |
+| `images/splash-sd.png` | 237 B | 960×540 | 1-bit colormap | **Placeholder** — 1-bit cannot be real art |
+| `images/splash-hd.png` | 286 B | 1,280×720 | 1-bit colormap | **Placeholder** — 1-bit cannot be real art |
+| `images/splash-fhd.png` | 426 B | 1,920×1,080 | 1-bit colormap | **Placeholder** — 1-bit cannot be real art |
+| `images/placeholder.png` | 186 B | 280×380 | 1-bit colormap | **Not referenced** in manifest; discard |
+
+### Static Verification
+
+`make verify-runtime` Check 16 validates that every PNG in `images/` is large enough to plausibly contain real art at its pixel dimensions (bytes ≥ width × height × 0.5). This catches all current placeholders immediately.
+
+### What Must Be Commissioned
+
+The following must be designed and supplied as 24-bit PNG files before the channel can pass art review:
+
+1. **HD Channel Icon (290×218)** — the primary store listing image; must contain the Phlix wordmark or symbol on a solid or gradient background
+2. **SD Channel Icon (246×140)** — scaled variant of the HD icon
+3. **Side Icon (176×110)** — smaller variant for channel guide sidebar
+4. **Splash Screen HD (1,280×720)** — branded splash with Phlix logo; background color `#1a1a2e` is already declared in the manifest
+5. **Splash Screen FHD (1,920×1,080)** — same design at 1080p
+6. **Splash Screen SD (720×480)** — same design at 480p
+
+**Important:** Do not generate placeholder art that "looks better" — it will still fail Roku's automated art validation. Real bitmap assets must be commissioned from a designer.
+
+### Post-Commissioning Checklist
+
+- [ ] All 6 PNG files exist in `images/` with correct dimensions
+- [ ] All files pass `make verify-runtime` Check 16 (size validation)
+- [ ] `make validate-manifest` confirms all declared assets are present
+- [ ] `npx bsc --project bsconfig.json` is clean
+- [ ] Channel is sideloaded and visually verified on a real Roku device
+
 ## Status
 
 | Defect | Status | Notes |
@@ -152,5 +206,6 @@ writes and explicit flush calls at sync points. Auth tokens (`auth_token`,
 | R1.1 Boot auth async | NOT REACHED | No device available for testing |
 | R1.2 Login async | NOT REACHED | No device available for testing |
 | R1.6 Storage caching | NOT REACHED | No device available for testing |
+| R6.2 Channel art | ART COMMISSION NEEDED | No Phlix brand assets exist; all images are placeholders (1-bit, tiny, or wrong dimensions); see §R6.2 Channel Art Review above |
 
 *This document was created because `ROKU_HOST` is unset — no physical hardware was available for sideload verification.*
