@@ -92,6 +92,8 @@ sub Init()
     m.item = invalid
     m.playbackInfo = invalid
     m.isPlaying = false
+    ' Guards against double-sending session completion for the same item.
+    m.sessionCompleteReported = false
     ' Throttle is tracked in SECONDS (Float), never in 100ns ticks (a 32-bit
     ' Int overflows past ~214s).
     m.lastReportedPosition = 0
@@ -200,6 +202,8 @@ end sub
 sub Show(itemId as String, args as Object)
     m.itemId = itemId
     m.isPlaying = false
+    ' R4.4: reset completion guard for the new item
+    m.sessionCompleteReported = false
     m.lastReportedPosition = 0
     m.transcodeAttempted = false
     m.transcodeJobId = ""
@@ -342,9 +346,16 @@ sub OnPlayerStateChange(event as Object)
         m.isPlaying = false
     else if state = "stopped" then
         ' Suppress the transient "stopped" some firmware emits mid quality-switch
-        ' content swap (see the guard note above); a real stop still closes.
+        ' content swap (see the guard note above); a real stop still closes via
+        ' StopPlayback so session completion is sent before teardown.
         if m.switchingQuality then return
         m.isPlaying = false
+        StopPlayback()
+        ClosePlayer()
+    else if state = "finished" then
+        ' Playback reached the end naturally — send completion before tearing down.
+        m.isPlaying = false
+        StopPlayback()
         ClosePlayer()
     end if
 end sub
@@ -380,6 +391,12 @@ sub OnApiResponse(event as Object)
             m.transcodeJobId = data.job_id
             m.transcodePollCount = 0
             startTranscodePollTimer()
+        end if
+    else if resp.op = "completeSession" then
+        ' A failed completion means the item stays in Continue Watching.
+        ' Show a non-blocking warning so the user knows.
+        if not resp.ok or resp.data = invalid then
+            SetProgressWarning("Could not mark as watched — item may remain in Continue Watching")
         end if
     end if
     ' Note: getTranscodeStatus is now handled by OnTranscodePollResponse on
@@ -457,6 +474,15 @@ sub OnPositionUpdate(event as Object)
             ReportProgress(position)
             m.lastReportedPosition = position
         end if
+
+        ' R4.4: Fallback for devices where "finished" state does not fire.
+        ' If position reaches 95% of duration and completion not yet reported,
+        ' treat as natural completion.
+        if not m.sessionCompleteReported and position >= 0.95 * duration then
+            m.sessionCompleteReported = true
+            StopPlayback()
+            ClosePlayer()
+        end if
     end if
 end sub
 
@@ -480,6 +506,12 @@ sub ShowControls(shouldShow as Boolean)
 end sub
 
 sub StopPlayback()
+    ' Send session completion before final progress and before tearing down.
+    ' Guard against double-sends using the per-item flag (reset when new item plays).
+    if not m.sessionCompleteReported then
+        CompleteSession()
+    end if
+
     if m.videoPlayer <> invalid then
         m.videoPlayer.control = "stop"
     end if
@@ -511,6 +543,25 @@ sub ReportProgress(positionSeconds as Float)
         isPaused: (not m.isPlaying)
     }
     m.progressTask.control = "run"
+end sub
+
+' Sends POST /api/v1/sessions/{id}/complete via m.apiTask to remove the item
+' from Continue Watching. Guarded by m.sessionCompleteReported to prevent double-
+' sends when called from multiple paths (e.g., both "finished" state and back
+' button). Uses skip-if-busy policy since completion is non-critical — if the
+' task is occupied (e.g., transcode start), the completion will be retried when
+' the user exits another way. The response is handled in OnApiResponse.
+sub CompleteSession()
+    if m.sessionCompleteReported then return
+    if m.sessionCompleteReported = invalid then return  ' defensive: not yet inited
+
+    ' Skip-if-busy: if apiTask is handling another request, skip this call.
+    ' Completion will be re-triggered on the next exit path.
+    if m.apiTask.state = "run" then return
+
+    m.sessionCompleteReported = true
+    m.apiTask.request = { op: "completeSession" }
+    m.apiTask.control = "run"
 end sub
 
 ' R1.5: Observe the progress task response so failures are no longer silent.

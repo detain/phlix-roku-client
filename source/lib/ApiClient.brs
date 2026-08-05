@@ -550,6 +550,13 @@ function ApiClient(baseUrl as String) as Object
             })
         end function
 
+        ' POST /sessions/{id}/complete — marks the episode as fully watched so it
+        ' is removed from Continue Watching.
+        completeSession: function() as Object
+            if m.sessionId = "" then return invalid
+            return m.request("POST", "/sessions/" + m.sessionId + "/complete", invalid)
+        end function
+
         ' ---------------------------------------------------------------------
         ' Continue watching (F3 consumes the UI)
         ' ---------------------------------------------------------------------

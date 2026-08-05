@@ -140,6 +140,10 @@ sub ExecRequest()
             result.data = api.reportProgress(req.mediaItemId, req.positionTicks, req.durationTicks, req.isPaused)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
+        else if req.op = "completeSession" then
+            result.data = api.completeSession()
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
         else if req.op = "getContinueWatching" then
             result.data = api.getContinueWatching()
             result.ok = DeriveResponseOk(result.data)
