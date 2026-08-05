@@ -5,6 +5,25 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — UrlEncode RFC 3986 allow-list, prevent double-encoding (R4.6)
+
+- `source/lib/Utilities.brs`: `UrlEncode()` now uses an allow-list (RFC 3986
+  unreserved: A-Z a-z 0-9 - . _ ~); all other characters are percent-encoded.
+  % is encoded first to prevent double-encoding. Non-ASCII chars are UTF-8
+  byte-encoded before percent-encoding. Fixes "50% off" → "50%25off" (was
+  "50%%20off") and "C++" → "C%2B%2B" (was "C++" on wire).
+- `tests/unit/Utilities2.test.brs`: added `TestUrlEncodeNewBehavior()`
+
+### Added — CHECK 14: media_items.type ENUM drift detection (R4.5)
+
+`make verify-runtime` now includes **CHECK 14**, a Python check that:
+- Reads the authoritative ENUM from the latest server migration (`034_media_items_type_audiobook.sql` — 13 members: movie, series, season, episode, track, music, album, artist, video, audio, book, photo, audiobook)
+- Extracts the full type list from `Utilities.brs` comment block (lines 731–733) — must match exactly
+- Verifies `PlayableTypes()` is a strict subset (6 of 13 members: movie, episode, video, audio, track, audiobook)
+- Fails if either direction drifts (client vs server, or playable subset vs full ENUM)
+
+Guards against silent UI loss: if a new ENUM member is added server-side but not documented client-side, or if `PlayableTypes()` includes a type that drops out of the ENUM, the check catches it at CI time.
+
 ### Fixed — User-visible error dialogs replace print-only ShowErrorDialog (R3.1)
 
 **Users see errors instead of silent failures.** The channel previously printed
