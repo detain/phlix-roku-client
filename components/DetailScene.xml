@@ -9,6 +9,10 @@
         <field id="requestClose" type="boolean" alwaysNotify="true" />
         <field id="itemId" type="string" />
         <function name="LoadItem" />
+        ' R6.3: When true, DetailScene auto-plays the item after loading instead
+        ' of requiring the user to press the Play button. Used for deep-link
+        ' cold-launch of movie/episode content.
+        <field id="autoPlayOnLoad" type="boolean" />
     </interface>
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />

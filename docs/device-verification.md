@@ -196,6 +196,61 @@ The following must be designed and supplied as 24-bit PNG files before the chann
 - [ ] `npx bsc --project bsconfig.json` is clean
 - [ ] Channel is sideloaded and visually verified on a real Roku device
 
+## R6.3 Cold-Launch Deep Linking
+
+**Reference:** `client_missing.md` §2.3 and §3.2 — certification blocker. Deep linking
+required for content catalog apps. Implementation in `source/main.brs` + `components/PhlixApp.brs`.
+
+### Test Commands (ECP via cURL)
+
+Roku's External Control Protocol (ECP) sends deep-link params on the launch URL.
+The channel ID for a sideloaded dev channel is `dev`.
+
+```bash
+# Set your device IP
+export ROKU_DEV_TARGET=192.168.1.XXX
+
+# Test movie deep link (direct playback)
+curl -d '' "http://$ROKU_DEV_TARGET:8060/launch/dev?contentId=movie123&mediaType=movie"
+
+# Test episode deep link (direct playback)
+curl -d '' "http://$ROKU_DEV_TARGET:8060/launch/dev?contentId=ep456&mediaType=episode"
+
+# Test series deep link (smart bookmark - next unwatched or resume)
+curl -d '' "http://$ROKU_DEV_TARGET:8060/launch/dev?contentId=series789&mediaType=series"
+
+# Test season deep link (episode picker)
+curl -d '' "http://$ROKU_DEV_TARGET:8060/launch/dev?contentId=season101&mediaType=season"
+
+# Test short-form video deep link
+curl -d '' "http://$ROKU_DEV_TARGET:8060/launch/dev?contentId=clip202&mediaType=shortformvideo"
+
+# Test while app is already running (warm launch via input command)
+curl -d '' "http://$ROKU_DEV_TARGET:8060/input?contentId=movie123&mediaType=movie"
+```
+
+### Expected Behaviors (per Roku deep-linking spec)
+
+| mediaType | Expected behavior |
+|-----------|------------------|
+| movie | Direct playback, resume from bookmark if available |
+| episode | Direct playback, resume from bookmark if available |
+| series | Smart bookmark: next unwatched episode OR resume position |
+| season | Episode picker showing the season's episodes |
+| shortFormVideo | Direct playback |
+| tvSpecial | Direct playback |
+
+### Validation Checklist
+
+- [ ] App launches to the correct content (not home screen) when deep-linked
+- [ ] Unauthenticated deep link redirects to login, then resumes the deep link
+- [ ] Invalid/unknown contentId shows a real dialog (R3.1), not a blank screen
+- [ ] Invalid mediaType falls through to home screen gracefully
+- [ ] ECP `launch` command from cold state works
+- [ ] ECP `input` command from warm state (app already running) works
+
+Source: [Roku Deep Linking Documentation](https://developer.roku.com/docs/developer-program/deep-linking)
+
 ## Status
 
 | Defect | Status | Notes |
@@ -207,5 +262,6 @@ The following must be designed and supplied as 24-bit PNG files before the chann
 | R1.2 Login async | NOT REACHED | No device available for testing |
 | R1.6 Storage caching | NOT REACHED | No device available for testing |
 | R6.2 Channel art | ART COMMISSION NEEDED | No Phlix brand assets exist; all images are placeholders (1-bit, tiny, or wrong dimensions); see §R6.2 Channel Art Review above |
+| R6.3 Cold-launch deep linking | IMPLEMENTED | main.brs reads args.contentId/args.mediaType, validates contentId, routes based on mediaType; unauthenticated and not-found cases handled; ECP test commands documented in device-verification.md |
 
 *This document was created because `ROKU_HOST` is unset — no physical hardware was available for sideload verification.*

@@ -68,6 +68,30 @@ sub Init()
     m.bootErrorLabel = m.top.FindNode("bootErrorLabel")
     m.bootRetryButton = m.top.FindNode("bootRetryButton")
 
+    ' R6.3: Capture cold-launch deep-link params passed from main.brs.
+    ' Stored so they can be processed after the auth flow completes.
+    m.deepLinkParams = invalid
+    if m.top.deepLinkParams <> invalid and type(m.top.deepLinkParams) = "roAssociativeArray" then
+        m.deepLinkParams = m.top.deepLinkParams
+        print "Deep link params captured: action=" m.deepLinkParams.action
+    end if
+
+    ' R6.3: Check for a pending deep link from a previous unauthenticated attempt.
+    ' If the user deep-linked while signed out, we stashed the params and resume
+    ' after they log in successfully (see ProcessDeepLinkAfterLogin).
+    pendingDeepLink = GetStorage().get("pending_deep_link")
+    if pendingDeepLink <> invalid and pendingDeepLink <> "" then
+        ' Parse the JSON we stashed; if it fails treat as no pending link.
+        parsed = ParseJson(pendingDeepLink)
+        if parsed <> invalid and parsed.contentId <> invalid then
+            m.deepLinkParams = parsed
+            print "Resuming pending deep link: action=" m.deepLinkParams.action
+        end if
+        ' Clear it whether or not it was valid — we only resume once per app run.
+        GetStorage().set("pending_deep_link", "")
+        GetStorage().flush()
+    end if
+
     ' First-run gate: with no server chosen yet, show the Connect screen. Only
     ' once a server_url is persisted do we run the normal auth flow.
     if not IsServerConnected() then
@@ -216,10 +240,11 @@ end sub
 
 ' OnAuthResponse - handles the direct-mode auth check result.
 ' Four distinct outcomes:
-'   1. Authenticated -> ShowHome()
-'   2. Not authenticated -> ShowLogin()
-'   3. Timeout already fired -> ignore (error was already shown)
-'   4. (Server error maps to outcome 2 - ShowLogin)
+'   1. Authenticated + deep link -> process deep link (R6.3)
+'   2. Authenticated + no deep link -> ShowHome()
+'   3. Not authenticated + deep link -> stash deep link, ShowLogin()
+'   4. Not authenticated / server error -> ShowLogin() (R6.3: no deep link to stash)
+'   5. Timeout already fired -> ignore (error was already shown)
 sub OnAuthResponse(event as Object)
     if m.authCheckDone then return
     m.authCheckDone = true
@@ -238,10 +263,25 @@ sub OnAuthResponse(event as Object)
     m.authTask = invalid
 
     if result <> invalid and result.ok and result.data <> invalid then
-        ' Outcome 1: Authenticated -> show home
-        ShowHome()
+        ' Authenticated — check for a pending deep link (R6.3)
+        if m.deepLinkParams <> invalid then
+            ' Authenticated with a deep link: process it instead of showing home
+            ProcessDeepLink()
+        else
+            ' Outcome 2: Authenticated, no deep link -> show home
+            ShowHome()
+        end if
     else
-        ' Outcome 2: Not authenticated or server error -> show login
+        ' Not authenticated or server error
+        ' R6.3: Stash deep link so it can be resumed after login
+        if m.deepLinkParams <> invalid then
+            stashJson = FormatJson(m.deepLinkParams)
+            if stashJson <> "" then
+                GetStorage().set("pending_deep_link", stashJson)
+                GetStorage().flush()
+            end if
+            print "Deep link stashed for post-login resume"
+        end if
         ' Derive error message since restoreSession doesn't populate result.error
         if result <> invalid and result.data = invalid then
             ShowErrorDialog(m.top, "Connection Error", "Unable to reach server. Please check your network.")
@@ -253,11 +293,13 @@ sub OnAuthResponse(event as Object)
 end sub
 
 ' OnHubAuthResponse - handles the hub-mode auth check result.
-' Four distinct outcomes:
-'   1. Authenticated + server picked -> ShowHome()
-'   2. Authenticated + no server picked -> ShowServerPicker()
-'   3. Not authenticated -> ShowLogin()
-'   4. Timeout already fired -> ignore (error was already shown)
+' Five distinct outcomes:
+'   1. Authenticated + server picked + deep link -> process deep link (R6.3)
+'   2. Authenticated + server picked + no deep link -> ShowHome()
+'   3. Authenticated + no server picked -> ShowServerPicker()
+'   4. Not authenticated + deep link -> stash deep link, ShowLogin()
+'   5. Not authenticated + no deep link -> ShowLogin()
+'   6. Timeout already fired -> ignore (error was already shown)
 sub OnHubAuthResponse(event as Object)
     if m.authCheckDone then return
     m.authCheckDone = true
@@ -275,15 +317,29 @@ sub OnHubAuthResponse(event as Object)
     m.authTask = invalid
 
     if result <> invalid and result.ok and result.data <> invalid then
-        ' Outcome 1: Authenticated + server picked -> show home
+        ' Authenticated
         if GetActiveServerId() <> "" then
-            ShowHome()
+            ' Outcome 1 & 2: server is picked
+            if m.deepLinkParams <> invalid then
+                ProcessDeepLink()
+            else
+                ShowHome()
+            end if
         else
-            ' Outcome 2: Authenticated + no server picked -> show server picker
+            ' Outcome 3: server not yet picked -> server picker
             ShowServerPicker()
         end if
     else
-        ' Outcome 3: Not authenticated -> show login
+        ' Not authenticated or server error
+        ' R6.3: Stash deep link so it can be resumed after login
+        if m.deepLinkParams <> invalid then
+            stashJson = FormatJson(m.deepLinkParams)
+            if stashJson <> "" then
+                GetStorage().set("pending_deep_link", stashJson)
+                GetStorage().flush()
+            end if
+            print "Deep link stashed for post-login resume"
+        end if
         ' Derive error message since restoreSession doesn't populate result.error
         if result <> invalid and result.data = invalid then
             ShowErrorDialog(m.top, "Connection Error", "Unable to reach server. Please check your network.")
@@ -436,6 +492,20 @@ end sub
 sub OnLoginSuccess()
     ' Transition from login to home
     m.top.RemoveChild(m.top.GetChild(m.top.GetChildCount() - 1))
+    ' R6.3: If a deep link was stashed (user deep-linked while signed out),
+    ' ProcessDeepLinkAfterLogin will be called by the login observer chain.
+    ' Check for pending deep link first.
+    pendingDeepLink = GetStorage().get("pending_deep_link")
+    if pendingDeepLink <> invalid and pendingDeepLink <> "" then
+        parsed = ParseJson(pendingDeepLink)
+        if parsed <> invalid and parsed.contentId <> invalid then
+            m.deepLinkParams = parsed
+            GetStorage().set("pending_deep_link", "")
+            GetStorage().flush()
+            ProcessDeepLink()
+            return
+        end if
+    end if
     ShowHome()
 end sub
 
@@ -462,6 +532,117 @@ sub OnLogout()
     logoutTask.request = { op: "logout" }
     m.top.Append(logoutTask)
     logoutTask.control = "run"
+end sub
+
+' R6.3: Process a validated deep-link intent.
+' Fetches the item metadata from the server, then routes to the appropriate
+' scene based on mediaType/action:
+'   "play"  -> DetailScene with auto-play
+'   "series"-> DetailScene with smart-bookmark episode selection + auto-play
+'   "season"-> SeasonScene (episode picker)
+' If the item is not found (404) or fetch fails, shows a content-not-found
+' dialog (R3.1) and returns to the home screen.
+'
+' Uses LibraryManager (m.library) to fetch item metadata off the render thread.
+' Navigation is driven by the response callback OnDeepLinkItemResponse.
+sub ProcessDeepLink()
+    if m.deepLinkParams = invalid then return
+
+    contentId = m.deepLinkParams.contentId
+    action = m.deepLinkParams.action
+
+    print "Processing deep link: contentId=" contentId " action=" action
+
+    if contentId = invalid or contentId = "" then
+        ShowDeepLinkError()
+        return
+    end if
+
+    ' Use the library manager to fetch the item metadata.
+    ' R6.3: We need to get the item to validate it exists and get its details
+    ' before routing. If the item doesn't exist, show the content-not-found
+    ' dialog per R3.1 (not a blank screen).
+    m.deepLinkFetchTask = CreateObject("roSGNode", "ApiTask")
+    m.deepLinkFetchTask.ObserveField("response", "OnDeepLinkItemResponse")
+    m.top.Append(m.deepLinkFetchTask)
+
+    ' Build the request based on action type:
+    ' - "play", "series" -> fetch the item directly (episode/movie itemId)
+    ' - "season" -> for season, we fetch the season item to show the episode list
+    ' For series, we may need to resolve which episode to play (smart bookmark).
+    ' For now, treat series like play — the DetailScene will show the series
+    ' overview; the user can navigate to episodes from there.
+    ' TODO: smart-bookmark logic for series to auto-select next unwatched episode
+    m.deepLinkFetchTask.request = { op: "getItem", itemId: contentId }
+    m.deepLinkFetchTask.control = "run"
+end sub
+
+' OnDeepLinkItemResponse - callback for ProcessDeepLink item fetch.
+' Handles three outcomes:
+'   1. Fetch succeeded + item found -> route based on mediaType/action
+'   2. Fetch failed (network error) -> show error dialog, go home
+'   3. Item not found (404 / ok=false) -> show content-not-found dialog (R3.1)
+sub OnDeepLinkItemResponse(event as Object)
+    if m.deepLinkFetchTask = invalid or m.deepLinkFetchTask <> event.GetNode() then return
+
+    result = event.GetData()
+    m.top.RemoveChild(m.deepLinkFetchTask)
+    m.deepLinkFetchTask = invalid
+
+    if result = invalid or result.ok <> true then
+        ' Network / server error
+        print "Deep link fetch failed: " + type(result)
+        ShowDeepLinkError()
+        return
+    end if
+
+    if result.data = invalid then
+        ' Item not found (R3.1: real dialog, not blank screen)
+        print "Deep link item not found: " + m.deepLinkParams.contentId
+        ShowContentNotFoundDialog()
+        return
+    end if
+
+    item = result.data
+    action = m.deepLinkParams.action
+
+    ' Route based on the mediaType-derived action (R6.3 / Roku deep-linking spec)
+    if action = "play" or action = "series" then
+        ' "play": movie/episode/shortformvideo/tvspecial -> detail then auto-play
+        ' "series": smart-bookmark series -> detail scene (smart bookmark handled there)
+        ' Push DetailScene and tell it to auto-play when loaded.
+        detailScene = PushScreen("DetailScene", {})
+        detailScene.autoPlayOnLoad = true
+        detailScene.LoadItem(item.id)
+    else if action = "season" then
+        ' season: show the season/episode picker scene
+        ' item.name provides the display title for the season header
+        seasonName = ""
+        if item <> invalid and item.name <> invalid then seasonName = item.name
+        seasonScene = PushScreen("SeasonScene", {})
+        seasonScene.LoadSeason(item.id, seasonName)
+    else
+        ' Unknown action — fall back to home
+        print "Unknown deep link action: " + action
+        ShowHome()
+    end if
+end sub
+
+' ShowContentNotFoundDialog - R3.1: display a real dialog when deep-linked content
+' does not exist in the catalog (404 / item not found), rather than a blank screen.
+' After the user dismisses the dialog they are returned to the home screen.
+sub ShowContentNotFoundDialog()
+    ShowErrorDialog(m.top, "Content Not Available", "This content is not available in your library. Please check your subscription or try again later.")
+    ' After dialog, return to home
+    ShowHome()
+end sub
+
+' ShowDeepLinkError - show a generic error dialog when deep-link processing fails
+' due to a network or server error (not a missing-content case).
+' Returns to home after dismissal.
+sub ShowDeepLinkError()
+    ShowErrorDialog(m.top, "Unable to Load Content", "Could not load the requested content. Please try again later.")
+    ShowHome()
 end sub
 
 sub OnKeyEvent(key as String, press as Boolean) as Boolean

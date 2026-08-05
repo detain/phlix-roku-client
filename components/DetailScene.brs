@@ -46,6 +46,10 @@ sub Init()
     m.item = invalid
     m.playbackInfo = invalid
 
+    ' R6.3: autoPlayOnLoad triggers auto-play after the item finishes loading.
+    ' Set by PhlixApp.ProcessDeepLink for deep-linked movie/episode content.
+    m.autoPlayOnLoad = false
+
     ' Actions-strip focus state machine. "none" = scene holds focus (play-on-OK
     ' works); "favorite"/"rating" = a strip button is focused.
     m.actionFocus = "none"
@@ -79,6 +83,12 @@ sub OnApiResponse(event as Object)
 
         m.item = resp.data
         RenderItem()
+
+        ' R6.3: If deep-linked with autoPlayOnLoad, play immediately after load.
+        if m.top.autoPlayOnLoad and IsPlayableItem(m.item) then
+            m.top.autoPlayOnLoad = false
+            OnPlayPressed()
+        end if
     else if resp.op = "getItemPlaybackInfo" then
         ' Markers/chapters may legitimately be empty; launch the player either way.
         if resp.ok then

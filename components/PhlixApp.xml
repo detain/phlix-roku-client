@@ -7,6 +7,9 @@
 <component name="PhlixApp" extends="Scene">
     <interface>
         <field id="serverUrl" type="string" />
+        ' Deep-link params from cold-launch: { contentId, mediaType, action }
+        ' Set by main.brs when valid deep-link args are present in launch params.
+        <field id="deepLinkParams" type="assocarray" />
     </interface>
     <!-- Shared source dependencies (SceneGraph components must explicitly script-include
          the pkg:/source files they use; source is not auto-global to component scopes). -->
