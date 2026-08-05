@@ -81,6 +81,14 @@
                    visible="false"
                    id="chapterLabel" />
 
+            <!-- R6.9: Info label shown briefly when the info key is pressed -->
+            <Label height="50" width="800" translation="[240,100]"
+                   font="font:MediumBoldSystemFont"
+                   color="#FFFFFF"
+                   horizAlign="center"
+                   visible="false"
+                   id="infoLabel" />
+
             <!-- Skip Button - positioned in bottom right -->
             <Rectangle height="60" width="140" translation="[1120,640]" id="skipButtonContainer">
                 <Button height="60" width="140" title="" id="skipButton" />

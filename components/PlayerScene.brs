@@ -1202,16 +1202,30 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
             SyncBroadcastPause()
             handled = true
         else if key = "rewind" then
-            SeekRelative(-10)
-            handled = true
-        else if key = "fastforward" then
-            SeekRelative(10)
-            handled = true
-        else if key = "left" then
+            ' R6.9: Transport keys (rewind/fastforward) do the larger jump per Roku UX convention.
+            ' Transport keys: ±30 s. Directional keys: ±10 s.
+            ' Convention: https://developer.roku.com/docs/references/scenegraph/remote-control-events.md
             SeekRelative(-30)
             handled = true
-        else if key = "right" then
+        else if key = "fastforward" then
             SeekRelative(30)
+            handled = true
+        else if key = "left" then
+            SeekRelative(-10)
+            handled = true
+        else if key = "right" then
+            SeekRelative(10)
+            handled = true
+        else if key = "replay" then
+            ' R6.9: Instant replay — seek back 10 s and briefly flash captions if off.
+            ' Standard Roku behaviour: https://developer.roku.com/docs/references/scenegraph/remote-control-events.md
+            SeekRelative(-10)
+            FlashCaptionsIfOff()
+            handled = true
+        else if key = "info" then
+            ' R6.9: Info key shows the item detail overlay.
+            ' Consistent with R2.5's use of options for chapters — info shows item metadata.
+            ShowItemInfo()
             handled = true
         else if key = "C" then
             ToggleChapterPicker()
@@ -1244,6 +1258,119 @@ sub SeekRelative(seconds as Float)
     SyncBroadcastSeek(position, newPosition)
 end sub
 
+' R6.9: Instant replay caption flash. If captions are off, briefly enable them
+' for 2 seconds to give the user a "replay" visual cue, then restore the prior state.
+' Standard Roku behaviour:
+' https://developer.roku.com/docs/references/scenegraph/remote-control-events.md
+sub FlashCaptionsIfOff()
+    if m.videoPlayer = invalid then return
+    
+    ' Only flash if captions are currently off
+    if m.captionMode <> "Off" then return
+    
+    ' Save the current caption mode to restore later
+    m.priorCaptionMode = m.captionMode
+    
+    ' Flash captions on for 2 seconds
+    m.captionMode = "On"
+    m.videoPlayer.globalCaptionMode = "On"
+    
+    ' Create and start the one-shot restore timer
+    if m.captionFlashTimer <> invalid then
+        m.captionFlashTimer.control = "stop"
+        m.captionFlashTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.captionFlashTimer)
+    end if
+    m.captionFlashTimer = CreateObject("roSGNode", "Timer")
+    m.captionFlashTimer.repeat = false
+    m.captionFlashTimer.duration = 2
+    m.captionFlashTimer.ObserveField("fire", "OnCaptionFlashTimerFire")
+    m.top.Append(m.captionFlashTimer)
+    m.captionFlashTimer.control = "start"
+end sub
+
+' R6.9: Restore caption mode after a flash. Called by the caption flash timer.
+sub OnCaptionFlashTimerFire()
+    if m.captionFlashTimer <> invalid then
+        m.captionFlashTimer.control = "stop"
+        m.captionFlashTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.captionFlashTimer)
+        m.captionFlashTimer = invalid
+    end if
+    
+    ' Restore the prior caption mode
+    if m.priorCaptionMode <> invalid and m.videoPlayer <> invalid then
+        m.captionMode = m.priorCaptionMode
+        m.videoPlayer.globalCaptionMode = m.priorCaptionMode
+        m.priorCaptionMode = invalid
+    end if
+end sub
+
+' R6.9: Show item info overlay. Displays title and current playback position
+' for 3 seconds before auto-dismissing. Consistent with R2.5's options/chapters
+' pattern — info shows item metadata during playback.
+sub ShowItemInfo()
+    if m.item = invalid then return
+    
+    ' Find or create the info label node
+    if m.infoLabel = invalid then
+        m.infoLabel = m.top.FindNode("infoLabel")
+    end if
+    if m.infoLabel = invalid then return
+    
+    ' Format the info text
+    title = ""
+    if m.item <> invalid and m.item.name <> invalid then
+        title = m.item.name
+    end if
+    
+    position = 0
+    duration = 0
+    if m.videoPlayer <> invalid then
+        position = m.videoPlayer.position
+        duration = m.videoPlayer.duration
+    end if
+    
+    ' Format position as MM:SS or HH:MM:SS
+    posStr = FormatTime(position)
+    durStr = FormatTime(duration)
+    
+    m.infoLabel.text = title + "  |  " + posStr + " / " + durStr
+    m.infoLabel.visible = true
+    
+    ' Cancel any existing timer and start a new 3-second auto-dismiss timer
+    if m.infoLabelTimer <> invalid then
+        m.infoLabelTimer.control = "stop"
+        m.infoLabelTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.infoLabelTimer)
+    end if
+    m.infoLabelTimer = CreateObject("roSGNode", "Timer")
+    m.infoLabelTimer.repeat = false
+    m.infoLabelTimer.duration = 3
+    m.infoLabelTimer.ObserveField("fire", "OnInfoLabelTimerFire")
+    m.top.Append(m.infoLabelTimer)
+    m.infoLabelTimer.control = "start"
+end sub
+
+' R6.9: Hide info label and clean up the timer. Called by the info label timer.
+sub OnInfoLabelTimerFire()
+    if m.infoLabelTimer <> invalid then
+        m.infoLabelTimer.control = "stop"
+        m.infoLabelTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.infoLabelTimer)
+        m.infoLabelTimer = invalid
+    end if
+    
+    if m.infoLabel <> invalid then
+        m.infoLabel.visible = false
+    end if
+end sub
+
+' ===================================================================== '
+' F13 SyncPlay "Watch Together" - additive integration. Nothing below   '
+' runs unless the user opens the panel (ToggleSyncPanel). When the panel '
+' never opened, m.syncTask stays invalid and every guard is false, so '
+' the default playback path is byte-unchanged.                          '
 ' ===================================================================== '
 ' F13 SyncPlay "Watch Together" - additive integration. Nothing below   '
 ' runs unless the user opens the panel (ToggleSyncPanel). When the panel '

@@ -468,14 +468,20 @@ The app communicates with these Phlix API endpoints:
 |--------|--------|
 | Select/Play | Play / Pause toggle |
 | Back | Go back / Close detail view |
-| Left | Seek backward 30 seconds |
-| Right | Seek forward 30 seconds |
-| Rewind | Seek backward 10 seconds |
-| Fast Forward | Seek forward 10 seconds |
+| Left | Seek backward 10 seconds |
+| Right | Seek forward 10 seconds |
+| Rewind | Seek backward 30 seconds |
+| Fast Forward | Seek forward 30 seconds |
+| Replay (Instant Replay) | Seek backward 10 seconds and briefly flash captions if they are off. Standard Roku behaviour per [remote control UX guidance](https://developer.roku.com/docs/references/scenegraph/remote-control-events.md). |
+| Info | Show item title and current playback position for 3 seconds. |
 | Options (`*`) | Open/close the **Watch Together** (SyncPlay) overlay (direct mode only; shows a disabled message in hub mode). While the overlay is open, Back/Options close it. |
 | Up | Open/close the **video quality picker** (Auto + each ABR rung the current transcode advertises, server-A7-dependent; shows Auto-only when there's no ladder). While the overlay is open, Back/Up close it and the list owns Up/Down/Select. |
 | Down | Open/close the **Settings** panel (**Audio** / **Subtitles** track selection). Selecting a row opens the track list (or an empty-state message); Back/Down close the panel. |
 | Skip Button | Skip intro/outro section (shown automatically during marker ranges) |
+
+### Seek Interval Convention
+
+Per Roku's [remote control UX guidelines](https://developer.roku.com/docs/references/scenegraph/remote-control-events.md), the dedicated transport keys (Rewind/Fast Forward) perform the larger seek interval (±30 seconds), while the directional keys (Left/Right) perform the smaller seek interval (±10 seconds).
 
 ### Home Header Navigation
 
