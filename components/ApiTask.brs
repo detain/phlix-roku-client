@@ -4,8 +4,8 @@
 
 ' copyright 2026 Joe Huss
 '
-
-
+'
+'
 ' ===========================================
 ' ApiTask - generic SceneGraph Task node
 ' Runs ONE API operation on its own task thread so the blocking wait() in
@@ -18,8 +18,146 @@
 ' returns parsed-JSON assocarrays - safe).
 ' ===========================================
 
+' R5.9: Response cache constants (Bounded LRU cache scoped to Task's m.api).
+' TTL of 60 seconds reduces re-fetching when re-entering a library within a
+' short window. Server does NOT send ETag/Last-Modified on API endpoints, so
+' conditional requests (If-None-Match) are not possible — cache is TTL-only.
+
 sub Init()
     m.top.functionName = "ExecRequest"
+end sub
+
+' ---------------------------------------------
+' R5.9: Endpoints excluded from caching
+' ---------------------------------------------
+' Playback info: highly dynamic, changes with position, user seek, etc.
+' Session endpoints: createSession, reportProgress, completeSession — these
+'   mutate server-side state and should never be cached.
+' Health probe: used for connectivity checks, must always reflect current state.
+' Auth check: session validation must reflect current server state.
+' ---------------------------------------------
+function CacheShouldSkip(op as String) as Boolean
+    if op = "getItemPlaybackInfo" return true
+    if op = "createSession" return true
+    if op = "reportProgress" return true
+    if op = "completeSession" return true
+    if op = "probeHealth" return true
+    if op = "checkAuth" return true
+    if op = "checkAuthHub" return true
+    if op = "login" return true
+    if op = "logout" return true
+    return false
+end function
+
+' ---------------------------------------------
+' R5.9: LRU cache helpers (operate on m.api.m_responseCache)
+' Each entry: { data: <response>, expiresAt: <LongInt seconds since epoch> }
+' ---------------------------------------------
+
+' Returns cached response data if valid (not expired), otherwise invalid.
+' On valid hit, moves key to end of m_responseCacheOrder (most recently used).
+function CacheTryGet(client as Object, method as String, path as String) as Object
+    if client.m_responseCache = invalid then return invalid
+
+    key = method + ":" + path
+    if not client.m_responseCache.DoesExist(key) then return invalid
+
+    entry = client.m_responseCache[key]
+    ' Use roDateTime.SinceEpochTime() for Unix epoch seconds.
+    dateTime = CreateObject("roDateTime")
+    now = dateTime.SinceEpochTime()
+    if now >= entry.expiresAt then
+        ' Expired — evict and return invalid.
+        client.m_responseCache.delete(key)
+        return invalid
+    end if
+
+    ' Valid hit: update LRU order.
+    client.m_responseCacheOrder.push(key)
+    return entry.data
+end function
+
+' Stores response in cache with TTL. Evicts LRU entry if at capacity.
+' Only call this AFTER a successful API response.
+sub CacheStore(client as Object, method as String, path as String, data as Object)
+    if client.m_responseCache = invalid then
+        client.m_responseCache = {}
+        client.m_responseCacheOrder = []
+    end if
+
+    key = method + ":" + path
+    dateTime = CreateObject("roDateTime")
+    now = dateTime.SinceEpochTime()
+
+    ' Evict LRU entry if at capacity (skip if key already exists — refresh).
+    ' Bounded LRU cache: capacity of 50 entries, 60s TTL.
+    if client.m_responseCache.count() >= 50 and not client.m_responseCache.DoesExist(key) then
+        if client.m_responseCacheOrder.count() > 0 then
+            oldest = client.m_responseCacheOrder.shift()
+            client.m_responseCache.delete(oldest)
+        end if
+    end if
+
+    client.m_responseCache[key] = {
+        data: data
+        expiresAt: now + 60
+    }
+    client.m_responseCacheOrder.push(key)
+end sub
+
+' ---------------------------------------------
+' R5.9: Cache invalidation by mutation type
+' ---------------------------------------------
+
+' Invalidate list endpoints that may change after favorite/rating mutations.
+' itemId is optional — if provided, also invalidate that specific item.
+sub CacheInvalidateItem(client as Object, itemId as String)
+    if client.m_responseCache = invalid then return
+
+    toDelete = []
+
+    ' Invalidate library items lists (they include user_data with favorite/rating).
+    for each key in client.m_responseCache
+        if Instr(1, key, "GET:/media") > 0 or Instr(1, key, "GET:/libraries") > 0 then
+            toDelete.push(key)
+        end if
+    end for
+
+    ' Invalidate specific item if provided.
+    if itemId <> invalid and itemId <> "" then
+        toDelete.push("GET:/media/" + itemId)
+        ' Invalidate playback info too (changes with user state).
+        toDelete.push("GET:/media/" + itemId + "/playback-info")
+    end if
+
+    for each key in toDelete
+        client.m_responseCache.delete(key)
+    end for
+end sub
+
+' Invalidate scan-affected endpoints: library items and continue-watching.
+sub CacheInvalidateScan(client as Object)
+    if client.m_responseCache = invalid then return
+
+    toDelete = []
+
+    ' Invalidate media lists and library lists.
+    for each key in client.m_responseCache
+        if Instr(1, key, "GET:/media") > 0 or Instr(1, key, "GET:/libraries") > 0 then
+            toDelete.push(key)
+        end if
+    end for
+
+    ' Invalidate continue-watching (scan may mark items as fully watched).
+    for each key in client.m_responseCache
+        if Instr(1, key, "GET:/me/continue-watching") > 0 then
+            toDelete.push(key)
+        end if
+    end for
+
+    for each key in toDelete
+        client.m_responseCache.delete(key)
+    end for
 end sub
 
 ' Derives the ok flag from an ApiClient response.
@@ -97,6 +235,10 @@ sub ExecRequest()
     ' 3 × number_of_operations.
     if m.api = invalid then
         m.api = GetApiClient()
+        ' R5.9: Initialize response cache on the shared ApiClient. The cache is
+        ' scoped to this Task node's lifetime (m.api lives across operations).
+        m.api.m_responseCache = {}
+        m.api.m_responseCacheOrder = []
     end if
 
     api = m.api
@@ -107,19 +249,94 @@ sub ExecRequest()
         result.op = req.op
 
         if req.op = "getLibraries" then
-            result.data = api.getLibraries()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ' R5.9: Cache at request level (full envelope, extract on both hit and miss).
+            cachedResp = CacheTryGet(api, "GET", "/libraries")
+            if cachedResp <> invalid then
+                if cachedResp.libraries <> invalid then
+                    result.data = cachedResp.libraries
+                else
+                    result.data = []
+                end if
+                result.ok = DeriveResponseOk(cachedResp)
+                result.error = DeriveResponseError(cachedResp)
+            else
+                resp = api.request("GET", "/libraries", invalid)
+                if resp <> invalid and resp.libraries <> invalid then
+                    result.data = resp.libraries
+                else
+                    result.data = []
+                end if
+                result.ok = DeriveResponseOk(resp)
+                result.error = DeriveResponseError(resp)
+                if result.ok then
+                    CacheStore(api, "GET", "/libraries", resp)
+                end if
+            end if
         else if req.op = "getLibraryItems" then
+            ' R5.9: Cache at request level using same query-string logic as ApiClient.
             opts = req.options
             if opts = invalid then opts = {}
-            result.data = api.getLibraryItems(req.libraryId, opts)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            limit = 50
+            offset = 0
+            sort = "name"
+            order = "asc"
+            if opts.DoesExist("limit") then limit = opts.limit
+            if opts.DoesExist("offset") then offset = opts.offset
+            if opts.DoesExist("startIndex") then offset = opts.startIndex
+            if opts.DoesExist("sort") then sort = opts.sort
+            if opts.DoesExist("order") then order = opts.order
+            params = []
+            if opts.DoesExist("parentId") then
+                params.push("parentId=" + UrlEncode(opts.parentId))
+            else
+                params.push("libraryId=" + UrlEncode(req.libraryId))
+                params.push("topLevel=1")
+            end if
+            params.push("limit=" + str(limit).trim())
+            params.push("offset=" + str(offset).trim())
+            params.push("sort=" + UrlEncode(sort))
+            params.push("order=" + UrlEncode(order))
+            if opts.DoesExist("search") then params.push("search=" + UrlEncode(opts.search))
+            cachePath = "/media?" + JoinStrings(params, "&")
+            cachedResp = CacheTryGet(api, "GET", cachePath)
+            if cachedResp <> invalid then
+                result.data = cachedResp
+                result.ok = DeriveResponseOk(cachedResp)
+                result.error = DeriveResponseError(cachedResp)
+            else
+                resp = api.request("GET", cachePath, invalid)
+                result.data = resp
+                result.ok = DeriveResponseOk(resp)
+                result.error = DeriveResponseError(resp)
+                if result.ok then
+                    CacheStore(api, "GET", cachePath, resp)
+                end if
+            end if
         else if req.op = "getItem" then
-            result.data = api.getItem(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ' R5.9: Cache at request level.
+            cachePath = "/media/" + req.itemId
+            cachedResp = CacheTryGet(api, "GET", cachePath)
+            if cachedResp <> invalid then
+                if cachedResp.item <> invalid then
+                    result.data = cachedResp.item
+                else
+                    result.data = invalid
+                end if
+                result.ok = DeriveResponseOk(cachedResp)
+                result.error = DeriveResponseError(cachedResp)
+            else
+                resp = api.request("GET", cachePath, invalid)
+                if resp <> invalid and resp.item <> invalid then
+                    result.data = resp.item
+                else
+                    result.data = invalid
+                end if
+                result.ok = DeriveResponseOk(resp)
+                result.error = DeriveResponseError(resp)
+                if result.ok then
+                    CacheStore(api, "GET", cachePath, resp)
+                end if
+            end if
         else if req.op = "getItemPlaybackInfo" then
             result.data = api.getItemPlaybackInfo(req.itemId)
             result.ok = DeriveResponseOk(result.data)
@@ -145,15 +362,42 @@ sub ExecRequest()
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
         else if req.op = "getContinueWatching" then
-            result.data = api.getContinueWatching()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ' R5.9: Cache at request level.
+            cachedResp = CacheTryGet(api, "GET", "/me/continue-watching")
+            if cachedResp <> invalid then
+                result.data = cachedResp
+                result.ok = DeriveResponseOk(cachedResp)
+                result.error = DeriveResponseError(cachedResp)
+            else
+                resp = api.request("GET", "/me/continue-watching", invalid)
+                result.data = resp
+                result.ok = DeriveResponseOk(resp)
+                result.error = DeriveResponseError(resp)
+                if result.ok then
+                    CacheStore(api, "GET", "/me/continue-watching", resp)
+                end if
+            end if
         else if req.op = "getRecommendations" then
+            ' R5.9: Cache at request level.
             opts = req.options
             if opts = invalid then opts = {}
-            result.data = api.getRecommendations(opts)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            limit = 20
+            if opts.DoesExist("limit") then limit = opts.limit
+            cachePath = "/me/recommendations?limit=" + str(limit).trim()
+            cachedResp = CacheTryGet(api, "GET", cachePath)
+            if cachedResp <> invalid then
+                result.data = cachedResp
+                result.ok = DeriveResponseOk(cachedResp)
+                result.error = DeriveResponseError(cachedResp)
+            else
+                resp = api.request("GET", cachePath, invalid)
+                result.data = resp
+                result.ok = DeriveResponseOk(resp)
+                result.error = DeriveResponseError(resp)
+                if result.ok then
+                    CacheStore(api, "GET", cachePath, resp)
+                end if
+            end if
         else if req.op = "search" then
             opts = req.options
             if opts = invalid then opts = {}
@@ -164,24 +408,57 @@ sub ExecRequest()
             result.data = api.addFavorite(req.itemId)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
+            ' R5.9: Invalidate cache after favorite mutation (affects media items + lists).
+            if result.ok then
+                CacheInvalidateItem(api, req.itemId)
+            end if
         else if req.op = "unfavorite" then
             result.data = api.removeFavorite(req.itemId)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
+            ' R5.9: Invalidate cache after unfavorite mutation.
+            if result.ok then
+                CacheInvalidateItem(api, req.itemId)
+            end if
         else if req.op = "setRating" then
             result.data = api.setRating(req.itemId, req.rating)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
+            ' R5.9: Invalidate cache after rating mutation.
+            if result.ok then
+                CacheInvalidateItem(api, req.itemId)
+            end if
         else if req.op = "clearRating" then
             result.data = api.clearRating(req.itemId)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
+            ' R5.9: Invalidate cache after clear-rating mutation.
+            if result.ok then
+                CacheInvalidateItem(api, req.itemId)
+            end if
         else if req.op = "getFavorites" then
+            ' R5.9: Cache at request level.
             opts = req.options
             if opts = invalid then opts = {}
-            result.data = api.getFavorites(opts)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            limit = 50
+            offset = 0
+            if opts.DoesExist("limit") then limit = opts.limit
+            if opts.DoesExist("offset") then offset = opts.offset
+            cachePath = "/users/me/favorites?limit=" + str(limit).trim() + "&offset=" + str(offset).trim()
+            cachedResp = CacheTryGet(api, "GET", cachePath)
+            if cachedResp <> invalid then
+                result.data = cachedResp
+                result.ok = DeriveResponseOk(cachedResp)
+                result.error = DeriveResponseError(cachedResp)
+            else
+                resp = api.request("GET", cachePath, invalid)
+                result.data = resp
+                result.ok = DeriveResponseOk(resp)
+                result.error = DeriveResponseError(resp)
+                if result.ok then
+                    CacheStore(api, "GET", cachePath, resp)
+                end if
+            end if
         else if req.op = "getArtists" then
             result.data = api.getArtists()
             result.ok = DeriveResponseOk(result.data)
@@ -263,14 +540,26 @@ sub ExecRequest()
             result.data = api.scanLibrary(req.libraryId)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
+            ' R5.9: Invalidate cache after scan (library content may change).
+            if result.ok then
+                CacheInvalidateScan(api)
+            end if
         else if req.op = "rescanLibrary" then
             result.data = api.rescanLibrary(req.libraryId)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
+            ' R5.9: Invalidate cache after rescan.
+            if result.ok then
+                CacheInvalidateScan(api)
+            end if
         else if req.op = "matchLibraryMetadata" then
             result.data = api.matchLibraryMetadata(req.libraryId)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
+            ' R5.9: Invalidate cache after metadata match (item metadata may change).
+            if result.ok then
+                CacheInvalidateScan(api)
+            end if
         else if req.op = "getLibraryScanStatus" then
             result.data = api.getLibraryScanStatus(req.libraryId)
             result.ok = DeriveResponseOk(result.data)
