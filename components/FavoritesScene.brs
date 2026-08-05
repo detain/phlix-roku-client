@@ -40,6 +40,14 @@ sub Init()
 
     m.results = []
 
+    ' Paging state for infinite scroll (R5.4)
+    m.offset = 0
+    m.limit = 50
+    m.hasMore = true
+    m.loadingPage = false
+    m.contentNode = invalid
+    m.prefetchThreshold = 15 ' one screen (5 cols x 3 rows = 15 visible)
+
     if m.statusLabel <> invalid then
         m.statusLabel.text = "Loading…"
     end if
@@ -47,7 +55,26 @@ sub Init()
     ' One-shot load on Init (no keyboard, no debounce).
     m.apiTask.request = {
         op: "getFavorites"
-        options: { limit: 100 }
+        options: { limit: m.limit, offset: m.offset }
+    }
+    m.apiTask.control = "run"
+end sub
+
+' Load next page of items. Guard prevents concurrent page requests.
+sub LoadMoreItems()
+    ' Guard: do not run two page requests at once
+    if m.loadingPage then return
+    if not m.hasMore then return
+
+    m.loadingPage = true
+
+    if m.statusLabel <> invalid then
+        m.statusLabel.text = "Loading…"
+    end if
+
+    m.apiTask.request = {
+        op: "getFavorites"
+        options: { limit: m.limit, offset: m.offset }
     }
     m.apiTask.control = "run"
 end sub
@@ -57,24 +84,41 @@ sub OnApiResponse(event as Object)
     if resp = invalid then return
 
     if resp.op = "getFavorites" then
+        ' Hide loading indicator
+        if m.statusLabel <> invalid and m.loadingPage then
+            m.statusLabel.text = ""
+        end if
+
         if not resp.ok or resp.data = invalid or resp.data.items = invalid then
             m.results = []
             if m.favoritesGrid <> invalid then
                 m.favoritesGrid.content = CreateObject("roSGNode", "ContentNode")
             end if
-            if m.statusLabel <> invalid then
+            if m.statusLabel <> invalid and not m.loadingPage then
                 m.statusLabel.text = "No favorites yet"
             end if
+            m.loadingPage = false
+            m.hasMore = false
             return
         end if
 
-        m.results = resp.data.items
+        newItems = resp.data.items
+        itemCount = newItems.count()
 
-        content = CreateObject("roSGNode", "ContentNode")
-        for each item in m.results
+        ' First page: create ContentNode; subsequent pages: append to existing
+        if m.offset = 0 then
+            m.results = newItems
+            m.contentNode = CreateObject("roSGNode", "ContentNode")
+            m.favoritesGrid.content = m.contentNode
+        else
+            m.results.append(newItems)
+        end if
+
+        ' Build ContentNode children for the new items
+        for each item in newItems
             caption = BuildResultCaption(item)
 
-            contentItem = content.AddChild({
+            contentItem = m.contentNode.AddChild({
                 Title: caption
                 ShortDescriptionLine1: caption
                 Type: item.type
@@ -93,7 +137,10 @@ sub OnApiResponse(event as Object)
             end if
         end for
 
-        m.favoritesGrid.content = content
+        ' Update paging state
+        m.offset = m.offset + itemCount
+        m.hasMore = (itemCount = m.limit)
+        m.loadingPage = false
 
         if m.statusLabel <> invalid then
             if m.results.Count() = 0 then
@@ -151,6 +198,12 @@ sub OnResultFocused(event as Object)
         else
             m.statusLabel.text = BuildResultCaption(item)
         end if
+    end if
+
+    ' Prefetch: trigger LoadMoreItems when focus approaches end of loaded set
+    ' (within one screen = 15 items for a 5x3 grid)
+    if m.results.Count() > 0 and index >= m.results.Count() - m.prefetchThreshold then
+        LoadMoreItems()
     end if
 end sub
 
