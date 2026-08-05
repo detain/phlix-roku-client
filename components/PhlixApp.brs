@@ -60,6 +60,10 @@ sub Init()
     m.library = LibraryManager(m.api)
     m.tasks = TaskManager()
 
+    ' R6.8: Initialize device capabilities once at boot for use throughout the app.
+    ' Records model, videoMode, and memory tier; gates direct play via DeviceCanDecodeVideo.
+    InitDeviceInfo()
+
     ' Bootstrap auth state tracking
     m.authCheckDone = false
     m.retryCount = 0

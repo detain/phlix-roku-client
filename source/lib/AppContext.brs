@@ -122,3 +122,146 @@ function GetHubApiClient() as Object
     return api
 end function
 
+' ===========================================
+' Device Capability Detection (R6.8)
+' Records device model, video mode, and memory tier at boot.
+' Uses roDeviceInfo methods per:
+' - GetModel()       -> https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+' - GetVideoMode()   -> https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+' - GetDeviceInfo()  -> https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+' - CanDecodeVideo() -> https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+' ===========================================
+
+' Factory function for device info - returns cached singleton.
+' Follows the Storage pattern: state stored as property on the function object.
+' Named DeviceInfoData to avoid shadowing local deviceInfo variables in other files.
+' @return Object - device info object with model, videoMode, memoryTier, totalMemoryMB
+function DeviceInfoData() as Object
+    if DeviceInfoData._cache <> invalid then return DeviceInfoData._cache
+
+    devInfoObj = CreateObject("roDeviceInfo")
+
+    ' GetModel() returns the device model number (e.g., "4800X", "3920X")
+    ' Docs: https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+    model = devInfoObj.GetModel()
+
+    ' GetVideoMode() returns the display resolution (e.g., "1080p", "720p", "480p")
+    ' Docs: https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+    videoMode = devInfoObj.GetVideoMode()
+
+    ' GetDeviceInfo() returns an associative array with device details:
+    ' { serialNumber, modelNumber, modelName, tvFeatures, audioCapabilities,
+    '   outputCapabilities, totalMemoryMB, deviceType, hasGames, country,
+    '   countryInfo, locale, timeZone, timeZoneInfo, isRokuTV, isDTV }
+    ' Docs: https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+    devInfo = devInfoObj.GetDeviceInfo()
+    totalMemoryMB = 0
+    if devInfo <> invalid and devInfo.DoesExist("totalMemoryMB") then
+        totalMemoryMB = devInfo.totalMemoryMB
+    end if
+
+    ' Memory tier classification based on total RAM:
+    ' - Low tier: < 512 MB  (Roku Express, some legacy devices)
+    ' - Medium tier: 512-1024 MB (Roku Streaming Stick, most mid-range)
+    ' - High tier: > 1024 MB (Roku Ultra, high-end devices)
+    ' R6.8: Memory tier feeds page size and poster decode size decisions.
+    memoryTier = "low"
+    if totalMemoryMB >= 1024 then
+        memoryTier = "high"
+    else if totalMemoryMB >= 512 then
+        memoryTier = "medium"
+    end if
+
+    DeviceInfoData._cache = {
+        model: model
+        videoMode: videoMode
+        memoryTier: memoryTier
+        totalMemoryMB: totalMemoryMB
+    }
+
+    print "Device info: model=" DeviceInfoData._cache.model " videoMode=" DeviceInfoData._cache.videoMode " memoryTier=" DeviceInfoData._cache.memoryTier " (" totalMemoryMB "MB)"
+    return DeviceInfoData._cache
+end function
+
+' Initialize device info by querying roDeviceInfo once at boot.
+' R6.8: Called from PhlixApp.Init to capture device capabilities early.
+' @return Object - cached device info associative array
+function InitDeviceInfo() as Object
+    return DeviceInfoData()
+end function
+
+' Get the cached device model name (e.g., "4800X", "3920X").
+' R6.8: Model appears in diagnostics output.
+' @return String - device model number
+function GetDeviceModel() as String
+    return DeviceInfoData().model
+end function
+
+' Get the cached video mode (e.g., "1080p", "720p", "480p").
+' R6.8: Video mode appears in diagnostics output.
+' @return String - display resolution mode
+function GetDeviceVideoMode() as String
+    return DeviceInfoData().videoMode
+end function
+
+' Get the cached memory tier classification.
+' R6.8: Memory tier feeds page size and poster decode size decisions.
+' @return String - "low", "medium", or "high"
+function GetDeviceMemoryTier() as String
+    return DeviceInfoData().memoryTier
+end function
+
+' Check if the device can decode a specific video format.
+' R6.8: Gates direct play - if DeviceCanDecodeVideo returns false, go straight to transcode.
+' Per https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md:
+' "Use CanDecodeVideo to determine if the device can decode a specific video codec."
+' @param codec String - video codec (e.g., "h264", "h265", "vp9")
+' @param container String - container format (e.g., "mp4", "mkv", "hls")
+' @param profile String - codec profile (e.g., "high", "main", "baseline") - may be empty
+' @return Boolean - true if device can decode this format
+function DeviceCanDecodeVideo(codec as String, container as String, profile as String) as Boolean
+    devInfoObj = CreateObject("roDeviceInfo")
+    ' CanDecodeVideo(codec as String, container as String, profile as String) as Boolean
+    ' codec: the video codec (h264, h265, vp9, etc.)
+    ' container: the container format (mp4, mkv, hls, etc.)
+    ' profile: the codec profile (high, main, baseline, etc.) - empty string for any
+    return devInfoObj.CanDecodeVideo(codec, container, profile)
+end function
+
+' Get a page size recommendation based on memory tier.
+' R6.8: Memory tier feeds page size decisions - lower tier devices get smaller pages.
+' @return Integer - recommended page size (items per page)
+function GetPageSize() as Integer
+    tier = GetDeviceMemoryTier()
+    if tier = "high" then
+        return 50
+    else if tier = "medium" then
+        return 30
+    else
+        return 20
+    end if
+end function
+
+' Get a poster decode size recommendation based on memory tier.
+' R6.8: Memory tier feeds poster decode size - lower tier devices decode smaller posters.
+' @return Integer - recommended poster dimension (width/height in pixels)
+function GetPosterDecodeSize() as Integer
+    tier = GetDeviceMemoryTier()
+    if tier = "high" then
+        return 400
+    else if tier = "medium" then
+        return 300
+    else
+        return 200
+    end if
+end function
+
+' Get device diagnostics string for logging.
+' R6.8: Device model and video mode appear in diagnostics output.
+' @return String - formatted diagnostics string
+function GetDeviceDiagnostics() as String
+    info = DeviceInfoData()
+    return "device=" + info.model + " videoMode=" + info.videoMode + " memoryTier=" + info.memoryTier + " (" + info.totalMemoryMB.toStr() + "MB)"
+end function
+
+

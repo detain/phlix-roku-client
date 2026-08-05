@@ -306,11 +306,33 @@ sub Show(itemId as String, args as Object)
         return
     end if
 
-    ' streamformat best-effort: the signed stream_url has no extension. mp4
-    ' direct-play works on most models; failures trigger the transcode fallback.
+    ' R6.8: Derive stream format from the URL extension via GetFileExtension + GetStreamFormat.
+    ' GetStreamFormat: https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+    ' Default to "mp4" if no extension is present (the most common format).
+    containerExt = GetFileExtension(streamUrl)
+    if containerExt = "" then containerExt = "mp4"
+    streamFormat = GetStreamFormat(containerExt)
+
+    ' R6.8: Gate direct play on device capability check.
+    ' DeviceCanDecodeVideo: https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+    ' Default codec to "h264" (most common) if not specified; empty profile = "any".
+    ' If the device cannot decode this format, go straight to transcode.
+    canDirectPlay = DeviceCanDecodeVideo("h264", streamFormat, "")
+    if not canDirectPlay then
+        print "Device cannot decode " streamFormat ", starting transcode immediately"
+        m.transcodeAttempted = true
+        if m.titleLabel <> invalid and m.item <> invalid then
+            m.titleLabel.text = m.item.name + " (Preparing...)"
+        end if
+        ' Start transcode via apiTask (same pattern as OnPlayerStateChange error handler).
+        m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
+        m.apiTask.control = "run"
+        return
+    end if
+
     stream = CreateObject("roSGNode", "ContentNode")
     stream.url = streamUrl
-    stream.streamformat = "mp4"
+    stream.streamformat = streamFormat
     m.videoPlayer.content = stream
 
     ' R6.5: Read device caption mode and apply to Video node.
