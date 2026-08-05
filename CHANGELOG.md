@@ -14,6 +14,10 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   "50%%20off") and "C++" → "C%2B%2B" (was "C++" on wire).
 - `tests/unit/Utilities2.test.brs`: added `TestUrlEncodeNewBehavior()`
 
+### Fixed — NormalizeServerUrl private-range detection (R4.7)
+
+- `source/lib/Utilities.brs`: `NormalizeServerUrl()` now correctly validates the RFC1918 172.16.0.0/12 range (172.16.x.x – 172.31.x.x) instead of the overly broad 172.0.0.0/8. Also fixed the 10.x.x.x check to avoid incorrectly flagging hostnames.
+
 ### Added — CHECK 14: media_items.type ENUM drift detection (R4.5)
 
 `make verify-runtime` now includes **CHECK 14**, a Python check that:
