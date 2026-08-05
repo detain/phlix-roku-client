@@ -29,7 +29,10 @@
             <Button height="60" width="220" translation="[880,20]"
                     title="Collections"
                     id="collectionsButton" />
-            <Button height="60" width="180" translation="[1110,20]"
+            <Button height="60" width="120" translation="[1110,20]"
+                    title="Settings"
+                    id="settingsButton" />
+            <Button height="60" width="180" translation="[1240,20]"
                     title="Admin"
                     visible="false"
                     id="adminButton" />

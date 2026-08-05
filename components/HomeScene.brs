@@ -52,6 +52,12 @@ sub Init()
         m.adminButton.ObserveField("buttonSelected", "OnAdminPressed")
     end if
 
+    ' Settings entry (header, beside Collections). Opens the SettingsScene.
+    m.settingsButton = m.top.FindNode("settingsButton")
+    if m.settingsButton <> invalid then
+        m.settingsButton.ObserveField("buttonSelected", "OnSettingsPressed")
+    end if
+
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
     m.loadingLabel = m.top.FindNode("loadingLabel")
 
@@ -409,6 +415,14 @@ end sub
 ' which is shown only when m.isAdmin. Mirrors OnCollectionsPressed.
 sub OnAdminPressed(event as Object)
     scene = CreateObject("roSGNode", "AdminScene")
+    m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
+    scene.SetFocus(true)
+end sub
+
+' Open the settings menu (SettingsScene). Available to all users.
+sub OnSettingsPressed(event as Object)
+    scene = CreateObject("roSGNode", "SettingsScene")
     m.top.Append(scene)
     scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.SetFocus(true)
