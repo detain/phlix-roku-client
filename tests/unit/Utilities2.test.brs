@@ -164,6 +164,23 @@ sub TestUrlEncodeNoSpecialChars()
     print "TestUrlEncodeNoSpecialChars passed"
 end sub
 
+' ---- UrlEncode new behavior tests (RFC 3986 allow-list) ----
+
+sub TestUrlEncodeNewBehavior()
+    ' Criterion 5: allow-list characters encoded correctly
+    ' Percent sign encoded first to prevent double-encoding
+    assertEqual(UrlEncode("50% off"), "50%25off")
+    ' Plus sign is NOT unreserved (RFC 3986) — encodes to %2B
+    assertEqual(UrlEncode("C++"), "C%2B%2B")
+    ' Non-ASCII (U+00EF = ï) encoded as 3-byte UTF-8: C3 AF
+    assertEqual(UrlEncode("naïve"), "na%C3%AFve")
+    ' Empty string
+    assertEqual(UrlEncode(""), "")
+    ' Only reserved character — plus sign encodes to %2B
+    assertEqual(UrlEncode("+"), "%2B")
+    print "TestUrlEncodeNewBehavior passed"
+end sub
+
 ' ---- JoinStrings tests ----
 
 sub TestJoinStrings()

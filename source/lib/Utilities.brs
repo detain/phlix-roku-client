@@ -217,6 +217,7 @@ function ByteToHex(n as Integer) as String
 end function
 
 ' URL-encode a string (percent-encode according to RFC 3986).
+' roUrlTransfer.Escape() does not exist in the Roku SDK (verified against ROKU_SDK_12+).
 ' RFC 3986 unreserved characters: A-Z a-z 0-9 - . _ ~
 ' Everything else gets percent-encoded. % is encoded first to prevent double-encoding.
 ' Non-ASCII characters are encoded as UTF-8 bytes, then each byte is percent-encoded.
