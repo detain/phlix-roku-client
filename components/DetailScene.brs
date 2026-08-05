@@ -379,23 +379,14 @@ sub PlayItem()
     playerScene = CreateObject("roSGNode", "PlayerScene")
     m.top.Append(playerScene)
     playerScene.ObserveField("requestClose", "OnChildRequestClose")
-    ' P2-S5: pass trickplay sprite/timeline paths if available on the item.
-    trickplay = {}
-    if m.item.trickplay_sprite_path <> invalid and m.item.trickplay_sprite_path <> "" then
-        trickplay.sprite_path = m.item.trickplay_sprite_path
-    end if
-    if m.item.trickplay_timeline_path <> invalid and m.item.trickplay_timeline_path <> "" then
-        trickplay.timeline_path = m.item.trickplay_timeline_path
-    end if
-    trickplayArg = invalid
-    if trickplay.count() > 0 then
-        trickplayArg = trickplay
-    end if
+    ' P2-S5: trickplay BIF previews are not wired on Roku — the server provides
+    ' sprite-sheet format (sprite.jpg + timeline.json) but Roku's Video.bifDisplay
+    ' requires a binary BIF file. The dead m.trickplay plumbing was removed to
+    ' avoid leaving write-only state (server gap: no BIF URL is currently exposed).
 
     playerScene.Show(m.itemId, {
         item: m.item
         playbackInfo: m.playbackInfo
-        trickplay: trickplayArg
     })
 end sub
 

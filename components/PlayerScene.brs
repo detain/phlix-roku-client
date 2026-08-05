@@ -247,16 +247,11 @@ sub Show(itemId as String, args as Object)
         if args.resumeSeconds <> invalid and args.resumeSeconds > 0 then
             m.resumeSeconds = args.resumeSeconds
         end if
-        ' P2-S5: store trickplay data (sprite_path, timeline_path, dimensions)
-        ' for chapter thumbnail markers on the seekbar.
-        if args.trickplay <> invalid then
-            m.trickplay = args.trickplay
-        else
-            m.trickplay = invalid
-        end if
+        ' P2-S5: trickplay was removed — m.trickplay was write-only dead plumbing
+        ' (server provides sprite-sheet, Roku requires binary BIF format).
     end if
 
-    ' P2-S5: initialize trickplay/chapter UI state
+    ' P2-S5: chapter UI state (distinct from trickplay/BIF)
     m.chapterLabel = m.top.FindNode("chapterLabel")
     m.chapterLabelTimer = invalid
     m.chapterMarkers = []
