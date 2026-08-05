@@ -92,7 +92,16 @@ function NormalizeServerUrl(raw as String) as String
         if lower.Left(4) = "127." then isLocal = true
         if lower.Left(8) = "192.168." then isLocal = true
         if lower.Left(3) = "10." then isLocal = true
-        if lower.Left(4) = "172." then isLocal = true
+        ' RFC1918 private range for 172 is 172.16.0.0/12 (172.16.x.x - 172.31.x.x).
+        ' Validate second octet is 16-31 by checking position 4 is 1-3 and
+        ' position 5 is 6-9 when position 4 is 1, 0-9 when 2, or 0-1 when 3.
+        if lower.Left(4) = "172." then
+            c4 = Mid(lower, 5, 1)
+            c5 = Mid(lower, 6, 1)
+            if c4 = "1" and c5 >= "6" and c5 <= "9" then isLocal = true
+            if c4 = "2" and c5 >= "0" and c5 <= "9" then isLocal = true
+            if c4 = "3" and c5 >= "0" and c5 <= "1" then isLocal = true
+        end if
 
         if isLocal then
             url = "http://" + url
