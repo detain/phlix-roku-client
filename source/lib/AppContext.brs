@@ -23,18 +23,19 @@
 ' next API call re-reads the fresh values.
 ' ===========================================
 
-' Get the configured server URL, falling back to the local default.
-' @return String - The server base URL
+' Get the configured server URL. Returns "" when no server has been configured;
+' callers MUST check IsServerConnected() first and route to Connect if unconfigured.
+' @return String - The server base URL, or "" when not configured
 function GetServerUrl() as String
     url = GetStorage().get("server_url")
-    if url = invalid or url = "" then url = "http://localhost:8096"
+    if url = invalid or url = "" then return ""
     return url
 end function
 
 ' True when a server URL has been chosen (persisted under "server_url" and
 ' non-empty). Boot gates on this: first run (no server_url) -> ConnectScene;
-' otherwise the normal auth flow. GetServerUrl keeps its localhost fallback as a
-' defensive default for any code path that reaches it before connect completes.
+' otherwise the normal auth flow. GetServerUrl returns "" when unconfigured;
+' callers MUST check IsServerConnected() first and route to Connect if unconfigured.
 ' @return Boolean - true when a non-empty server_url is persisted
 function IsServerConnected() as Boolean
     url = GetStorage().get("server_url")
