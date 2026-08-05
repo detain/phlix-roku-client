@@ -2048,30 +2048,60 @@ sub OnSubtitleTrackSelected(index as Integer)
     GetStorage().flush()  ' R1.6: batched flush after user preference change
     m.selectedSubtitleTrackId = id
 
-    ' Apply subtitle track to the Video node.
-    ' Index 0 = "Off" -> set subtitleTrack = -1 to disable.
-    ' Index 1+ -> subtitle tracks are 1-indexed in Roku's Video node
-    ' (track 1 = first subtitle, etc.).
+    ' R6.6: Apply subtitle track using the correct Video node API.
+    ' - subtitleTracks: read-only array of {TrackName: String, Language: String, ...}
+    ' - currentSubtitleTrack: String TrackName, "" to disable
+    ' - globalCaptionMode: controls caption rendering (separate from track selection)
+    '
+    ' The node's own subtitleTracks list is authoritative — the server's
+    ' playbackInfo.subtitle_tracks reflects what was requested, but the node
+    ' may have a different (or no) actual track available. If the two disagree,
+    ' the node wins. Sidecar subtitles from the server are R7-scope.
     if m.videoPlayer <> invalid then
+        nodeTracks = m.videoPlayer.subtitleTracks
         if id = "off" then
-            m.videoPlayer.subtitleTrack = -1
+            m.videoPlayer.currentSubtitleTrack = ""
         else
-            ' Find the track's position in m.subtitleTracks (index 0 = first track).
-            trackIndex = -1
-            for i = 0 to m.subtitleTracks.Count() - 1
-                if m.subtitleTracks[i] <> invalid and TrackStringifyId(m.subtitleTracks[i].id) = id then
-                    trackIndex = i
-                    exit for
+            ' Find the track in the node's own track list by matching the
+            ' stringified server-side id to find the node's TrackName string.
+            trackName = ""
+            for i = 0 to nodeTracks.Count() - 1
+                track = nodeTracks[i]
+                if track <> invalid then
+                    serverId = ""
+                    if track.DoesExist("id") then
+                        serverId = TrackStringifyId(track.id)
+                    end if
+                    if serverId = id then
+                        ' Use the node's own TrackName field as the selection key.
+                        if track.DoesExist("TrackName") then
+                            trackName = track.TrackName
+                        else if track.DoesExist("name") then
+                            trackName = track.name
+                        else if track.DoesExist("language") then
+                            trackName = track.language
+                        end if
+                        exit for
+                    end if
                 end if
             end for
-            ' Roku's subtitleTrack is 1-indexed (0 = off, 1 = first track).
-            m.videoPlayer.subtitleTrack = trackIndex + 1
+            m.videoPlayer.currentSubtitleTrack = trackName
         end if
+
+        ' Read back actual state for the confirmation message — the requested
+        ' id may not have matched any node track (node wins on disagreement).
+        actualTrackName = m.videoPlayer.currentSubtitleTrack
+        if actualTrackName = "" then
+            SetSettingsStatus("Subtitle track: Off")
+        else
+            SetSettingsStatus("Subtitle track: " + actualTrackName)
+        end if
+    else
+        SetSettingsStatus("Subtitle track: " + TrackSubtitleIdToLabel(id))
     end if
 
     CloseTrackListPanel()
     CloseSettingsPanel()
-    SetSettingsStatus("Subtitle track: " + TrackSubtitleIdToLabel(id))
 end sub
 
 ' Caption helper for an audio track row: "English (AAC, 6ch, 256kbps)" or
