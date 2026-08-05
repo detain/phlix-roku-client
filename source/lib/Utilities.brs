@@ -205,35 +205,69 @@ function JoinStrings(parts as Object, sep as String) as String
     return result
 end function
 
-' URL-encode a string (percent-encode the URL-significant characters). Lives in
-' Utilities so any component that includes Utilities + ApiClient can resolve it.
+' Convert a byte (0-255) to a 2-character uppercase hex string.
+' Used by UrlEncode for percent-encoding.
+' @param n Integer - byte value (0-255)
+' @return String - 2-character hex string (e.g., "20" for space)
+function ByteToHex(n as Integer) as String
+    hexDigits = "0123456789ABCDEF"
+    hi = (n \ 16) mod 16
+    lo = n mod 16
+    return hexDigits.Mid(hi, 1) + hexDigits.Mid(lo, 1)
+end function
+
+' URL-encode a string (percent-encode according to RFC 3986).
+' RFC 3986 unreserved characters: A-Z a-z 0-9 - . _ ~
+' Everything else gets percent-encoded. % is encoded first to prevent double-encoding.
+' Non-ASCII characters are encoded as UTF-8 bytes, then each byte is percent-encoded.
+' Lives in Utilities so any component that includes Utilities + ApiClient can resolve it.
 ' @param str String - the raw value
 ' @return String - the encoded value
 function UrlEncode(str as String) as String
     result = ""
     if str = invalid then return result
+
     for i = 1 to Len(str)
         c = Mid(str, i, 1)
-        if c = " " then
-            result = result + "%20"
-        else if c = "&" then
-            result = result + "%26"
-        else if c = "=" then
-            result = result + "%3D"
-        else if c = "?" then
-            result = result + "%3F"
-        else if c = "/" then
-            result = result + "%2F"
-        else if c = ":" then
-            result = result + "%3A"
-        else if c = "#" then
-            result = result + "%23"
-        else if c = "[" then
-            result = result + "%5B"
-        else if c = "]" then
-            result = result + "%5D"
-        else
+        code = Asc(c)
+
+        ' RFC 3986 unreserved characters pass through unchanged:
+        ' A-Z (65-90), a-z (97-122), 0-9 (48-57), - (45), . (46), _ (95), ~ (126)
+        if (code >= 65 and code <= 90) or (code >= 97 and code <= 122) or (code >= 48 and code <= 57) or code = 45 or code = 46 or code = 95 or code = 126 then
             result = result + c
+        else
+            ' Encode % first to prevent double-encoding of other percent-encoded values
+            if code = 37 then
+                ' Percent sign - encode first
+                result = result + "%25"
+            else if code >= 128 then
+                ' Non-ASCII: encode as UTF-8 bytes, then percent-encode each byte
+                ' Characters 128-2047 need 2 UTF-8 bytes
+                ' Characters 2048-65535 need 3 UTF-8 bytes
+                ' Characters 65536+ need 4 UTF-8 bytes
+                if code < 2048 then
+                    ' 2-byte UTF-8: 110xxxxx 10xxxxxx
+                    b1 = 192 + (code \ 64)
+                    b2 = 128 + (code mod 64)
+                    result = result + "%" + ByteToHex(b1) + "%" + ByteToHex(b2)
+                else if code < 65536 then
+                    ' 3-byte UTF-8: 1110xxxx 10xxxxxx 10xxxxxx
+                    b1 = 224 + (code \ 4096)
+                    b2 = 128 + ((code \ 64) mod 64)
+                    b3 = 128 + (code mod 64)
+                    result = result + "%" + ByteToHex(b1) + "%" + ByteToHex(b2) + "%" + ByteToHex(b3)
+                else
+                    ' 4-byte UTF-8: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+                    b1 = 240 + (code \ 262144)
+                    b2 = 128 + ((code \ 4096) mod 64)
+                    b3 = 128 + ((code \ 64) mod 64)
+                    b4 = 128 + (code mod 64)
+                    result = result + "%" + ByteToHex(b1) + "%" + ByteToHex(b2) + "%" + ByteToHex(b3) + "%" + ByteToHex(b4)
+                end if
+            else
+                ' All other characters (including space, &, =, ?, /, :, #, [, ], etc.)
+                result = result + "%" + ByteToHex(code)
+            end if
         end if
     end for
     return result
