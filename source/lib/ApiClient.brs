@@ -1061,12 +1061,18 @@ function ApiClient(baseUrl as String) as Object
         end function
     }
 
-    ' Generate device ID if not exists
-    obj.deviceId = GetStorage().get("device_id")
-    if obj.deviceId = "" or obj.deviceId = invalid then
-        obj.deviceId = "roku-" + str(Rnd(999999999)).trim() + "-" + str(Rnd(999999999)).trim()
-        GetStorage().set("device_id", obj.deviceId)
-    end if
+    ' roDeviceInfo provides device identification per the ifDeviceInfo interface
+    ' See: https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+    deviceInfo = CreateObject("roDeviceInfo")
+
+    ' Use GetChannelClientId() for stable per-device, per-channel identifier
+    ' This replaces the old Rnd-based ID that collided on factory-reset devices
+    ' Clear any stale Rnd-based device_id (migration for never-shipped channel)
+    obj.deviceId = deviceInfo.GetChannelClientId()
+    GetStorage().set("device_id", obj.deviceId)
+
+    ' Use real device name from firmware (e.g., "Roku 2 XD", "Roku Ultra")
+    obj.deviceName = deviceInfo.GetModelDisplayName()
 
     return obj
 end function
