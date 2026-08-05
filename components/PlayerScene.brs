@@ -99,7 +99,8 @@ sub Init()
     m.lastReportedPosition = 0
     m.transcodeAttempted = false
     m.transcodeJobId = ""
-    m.transcodePollCount = 0
+    m.transcodePollStartTime = 0
+    m.transcodePollInterval  = 1.0
     m.resumeSeconds = 0.0
     m.resumeApplied = false
 
@@ -221,7 +222,8 @@ sub Show(itemId as String, args as Object)
     m.lastReportedPosition = 0
     m.transcodeAttempted = false
     m.transcodeJobId = ""
-    m.transcodePollCount = 0
+    m.transcodePollStartTime = 0
+    m.transcodePollInterval  = 1.0
     ' R1.5: reset progress failure counter for the new item
     m.progressConsecutiveFailures = 0
 
@@ -407,7 +409,8 @@ sub OnApiResponse(event as Object)
             PlayPreferredOrMaster()
         else
             m.transcodeJobId = data.job_id
-            m.transcodePollCount = 0
+            m.transcodePollStartTime = 0
+            m.transcodePollInterval  = 1.0
             startTranscodePollTimer()
         end if
     else if resp.op = "completeSession" then
@@ -936,14 +939,24 @@ sub ClosePlayer()
     m.top.requestClose = true
 end sub
 
-' Transcode status poll timer (fires getTranscodeStatus every 2s while pending).
+' R5.6: Transcode status poll with exponential backoff.
+' Backoff parameters (named constants at top per R5.6):
+'   BACKOFF_START = 1.0  (seconds, initial poll interval)
+'   BACKOFF_MULT  = 1.5  (multiplier each poll)
+'   BACKOFF_CAP   = 10.0 (seconds, max interval)
+'   TIME_BUDGET   = 120.0 (seconds, max total polling time)
+
 sub startTranscodePollTimer()
+    ' Reset backoff state for a fresh poll cycle.
+    m.transcodePollStartTime = 0
+    m.transcodePollInterval  = 1.0  ' BACKOFF_START
+
     if m.transcodePollTimer = invalid then
         m.transcodePollTimer = m.top.CreateChild("Timer")
-        m.transcodePollTimer.duration = 2
-        m.transcodePollTimer.repeat = true
+        m.transcodePollTimer.duration = 1.0  ' BACKOFF_START
+        m.transcodePollTimer.repeat    = false
         m.transcodePollTimer.ObserveField("fire", "OnTranscodePollFire")
-        m.transcodePollTimer.control = "start"
+        m.transcodePollTimer.control   = "start"
     end if
 end sub
 
@@ -956,6 +969,14 @@ sub stopTranscodePollTimer()
     end if
 end sub
 
+' Returns elapsed seconds since the poll cycle started.
+function GetTranscodePollElapsed() as Float
+    if m.transcodePollStartTime = 0 then return 0#
+    dt = CreateObject("roDateTime")
+    dt.Mark()
+    return CDbl(dt.AsSeconds()) + (CDbl(dt.GetMilliseconds()) / 1000#) - m.transcodePollStartTime
+end function
+
 sub OnTranscodePollFire()
     ' Nothing to poll without a job id.
     if m.transcodeJobId = invalid or m.transcodeJobId = "" then
@@ -963,22 +984,56 @@ sub OnTranscodePollFire()
         return
     end if
 
-    ' Bound the poll so a stuck job can't spin the timer forever (~30 polls at
-    ' 2s = ~60s).
-    m.transcodePollCount = m.transcodePollCount + 1
-    if m.transcodePollCount > 30 then
+    ' R5.6: Record start time on first poll.
+    if m.transcodePollStartTime = 0 then
+        dt = CreateObject("roDateTime")
+        dt.Mark()
+        m.transcodePollStartTime = CDbl(dt.AsSeconds()) + (CDbl(dt.GetMilliseconds()) / 1000#)
+    end if
+
+    ' R5.6: Bound by time budget (120s), not poll count (was 30 polls).
+    elapsed = GetTranscodePollElapsed()
+    if elapsed >= 120.0 then  ' TIME_BUDGET
         stopTranscodePollTimer()
-        ShowErrorDialog(m.top, "Error", "Transcode timed out. Please try again.", ["Retry", "Cancel"], OnTranscodeTimeoutRetry)
+        ShowErrorDialog(m.top, "Error", "Transcode timed out.", ["Retry", "Cancel"], OnTranscodeTimeoutRetry)
         return
     end if
 
     ' Guard: if the poll task is still running from a prior call, skip this
-    ' tick. getTranscodeStatus completes in well under 2 s; if it hasn't, the
-    ' next timer fire will carry the same jobId and produce an equivalent poll.
-    if m.transcodePollTask.state = "run" then return
+    ' tick (R1.4 busy guard). getTranscodeStatus completes in well under the
+    ' poll interval; if it hasn't, the next timer fire will carry the same
+    ' jobId and produce an equivalent poll.
+    if m.transcodePollTask.state = "run" then
+        RescheduleTranscodePoll()
+        return
+    end if
 
     m.transcodePollTask.request = { op: "getTranscodeStatus", jobId: m.transcodeJobId }
     m.transcodePollTask.control = "run"
+
+    RescheduleTranscodePoll()
+end sub
+
+' Reschedule the poll timer with exponential backoff, respecting time budget.
+sub RescheduleTranscodePoll()
+    ' Advance the backoff interval (multiply by 1.5, cap at 10).
+    nextInterval = m.transcodePollInterval * 1.5  ' BACKOFF_MULT
+    if nextInterval > 10.0 then  ' BACKOFF_CAP
+        nextInterval = 10.0
+    end if
+    m.transcodePollInterval = nextInterval
+
+    ' Check time budget before scheduling next poll.
+    elapsed = GetTranscodePollElapsed()
+    if elapsed >= 120.0 then  ' TIME_BUDGET
+        stopTranscodePollTimer()
+        ShowErrorDialog(m.top, "Error", "Transcode timed out.", ["Retry", "Cancel"], OnTranscodeTimeoutRetry)
+        return
+    end if
+
+    ' Reschedule the one-shot timer with the new backoff interval.
+    m.transcodePollTimer.duration = nextInterval
+    m.transcodePollTimer.control  = "start"
 end sub
 
 sub OnKeyEvent(key as String, press as Boolean) as Boolean
@@ -2293,7 +2348,8 @@ sub OnTranscodeFailedRetry(index as Integer)
     if index <> 0 then return
     if m.itemId = invalid then return
     m.transcodeJobId = invalid
-    m.transcodePollCount = 0
+    m.transcodePollStartTime = 0
+    m.transcodePollInterval  = 1.0
     m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
     m.apiTask.control = "run"
 end sub
@@ -2304,10 +2360,11 @@ sub OnTranscodeNoStreamRetry(index as Integer)
     PlayPreferredOrMaster()
 end sub
 
-' Retry callback: reset poll count and restart transcode polling.
+' Retry callback: reset poll state and restart transcode polling.
 sub OnTranscodeTimeoutRetry(index as Integer)
     if index <> 0 then return
     if m.transcodeJobId = invalid or m.transcodeJobId = "" then return
-    m.transcodePollCount = 0
+    m.transcodePollStartTime = 0
+    m.transcodePollInterval  = 1.0
     startTranscodePollTimer()
 end sub
