@@ -316,9 +316,6 @@ sub Show(itemId as String, args as Object)
     m.currentOp = "createSession"
     m.progressTask.request = { op: "createSession" }
     m.progressTask.control = "run"
-
-    ' Start progress reporting timer
-    startProgressTimer()
 end sub
 
 sub OnPlayerStateChange(event as Object)
@@ -542,9 +539,6 @@ sub StopPlayback()
     if position > 0 then
         ReportProgress(position)
     end if
-
-    ' Stop progress timer
-    stopProgressTimer()
 end sub
 
 ' positionSeconds is in SECONDS. Ticks are 100ns; SecondsToTicks uses Double math
@@ -864,7 +858,6 @@ end sub
 sub ClosePlayer()
     ' Clean up timers
     stopTranscodePollTimer()
-    stopProgressTimer()
 
     ' Unobserve and clear the dedicated transcode poll task.
     if m.transcodePollTask <> invalid then
@@ -941,30 +934,6 @@ sub ClosePlayer()
 
     ' Navigate back
     m.top.requestClose = true
-end sub
-
-' Progress timer (SceneGraph Timer node - roTimer is not usable in SceneGraph)
-sub startProgressTimer()
-    if m.progressTimer = invalid then
-        m.progressTimer = m.top.CreateChild("Timer")
-        m.progressTimer.duration = 1
-        m.progressTimer.repeat = true
-        m.progressTimer.ObserveField("fire", "OnTimerFire")
-        m.progressTimer.control = "start"
-    end if
-end sub
-
-sub stopProgressTimer()
-    if m.progressTimer <> invalid then
-        m.progressTimer.control = "stop"
-        m.progressTimer.UnObserveField("fire")
-        m.top.RemoveChild(m.progressTimer)
-        m.progressTimer = invalid
-    end if
-end sub
-
-sub OnTimerFire()
-    ' Keep Roku awake during playback
 end sub
 
 ' Transcode status poll timer (fires getTranscodeStatus every 2s while pending).
