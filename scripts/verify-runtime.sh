@@ -260,4 +260,127 @@ while IFS=: read -r file line; do
 done < <(git grep -rn 'syncplay' -- '*.brs' 2>/dev/null | grep 'DELETE' || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
+echo ""
+echo "=== Check 14: media_items.type ENUM drift vs server (S115) ==="
+PYOUT=$(python3 - <<'PYEOF'
+import re, os, sys
+
+# ── 1. Find the authoritative ENUM from server migrations ──────────────────────
+migration_dir = "/home/sites/phlix/phlix-server/migrations"
+if not os.path.isdir(migration_dir):
+    print(f"  CHECK14: server migration dir not found at {migration_dir}")
+    sys.exit(1)
+
+# Collect every ENUM definition found across all migration files.
+# The final (most complete) one represents the current schema state.
+enum_defs = {}  # name -> sorted list of members
+for fname in sorted(os.listdir(migration_dir)):
+    if not fname.endswith(".sql"):
+        continue
+    fpath = os.path.join(migration_dir, fname)
+    with open(fpath, errors="replace") as f:
+        content = f.read()
+    # Match MODIFY/CHANGE COLUMN ... ENUM('a', 'b', ...) — captures the ENUM value list
+    # up to the first closing paren (the list contains no embedded parens).
+    for m in re.finditer(
+        r"ENUM\(([^)]+)\)",
+        content,
+        re.IGNORECASE,
+    ):
+        raw = m.group(1)
+        members = [e.strip().strip("'") for e in raw.split(",")]
+        enum_defs[fname] = members
+
+if not enum_defs:
+    print("  CHECK14: no media_items.type ENUM found in migrations")
+    sys.exit(1)
+
+# Use the migration with the most members as the authoritative current state.
+# (034 has 13; earlier ones have fewer — the longest wins.)
+server_enum = max(enum_defs.values(), key=len)
+server_members = sorted(server_enum)
+server_fname   = max(enum_defs, key=lambda k: len(enum_defs[k]))
+if len(server_members) < 13:
+    print(f"  CHECK14: server ENUM has only {len(server_members)} members, expected 13")
+    sys.exit(1)
+
+# ── 2. Extract the full type list from Utilities.brs ───────────────────────────
+utilities_path = "/home/sites/phlix/phlix-roku-client/source/lib/Utilities.brs"
+if not os.path.isfile(utilities_path):
+    print(f"  CHECK14: Utilities.brs not found at {utilities_path}")
+    sys.exit(1)
+
+with open(utilities_path, errors="replace") as f:
+    util_content = f.read()
+
+# The full ENUM is documented in the comment block above PlayableTypes().
+# The list spans exactly 2 lines (lines 732-733 in Utilities.brs) — capture them
+# directly rather than using a greedy pattern that could spill into explanatory
+# comment lines (which also start with ' but contain no commas).
+# Note: \s* (zero-or-more) is used because lines start with ' directly, no leading WS.
+enum_match = re.search(
+    r"The full ENUM is:\s*\n((?:\s*'   [^\n]*\n){2})",
+    util_content,
+)
+if not enum_match:
+    print("  CHECK14: 'The full ENUM is:' comment block not found in Utilities.brs")
+    sys.exit(1)
+
+# Parse: strip leading ' and whitespace, then split on comma
+client_members = []
+for line in enum_match.group(1).splitlines():
+    stripped = line.strip().lstrip("'").strip()
+    if not stripped:
+        continue
+    for part in stripped.split(","):
+        member = part.strip()
+        if member:
+            client_members.append(member)
+client_members = sorted(client_members)
+
+if len(client_members) != len(server_members):
+    print(f"  CHECK14: member count mismatch — server={len(server_members)}, client={len(client_members)}")
+    print(f"  CHECK14: server ENUM ({server_fname}): {server_members}")
+    print(f"  CHECK14: client ENUM comment:          {client_members}")
+    sys.exit(1)
+
+# ── 3. Exact set equality check (both directions) ──────────────────────────────
+server_set = set(server_members)
+client_set = set(client_members)
+missing_in_client = server_set - client_set
+extra_in_client   = client_set - server_set
+
+if missing_in_client:
+    print(f"  CHECK14: server has members missing from client: {sorted(missing_in_client)}")
+if extra_in_client:
+    print(f"  CHECK14: client has extra members not in server: {sorted(extra_in_client)}")
+if missing_in_client or extra_in_client:
+    sys.exit(1)
+
+# ── 4. PlayableTypes() is a strict subset — verify every member is in server ENUM
+# Extract PlayableTypes() return value: ["movie", "episode", ...]
+playable_match = re.search(
+    r"function\s+PlayableTypes\s*\(\s*\)\s*as\s+Object\s*\n\s*return\s*\[(.*?)\]\s*end function",
+    util_content,
+    re.DOTALL,
+)
+if not playable_match:
+    print("  CHECK14: PlayableTypes() function not found in Utilities.brs")
+    sys.exit(1)
+
+playable_members = [m.strip().strip('"').strip("'") for m in playable_match.group(1).split(",")]
+not_in_server = [p for p in playable_members if p not in server_set]
+if not_in_server:
+    print(f"  CHECK14: PlayableTypes() members not in server ENUM: {not_in_server}")
+    sys.exit(1)
+
+# All checks passed
+print(f"  PASS — server ENUM ({server_fname}): {server_members}")
+print(f"         PlayableTypes() subset OK: {playable_members}")
+PYEOF
+)
+PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 [[ $VIOLATIONS -eq 1 ]] && exit 1
