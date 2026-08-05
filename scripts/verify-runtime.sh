@@ -182,7 +182,6 @@ exempt_files = {
     'components/SeriesScene.brs',
     'components/ServerPickerScene.brs',
     'components/UserAdminScene.brs',
-    'components/WatchHistoryScene.brs',
     'components/PhlixApp.brs',
     'source/lib/TaskManager.brs',
 }

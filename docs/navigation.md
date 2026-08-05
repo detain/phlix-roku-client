@@ -112,7 +112,6 @@ branches that call `m.top.requestClose = true` will have the signal silently ign
 
 Affected branches include:
 - `SearchScene` → `SeriesScene` / `SeasonScene` / `DetailScene`
-- `WatchHistoryScene` → `…`
 - And others listed in `CHANGELOG.md` under the R0.4 fix entry.
 
 This is a **pre-existing gap** — not a regression introduced by R0.4. R0.4 wired the
