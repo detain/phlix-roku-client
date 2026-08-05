@@ -159,13 +159,7 @@ sub RenderItem()
         end if
         if item.rating <> invalid and item.rating <> "" then
             if info <> "" then info = info + " • "
-            ' P1-S8: If rating is a number 0-6, convert to content label (G, PG, PG-13, R, etc.)
-            ratingVal = item.rating
-            if type(ratingVal) = "Integer" or type(ratingVal) = "roInt" or type(ratingVal) = "Float" or type(ratingVal) = "roFloat" then
-                info = info + RatingLabel(ratingVal)
-            else
-                info = info + ratingVal
-            end if
+            info = info + item.rating
         end if
         ' P2-S5: show chapter count if chapters are available on the item.
         if item.chapters <> invalid and type(item.chapters) = "roArray" and item.chapters.count() > 0 then
