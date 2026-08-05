@@ -645,6 +645,70 @@ sub ShowDeepLinkError()
     ShowHome()
 end sub
 
+' R6.4: Handle a warm deep link that arrives via roInput while the channel is
+' already running. If a player is active (mid-playback), stop it cleanly per
+' R4.4 — report progress and completion — before navigating to the new content.
+' Do NOT leave an orphaned session.
+'
+' @param deepLinkParams {Object} - Validated deep-link params from ExtractDeepLinkParams
+'                                  { contentId, mediaType, action }
+sub HandleWarmDeepLink(deepLinkParams as Object)
+    if deepLinkParams = invalid then return
+
+    m.deepLinkParams = deepLinkParams
+    print "HandleWarmDeepLink: action=" deepLinkParams.action
+
+    ' R6.4: If PlayerScene is active on the stack, stop playback cleanly.
+    ' StopPlayback reports final progress and sends session completion (R4.4).
+    ' Then ClosePlayer tears down the UI and triggers PopScreen via requestClose.
+    playerScene = FindActivePlayerScene()
+    if playerScene <> invalid then
+        print "HandleWarmDeepLink: stopping active playback before deep link"
+        playerScene.StopPlayback()
+        playerScene.ClosePlayer()
+        ' ClosePlayer set requestClose=true, which triggers PopScreen async.
+        ' We need to wait one event loop tick for PopScreen to complete before
+        ' we can push the new scene. Use a one-shot Timer to defer ProcessDeepLink.
+        deferTimer = CreateObject("roSGNode", "Timer")
+        deferTimer.duration = 0.1
+        deferTimer.repeat = false
+        deferTimer.ObserveField("fire", "OnWarmDeepLinkDeferred")
+        m.top.Append(deferTimer)
+        deferTimer.control = "start"
+    else
+        ' No active player — process the deep link immediately.
+        ProcessDeepLink()
+    end if
+end sub
+
+' R6.4: One-shot timer callback to defer ProcessDeepLink by one event-loop tick.
+' This allows PopScreen (triggered by ClosePlayer's requestClose) to complete
+' before we push a new scene onto the stack.
+sub OnWarmDeepLinkDeferred()
+    ProcessDeepLink()
+end sub
+
+' R6.4: Find PlayerScene on the screen stack, if it is the topmost scene.
+' Returns the PlayerScene node if found, otherwise invalid.
+' We identify PlayerScene by the presence of the videoPlayer node (set in Init).
+' @returns {Object} - The PlayerScene roSGNode or invalid
+function FindActivePlayerScene() as Object
+    if m.screenStack.Count() = 0 then return invalid
+
+    topScene = m.screenStack.Peek()
+    if topScene <> invalid and type(topScene) = "roSGNode" then
+        ' PlayerScene initializes m.videoPlayer in Init(). If this node exists
+        ' and is currently playing or paused, we have an active playback session.
+        if topScene.videoPlayer <> invalid then
+            state = topScene.videoPlayer.state
+            if state = "playing" or state = "paused" or state = "buffering" then
+                return topScene
+            end if
+        end if
+    end if
+    return invalid
+end function
+
 sub OnKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 

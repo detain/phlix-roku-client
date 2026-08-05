@@ -248,6 +248,9 @@ curl -d '' "http://$ROKU_DEV_TARGET:8060/input?contentId=movie123&mediaType=movi
 - [ ] Invalid mediaType falls through to home screen gracefully
 - [ ] ECP `launch` command from cold state works
 - [ ] ECP `input` command from warm state (app already running) works
+- [ ] **R6.4** Mid-playback deep link stops current playback cleanly (progress + completion reported per R4.4) before navigating
+- [ ] **R6.4** `supports_input_launch=1` is present in manifest
+- [ ] **R6.4** `roInput` is created and `roInputEvent` is handled in the main message loop
 
 Source: [Roku Deep Linking Documentation](https://developer.roku.com/docs/developer-program/deep-linking)
 
@@ -263,5 +266,6 @@ Source: [Roku Deep Linking Documentation](https://developer.roku.com/docs/develo
 | R1.6 Storage caching | NOT REACHED | No device available for testing |
 | R6.2 Channel art | ART COMMISSION NEEDED | No Phlix brand assets exist; all images are placeholders (1-bit, tiny, or wrong dimensions); see §R6.2 Channel Art Review above |
 | R6.3 Cold-launch deep linking | IMPLEMENTED | main.brs reads args.contentId/args.mediaType, validates contentId, routes based on mediaType; unauthenticated and not-found cases handled; ECP test commands documented in device-verification.md |
+| R6.4 Warm deep linking via roInput | IMPLEMENTED | main.brs creates roInput and handles roInputEvent in main message loop; shared validation/routing with R6.3 (ExtractDeepLinkParams); supports_input_launch=1 added to manifest; mid-playback deep links stop playback cleanly per R4.4 before navigating; ECP `input` commands documented in device-verification.md |
 
 *This document was created because `ROKU_HOST` is unset — no physical hardware was available for sideload verification.*

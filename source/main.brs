@@ -123,11 +123,41 @@ sub main(args as Object)
 
     screen.Show()
 
-    ' Message loop
+    ' R6.4: Create roInput to receive warm deep links (ECP input command).
+    ' roInput receives contentId/mediaType when the channel is already running.
+    ' Docs: https://developer.roku.com/docs/developer-program/deep-linking
+    ' Requires manifest: supports_input_launch=1 (R6.4 requirement).
+    input = CreateObject("roInput")
+    input.SetMessagePort(screen.GetMessagePort())
+
+    ' Message loop — handles both screen events and roInput deep-link events.
+    ' roInput events arrive as roInputEvent objects with an "args" field
+    ' containing the same assocarray as cold-launch args (contentid, mediatype).
     while true
         msg = wait(0, screen.GetMessagePort())
         if msg = invalid then
             exit while
+        end if
+
+        ' R6.4: Handle warm deep-link events from roInput.
+        ' roInputEvent is fired when ECP POSTs to :8060/input with contentId/mediaType.
+        ' Docs: https://developer.roku.com/docs/developer-program/deep-linking
+        if type(msg) = "roInputEvent" then
+            args = msg.GetArgs()
+            if args <> invalid then
+                print "Warm deep link received via roInput"
+                ' R6.3 validation/routing is shared: cold and warm paths map identically.
+                warmDeepLinkParams = ExtractDeepLinkParams(args)
+                if warmDeepLinkParams <> invalid then
+                    print "Warm deep link valid: contentId=" warmDeepLinkParams.contentId " mediaType=" warmDeepLinkParams.mediaType
+                    ' Signal PhlixApp to handle the warm deep link.
+                    ' PhlixApp.ProcessWarmDeepLink checks for active playback,
+                    ' stops it cleanly (R4.4 progress + completion), then routes.
+                    scene.HandleWarmDeepLink(warmDeepLinkParams)
+                else
+                    print "Warm deep link invalid params"
+                end if
+            end if
         end if
     end while
 
