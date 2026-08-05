@@ -238,6 +238,9 @@ sub Show(itemId as String, args as Object)
     m.resumeSeconds = 0.0
     m.resumeApplied = false
 
+    ' R6.7: Reset audio track applied guard for new item.
+    m.audioTrackApplied = false
+
     if args <> invalid then
         m.item = args.item
         m.playbackInfo = args.playbackInfo
@@ -386,6 +389,31 @@ sub OnPlayerStateChange(event as Object)
         if m.resumeSeconds > 0 and not m.resumeApplied then
             m.videoPlayer.seek = m.resumeSeconds
             m.resumeApplied = true
+        end if
+
+        ' R6.7: Apply persisted audio track preference on first "playing".
+        ' The audioTrack field takes the Track value (string id) from the node's
+        ' availableAudioTracks list. One-shot guard mirrors resumeApplied pattern.
+        if m.selectedAudioTrackId <> "" and not m.audioTrackApplied then
+            if m.videoPlayer <> invalid then
+                nodeTracks = m.videoPlayer.availableAudioTracks
+                for i = 0 to nodeTracks.Count() - 1
+                    track = nodeTracks[i]
+                    if track <> invalid then
+                        serverId = ""
+                        if track.DoesExist("id") then
+                            serverId = TrackStringifyId(track.id)
+                        end if
+                        if serverId = m.selectedAudioTrackId then
+                            if track.DoesExist("Track") then
+                                m.videoPlayer.audioTrack = track.Track
+                            end if
+                            exit for
+                        end if
+                    end if
+                end for
+            end if
+            m.audioTrackApplied = true
         end if
     else if state = "paused" then
         m.isPlaying = false
@@ -1863,10 +1891,11 @@ end sub
 ' Build and open the audio track list. "Off" is NOT offered for audio
 ' (the server always provides at least one track; default = first/only).
 '
-' KNOWN PLATFORM GAP: Roku HLS player does not support runtime audio track
-' switching — audio track selection is informational only and has no effect on
-' playback. The track list is displayed so users can see which audio tracks
-' are available, but selecting a different track will not switch to it.
+' R6.7: The Video node exposes real audio track switching via:
+' - availableAudioTracks: READ_ONLY array of {Language: String, Name: String,
+'   Track: String, HasAccessibilityDescription: Boolean, HasAccessibilityEAI: Boolean}
+' - audioTrack: READ_WRITE string — set to the Track value to switch tracks
+' Per https://sdkdocs.roku.com/display/sdkdoc/Video (audioTrack field).
 sub OpenAudioTrackList()
     m.trackListType = "audio"
     if m.trackListTitle <> invalid then m.trackListTitle.text = "Audio Tracks"
@@ -2088,18 +2117,56 @@ sub OnAudioTrackSelected(index as Integer)
     if index < 0 or index >= m.audioTrackIds.Count() then return
     id = m.audioTrackIds[index]
 
+    ' R6.7: Apply audio track using the Video node's audioTrack field.
+    ' Per https://sdkdocs.roku.com/display/sdkdoc/Video:
+    ' - availableAudioTracks: READ_ONLY array of {Language, Name, Track, ...}
+    ' - audioTrack: READ_WRITE string — set to the Track value to switch
+    '
+    ' The node's own availableAudioTracks list is authoritative — the server's
+    ' playbackInfo.audio_tracks reflects what was requested, but the node
+    ' may have a different (or no) actual track available. If the two disagree,
+    ' the node wins.
+    if m.videoPlayer <> invalid then
+        nodeTracks = m.videoPlayer.availableAudioTracks
+        trackId = ""
+        for i = 0 to nodeTracks.Count() - 1
+            track = nodeTracks[i]
+            if track <> invalid then
+                serverId = ""
+                if track.DoesExist("id") then
+                    serverId = TrackStringifyId(track.id)
+                end if
+                if serverId = id then
+                    ' Use the node's own Track field as the selection key.
+                    if track.DoesExist("Track") then
+                        trackId = track.Track
+                    end if
+                    exit for
+                end if
+            end if
+        end for
+        if trackId <> "" then
+            m.videoPlayer.audioTrack = trackId
+        end if
+
+        ' Read back actual state for the confirmation message — the requested
+        ' id may not have matched any node track (node wins on disagreement).
+        actualTrack = m.videoPlayer.audioTrack
+        if actualTrack <> "" and actualTrack <> invalid then
+            SetSettingsStatus("Audio track: " + actualTrack)
+        else
+            SetSettingsStatus("Audio track: " + TrackAudioIdToLabel(id))
+        end if
+    else
+        SetSettingsStatus("Audio track: " + TrackAudioIdToLabel(id))
+    end if
+
+    ' R6.7: Persist AFTER confirming the change took effect.
     GetStorage().set("preferred_audio_track", id)
-    GetStorage().flush()  ' R1.6: batched flush after user preference change
+    GetStorage().flush()
     m.selectedAudioTrackId = id
 
-    ' BrightScript/Roku Video node does not expose per-track audio selection
-    ' for HLS in the same way as subtitleTrack. The audio track is embedded
-    ' in the HLS manifest and Roku's player selects based on device/stream
-    ' defaults. We persist the preference so a future PLAYBACK-INF request
-    ' could pass it to the server (or a brighter future player node could
-    ' respect it). For now, close the panel and note the selection.
     CloseTrackListPanel()
-    SetSettingsStatus("Audio track selected: " + TrackAudioIdToLabel(id))
 end sub
 
 sub OnSubtitleTrackSelected(index as Integer)
