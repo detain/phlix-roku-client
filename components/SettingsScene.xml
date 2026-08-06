@@ -23,11 +23,22 @@
                    color="#FFFFFF" />
         </Rectangle>
 
-        <!-- Settings list (LabelList with section headers as items) -->
-        <LabelList height="580" width="1200" translation="[40,120]"
+        <!-- Settings list -->
+        <LabelList height="540" width="1200" translation="[40,120]"
                    id="settingsList"
-                   itemSpacing="[0, 4]"
-                   numRows="16" />
+                   itemSpacing="[0, 2]"
+                   numRows="16"
+                   font="font:MediumSystemFont"
+                   color="#FFFFFF" />
+
+        <!-- Detail/info label -->
+        <Label height="540" width="400" translation="[840,120]"
+               id="detailLabel"
+               font="font:MediumSystemFont"
+               color="#AAAAAA"
+               horizAlign="left"
+               vertAlign="top"
+               wrap="true" />
 
         <!-- Status bar -->
         <Rectangle height="40" width="1280" translation="[0,680]" color="#0d0d1a">

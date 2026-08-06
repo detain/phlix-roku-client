@@ -2,100 +2,242 @@
 ' @license   MIT
 
 ' components/SettingsScene.brs
-
-' Settings scene: 6 section rows (Account, Server, Playback, Captions,
-' Watch History, About). Each row opens a sub-section or info panel.
-' R7.1
+' R7.1: Settings scene with 6 sections (Account, Server, Playback, Captions, Watch History, About)
 
 sub Init()
-    m.top.SetFocus(true)
+    m.top.isSubcomponent = false
 
-    m.settingsList = m.top.FindNode("settingsList")
-    m.statusLabel = m.top.FindNode("statusLabel")
-
-    ' Static settings menu backing array. Each row: { label, description }
+    ' Define settings items with section headers and menu entries
     m.settingsItems = [
-        { label: "Account", description: "Manage your account settings" }
-        { label: "Server", description: "Server connection and preferences" }
-        { label: "Playback", description: "Playback behavior and quality" }
-        { label: "Captions", description: "Subtitle and caption options" }
-        { label: "Watch History", description: "View and manage watch history" }
-        { label: "About", description: "App version and server info" }
+        { title: "Account", type: "header" },
+        { title: "User Email", type: "info", description: "View your account email and log out" },
+        { title: "Server", type: "header" },
+        { title: "Server URL", type: "info", description: "View and switch the server address" },
+        { title: "Playback", type: "header" },
+        { title: "Playback Preferences", type: "info", description: "Configure playback quality and autoplay" },
+        { title: "Captions", type: "header" },
+        { title: "Caption Mode", type: "info", description: "Toggle captions on or off" },
+        { title: "Watch History", type: "header" },
+        { title: "Clear History", type: "action", description: "Remove all watch history data" },
+        { title: "About", type: "header" },
+        { title: "Version", type: "info", description: "App version and device information" }
     ]
 
-    if m.settingsList <> invalid then
-        m.settingsList.ObserveField("itemSelected", "OnItemSelected")
-        m.settingsList.ObserveField("itemFocused", "OnItemFocused")
-        m.settingsList.SetFocus(true)
-    end if
+    m.settingsList = m.top.findNode("settingsList")
+    m.detailLabel = m.top.findNode("detailLabel")
+    m.statusLabel = m.top.findNode("statusLabel")
 
-    ' Build the LabelList content from the backing array.
-    content = CreateObject("roSGNode", "ContentNode")
-    for each row in m.settingsItems
-        if row <> invalid then
-            title = ""
-            if row.DoesExist("label") and row.label <> invalid then title = row.label
-            content.AddChild({ title: title })
+    m.settingsList.observeField("itemSelected", "OnItemSelected")
+    m.settingsList.observeField("itemFocused", "OnItemFocused")
+
+    BuildLabelList()
+end sub
+
+sub BuildLabelList()
+    items = []
+
+    for each item in m.settingsItems
+        listItem = {
+            Title: item.title
+        }
+        if item.type = "header"
+            listItem.Title = item.title
+        else
+            listItem.Title = "  " + item.title
         end if
+        items.push(listItem)
     end for
-    if m.settingsList <> invalid then m.settingsList.content = content
+
+    m.settingsList.content = CreateObject("roSGNode", "ContentNode")
+    for each item in items
+        itemNode = CreateObject("roSGNode", "ContentNode")
+        itemNode.title = item.Title
+        m.settingsList.content.appendChild(itemNode)
+    end for
 end sub
 
 sub OnItemSelected(event as Object)
     index = event.getData()
-    if index = invalid then return
-    if index < 0 or index >= m.settingsItems.Count() then return
+    item = m.settingsItems[index]
 
-    row = m.settingsItems[index]
-    if row = invalid then return
+    if item = invalid then return
 
-    ' Each section row selection - handled per section type.
-    ' Currently displays the selection; future slices wire actual sub-scenes.
-    label = ""
-    if row.DoesExist("label") and row.label <> invalid then label = row.label
-    if m.statusLabel <> invalid then
-        m.statusLabel.text = "Selected: " + label
+    if item.type = "header" then return
+
+    if index = 1 then
+        ShowAccount()
+    else if index = 3 then
+        ShowServer()
+    else if index = 5 then
+        ShowPlayback()
+    else if index = 7 then
+        ShowCaptions()
+    else if index = 9 then
+        ShowWatchHistory()
+    else if index = 11 then
+        ShowAbout()
     end if
 end sub
 
 sub OnItemFocused(event as Object)
     index = event.getData()
-    if index = invalid then return
-    if index < 0 or index >= m.settingsItems.Count() then return
+    item = m.settingsItems[index]
 
-    row = m.settingsItems[index]
-    if row = invalid then return
+    if item = invalid then return
 
-    desc = ""
-    if row.DoesExist("description") and row.description <> invalid then desc = row.description
-    if m.statusLabel <> invalid then
-        m.statusLabel.text = desc
+    if item.description <> invalid then
+        m.detailLabel.text = item.description
+    else
+        m.detailLabel.text = ""
     end if
 end sub
 
-' Pair every ObserveField with an UnObserveField so the scene does not leak.
-sub Teardown()
-    if m.settingsList <> invalid then
-        m.settingsList.UnObserveField("itemSelected")
-        m.settingsList.UnObserveField("itemFocused")
+sub ShowAccount()
+    userEmail = GetApiClient().user.email
+    m.statusLabel.text = "Logged in as: " + userEmail
+
+    dialog = CreateObject("roSGNode", "Dialog")
+    dialog.title = "Account"
+    dialog.message = "Email: " + userEmail + Chr(10) + Chr(10) + "Do you want to log out?"
+    dialog.buttons = ["Cancel", "Log Out"]
+    dialog.observeField("buttonSelected", "OnLogoutConfirmed")
+    m.top.dialog = dialog
+end sub
+
+sub OnLogoutConfirmed(index as Integer)
+    if m.top.dialog = invalid then return
+    m.top.dialog = invalid
+
+    if index = 1 then
+        GetApiClient().logout()
+        m.top.requestClose = true
     end if
 end sub
 
-' Bubble requestClose from a child scene up to PhlixApp (which holds PopScreen).
-sub OnChildRequestClose()
-    m.top.requestClose = true
+sub ShowServer()
+    serverUrl = GetServerUrl()
+    m.statusLabel.text = "Server: " + serverUrl
+
+    dialog = CreateObject("roSGNode", "Dialog")
+    dialog.title = "Server"
+    dialog.message = "Current server: " + serverUrl + Chr(10) + Chr(10) + "Do you want to switch servers?"
+    dialog.buttons = ["Cancel", "Switch"]
+    dialog.observeField("buttonSelected", "OnSwitchServerConfirmed")
+    m.top.dialog = dialog
 end sub
 
-function OnKeyEvent(key as String, press as Boolean) as Boolean
-    handled = false
+sub OnSwitchServerConfirmed(index as Integer)
+    if m.top.dialog = invalid then return
+    m.top.dialog = invalid
 
-    if press then
-        if key = "back" then
+    if index = 1 then
+        m.statusLabel.text = "Server switching not implemented"
+    end if
+end sub
+
+sub ShowPlayback()
+    result = GetApiClient().getPlaybackPreferences()
+    m.statusLabel.text = "Loading playback preferences..."
+
+    if result <> invalid and result.data <> invalid and result.data.preferences <> invalid then
+        prefs = result.data.preferences
+        prefStr = "Quality: " + IIF(prefs.quality <> invalid, prefs.quality, "Auto") + Chr(10)
+        prefStr = prefStr + "Autoplay: " + IIF(prefs.autoplay <> invalid, IIF(prefs.autoplay, "On", "Off"), "On")
+        m.statusLabel.text = prefStr
+    else
+        m.statusLabel.text = "Unable to load playback preferences"
+    end if
+end sub
+
+sub ShowCaptions()
+    deviceInfo = CreateObject("roDeviceInfo")
+    currentMode = deviceInfo.GetCaptionsMode()
+
+    m.statusLabel.text = "Caption mode: " + currentMode
+
+    dialog = CreateObject("roSGNode", "Dialog")
+    dialog.title = "Captions"
+    dialog.message = "Current caption mode: " + currentMode + Chr(10) + Chr(10) + "Select a mode:"
+    dialog.buttons = ["On", "Off", "Instant Replay", "When Mute"]
+    dialog.observeField("buttonSelected", "OnCaptionsModeSelected")
+    m.top.dialog = dialog
+end sub
+
+sub OnCaptionsModeSelected(index as Integer)
+    if m.top.dialog = invalid then return
+    m.top.dialog = invalid
+
+    modes = ["On", "Off", "Instant replay", "When mute"]
+    if index >= 0 and index < modes.count() then
+        deviceInfo = CreateObject("roDeviceInfo")
+        deviceInfo.SetCaptionsMode(modes[index])
+        m.statusLabel.text = "Caption mode set to: " + modes[index]
+    end if
+end sub
+
+sub ShowWatchHistory()
+    m.statusLabel.text = "Watch history options"
+
+    dialog = CreateObject("roSGNode", "Dialog")
+    dialog.title = "Watch History"
+    dialog.message = "This will remove all your watch history data." + Chr(10) + Chr(10) + "Are you sure?"
+    dialog.buttons = ["Cancel", "Clear"]
+    dialog.observeField("buttonSelected", "OnClearHistoryConfirmed")
+    m.top.dialog = dialog
+end sub
+
+sub OnClearHistoryConfirmed(index as Integer)
+    if m.top.dialog = invalid then return
+    m.top.dialog = invalid
+
+    if index = 1 then
+        m.statusLabel.text = "Clearing watch history..."
+        GetApiClient().clearWatchHistory()
+        m.statusLabel.text = "Watch history cleared"
+    end if
+end sub
+
+sub ShowAbout()
+    version = "1.0.1"
+    deviceModel = GetDeviceModel()
+    deviceId = GetStorage().get("device_id")
+
+    info = "Version: " + version + Chr(10)
+    info = info + "Device Model: " + deviceModel + Chr(10)
+    info = info + "Device ID: " + IIF(deviceId <> invalid, deviceId, "Unknown")
+
+    m.statusLabel.text = info
+end sub
+
+sub OnKeyEvent(key as String, press as Boolean) as Boolean
+    if not press then return false
+
+    if key = "back" then
+        if m.top.dialog <> invalid then
+            m.top.dialog = invalid
+            return true
+        else
             Teardown()
             m.top.requestClose = true
-            handled = true
+            return true
         end if
     end if
 
-    return handled
+    return false
+end sub
+
+sub Teardown()
+    if m.settingsList <> invalid then
+        m.settingsList.unobserveField("itemSelected")
+        m.settingsList.unobserveField("itemFocused")
+    end if
+end sub
+
+' Helper function to handle conditional values
+function IIF(condition as Boolean, trueValue as String, falseValue as String) as String
+    if condition then
+        return trueValue
+    else
+        return falseValue
+    end if
 end function
