@@ -341,6 +341,14 @@ sub ExecRequest()
             result.data = api.getItemPlaybackInfo(req.itemId)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
+        else if req.op = "getItemSimilar" then
+            result.data = api.getItemSimilar(req.itemId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+        else if req.op = "getItemRatings" then
+            result.data = api.getItemRatings(req.itemId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
         else if req.op = "startTranscode" then
             result.data = api.startTranscode(req.itemId)
             result.ok = DeriveResponseOk(result.data)

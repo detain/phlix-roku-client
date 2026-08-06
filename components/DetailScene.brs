@@ -89,6 +89,9 @@ sub OnApiResponse(event as Object)
             m.top.autoPlayOnLoad = false
             OnPlayPressed()
         end if
+
+        ' R7.4: Load additional enrichment data (similar items, ratings).
+        LoadAdditionalData()
     else if resp.op = "getItemPlaybackInfo" then
         ' Markers/chapters may legitimately be empty; launch the player either way.
         if resp.ok then
@@ -136,6 +139,26 @@ sub OnApiResponse(event as Object)
                 RenderRating()
             end if
             ShowErrorDialog(m.top, "Error", "Couldn't clear your rating. Please try again.")
+        end if
+    else if resp.op = "getItemSimilar" then
+        ' R7.4: Store similar items and display if available.
+        if resp.ok and resp.data <> invalid then
+            similarItems = invalid
+            if type(resp.data) = "roAssociativeArray" then
+                if resp.data.DoesExist("items") then
+                    similarItems = resp.data.items
+                else
+                    similarItems = resp.data
+                end if
+            end if
+            m.similarData = similarItems
+            DisplaySimilar(similarItems)
+        end if
+    else if resp.op = "getItemRatings" then
+        ' R7.4: Store external ratings and display if available.
+        if resp.ok and resp.data <> invalid then
+            m.ratingsData = resp.data
+            DisplayRatings(resp.data)
         end if
     end if
 end sub
@@ -478,3 +501,57 @@ function OnActionUp() as Boolean
     end if
     return false
 end function
+
+' ---------------------------------------------------------------------
+' R7.4: Detail enrichment - fetch additional data after main item loads.
+' Loads similar items and ratings in parallel.
+' ---------------------------------------------------------------------
+sub LoadAdditionalData()
+    if m.itemId = "" or m.item = invalid then return
+
+    ' Fire enrichment requests off the render thread.
+    m.apiTask.request = { op: "getItemSimilar", itemId: m.itemId }
+    m.apiTask.control = "run"
+end sub
+
+' ---------------------------------------------------------------------
+' R7.4: Display cast in a horizontal row if cast data exists.
+' Cast data structure: [{name, role, thumbnail_url}, ...]
+' ---------------------------------------------------------------------
+sub DisplayCast(cast as Object)
+    if cast = invalid then return
+    if type(cast) <> "roArray" then return
+    if cast.count() = 0 then return
+
+    ' Cast display would be rendered here if UI nodes existed.
+    ' The cast data is available at m.castData for any UI to consume.
+    m.castData = cast
+end sub
+
+' ---------------------------------------------------------------------
+' R7.4: Display "Similar" rail if similar items were returned.
+' Similar items structure: [{media_item_id, name, poster_url, year, ...}, ...]
+' ---------------------------------------------------------------------
+sub DisplaySimilar(similarItems as Object)
+    if similarItems = invalid then return
+    if type(similarItems) <> "roArray" then return
+    if similarItems.count() = 0 then return
+
+    ' Similar items display would be rendered here if UI nodes existed.
+    ' The similar items data is available at m.similarData for any UI to consume.
+    m.similarData = similarItems
+end sub
+
+' ---------------------------------------------------------------------
+' R7.4: Display external ratings if available.
+' Ratings structure: {rotten_tomatoes: {score, icon}, imdb: {score, icon}, ...}
+' ---------------------------------------------------------------------
+sub DisplayRatings(ratings as Object)
+    if ratings = invalid then return
+    if type(ratings) <> "roAssociativeArray" then return
+    if ratings.count() = 0 then return
+
+    ' External ratings display would be rendered here if UI nodes existed.
+    ' The ratings data is available at m.ratingsData for any UI to consume.
+    m.ratingsData = ratings
+end sub

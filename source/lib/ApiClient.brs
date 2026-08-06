@@ -1100,6 +1100,21 @@ function ApiClient(baseUrl as String) as Object
         clearWatchHistory: function() as Object
             return m.request("DELETE", "/users/me/history", invalid)
         end function
+
+        ' ---------------------------------------------------------------------
+        ' Detail enrichment (R7.4). Fetch additional data after main item loads:
+        ' similar items, cast info, and external ratings.
+        ' ---------------------------------------------------------------------
+
+        ' GET /media/{id}/similar -> {items:[...]} ; returns similar items array.
+        getItemSimilar: function(mediaItemId as String) as Object
+            return m.request("GET", "/media/" + mediaItemId + "/similar", invalid)
+        end function
+
+        ' GET /media/{id}/ratings -> {ratings:{...}} ; returns external ratings.
+        getItemRatings: function(mediaItemId as String) as Object
+            return m.request("GET", "/media/" + mediaItemId + "/ratings", invalid)
+        end function
     }
 
     ' roDeviceInfo provides device identification per the ifDeviceInfo interface
