@@ -22,6 +22,13 @@ package:
 	@echo "Creating $(PKG_NAME).zip..."
 	zip -r $(PKG_NAME).zip manifest source components images
 
+# Build a signed package for store submission
+# Requires: ROKU_DEV_PASSWORD set, rokudev auth via `rokudev auth`
+package-signed:
+	@echo "Building signed package..."
+	@bash scripts/package-signed.sh
+	@echo "Signed package ready. See docs/publishing.md for submission steps."
+
 # Install to Roku device
 install: package
 	@echo "Installing to Roku at $(ROKU_IP)..."
