@@ -124,7 +124,7 @@ if [ -f "$SIGNED_PKG" ]; then
     echo "  ✓ Signed package ready: $SIGNED_PKG"
     echo ""
     echo "=== Summary ==="
-    echo "  Unigned zip: ${PKG_NAME}.zip"
+    echo "  Unsigned zip: ${PKG_NAME}.zip"
     echo "  Signed pkg:  $SIGNED_PKG"
     echo ""
     echo "Next steps:"
