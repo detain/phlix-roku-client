@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed — Replace invalid `halign=` with `horizAlign=` on Label nodes
+
+- `components/ConnectScene.xml`, `components/LoginScene.xml`, `components/RatingBadge.xml`: Replaced four occurrences of `halign=` (not a Label field) with `horizAlign=` (correct field).
+
 ## [R4.10] — 2026-08-05
 
 ### Fixed — Remove hardcoded localhost fallback origin (R4.10)
