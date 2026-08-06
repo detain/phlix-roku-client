@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @copyright 2026 Joe Huss <detain@interserver.net> -->
+<!-- @license   MIT -->
+
+<!-- components/AudiobookScene.xml
+
+     Audiobook library grid with paging (R7.6).
+     Displays audiobooks in a poster grid with infinite scroll paging.
+     Mirrors LibraryScene pattern but simpler (no A-Z bar, no sort/filter).
+-->
+
+<component name="AudiobookScene" extends="Scene">
+    <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/AudiobookScene.brs" />
+    <children>
+        <!-- Header -->
+        <Rectangle height="100" width="1280" color="#1a1a2e">
+            <Rectangle height="60" width="160" translation="[20,20]">
+                <Button height="60" width="160" title="Back" id="backButton" />
+            </Rectangle>
+            <Label height="60" width="600" translation="[200,20]"
+                   text="Audiobooks"
+                   font="font:LargeBoldSystemFont"
+                   color="#FFFFFF"
+                   id="titleLabel" />
+        </Rectangle>
+
+        <!-- Items Grid -->
+        <PosterGrid height="540" width="1280" translation="[0,100]"
+                    numColumns="5" numRows="2"
+                    itemSpacing="[20, 15]"
+                    basePosterSize="[220, 330]"
+                    caption1Icon="handle://leftbottom"
+                    id="itemsGrid">
+        </PosterGrid>
+
+        <!-- Description Area -->
+        <Rectangle height="40" width="1280" translation="[0,640]" color="#0d0d1a">
+            <Label height="40" width="1200" translation="[40,8]"
+                   text="Select an audiobook"
+                   font="font:MediumSystemFont"
+                   color="#AAAAAA"
+                   id="descriptionLabel" />
+        </Rectangle>
+
+        <!-- Loading Indicator -->
+        <Label id="loadingLabel" text="Loading..."
+               translation="[640, 300]"
+               horizAlign="center" color="#888888" visible="false" />
+    </children>
+</component>

@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @copyright 2026 Joe Huss <detain@interserver.net> -->
+<!-- @license   MIT -->
+
+<!-- components/AudiobookPlayerScene.xml
+
+     Audiobook player using the Audio node (R7.6).
+     Audio playback with chapter navigation and progress write-back.
+     Mirrors PlayerScene pattern but uses Audio node instead of Video.
+-->
+
+<component name="AudiobookPlayerScene" extends="Scene">
+    <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
+        <function name="LoadAudiobook" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/AudiobookPlayerScene.brs" />
+    <children>
+        <!-- Background -->
+        <Rectangle height="720" width="1280" color="#0d0d1a" />
+
+        <!-- Audio Player Node -->
+        <Audio height="0" width="0" id="audioPlayer" />
+
+        <!-- Header -->
+        <Rectangle height="100" width="1280" color="#1a1a2e">
+            <Rectangle height="60" width="160" translation="[20,20]">
+                <Button height="60" width="160" title="Back" id="backButton" />
+            </Rectangle>
+            <Label height="60" width="800" translation="[200,20]"
+                   font="font:LargeBoldSystemFont"
+                   color="#FFFFFF"
+                   id="titleLabel" />
+        </Rectangle>
+
+        <!-- Book Cover / Artwork -->
+        <Rectangle height="400" width="300" translation="[40,120]">
+            <Poster height="400" width="300" id="coverImage"
+                    loadWidth="300" loadHeight="400" loadDisplayMode="scaleToFit"
+                    failedUrl="pkg:/images/placeholder.png"
+                    defaultUrl="pkg:/images/placeholder.png" />
+        </Rectangle>
+
+        <!-- Info Panel -->
+        <Rectangle height="400" width="860" translation="[380,120]">
+            <!-- Title -->
+            <Label height="60" width="840" translation="[10,0]"
+                   font="font:LargeBoldSystemFont"
+                   color="#FFFFFF"
+                   id="titleLabel2" />
+
+            <!-- Author -->
+            <Label height="40" width="840" translation="[10,70]"
+                   font="font:MediumSystemFont"
+                   color="#AAAAAA"
+                   id="authorLabel" />
+
+            <!-- Chapter Label -->
+            <Label height="40" width="840" translation="[10,110]"
+                   font="font:MediumSystemFont"
+                   color="#FFD700"
+                   id="chapterLabel" />
+
+            <!-- Progress Bar -->
+            <Rectangle height="8" width="840" translation="[10,170]" color="#333333">
+                <Rectangle id="progressBar" height="8" width="0" color="#FFD700" />
+            </Rectangle>
+
+            <!-- Time Labels -->
+            <Label height="30" width="200" translation="[10,190]"
+                   font="font:SmallSystemFont"
+                   color="#888888"
+                   id="timeLabel" />
+            <Label height="30" width="200" translation="[650,190]"
+                   font="font:SmallSystemFont"
+                   color="#888888"
+                   horizAlign="right"
+                   id="durationLabel" />
+
+            <!-- Chapter List -->
+            <List height="200" width="840" translation="[10,240]"
+                  id="chapterList"
+                  numRows="5"
+                  itemSize="[840, 40]" />
+        </Rectangle>
+
+        <!-- Playback Controls -->
+        <Rectangle height="80" width="1280" translation="[0,600]" color="#1a1a2e">
+            <!-- Previous Chapter -->
+            <Button height="60" width="120" translation="[40,10]"
+                    title="Prev" id="prevChapterButton" />
+
+            <!-- Rewind 30s -->
+            <Button height="60" width="120" translation="[180,10]"
+                    title="-30s" id="rewindButton" />
+
+            <!-- Play/Pause -->
+            <Button height="60" width="160" translation="[560,10]"
+                    title="Play" id="playPauseButton" />
+
+            <!-- Forward 30s -->
+            <Button height="60" width="120" translation="[980,10]"
+                    title="+30s" id="forwardButton" />
+
+            <!-- Next Chapter -->
+            <Button height="60" width="120" translation="[1120,10]"
+                    title="Next" id="nextChapterButton" />
+        </Rectangle>
+
+        <!-- Loading Indicator -->
+        <Label id="loadingLabel" text="Loading..."
+               translation="[640, 300]"
+               horizAlign="center" color="#888888" visible="false" />
+    </children>
+</component>

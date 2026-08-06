@@ -46,6 +46,7 @@ function CacheShouldSkip(op as String) as Boolean
     if op = "checkAuthHub" return true
     if op = "login" return true
     if op = "logout" return true
+    if op = "saveAudiobookProgress" return true
     return false
 end function
 
@@ -485,6 +486,28 @@ sub ExecRequest()
             end if
         else if req.op = "getArtists" then
             result.data = api.getArtists()
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+        else if req.op = "getAudiobooks" then
+            opts = req.options
+            if opts = invalid then opts = {}
+            result.data = api.getAudiobooks(opts)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+        else if req.op = "getAudiobook" then
+            result.data = api.getAudiobook(req.audiobookId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+        else if req.op = "getAudiobookChapters" then
+            result.data = api.getAudiobookChapters(req.audiobookId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+        else if req.op = "getAudiobookProgress" then
+            result.data = api.getAudiobookProgress(req.audiobookId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+        else if req.op = "saveAudiobookProgress" then
+            result.data = api.saveAudiobookProgress(req.audiobookId, req.positionMs, req.currentChapterIndex)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
         else if req.op = "getAlbums" then

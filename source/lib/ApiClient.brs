@@ -1134,6 +1134,55 @@ function ApiClient(baseUrl as String) as Object
         getItemRatings: function(mediaItemId as String) as Object
             return m.request("GET", "/media/" + mediaItemId + "/ratings", invalid)
         end function
+
+        ' ---------------------------------------------------------------------
+        ' Audiobooks (R7.6). All /audiobooks/* JSON routes are Bearer-gated and
+        ' return the WHOLE envelope; the scene reads the named key.
+        ' ---------------------------------------------------------------------
+
+        ' GET /audiobooks?limit&offset -> {audiobooks:[...],total,limit,offset}
+        ' Returns the whole {items,total,limit,offset} envelope (managers read .items).
+        getAudiobooks: function(options = {} as Object) as Object
+            limit = 50
+            offset = 0
+            if options.DoesExist("limit") then limit = options.limit
+            if options.DoesExist("offset") then offset = options.offset
+            if options.DoesExist("startIndex") then offset = options.startIndex
+
+            params = []
+            params.push("limit=" + str(limit).trim())
+            params.push("offset=" + str(offset).trim())
+
+            query = "?" + JoinStrings(params, "&")
+            return m.request("GET", "/audiobooks" + query, invalid)
+        end function
+
+        ' GET /audiobooks/{id} -> {audiobook:{...}} ; returns the unwrapped audiobook.
+        getAudiobook: function(audiobookId as String) as Object
+            result = m.request("GET", "/audiobooks/" + audiobookId, invalid)
+            if result <> invalid and result.audiobook <> invalid then
+                return result.audiobook
+            end if
+            return invalid
+        end function
+
+        ' GET /audiobooks/{id}/chapters -> {chapters:[...]} ; returns whole json.
+        getAudiobookChapters: function(audiobookId as String) as Object
+            return m.request("GET", "/audiobooks/" + audiobookId + "/chapters", invalid)
+        end function
+
+        ' GET /audiobooks/{id}/progress -> {position_ms,current_chapter_index} ; whole json.
+        getAudiobookProgress: function(audiobookId as String) as Object
+            return m.request("GET", "/audiobooks/" + audiobookId + "/progress", invalid)
+        end function
+
+        ' POST /audiobooks/{id}/progress {position_ms,current_chapter_index} -> {message}
+        saveAudiobookProgress: function(audiobookId as String, positionMs as LongInteger, currentChapterIndex as Integer) as Object
+            return m.request("POST", "/audiobooks/" + audiobookId + "/progress", {
+                position_ms: positionMs
+                current_chapter_index: currentChapterIndex
+            })
+        end function
     }
 
     ' roDeviceInfo provides device identification per the ifDeviceInfo interface
