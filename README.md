@@ -16,7 +16,7 @@ A native Roku application for the Phlix Media Server platform. Stream your media
 - **Full Remote Control**: Complete playback control via Roku remote (play, pause, seek, stop)
 - **Progress Synchronization**: Track and sync watch progress across sessions
 - **Multiple User Support**: Personalized libraries and watch states per user
-- **Hub / Multi-Server Mode**: Point the Connect screen at a Phlix Hub instead of a single server — after login the client detects the hub (`GET /api/v1/me/servers`), shows a server picker, and routes all media requests to the chosen server through the hub's relay proxy (the hub Bearer is the relay auth). See "Hub / multi-server mode" below for the known PUT/DELETE-over-relay limitation.
+- **Hub / Multi-Server Mode**: Point the Connect screen at a Phlix Hub instead of a single server — after login the client detects the hub (`GET /api/v1/me/servers`), shows a server picker, and routes all media requests to the chosen server through the hub's relay proxy (the hub Bearer is the relay auth). The hub relay supports all HTTP verbs (GET, PUT, DELETE, PATCH, POST). See "Hub / multi-server mode" below.
 - **Skip Intro/Outro**: Automatically displayed skip buttons when playback enters marker ranges defined by the server (intro start/end, outro start/end)
 - **SyncPlay / Watch Together** *(built to a not-yet-deployed server target; device-unverifiable — see the LIMITATIONS box under "SyncPlay (Watch Together)")*: a hand-rolled RFC6455 WebSocket client (`source/lib/SyncPlayProtocol.brs` + `components/SyncPlayTask.{xml,brs}`) lets several devices watch the same content in sync. Open the **Watch Together** overlay in the player (the `*`/Options key), pick a group from the list (or Create), and playback follows the host (play/pause/seek) with NTP-style drift correction. **Direct mode only** (disabled in hub mode), and **`ws://` only** because Roku's `roStreamSocket` has no TLS.
 - **Manual quality selection** *(server-A7-dependent; the transient content-swap-while-playing behaviour needs an on-device smoke test — see the CHANGELOG)*: press **Up** in the player to open a quality picker listing **Auto** (server-driven ABR, the multi-variant master) plus each rung the active transcode advertises, highest first, read from the server's `variants[]` ladder. Picking a rung swaps to that rung's own signed playlist and resumes at the same position; picking Auto hands playback back to native ABR. The choice is remembered (`Storage` key `preferred_quality`) and re-applied on the next transcode. With no ladder (direct-play or a legacy job) the picker shows Auto only and no-ops gracefully.
@@ -143,28 +143,6 @@ connect + login flow is the same for both. The client decides which it is talkin
 | `connection_kind` | `"hub"` or `"direct"`. Absent / unrecognized is treated as `"direct"`. |
 | `active_server_id` | The hub server chosen in the picker; appended to the relay proxy base. |
 | `active_server_name` | Display name of the chosen server. |
-
-#### Known limitation — non-GET/POST verbs over the relay
-
-The hub registers **only `GET` and `POST`** on its relay proxy route
-(`/api/v1/servers/{id}/proxy/{path:.*}`). In hub mode the media `ApiClient` is bound to the
-relay base, so `PUT`/`DELETE` calls cannot be tunneled to the server and degrade:
-
-- **favorites-remove** (`DELETE /media/{id}/favorite`),
-- **rating set / clear** (`PUT` / `DELETE /media/{id}/rating`),
-- **server-side session-end on logout** (`DELETE /sessions/{id}` — the local token still
-  clears, so logout works, but the server session is not ended).
-
-The core flows — connect, login, server pick, browse, play, resume, search, and
-**favorites-add** — all use `GET`/`POST` and work over the relay. **Direct mode is
-unaffected** (all verbs reach the server). **Recommended follow-up:** a phlix-hub change to
-register `PUT`/`DELETE`/`PATCH` on the proxy handler.
-
-> **Hub-token refresh-over-relay is not wired.** The `ApiClient` refresh-on-401 path would, in
-> hub mode, attempt to refresh through the relay against the server rather than against the hub.
-> The hub token's `expires_in` is 3600s; on expiry the relay 401 does not refresh correctly, the
-> token clears, and the next boot/login re-authenticates. Routing refresh to the hub in relay
-> mode is a planned follow-up.
 
 ### 6. SyncPlay (Watch Together)
 
@@ -438,7 +416,7 @@ The app communicates with these Phlix API endpoints:
 | GET | `/api/v1/syncplay/groups` | SyncPlay group-list snapshot (read-only; server SP5). Returns the whole `{groups:[{id, name, member_count, has_password, current_media, is_playing}]}` envelope (NOT unwrapped) — note the list uses `id`/`name`, **not** `group_id`/`group_name`. Used to populate the Watch Together overlay without typing a group id on the TV; group create/join/leave go over the WebSocket, not REST. See "SyncPlay (Watch Together)". |
 | GET | `/api/v1/auth/me` | Get the current user (auth-gated). Returns the unwrapped `{user}`, which carries `is_admin` (TINYINT 0/1) and `status`. The Home screen calls this on init to gate the admin entry. In **hub mode** the boot session-validation hits this against the **hub directly** (not over the relay), because `/auth/me` over the relay returns the hub-user perspective on the server and is unreliable. |
 | GET | `/api/v1/me/servers` | Hub-only. Returns `{servers:[ … ]}` (**camelCase** rows: `serverId`, `userId`, `serverName`, `version`, `lastSeenAt`, `status` `"online"`/`"offline"`/`"claiming"`/`"disabled"`, `hostnameCandidates:[url]`, `relayActive` (bool), `libraryCount`). A **direct** server has no such route → 404 / no `servers` array. The client calls this right after login to detect hub vs direct, and the server picker reads the whole `{servers}` envelope. |
-| GET/POST | `/api/v1/servers/{serverId}/proxy/{path:.*}` | Hub relay proxy (the **only** registered relay route). In hub mode, after a server is picked, the media `ApiClient` is bound to `{hub}/api/v1/servers/{serverId}/proxy` and sends the **hub** Bearer; the hub strips client auth, verifies server ownership (403 `server.not_owned` otherwise), injects `X-Phlix-Relay-User`, and tunnels the request to the server (which trusts the tunnel). **Only `GET`/`POST` are registered** — `PUT`/`DELETE` are not routable over the relay (see the known limitation under "Hub / multi-server mode"). |
+| GET, PUT, DELETE, PATCH, POST | `/api/v1/servers/{serverId}/proxy/{path:.*}` | Hub relay proxy (the **only** registered relay route). In hub mode, after a server is picked, the media `ApiClient` is bound to `{hub}/api/v1/servers/{serverId}/proxy` and sends the **hub** Bearer; the hub strips client auth, verifies server ownership (403 `server.not_owned` otherwise), injects `X-Phlix-Relay-User`, and tunnels the request to the server (which trusts the tunnel). All HTTP verbs are supported over the relay. |
 | GET | `/api/v1/admin/dashboard/now-playing` | Admin-gated, read-only. Active streams. Envelope `{success, data, count}`; `data[]` rows carry `username`, `media_title`, `progress_percent`, etc. AdminMiddleware → 401 (no/invalid token) / 403 (non-admin). |
 | GET | `/api/v1/admin/dashboard/storage` | Admin-gated, read-only. Per-type storage usage. Envelope `{success, data, count}`; `data[]` rows carry `media_type`, `item_count`, server-preformatted `formatted_total`. AdminMiddleware → 401/403. |
 | GET | `/api/v1/admin/dashboard/activity` | Admin-gated, read-only. Recent activity (optional `?limit=N`). Envelope `{success, data, count}`; `data[]` rows carry `occurred_at`, `username`, `event_type`. AdminMiddleware → 401/403. |

@@ -133,8 +133,6 @@ The connect URL may be a **direct Phlix server** or a **Phlix Hub** — both exp
   state is committed before the async server call fires, so a rapid re-login on the same
   device cannot observe stale session data.
 
-> **Known hub-mode limitation:** the hub registers only `GET`/`POST` on its relay proxy, so `PUT`/`DELETE` (favorites-remove, rating set/clear, server-side session-end) don't reach the server in hub mode; and hub-token refresh-over-relay is not wired (re-auth on expiry). Both are documented follow-ups in `README.md` ("Hub / multi-server mode"). Direct mode is unaffected.
-
 ### SyncPlay / Watch Together (F13)
 
 SyncPlay is a hand-rolled RFC6455 WebSocket client built **to a not-yet-deployed phlix-server target
