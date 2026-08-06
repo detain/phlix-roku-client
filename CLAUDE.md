@@ -12,10 +12,10 @@ All workflows go through `Makefile`. `package.json` exists only to alias these f
 
 | Command | What it actually does |
 |---|---|
-| `make package` | `zip -r phlix.zip manifest source images`. That zip is the entire build artifact. |
+| `make package` | `zip -r phlix.zip manifest source components images`. That zip is the entire build artifact. ⚠️ **Omitting `components` ships a UI-less channel** — the entire SceneGraph UI lives in `components/`, so a zip without it produces a black screen on the device. |
 | `make install ROKU_IP=… ROKU_DEV=… ROKU_PASSWORD=…` | Packages, then POSTs the zip to `http://$ROKU_IP:8060/install/app`. |
 | `make launch` / `make stop` | ECP keypress/launch calls — also need `ROKU_IP` etc. |
-| `make lint` | **Not a real linter.** A bash script of `grep` checks (no `console.log`, no `TODO/FIXME`, function names start with capital letter, expected files exist). It only `echo`es warnings; it never exits non‑zero. |
+| `make lint` | Runs `npx bsc --project bsconfig.json` (brighterscript type-check). This IS a hard gate — it exits non‑zero on any diagnostic (type error, missing field, malformed XML/component pairing). The old grep-script description is stale. |
 | `make test` / `make test-unit` / `make test-integration` | **Does not run any tests.** Only `find`s and lists `*.test.brs` filenames. BrightScript tests can only execute on a device. |
 | `make validate-manifest` / `make validate-xml` | Greps `manifest` for required keys and checks XML files contain `<?xml` + `</component>`. The only `make` targets that `exit 1` on failure. |
 
@@ -23,17 +23,23 @@ Running a single test: there is no host runner. To execute a test you must sidel
 
 ### CI caveat
 
-`.github/workflows/{lint,test}.yml` invoke every step with `|| true`. Combined with `make lint`/`make test` never failing on their own, CI is effectively informational — a green check does **not** mean the code is correct. Don't trust CI as a quality gate; verify changes by sideloading.
+`.github/workflows/{lint,test}.yml` invoke every step with `|| true`. `make test` never fails (no host runner); `make lint` now runs `bsc` which DOES exit non-zero on errors, so it is a real gate. Don't trust CI alone — verify by sideloading.
 
-## Before committing
+## Automated Quality Gates
 
-Run these locally to catch issues before pushing:
+> ⚠️  `bsc` green does not mean the code runs. It validates syntax, XML/component pairing, and type signatures — NOT:
+> 1. Whether node field names actually exist on the declared node type
+> 2. Whether the code path is reachable on the render thread vs Task thread
+> 3. Whether runtime errors like &hEC (dot operator on non-object) or &hF4 (member function not found) will occur
+> 4. Whether an observer callback name actually resolves in the component's scope
 
-- `npx bsc --project bsconfig.json` — brighterscript zero-error gate
-- `make verify-runtime` — 11 grep-based runtime-defect checks (scripts/verify-runtime.sh)
-- `make validate-manifest` / `make validate-xml` — manifest and XML validation
+These commands are run in CI and must pass before merging:
 
-All three must pass before pushing. `make verify-runtime` is also a hard CI gate in `.github/workflows/lint.yml`.
+- `npx bsc --project bsconfig.json` — brighterscript type-check (zero diagnostics required)
+- `make verify-runtime` — 11+ grep-based runtime-defect checks (scripts/verify-runtime.sh)
+- `make validate-manifest` — manifest has required fields
+- `make validate-xml` — all XML files are valid SceneGraph documents
+- `make lint` — runs bsc, the actual hard gate
 
 ## Architecture
 
@@ -43,7 +49,6 @@ All three must pass before pushing. `make verify-runtime` is also a hard CI gate
 source/main.brs            → boots an roSGScreen, instantiates the PhlixApp scene, runs the message loop
 components/*.{brs,xml}      → SceneGraph scenes + Task nodes (PhlixApp, Connect, Login, ServerPicker, Home, Library, Detail, Player, Recommendations, ApiTask, SyncPlayTask, …)
 source/lib/*.brs           → pure BrightScript modules, all using the factory-object pattern (incl. SyncPlayProtocol)
-source/pages/*.brs         → page controllers used by scenes
 source/data/Theme.brs      → constants
 ```
 
@@ -160,6 +165,10 @@ stub), and it is **device-unverifiable** (bsc + review only). Two new files plus
   from `OnPlayerStateChange`, to avoid feedback loops) are broadcast.
 - `ApiClient.getSyncPlayGroups()` → `GET /api/v1/syncplay/groups` (whole `{groups}` envelope, not
   unwrapped) feeds the overlay list so no group id is typed on the TV; create/join/leave go over WS.
+
+  > **Note:** The documentation was vindicated — commit `608141d` regressed the code to use `/syncplay/rooms`
+  > instead of `/api/v1/syncplay/groups`, and R4.1's static checks now guard it. The docs were right;
+  > the code was wrong.
 
 **Two hard facts to keep in docs/code:**
 
