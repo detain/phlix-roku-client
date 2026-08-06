@@ -208,15 +208,18 @@ validate-manifest:
 # Validate XML files
 validate-xml:
 	@echo "Validating XML files..."
-	@for xml in $(COMPONENTS_DIR)/*.xml; do \
+	@FOUND=0; \
+	for xml in $(COMPONENTS_DIR)/*.xml; do \
 		if [ -f "$$xml" ]; then \
 			if grep -q '<?xml version' "$$xml" && grep -q '</component>' "$$xml"; then \
 				echo "  ✓ $$(basename $$xml)"; \
 			else \
 				echo "  ERROR: $$(basename $$xml) - invalid structure"; \
+				FOUND=1; \
 			fi; \
 		fi; \
-	done
+	done; \
+	if [[ $$FOUND -eq 1 ]]; then exit 1; fi
 
 # ===========================================
 # CI/CD helpers
