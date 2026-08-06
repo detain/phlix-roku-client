@@ -27,6 +27,7 @@
   "author": "Phlix Team",
   "license": "MIT",
   "devDependencies": {
-    "brighterscript": "0.72.5"
+    "brighterscript": "0.72.5",
+    "rooibos": "6.0.0"
   }
 }

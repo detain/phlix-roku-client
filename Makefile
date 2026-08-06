@@ -108,8 +108,10 @@ test-unit:
 		echo "Roku host detected ($$ROKU_HOST$$ROKU_TEST_HOST), attempting to run unit tests..."; \
 		$(MAKE) _run_rooibos_unit; \
 	else \
-		echo "SKIPPED: BrightScript unit tests require a Roku device (set ROKU_HOST). The brighterscript gate (make lint) is the CI check."; \
+		echo "ERROR: BrightScript unit tests require a Roku device (set ROKU_HOST or ROKU_TEST_HOST)."; \
+		echo "The brighterscript gate (make lint) is the only automated check available without a device."; \
 		if [ -d $(TESTS_DIR)/unit ]; then echo "Unit test files present:"; find $(TESTS_DIR)/unit -name "*.test.brs" -exec basename {} \; | head -10; fi; \
+		exit 1; \
 	fi
 
 _run_rooibos_unit:
@@ -126,7 +128,9 @@ test-integration:
 		echo "Roku host detected ($$ROKU_HOST$$ROKU_TEST_HOST), attempting to run integration tests..."; \
 		$(MAKE) _run_rooibos_integration; \
 	elif command -v rokuunit >/dev/null 2>&1; then \
+		echo "Running integration tests with rokuunit..."; \
 		rokuunit --group integration; \
+		exit 1; \
 	elif command -v rooibos >/dev/null 2>&1; then \
 		echo "ERROR: Tests cannot run in this environment."; \
 		echo "rooibos requires a Roku device/emulator. Set ROKU_HOST environment variable."; \
