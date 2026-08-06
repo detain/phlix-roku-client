@@ -30,7 +30,7 @@
                    text="Connect to server"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF"
-                   halign="center" />
+                   horizAlign="center" />
 
             <!-- Server URL -->
             <Label height="30" width="520" translation="[20,100]"

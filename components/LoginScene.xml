@@ -29,7 +29,7 @@
                    text="Phlix"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF"
-                   halign="center" />
+                   horizAlign="center" />
 
             <!-- Username -->
             <Label height="30" width="460" translation="[20,90]"

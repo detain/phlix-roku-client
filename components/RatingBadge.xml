@@ -15,7 +15,7 @@
                text="★"
                font="font:LargeBoldSystemFont"
                color="#FF6B35"
-               halign="center"
+               horizAlign="center"
                valign="middle"
                id="starLabel" />
 
@@ -24,7 +24,7 @@
                text="0.0/10"
                font="font:LargeBoldSystemFont"
                color="#FFFFFF"
-               halign="left"
+               horizAlign="left"
                valign="middle"
                id="scoreLabel" />
     </children>
