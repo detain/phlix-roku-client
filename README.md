@@ -20,8 +20,16 @@ A native Roku application for the Phlix Media Server platform. Stream your media
 - **Skip Intro/Outro**: Automatically displayed skip buttons when playback enters marker ranges defined by the server (intro start/end, outro start/end)
 - **SyncPlay / Watch Together** *(built to a not-yet-deployed server target; device-unverifiable — see the LIMITATIONS box under "SyncPlay (Watch Together)")*: a hand-rolled RFC6455 WebSocket client (`source/lib/SyncPlayProtocol.brs` + `components/SyncPlayTask.{xml,brs}`) lets several devices watch the same content in sync. Open the **Watch Together** overlay in the player (the `*`/Options key), pick a group from the list (or Create), and playback follows the host (play/pause/seek) with NTP-style drift correction. **Direct mode only** (disabled in hub mode), and **`ws://` only** because Roku's `roStreamSocket` has no TLS.
 - **Manual quality selection** *(server-A7-dependent; the transient content-swap-while-playing behaviour needs an on-device smoke test — see the CHANGELOG)*: press **Up** in the player to open a quality picker listing **Auto** (server-driven ABR, the multi-variant master) plus each rung the active transcode advertises, highest first, read from the server's `variants[]` ladder. Picking a rung swaps to that rung's own signed playlist and resumes at the same position; picking Auto hands playback back to native ABR. The choice is remembered (`Storage` key `preferred_quality`) and re-applied on the next transcode. With no ladder (direct-play or a legacy job) the picker shows Auto only and no-ops gracefully.
-- **Audio & subtitle track selection**: press **Down** in the player to open a **Settings** panel (Audio / Subtitles). The tracks are read from playback info (`audio_tracks` / `subtitle_tracks`); picking a subtitle track applies it to the `Video` node (`subtitleTrack`, with "Off" to disable) and picking an audio track records the preference. The choice is remembered (`Storage` keys `preferred_audio_track` / `preferred_subtitle_track`). Additive: the panel is hidden by default, so the default playback path is unchanged when it is never opened, and it degrades gracefully to an empty-state message when no tracks are present.
+- **Audio & subtitle track selection**: press **Down** in the player to open a **Settings** panel (Audio / Subtitles). The tracks are read from playback info (`audio_tracks` / `subtitle_tracks`); picking a subtitle track applies it to the `Video` node (`currentSubtitleTrack`, with "Off" to disable) and picking an audio track records the preference. The choice is remembered (`Storage` keys `preferred_audio_track` / `preferred_subtitle_track`). Additive: the panel is hidden by default, so the default playback path is unchanged when it is never opened, and it degrades gracefully to an empty-state message when no tracks are present.
 - **Profile Management (admin)**: View a user's profiles and adjust the parental-control rating or clear a forgotten PIN — button-driven, no keyboard. Reached via `Admin → Users → (select user) → Profiles`
+
+### Not Yet Implemented
+
+The following features are not currently available:
+- Books / e-reader functionality
+- DVR write operations
+- Casting / screen mirroring
+- Hub-mode PUT/DELETE over relay (direct mode required for favorites-remove, rating-set/clear)
 
 ## Prerequisites
 
