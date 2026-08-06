@@ -45,11 +45,13 @@ This document provides detailed information for developers working on the Phlix 
 |-----------|----------------|
 | `PhlixApp` | Main app controller, scene navigation |
 | `ApiClient` | All HTTP communication with Phlix server |
-| `AuthManager` | Authentication state and token management |
+| `ApiTask` | Task node that moves HTTP off the render thread |
 | `SessionManager` | Session lifecycle management |
 | `LibraryManager` | Library browsing and item retrieval |
 | `Storage` | Persistent local storage (registry) |
 | `TaskManager` | Background task scheduling |
+
+See [docs/architecture-apitask.md](docs/architecture-apitask.md) for detailed ApiTask dispatch architecture.
 
 ## Component Structure
 

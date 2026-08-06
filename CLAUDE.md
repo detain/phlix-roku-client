@@ -218,3 +218,4 @@ These are conventions enforced informally (sometimes by `make lint`'s greps); fo
 - `README.md` — install/sideload procedure, full API endpoint table, remote-button mapping.
 - `DEVELOPER.md` — extensive coding conventions, scene-graph patterns, mocking patterns for tests. Consult before writing new patterns from scratch.
 - `docs/debugging.md` — telnet debugging guide with the full error dictionary (`&hEC`, `&hF4`, silent no-ops, etc.) and ECP endpoints.
+- `docs/architecture-apitask.md` — ApiTask op-dispatch threading model, response envelope, and scaling notes.
