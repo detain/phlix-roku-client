@@ -444,6 +444,22 @@ sub ExecRequest()
             if result.ok then
                 CacheInvalidateItem(api, req.itemId)
             end if
+        else if req.op = "markWatched" then
+            result.data = api.markWatched(req.itemId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+            ' R7.5: Invalidate cache after watched mutation.
+            if result.ok then
+                CacheInvalidateItem(api, req.itemId)
+            end if
+        else if req.op = "markUnwatched" then
+            result.data = api.markUnwatched(req.itemId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+            ' R7.5: Invalidate cache after unwatched mutation.
+            if result.ok then
+                CacheInvalidateItem(api, req.itemId)
+            end if
         else if req.op = "getFavorites" then
             ' R5.9: Cache at request level.
             opts = req.options

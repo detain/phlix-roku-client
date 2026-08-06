@@ -67,17 +67,17 @@ function LibraryManager(api as Object) as Object
         end function
 
         ' Mark item as watched.
-        ' NOTE (F0b): the canonical /api/v1 contract has no /Items/{id}/UserData
-        ' endpoint. Watched state is derived server-side from playback progress,
-        ' and explicit favorites/ratings land in F5. Stubbed to return invalid
-        ' so callers (scenes, updated in F1) compile without the Emby route.
+        ' R7.5: POST /users/me/history/{mediaItemId} to explicitly mark watched.
         markWatched: function(itemId as String) as Object
-            return invalid
+            if m.api = invalid then return invalid
+            return m.api.markWatched(itemId)
         end function
 
-        ' Mark item as unwatched. See markWatched note above.
+        ' Mark item as unwatched.
+        ' R7.5: DELETE /users/me/history/{mediaItemId} to explicitly mark unwatched.
         markUnwatched: function(itemId as String) as Object
-            return invalid
+            if m.api = invalid then return invalid
+            return m.api.markUnwatched(itemId)
         end function
 
         ' Get current libraries

@@ -642,6 +642,25 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
+        ' Watched / unwatched history (R7.5). POST marks watched (adds to
+        ' history), DELETE marks unwatched (removes from history). The server
+        ' derives watched state from playback progress; these endpoints allow
+        ' explicit manual marking independent of playback sessions.
+        ' ---------------------------------------------------------------------
+
+        ' POST /users/me/history/{mediaItemId} -> {message} ; marks item as
+        ' watched (adds to user's watch history).
+        markWatched: function(mediaItemId as String) as Object
+            return m.request("POST", "/users/me/history/" + mediaItemId, invalid)
+        end function
+
+        ' DELETE /users/me/history/{mediaItemId} -> {message} ; marks item as
+        ' unwatched (removes from user's watch history).
+        markUnwatched: function(mediaItemId as String) as Object
+            return m.request("DELETE", "/users/me/history/" + mediaItemId, invalid)
+        end function
+
+        ' ---------------------------------------------------------------------
         ' Music (F6). All /music/* routes are Bearer-gated and aggregate across
         ' ALL music libraries server-side (no library_id param). These return
         ' the WHOLE envelope (mirror getFavorites); the scene reads the named key.

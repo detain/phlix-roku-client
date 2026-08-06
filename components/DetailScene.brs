@@ -21,6 +21,7 @@ sub Init()
     m.ratingBadge = m.top.FindNode("ratingBadge")
     m.contentRatingLabel = m.top.FindNode("contentRatingLabel")
     m.loadingLabel = m.top.FindNode("loadingLabel")
+    m.watchedButton = m.top.FindNode("watchedButton")
 
     if m.backButton <> invalid then
         m.backButton.ObserveField("buttonSelected", "OnBackPressed")
@@ -36,6 +37,10 @@ sub Init()
 
     if m.ratingButton <> invalid then
         m.ratingButton.ObserveField("buttonSelected", "OnRatingCommit")
+    end if
+
+    if m.watchedButton <> invalid then
+        m.watchedButton.ObserveField("buttonSelected", "OnWatchedToggle")
     end if
 
     ' Route all data access through the ApiTask node (off the render thread).
@@ -140,6 +145,24 @@ sub OnApiResponse(event as Object)
             end if
             ShowErrorDialog(m.top, "Error", "Couldn't clear your rating. Please try again.")
         end if
+    else if resp.op = "markWatched" then
+        ' Optimistic update already applied; revert on failure.
+        if not resp.ok then
+            if m.userData <> invalid then
+                m.userData.watched = false
+                RenderWatched()
+            end if
+            ShowErrorDialog(m.top, "Error", "Couldn't mark as watched. Please try again.")
+        end if
+    else if resp.op = "markUnwatched" then
+        ' Optimistic update already applied; revert on failure.
+        if not resp.ok then
+            if m.userData <> invalid then
+                m.userData.watched = true
+                RenderWatched()
+            end if
+            ShowErrorDialog(m.top, "Error", "Couldn't mark as unwatched. Please try again.")
+        end if
     else if resp.op = "getItemSimilar" then
         ' R7.4: Store similar items and display if available.
         if resp.ok and resp.data <> invalid then
@@ -221,6 +244,7 @@ sub RenderItem()
     else
         if m.favoriteButton <> invalid then m.favoriteButton.visible = true
         if m.ratingButton <> invalid then m.ratingButton.visible = true
+        if m.watchedButton <> invalid then m.watchedButton.visible = true
 
         m.pendingRating = 0
         if m.userData.DoesExist("rating") and m.userData.rating <> invalid then
@@ -229,6 +253,7 @@ sub RenderItem()
 
         RenderFavorite()
         RenderRating()
+        RenderWatched()
     end if
 
     ' Render aggregate rating (star badge showing the average score)
@@ -258,6 +283,25 @@ sub RenderRating()
         m.ratingButton.title = "Rating: " + str(m.pendingRating).trim() + "/10"
     else
         m.ratingButton.title = "Rating: not set"
+    end if
+end sub
+
+' ---------------------------------------------------------------------
+' R7.5: Render watched/unwatched button state.
+' When user_data.watched is not set (first load), defaults to "unwatched"
+' so the button shows "Mark as Watched".
+' ---------------------------------------------------------------------
+sub RenderWatched()
+    if m.watchedButton = invalid then return
+    if m.userData = invalid then return
+
+    isWatched = false
+    if m.userData.DoesExist("watched") and m.userData.watched = true then isWatched = true
+
+    if isWatched then
+        m.watchedButton.title = "Mark as Unwatched"
+    else
+        m.watchedButton.title = "Mark as Watched"
     end if
 end sub
 
@@ -394,6 +438,31 @@ sub OnRatingCommit()
         m.userData.rating = m.pendingRating
         RenderRating()
         m.apiTask.request = { op: "setRating", itemId: m.itemId, rating: m.pendingRating }
+        m.apiTask.control = "run"
+    end if
+end sub
+
+' ---------------------------------------------------------------------
+' R7.5: Toggle watched state.
+' Optimistically updates local state and reverts on failure.
+' ---------------------------------------------------------------------
+sub OnWatchedToggle()
+    if m.userData = invalid or m.itemId = "" then return
+
+    isWatched = false
+    if m.userData.DoesExist("watched") and m.userData.watched = true then isWatched = true
+
+    if isWatched then
+        ' Optimistic: mark as unwatched
+        m.userData.watched = false
+        RenderWatched()
+        m.apiTask.request = { op: "markUnwatched", itemId: m.itemId }
+        m.apiTask.control = "run"
+    else
+        ' Optimistic: mark as watched
+        m.userData.watched = true
+        RenderWatched()
+        m.apiTask.request = { op: "markWatched", itemId: m.itemId }
         m.apiTask.control = "run"
     end if
 end sub

@@ -83,6 +83,12 @@
                         title="Rating: not set"
                         visible="false"
                         id="ratingButton" />
+
+                <!-- R7.5: Mark Watched/Unwatched button -->
+                <Button height="60" width="200" translation="[10,400]"
+                        title="Mark as Watched"
+                        visible="false"
+                        id="watchedButton" />
             </Rectangle>
         </Rectangle>
 
