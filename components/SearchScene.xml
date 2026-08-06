@@ -31,7 +31,6 @@
                     numColumns="3" numRows="3"
                     itemSpacing="[20, 15]"
                     basePosterSize="[180, 270]"
-                    caption1Icon="handle://leftbottom"
                     id="resultsGrid">
         </PosterGrid>
 

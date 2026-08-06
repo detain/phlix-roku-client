@@ -32,7 +32,6 @@
                     numColumns="5" numRows="3"
                     itemSpacing="[20, 15]"
                     basePosterSize="[220, 220]"
-                    caption1Icon="handle://leftbottom"
                     id="albumsGrid">
         </PosterGrid>
 

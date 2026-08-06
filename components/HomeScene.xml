@@ -48,7 +48,6 @@
                     numColumns="5" numRows="1"
                     itemSpacing="[20, 15]"
                     basePosterSize="[220, 280]"
-                    caption1Icon="handle://leftbottom"
                     visible="false"
                     id="continueGrid">
         </PosterGrid>
@@ -64,7 +63,6 @@
                     numColumns="5" numRows="2"
                     itemSpacing="[20, 15]"
                     basePosterSize="[220, 180]"
-                    caption1Icon="handle://leftbottom"
                     id="libraryGrid">
         </PosterGrid>
         <!-- Description Area -->

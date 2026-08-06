@@ -50,7 +50,6 @@
                     numColumns="5" numRows="2"
                     itemSpacing="[20, 15]"
                     basePosterSize="[220, 330]"
-                    caption1Icon="handle://leftbottom"
                     id="itemsGrid">
         </PosterGrid>
 
