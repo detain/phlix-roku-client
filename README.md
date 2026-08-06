@@ -286,14 +286,7 @@ Edit `manifest` to customize:
 
 The app uses these configurable constants (in source files):
 
-```brightscript
-' In ApiClient.brs - Device capabilities
-deviceProfile: {
-    MaxStreamingBitrate: 30000000  ' 30 Mbps
-    MaxStaticBitrate: 30000000
-    SupportedMediaTypes: ["Video", "Audio"]
-}
-```
+
 
 ## Building the App
 
@@ -426,12 +419,11 @@ The app communicates with these Phlix API endpoints:
 | POST | `/api/v1/Sessions` | Create new session |
 | GET | `/api/v1/Library/VirtualFolders` | Get library folders |
 | GET | `/api/v1/Items` | Get items with filtering |
-| GET | `/api/v1/Items/{id}` | Get single item details |
-| GET | `/api/v1/Items/{id}/PlaybackInfo` | Get playback URLs and info |
+
 | POST | `/api/v1/Sessions/Play` | Start playback session |
 | POST | `/api/v1/Playstate` | Update playstate (play/pause/stop) |
 | POST | `/api/v1/Playstate/Progress` | Report playback progress |
-| POST | `/api/v1/Items/{id}/UserData` | Update user data (watched, etc.) |
+
 | GET | `/api/v1/Users/Me` | Get current user info |
 | GET | `/api/v1/collections` | List collections (read-only). Returns `{collections:[...]}`. Currently unauthenticated server-side. |
 | GET | `/api/v1/collections/{id}` | Get one collection with its items (read-only). Returns `{collection, items, total}`; `items` are raw DB rows normalized client-side. Currently unauthenticated server-side. |
