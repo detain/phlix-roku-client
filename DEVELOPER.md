@@ -432,6 +432,8 @@ end if
 
 ## Debugging
 
+See [docs/debugging.md](docs/debugging.md) for the full error dictionary and telnet guide.
+
 ### Print Debugging
 
 ```brightscript

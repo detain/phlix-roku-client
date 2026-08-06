@@ -216,4 +216,5 @@ These are conventions enforced informally (sometimes by `make lint`'s greps); fo
 ## Reference docs already in the repo
 
 - `README.md` — install/sideload procedure, full API endpoint table, remote-button mapping.
-- `DEVELOPER.md` — extensive coding conventions, scene-graph patterns, debugging via telnet on port 8080, mocking patterns for tests. Consult before writing new patterns from scratch.
+- `DEVELOPER.md` — extensive coding conventions, scene-graph patterns, mocking patterns for tests. Consult before writing new patterns from scratch.
+- `docs/debugging.md` — telnet debugging guide with the full error dictionary (`&hEC`, `&hF4`, silent no-ops, etc.) and ECP endpoints.

@@ -658,6 +658,8 @@ phlix-roku/
 
 ### Debugging
 
+See [docs/debugging.md](docs/debugging.md) for the full error dictionary and telnet guide.
+
 ```bash
 # Connect to Roku debug console
 telnet ROKU_IP 8080
