@@ -372,6 +372,11 @@ sub Show(itemId as String, args as Object)
         m.videoPlayer.globalCaptionMode = "Off"
     end if
 
+    ' R6.10: Trickplay BIF thumbnails — set bifDisplay when server provides the URL
+    if m.playbackInfo <> invalid and m.playbackInfo.trickplay_bif_url <> invalid and m.playbackInfo.trickplay_bif_url <> "" then
+        m.videoPlayer.bifDisplay = m.playbackInfo.trickplay_bif_url
+    end if
+
     m.videoPlayer.control = "play"
     m.isPlaying = true
 
