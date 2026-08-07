@@ -307,8 +307,9 @@ Source: [Roku Closed Caption Documentation](https://developer.roku.com/en-us/doc
 
 | Defect | Status | Notes |
 |--------|--------|-------|
-| §5.1 `Storage` factory (`&hEC`) | NOT REACHED | No device available for testing |
-| §5.2 `m.top.Close()` (`&hF4`) | FIXED R0.4 | Code migrated; device smoke test still recommended for un-wired branches |
+| §5.1 `Storage` factory (`&hEC`) | STATIC CLEARED | `make verify-runtime` CHECK 1 confirms no direct Storage.factory calls; device test BLOCKED (R0.1 — no hardware) |
+| §5.2 `m.top.Close()` (`&hF4`) | STATIC CLEARED | `make verify-runtime` CHECK 2 confirms no m.top.Close() calls; 34 call sites migrated to m.top.requestClose; device smoke test BLOCKED (R0.1 — no hardware) |
+| R0.1 Device verification | BLOCKED | Physical hardware required; static checks (CHECK 1, 2, 6) confirm code fixes in place; docs already existed from prior session |
 | §5.3 Back at root (`&h06` / cert item 6) | NOT REACHED | No device available for testing |
 | R1.1 Boot auth async | NOT REACHED | No device available for testing |
 | R1.2 Login async | NOT REACHED | No device available for testing |
