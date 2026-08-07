@@ -422,7 +422,24 @@ sub RenderCollection()
     if m.userData = invalid then return
 
     if m.collections <> invalid and m.collections.count() > 0 then
-        m.collectionButton.title = "Add to Collection"
+        ' Check if item is already in any collection
+        itemInCollection = false
+        for each col in m.collections
+            if col.DoesExist("items") and col.items <> invalid then
+                for each item in col.items
+                    if item.DoesExist("id") and item.id = m.itemId then
+                        itemInCollection = true
+                        exit for
+                    end if
+                end for
+            end if
+            if itemInCollection then exit for
+        end for
+        if itemInCollection then
+            m.collectionButton.title = "Remove from Collection"
+        else
+            m.collectionButton.title = "Add to Collection"
+        end if
     else
         m.collectionButton.title = "Add to Collection"
     end if
@@ -462,6 +479,8 @@ sub ShowCollectionPicker()
     firstCollection = m.collections[0]
     if firstCollection.DoesExist("id") then
         AddItemToCollection(firstCollection.id)
+    else
+        ShowErrorDialog(m.top, "Error", "Collection has no ID")
     end if
 end sub
 

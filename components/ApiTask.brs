@@ -134,7 +134,7 @@ end sub
             end if
         end for
 
-        ' Invalidate specific item if provided.
+    ' Invalidate specific item if provided.
     if itemId <> invalid and itemId <> "" then
         toDelete.push("GET:/media/" + itemId)
         ' Invalidate playback info too (changes with user state).
