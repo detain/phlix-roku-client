@@ -175,7 +175,7 @@ end sub
 sub TestSyncPlayProtocolDecodeLegacyEnvelope()
     ' Test Decode unwraps legacy {data:{...}} envelope
     proto = SyncPlayProtocol()
-    result = proto.Decode("{\"type\":\"syncplay_test\",\"data\":{\"foo\":\"bar\"}}")
+    result = proto.Decode("{""type"":""syncplay_test"",""data"":{""foo"":""bar""}}")
     assertTrue(result <> invalid)
     assertEqual(result.foo, "bar")
     print "TestSyncPlayProtocolDecodeLegacyEnvelope passed"
