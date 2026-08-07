@@ -518,4 +518,122 @@ PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+FOUND=0
+echo ""
+echo "=== Check 17: echo ERROR paired with exit/state (self-audit) ==="
+# Every echo command with ERROR in its output should set FOUND=1, VIOLATIONS=1,
+# or exit 1 to ensure the script properly fails when errors are detected.
+PYOUT=$(python3 - <<'PYEOF'
+import re, sys
+
+script_path = '/home/sites/phlix/phlix-roku-client/scripts/verify-runtime.sh'
+# Exclude the meta-check block itself (check 17) to avoid self-referential false positives
+exclude_start = "=== Check 17:"
+exclude_end = "exit $((VIOLATIONS))"
+
+try:
+    with open(script_path, 'r') as f:
+        raw_lines = f.readlines()
+except Exception as e:
+    print(f"  CHECK17: failed to read script: {e}")
+    sys.exit(1)
+
+# Extract lines to audit (everything before the check 17 block)
+lines_to_audit = []
+in_meta_check = False
+for line in raw_lines:
+    if exclude_start in line:
+        in_meta_check = True
+    if not in_meta_check:
+        lines_to_audit.append(line)
+
+violations = []
+for i, line in enumerate(lines_to_audit):
+    # Only check actual echo commands (not comments, not strings containing 'echo')
+    # An echo command starts with optional whitespace, then 'echo' followed by whitespace
+    if re.match(r'^\s*echo\s+', line) and 'ERROR' in line:
+        linenum = i + 1
+        violations.append(f"  {script_path}:{linenum} — CHECK17: echo command with ERROR should set FOUND=1, VIOLATIONS=1, or exit 1")
+
+if violations:
+    for v in violations:
+        print(v)
+    sys.exit(1)
+
+print("  PASS — all echo ERROR commands properly paired with state/exit")
+PYEOF
+)
+PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo ""
+echo "=== Check 18: version drift between package.json and manifest (R8.8) ==="
+PYOUT=$(python3 - <<'PYEOF'
+import re, os, sys, json
+
+repo = '/home/sites/phlix/phlix-roku-client'
+
+# Read package.json version
+pkg_json = os.path.join(repo, 'package.json')
+try:
+    with open(pkg_json) as f:
+        pkg_data = json.load(f)
+    pkg_version = pkg_data.get('version', '')
+except Exception as e:
+    print(f"  CHECK18: failed to read package.json: {e}")
+    sys.exit(1)
+
+# Parse package.json version (major.minor.patch)
+m = re.match(r'^(\d+)\.(\d+)\.(\d+)', pkg_version)
+if not m:
+    print(f"  CHECK18: package.json version '{pkg_version}' does not match semver format")
+    sys.exit(1)
+pkg_major, pkg_minor, pkg_patch = m.groups()
+
+# Read manifest
+manifest = os.path.join(repo, 'manifest')
+try:
+    with open(manifest) as f:
+        manifest_content = f.read()
+except Exception as e:
+    print(f"  CHECK18: failed to read manifest: {e}")
+    sys.exit(1)
+
+# Parse manifest fields
+def get_manifest_field(content, field):
+    match = re.search(rf'^{field}=(\d+)', content, re.MULTILINE)
+    return match.group(1) if match else None
+
+man_major = get_manifest_field(manifest_content, 'major_version')
+man_minor = get_manifest_field(manifest_content, 'minor_version')
+man_build = get_manifest_field(manifest_content, 'build_version')
+
+if man_major is None or man_minor is None or man_build is None:
+    print(f"  CHECK18: manifest missing required version fields")
+    sys.exit(1)
+
+drift = []
+if pkg_major != man_major:
+    drift.append(f"major_version: package.json={pkg_major}, manifest={man_major}")
+if pkg_minor != man_minor:
+    drift.append(f"minor_version: package.json={pkg_minor}, manifest={man_minor}")
+
+# Check if build_version in manifest is a valid build number
+if not re.match(r'^\d+$', man_build):
+    drift.append(f"build_version: manifest={man_build} is not a valid build number")
+
+if drift:
+    print(f"  CHECK18: version drift detected:")
+    for d in drift:
+        print(f"    {d}")
+    sys.exit(1)
+
+print(f"  PASS — package.json={pkg_version}, manifest major_version={man_major}, minor_version={man_minor}, build_version={man_build}")
+PYEOF
+)
+PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

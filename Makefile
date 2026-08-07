@@ -7,7 +7,7 @@ ROKU_PASSWORD ?= rokipassword
 
 # Package name
 PKG_NAME = phlix
-PKG_VERSION = 1.0.1
+PKG_VERSION = $(shell bash $(CURDIR)/scripts/derive-version.sh --pkg-version)
 
 # Source directories
 SOURCE_DIR = source
@@ -174,6 +174,25 @@ lint:
 	@echo "Running brighterscript (bsc)..."
 	npx bsc --project bsconfig.json
 
+# Run bslint (BrightScript linter) - hard gate (fails on any issue)
+bslint:
+	@echo "Running bslint..."
+	@output=$$(npx bslint --project bsconfig.json 2>&1); \
+	ec=$$?; \
+	if [ $$ec -ne 0 ]; then \
+		echo "$$output"; \
+		echo ""; \
+		echo "bslint failed with exit code $$ec - failing build"; \
+		exit 1; \
+	fi; \
+	if echo "$$output" | grep -qE "^\s*\[([0-9]+:[0-9]+:[0-9]+.[0-9]+)\].*- (error|warning)"; then \
+		echo "$$output"; \
+		echo ""; \
+		echo "bslint found issues - failing build"; \
+		exit 1; \
+	fi
+	@echo "  ✓ bslint passed"
+
 # Fix common lint issues
 lint-fix:
 	@echo "Running lint fixes..."
@@ -230,7 +249,7 @@ validate-xml:
 			fi; \
 		fi; \
 	done; \
-	if [[ $$FOUND -eq 1 ]]; then exit 1; fi
+	if [ $$FOUND -eq 1 ]; then exit 1; fi
 
 # ===========================================
 # CI/CD helpers
