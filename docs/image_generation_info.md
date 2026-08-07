@@ -10,15 +10,22 @@
 
 All images in this guide are **required for Roku Store certification**. Incorrect dimensions are a **submission blocker** — the Roku Developer Relations team will reject the channel package if any art asset is off by even 1 pixel.
 
-Current status:
-- ❌ `icon-focus-hd.png` — 540×405 px (needs **290×218 px**) — **WRONG**
-- ❌ `icon-focus-sd.png` — 214×144 px (needs **246×140 px**) — **WRONG**
-- ❌ `icon-side-hd.png` — 175×29 px (needs **176×110 px**) — **WRONG**
-- ❌ `splash-sd.png` — 960×540 px (needs **720×480 px**) — **WRONG**
+Current status — **all assets regenerated 2026-08-07, every dimension now matches spec**:
+- ✅ `icon-focus-hd.png` — 290×218 px — **CORRECT** (was 540×405)
+- ✅ `icon-focus-sd.png` — 246×140 px — **CORRECT** (was 214×144)
+- ✅ `icon-side-hd.png` — 176×110 px — **CORRECT** (was 175×29)
+- ✅ `splash-sd.png` — 720×480 px — **CORRECT** (was 960×540)
 - ✅ `splash-hd.png` — 1280×720 px — **CORRECT**
 - ✅ `splash-fhd.png` — 1920×1080 px — **CORRECT** (added to manifest 2026-08-07)
+- ✅ `placeholder.png` — 280×380 px — **CORRECT**
 
-**All four wrong-dimension files must be regenerated before the channel can be submitted to the Roku Store.**
+No dimension blockers remain for Roku Store submission.
+
+> ⚠️ **Worth a second look before submitting:** the *previous* `icon-focus-hd.png` was
+> 540×405, which is exactly Roku's **Channel Poster (HD)** size. If 540×405 was in fact the
+> intended asset and this guide's 290×218 is the legacy `mm_icon_focus_hd` figure, confirm
+> against current Roku Developer docs before submission — this repo now follows the numbers
+> written in this guide.
 
 ---
 
@@ -82,37 +89,61 @@ Used when real artwork hasn't loaded or isn't available.
 
 ---
 
-## Current State (as of 2026-08-07)
+## Current State (as of 2026-08-07, post-regeneration)
 
-The following images **exist but have incorrect dimensions** — they need to be regenerated:
-
-| File                  | Current Size   | Required Size     | Status    |
-| --------------------- | -------------- | ----------------- | --------- |
-| `icon-focus-hd.png`   | 540 × 405 px   | **290 × 218 px**  | ❌ WRONG  |
-| `icon-focus-sd.png`   | 214 × 144 px   | **246 × 140 px**  | ❌ WRONG  |
-| `icon-side-hd.png`    | 175 × 29 px    | **176 × 110 px**  | ❌ WRONG  |
-| `splash-sd.png`       | 960 × 540 px   | **720 × 480 px**  | ❌ WRONG  |
-
-The following images **exist and are correct** — no changes needed:
+Every asset was regenerated on 2026-08-07 from a single design system, so the icon set and
+the splash set now share one lockup:
 
 | File                  | Size           | Status |
 | --------------------- | -------------- | ------ |
+| `icon-focus-hd.png`   | 290 × 218 px   | ✅ OK  |
+| `icon-focus-sd.png`   | 246 × 140 px   | ✅ OK  |
+| `icon-side-hd.png`    | 176 × 110 px   | ✅ OK  |
+| `splash-sd.png`       | 720 × 480 px   | ✅ OK  |
 | `splash-hd.png`       | 1280 × 720 px  | ✅ OK  |
-| `splash-fhd.png`      | 1920 × 1080 px | ✅ OK (newly added) |
+| `splash-fhd.png`      | 1920 × 1080 px | ✅ OK  |
 | `placeholder.png`     | 280 × 380 px   | ✅ OK  |
+
+`splash-hd.png`, `splash-fhd.png`, and `placeholder.png` already had correct dimensions but
+were regenerated anyway: the previous files were featureless noise with no logo, so leaving
+them would have shipped a splash set that changed appearance between resolutions.
 
 ---
 
-## Regeneration Checklist
+## The brand lockup
 
-- [ ] `icon-focus-hd.png` — resize/crop to **290 × 218 px**
-- [ ] `icon-focus-sd.png` — resize/crop to **246 × 140 px**
-- [ ] `icon-side-hd.png` — recreate at **176 × 110 px** (current is too narrow)
-- [ ] `splash-sd.png` — resize to **720 × 480 px**
+There was no logo asset in the repo, so the mark is derived from the colors already used in
+`components/*.xml`:
+
+- **Mark** — a disc with a `#ff6b35 → #ffd700` diagonal gradient and a white rounded-corner
+  play triangle, optically centered (nudged right of true center).
+- **Wordmark** — "PHLIX" in Lato Black, white, ~9% letterspacing.
+- **Lockup** — mark above wordmark, centered. The same lockup scales across all six assets.
+- **Ground** — `#1a1a2e → #0d0d1a`, with a warm radial glow behind the mark and a light grain
+  pass that prevents gradient banding on 8-bit TV panels.
+
+### Icon backgrounds are opaque, not transparent
+
+The "Design notes" below call for transparent icon backgrounds. The generated icons are
+**opaque full-bleed** instead, because Roku composites home-screen icons as solid tiles — a
+transparent icon shows the user's wallpaper through it, and the guide's own Overview asks for
+"no alpha transparency issues on any background". Opaque also satisfies "must work on both
+light and dark Roku themes" without a second art pass. Rounded corners and drop shadows are
+**not** baked in, per the design notes — Roku still applies those.
+
+---
+
+## Regeneration
+
+All seven assets are produced by one script, checked in at `tools/gen_channel_art.py`:
+
+```sh
+python3 tools/gen_channel_art.py     # requires Pillow + numpy; writes to images/
+```
 
 **Output location**: `/home/sites/phlix/phlix-roku-client/images/`
 
-**After regeneration**: Verify with `file *.png` or image viewer that dimensions match exactly.
+**After regeneration**: verify with `file images/*.png` that dimensions match the table above.
 
 ---
 
