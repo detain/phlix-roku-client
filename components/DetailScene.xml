@@ -105,6 +105,15 @@
 
             <!-- R7.4: Cast row - horizontal scrollable list of cast members -->
             <Row id="castRow" title="Cast" visible="false" translation="[0,460]" />
+
+            <!-- R7.4: Extras row — bonus content like behind the scenes, interviews -->
+            <Row id="extrasRow" title="Extras" visible="false" translation="[0,640]" />
+
+            <!-- R7.4: Trailers row — trailers and promos -->
+            <Row id="trailersRow" title="Trailers &amp; Promo" visible="false" translation="[0,820]" />
+
+            <!-- R7.4: Crew row — director, writer, producer, etc. -->
+            <Row id="crewRow" title="Crew" visible="false" translation="[0,1000]" />
         </Rectangle>
 
         <!-- Loading Indicator -->

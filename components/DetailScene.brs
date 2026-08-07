@@ -873,7 +873,7 @@ end sub
 ' ---------------------------------------------------------------------
 ' R7.4: Display crew in a horizontal row if crew data exists.
 ' Crew data structure (nested only):
-'   - {cast: [...], crew: [{name, role, thumbnail_url}]}
+'   - {cast: [...], crew: [{name, job, department, thumbnail_url}]}
 ' Crew does not exist in flat/old shape - this is a no-op for flat.
 ' ---------------------------------------------------------------------
 sub DisplayCrew(data as Object)
@@ -895,6 +895,24 @@ sub DisplayCrew(data as Object)
 
     ' Crew data stored for UI consumption
     m.crewData = crewArray
+
+    if m.crewRow = invalid then m.crewRow = m.top.FindNode("crewRow")
+    if m.crewRow = invalid then return
+
+    content = CreateObject("roSGNode", "ContentNode")
+    for each person in crewArray
+        item = content.CreateChild("ContentNode")
+        item.Title = person.name
+        item.Description = person.job + ": " + person.department
+        if person.thumbnail_url <> invalid and person.thumbnail_url <> "" then
+            item.HDPosterUrl = person.thumbnail_url
+        else
+            item.HDPosterUrl = "pkg:/images/placeholder.png"
+        end if
+    end for
+
+    m.crewRow.content = content
+    m.crewRow.visible = (crewArray.Count() > 0)
 end sub
 
 ' ---------------------------------------------------------------------
@@ -927,28 +945,92 @@ end sub
 
 ' ---------------------------------------------------------------------
 ' R7.4: Display trailers row if trailers exist.
-' Trailers structure: [{name, url, thumbnail_url}, ...]
+' Trailers structure: [{name, description, thumbnail_url, poster_url}, ...]
 ' Trailers are playable - each row item launches the trailer video.
 ' ---------------------------------------------------------------------
 sub DisplayTrailers(trailers as Object)
     if trailers = invalid then return
-    if type(trailers) <> "roArray" then return
-    if trailers.count() = 0 then return
 
-    ' Trailers stored for UI consumption and playable row rendering
-    m.trailersData = trailers
+    trailersArray = []
+    if type(trailers) = "roAssociativeArray" then
+        if trailers.DoesExist("items") then
+            trailersArray = trailers.items
+        else
+            trailersArray = trailers
+        end if
+    else if type(trailers) = "roArray" then
+        trailersArray = trailers
+    end if
+
+    if trailersArray.count() = 0 then return
+
+    m.trailersData = trailersArray
+
+    if m.trailersRow = invalid then m.trailersRow = m.top.FindNode("trailersRow")
+    if m.trailersRow = invalid then return
+
+    content = CreateObject("roSGNode", "ContentNode")
+    for each trailer in trailersArray
+        item = content.CreateChild("ContentNode")
+        item.Title = trailer.name
+        if trailer.description <> invalid then
+            item.Description = trailer.description
+        end if
+        if trailer.thumbnail_url <> invalid and trailer.thumbnail_url <> "" then
+            item.HDPosterUrl = trailer.thumbnail_url
+        else if trailer.poster_url <> invalid and trailer.poster_url <> "" then
+            item.HDPosterUrl = trailer.poster_url
+        else
+            item.HDPosterUrl = "pkg:/images/placeholder.png"
+        end if
+    end for
+
+    m.trailersRow.content = content
+    m.trailersRow.visible = (trailersArray.Count() > 0)
 end sub
 
 ' ---------------------------------------------------------------------
 ' R7.4: Display extras row if extras exist.
-' Extras structure: [{name, url, thumbnail_url}, ...]
+' Extras structure: [{name, description, thumbnail_url, poster_url}, ...]
 ' Extras are playable behind-the-scenes content, deleted scenes, etc.
 ' ---------------------------------------------------------------------
 sub DisplayExtras(extras as Object)
     if extras = invalid then return
-    if type(extras) <> "roArray" then return
-    if extras.count() = 0 then return
 
-    ' Extras stored for UI consumption and playable row rendering
-    m.extrasData = extras
+    extrasArray = []
+    if type(extras) = "roAssociativeArray" then
+        if extras.DoesExist("items") then
+            extrasArray = extras.items
+        else
+            extrasArray = extras
+        end if
+    else if type(extras) = "roArray" then
+        extrasArray = extras
+    end if
+
+    if extrasArray.count() = 0 then return
+
+    m.extrasData = extrasArray
+
+    if m.extrasRow = invalid then m.extrasRow = m.top.FindNode("extrasRow")
+    if m.extrasRow = invalid then return
+
+    content = CreateObject("roSGNode", "ContentNode")
+    for each extra in extrasArray
+        item = content.CreateChild("ContentNode")
+        item.Title = extra.name
+        if extra.description <> invalid then
+            item.Description = extra.description
+        end if
+        if extra.thumbnail_url <> invalid and extra.thumbnail_url <> "" then
+            item.HDPosterUrl = extra.thumbnail_url
+        else if extra.poster_url <> invalid and extra.poster_url <> "" then
+            item.HDPosterUrl = extra.poster_url
+        else
+            item.HDPosterUrl = "pkg:/images/placeholder.png"
+        end if
+    end for
+
+    m.extrasRow.content = content
+    m.extrasRow.visible = (extrasArray.Count() > 0)
 end sub
