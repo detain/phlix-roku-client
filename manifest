@@ -9,13 +9,14 @@ mm_icon_side_hd=images/icon-side-hd.png
 
 splash_screen_sd=images/splash-sd.png
 splash_screen_hd=images/splash-hd.png
+splash_screen_fhd=images/splash-fhd.png
 
 splash_color=#1a1a2e
 splash_width=1280
 splash_height=720
 splash_min_time=2000
 
-ui_resolutions=hd
+ui_resolutions=hd,full
 
 rsg_version=7.0
 
