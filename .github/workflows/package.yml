@@ -61,6 +61,7 @@ jobs:
   test-unit:
     name: Unit tests (device-dependent)
     runs-on: ubuntu-latest
+    if: env.ROKU_HOST != ''
     env:
       ROKU_HOST: ${{ secrets.ROKU_HOST }}
     steps:
