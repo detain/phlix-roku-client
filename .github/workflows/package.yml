@@ -12,8 +12,75 @@ permissions:
   contents: read
 
 jobs:
+  # ===========================================
+  # Device-independent gates (must pass before publishing)
+  # ===========================================
+
+  lint-bsc:
+    name: brighterscript type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm ci || npm install
+      - name: brighterscript (zero-error gate)
+        run: npx bsc --project bsconfig.json
+
+  lint-validate-xml:
+    name: Validate XML files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate XML files
+        run: make validate-xml
+
+  lint-validate-manifest:
+    name: Validate manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate manifest
+        run: make validate-manifest
+
+  lint-verify-runtime:
+    name: verify-runtime checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: verify-runtime (informational — may have false positives)
+        run: make verify-runtime || true
+
+  # ===========================================
+  # Device-dependent gates (run when ROKU_HOST is set, do NOT block publishing)
+  # ===========================================
+
+  test-unit:
+    name: Unit tests (device-dependent)
+    runs-on: ubuntu-latest
+    env:
+      ROKU_HOST: ${{ secrets.ROKU_HOST }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm ci || npm install
+      - name: Run unit tests
+        run: make test-unit
+
+  # ===========================================
+  # Package and release
+  # ===========================================
+
   package:
     name: Build sideload package
+    needs: [lint-bsc, lint-validate-xml, lint-validate-manifest, lint-verify-runtime]
     runs-on: ubuntu-latest
 
     steps:
@@ -30,9 +97,21 @@ jobs:
           path: phlix.zip
           if-no-files-found: error
 
+  package-signed:
+    name: Build signed package (device-dependent)
+    needs: package
+    runs-on: ubuntu-latest
+    env:
+      ROKU_HOST: ${{ secrets.ROKU_HOST }}
+    if: env.ROKU_HOST != ''
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build signed package
+        run: make package-signed
+
   release-latest:
     name: Update "latest" prerelease
-    needs: package
+    needs: [package, package-signed]
     # On every master/main push, overwrite a rolling "latest" GitHub Release
     # carrying the RAW sideload phlix.zip as a directly-downloadable asset
     # (GitHub Actions artifacts are re-zipped on download — a Release serves the
