@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @copyright 2026 Joe Huss <detain@interserver.net> -->
+<!-- @license   MIT -->
+
+<!-- components/SkipButton.xml -->
+
+<!-- SkipButton Component - owns its button and exposes skipRequested -->
+<component name="SkipButton" extends="Group">
+    <interface>
+        <!-- Fired when skip button is pressed with target position as data -->
+        <field id="skipRequested" type="float" alwaysNotify="true" />
+        <!-- Marker data: assocarray with skip_intro_start, skip_intro_end, skip_outro_start, skip_outro_end -->
+        <field id="markers" type="assocarray" />
+    </interface>
+
+    <script type="text/brightscript" uri="pkg:/components/SkipButton.brs" />
+
+    <children>
+        <!-- Skip Button - positioned in bottom right -->
+        <Button height="60" width="140" title="" id="button" />
+        <Label height="60" width="140" translation="[0,0]"
+               font="font:MediumSystemFont"
+               color="#FFFFFF"
+               horizAlign="center"
+               vertAlign="center"
+               id="label" />
+    </children>
+</component>
