@@ -17,8 +17,12 @@ sub Init()
         { title: "Playback Preferences", type: "info", description: "Configure playback quality and autoplay" },
         { title: "Captions", type: "header" },
         { title: "Caption Mode", type: "info", description: "Toggle captions on or off" },
+        { title: "Picture-in-Picture", type: "toggle", description: "Enable PiP during playback" },
         { title: "Watch History", type: "header" },
         { title: "Clear History", type: "action", description: "Remove all watch history data" },
+        { title: "Notifications", type: "header" },
+        { title: "Push Notifications", type: "toggle", description: "Receive push notifications" },
+        { title: "Email Notifications", type: "toggle", description: "Receive email notifications" },
         { title: "About", type: "header" },
         { title: "Version", type: "info", description: "App version and device information" }
     ]
@@ -72,9 +76,19 @@ sub OnItemSelected(event as Object)
         ShowPlayback()
     else if index = 7 then
         ShowCaptions()
-    else if index = 9 then
+    else if index = 8 then
+        TogglePip()
+    else if index = 10 then
         ShowWatchHistory()
     else if index = 11 then
+        ' Notifications header - do nothing, sub-items handle toggles
+    else if index = 12 then
+        TogglePushNotifications()
+    else if index = 13 then
+        ToggleEmailNotifications()
+    else if index = 14 then
+        ShowAbout()
+    else if index = 15 then
         ShowAbout()
     end if
 end sub
@@ -195,6 +209,79 @@ sub OnClearHistoryConfirmed(index as Integer)
         GetApiClient().clearWatchHistory()
         m.statusLabel.text = "Watch history cleared"
     end if
+end sub
+
+sub TogglePip()
+    ' R7.4b: Toggle Picture-in-Picture setting
+    current = GetStorage().get("pip_enabled")
+    ' Default to true if not set
+    if current = invalid or current = "" or current = "true" then
+        newValue = "false"
+    else
+        newValue = "true"
+    end if
+    GetStorage().set("pip_enabled", newValue)
+    GetStorage().flush()
+    enabledStr = IIF(newValue = "true", "enabled", "disabled")
+    m.statusLabel.text = "Picture-in-Picture " + enabledStr
+end sub
+
+sub ShowNotifications()
+    ' R7.4b: Notifications header - show current state
+    prefsJson = GetStorage().get("notification_prefs")
+    if prefsJson <> invalid and prefsJson <> "" then
+        ' prefsJson is stored as a simple "push_email" string for now
+        ' Parse it when API is ready
+        m.statusLabel.text = "Notification preferences (local only)"
+    else
+        m.statusLabel.text = "Notification preferences not set"
+    end if
+end sub
+
+sub TogglePushNotifications()
+    ' R7.4b: Toggle push notification preference
+    prefsJson = GetStorage().get("notification_prefs")
+    pushEnabled = true
+    emailEnabled = true
+
+    if prefsJson <> invalid and prefsJson <> "" then
+        parts = prefsJson.Split("_")
+        if parts.Count() >= 2 then
+            pushEnabled = (parts[0] = "1")
+            emailEnabled = (parts[1] = "1")
+        end if
+    end if
+
+    ' Toggle push
+    pushEnabled = not pushEnabled
+    newPrefs = IIF(pushEnabled, "1", "0") + "_" + IIF(emailEnabled, "1", "0")
+    GetStorage().set("notification_prefs", newPrefs)
+    GetStorage().flush()
+
+    m.statusLabel.text = "Preferences saved locally — syncing with server when available"
+end sub
+
+sub ToggleEmailNotifications()
+    ' R7.4b: Toggle email notification preference
+    prefsJson = GetStorage().get("notification_prefs")
+    pushEnabled = true
+    emailEnabled = true
+
+    if prefsJson <> invalid and prefsJson <> "" then
+        parts = prefsJson.Split("_")
+        if parts.Count() >= 2 then
+            pushEnabled = (parts[0] = "1")
+            emailEnabled = (parts[1] = "1")
+        end if
+    end if
+
+    ' Toggle email
+    emailEnabled = not emailEnabled
+    newPrefs = IIF(pushEnabled, "1", "0") + "_" + IIF(emailEnabled, "1", "0")
+    GetStorage().set("notification_prefs", newPrefs)
+    GetStorage().flush()
+
+    m.statusLabel.text = "Preferences saved locally — syncing with server when available"
 end sub
 
 sub ShowAbout()

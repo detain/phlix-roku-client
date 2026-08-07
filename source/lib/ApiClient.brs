@@ -1114,10 +1114,39 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
+        ' Notification preferences (R7.4b). GET /me/notifications -> {prefs}.
+        ' ---------------------------------------------------------------------
+        getNotificationPreferences: function() as Object
+            return m.request("GET", "/users/me/notifications", invalid)
+        end function
+
+        ' PUT /users/me/notifications {prefs} -> {message}
+        ' prefs: { push_enabled: Boolean, email_enabled: Boolean }
+        updateNotificationPreferences: function(prefs as Object) as Object
+            return m.request("PUT", "/users/me/notifications", prefs)
+        end function
+
+        ' ---------------------------------------------------------------------
         ' Watch history (R7.1). DELETE /api/v1/users/me/history -> {message}.
         ' ---------------------------------------------------------------------
         clearWatchHistory: function() as Object
             return m.request("DELETE", "/users/me/history", invalid)
+        end function
+
+        ' GET /users/me/history?limit&offset -> {items:[...],total}
+        ' Returns watch history items with id, title, poster, progress, lastWatched.
+        getWatchHistory: function(options = {} as Object) as Object
+            limit = 50
+            offset = 0
+            if options.DoesExist("limit") then limit = options.limit
+            if options.DoesExist("offset") then offset = options.offset
+
+            params = []
+            params.push("limit=" + str(limit).trim())
+            params.push("offset=" + str(offset).trim())
+
+            query = "?" + JoinStrings(params, "&")
+            return m.request("GET", "/users/me/history" + query, invalid)
         end function
 
         ' ---------------------------------------------------------------------

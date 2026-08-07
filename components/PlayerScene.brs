@@ -81,6 +81,12 @@ sub Init()
     if m.pipButton <> invalid then m.pipButton.ObserveField("buttonSelected", "OnPipButtonPressed")
     if m.pipExitButton <> invalid then m.pipExitButton.ObserveField("buttonSelected", "OnPipExitPressed")
 
+    ' R7.4b: Respect pip_enabled setting - hide PiP button if disabled
+    pipEnabled = GetStorage().get("pip_enabled")
+    if pipEnabled = "false" and m.pipButton <> invalid then
+        m.pipButton.visible = false
+    end if
+
     ' ApiTask: one-shot transcode start (observed).
     ' progressTask: session + progress reporting (guarded by state check).
     ' transcodePollTask: dedicated for getTranscodeStatus polling (separate node

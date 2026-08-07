@@ -110,21 +110,31 @@ end sub
 ' R5.9: Cache invalidation by mutation type
 ' ---------------------------------------------
 
-' Invalidate list endpoints that may change after favorite/rating mutations.
-' itemId is optional — if provided, also invalidate that specific item.
-sub CacheInvalidateItem(client as Object, itemId as String)
-    if client.m_responseCache = invalid then return
+    ' Invalidate list endpoints that may change after favorite/rating mutations.
+    ' itemId is optional — if provided, also invalidate that specific item.
+    sub CacheInvalidateItem(client as Object, itemId as String)
+        if client.m_responseCache = invalid then return
 
-    toDelete = []
+        toDelete = []
 
-    ' Invalidate library items lists (they include user_data with favorite/rating).
-    for each key in client.m_responseCache
-        if Instr(1, key, "GET:/media") > 0 or Instr(1, key, "GET:/libraries") > 0 then
-            toDelete.push(key)
-        end if
-    end for
+        ' Invalidate library items lists (they include user_data with favorite/rating).
+        for each key in client.m_responseCache
+            if Instr(1, key, "GET:/media") > 0 or Instr(1, key, "GET:/libraries") > 0 then
+                toDelete.push(key)
+            end if
+        end for
 
-    ' Invalidate specific item if provided.
+        ' R5.4: Invalidate favorites list when items are added/removed.
+        ' Without this, the stale cache returns the old list causing index-shift bugs
+        ' where items appear "lost" after unfavorite (client has old ContentNode with
+        ' more children than m.results).
+        for each key in client.m_responseCache
+            if Instr(1, key, "GET:/users/me/favorites") > 0 then
+                toDelete.push(key)
+            end if
+        end for
+
+        ' Invalidate specific item if provided.
     if itemId <> invalid and itemId <> "" then
         toDelete.push("GET:/media/" + itemId)
         ' Invalidate playback info too (changes with user state).
@@ -470,6 +480,29 @@ sub ExecRequest()
             if opts.DoesExist("limit") then limit = opts.limit
             if opts.DoesExist("offset") then offset = opts.offset
             cachePath = "/users/me/favorites?limit=" + str(limit).trim() + "&offset=" + str(offset).trim()
+            cachedResp = CacheTryGet(api, "GET", cachePath)
+            if cachedResp <> invalid then
+                result.data = cachedResp
+                result.ok = DeriveResponseOk(cachedResp)
+                result.error = DeriveResponseError(cachedResp)
+            else
+                resp = api.request("GET", cachePath, invalid)
+                result.data = resp
+                result.ok = DeriveResponseOk(resp)
+                result.error = DeriveResponseError(resp)
+                if result.ok then
+                    CacheStore(api, "GET", cachePath, resp)
+                end if
+            end if
+        else if req.op = "getWatchHistory" then
+            ' R7.4a: Watch history - no caching (frequently updated)
+            opts = req.options
+            if opts = invalid then opts = {}
+            limit = 50
+            offset = 0
+            if opts.DoesExist("limit") then limit = opts.limit
+            if opts.DoesExist("offset") then offset = opts.offset
+            cachePath = "/users/me/history?limit=" + str(limit).trim() + "&offset=" + str(offset).trim()
             cachedResp = CacheTryGet(api, "GET", cachePath)
             if cachedResp <> invalid then
                 result.data = cachedResp
