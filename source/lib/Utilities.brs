@@ -195,6 +195,39 @@ function CreatePosterContent(item as Object) as Object
     return content
 end function
 
+' R5: Lazy image loader — defers HDPosterUrl assignment until item is near visible area
+' Usage: Call SetLazyPosterUrl(contentNode, item, "poster_url") after creating each content item
+' This stores the URL in a _lazyPosterUrl field instead of setting HDPosterUrl directly
+sub SetLazyPosterUrl(contentNode as Object, item as Object, urlField as String)
+    ' Store the URL for later instead of loading immediately
+    if item.DoesExist(urlField) and item.lookup(urlField) <> invalid and item.lookup(urlField) <> "" then
+        contentNode._lazyPosterUrl = item.lookup(urlField)
+    else
+        contentNode._lazyPosterUrl = "pkg:/images/placeholder.png"
+    end if
+    ' Don't set HDPosterUrl yet — wait until item is actually visible
+end sub
+
+' R5: Activate lazy image — call when item comes into visible range
+' Call SetLazyPosterUrl first, then call this to actually load the image
+sub ActivateLazyPosterUrl(contentNode as Object)
+    if contentNode <> invalid and type(contentNode) = "roSGNode" then
+        if contentNode.doesExist("_lazyPosterUrl") then
+            url = contentNode.lookup("_lazyPosterUrl")
+            if url <> invalid and url <> "" then
+                contentNode.HDPosterUrl = url
+            end if
+        end if
+    end if
+end sub
+
+' R5: Clear lazy image — call when item goes out of visible range to free memory
+sub ClearLazyPosterUrl(contentNode as Object)
+    if contentNode <> invalid and type(contentNode) = "roSGNode" then
+        contentNode.HDPosterUrl = ""
+    end if
+end sub
+
 ' Generate random ID
 function GenerateRandomId() as String
     return str(Rnd(999999999)).trim() + "-" + str(Rnd(999999999)).trim()

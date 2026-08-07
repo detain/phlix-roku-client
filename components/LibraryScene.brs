@@ -31,6 +31,7 @@ sub Init()
     m.posterGrid = m.top.FindNode("itemsGrid")
     m.posterGrid.ObserveField("itemSelected", "OnItemSelected")
     m.posterGrid.ObserveField("itemFocused", "OnItemFocused")
+    m.posterGrid.ObserveField("visibleRect", "OnVisibleRectChange")
 
     ' UI nodes
     m.backButton = m.top.FindNode("backButton")
@@ -332,12 +333,8 @@ sub OnApiResponse(event as Object)
                 contentItem.ShortDescriptionLine2 = str(item.year).trim()
             end if
 
-            ' poster_url is an absolute URL (TMDB or local) or null.
-            if item.poster_url <> invalid and item.poster_url <> "" then
-                contentItem.HDPosterUrl = item.poster_url
-            else
-                contentItem.HDPosterUrl = "pkg:/images/placeholder.png"
-            end if
+            ' R5: Lazy image loading — defer HDPosterUrl assignment until visible
+            SetLazyPosterUrl(contentItem, item, "poster_url")
         end for
 
         ' Update paging state
@@ -460,6 +457,49 @@ sub OnItemFocused(event as Object)
     end if
 end sub
 
+' R5: visibleRect lazy loading — load images when items come into visible range
+sub OnVisibleRectChange(event as Object)
+    vr = event.getData()
+    if vr = invalid then return
+
+    ' Calculate visible item range based on grid geometry
+    ' numColumns=5, item width ~230, item height ~350
+    ' visible rect: vr[0], vr[1] is top-left; vr[2], vr[3] is width, height
+
+    ' For each content node child, check if its position is in visible rect
+    ' and load/unload images accordingly
+    if m.contentNode = invalid then return
+
+    rowHeight = 350
+    numCols = 5
+
+    firstVisibleRow = Int(vr.y / rowHeight)
+    lastVisibleRow = Int((vr.y + vr.height) / rowHeight) + 1
+    firstVisibleIndex = firstVisibleRow * numCols
+    lastVisibleIndex = lastVisibleRow * numCols + numCols
+
+    i = 0
+    child = m.contentNode.GetChild(i)
+    while child <> invalid
+        ' Activate image if in visible range (with buffer of 1 row)
+        activateThreshold = firstVisibleIndex - numCols
+        clearThreshold = lastVisibleIndex + numCols
+
+        if i >= activateThreshold and i <= clearThreshold then
+            if child.HDPosterUrl = "" and child.doesExist("_lazyPosterUrl") then
+                ActivateLazyPosterUrl(child)
+            end if
+        else
+            ' Out of visible range — clear to save memory (only if already loaded)
+            if child.HDPosterUrl <> "" then
+                ClearLazyPosterUrl(child)
+            end if
+        end if
+        i = i + 1
+        child = m.contentNode.GetChild(i)
+    end while
+end sub
+
 sub ShowSeries(seriesId as String, seriesName as String)
     name = seriesName
     if name = invalid then name = ""
@@ -504,6 +544,7 @@ sub Teardown()
     if m.posterGrid <> invalid
         m.posterGrid.UnObserveField("itemSelected")
         m.posterGrid.UnObserveField("itemFocused")
+        m.posterGrid.UnObserveField("visibleRect")
     end if
     if m.backButton <> invalid
         m.backButton.UnObserveField("buttonSelected")

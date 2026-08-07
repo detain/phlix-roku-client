@@ -13,12 +13,14 @@ sub Init()
     m.libraryGrid = m.top.FindNode("libraryGrid")
     m.libraryGrid.ObserveField("itemSelected", "OnLibraryItemSelected")
     m.libraryGrid.ObserveField("itemFocused", "OnLibraryItemFocused")
+    m.libraryGrid.ObserveField("visibleRect", "OnLibraryVisibleRectChange")
 
     ' Continue Watching rail (single row, hidden until populated).
     m.continueGrid = m.top.FindNode("continueGrid")
     m.continueLabel = m.top.FindNode("continueLabel")
     m.continueGrid.ObserveField("itemSelected", "OnContinueItemSelected")
     m.continueGrid.ObserveField("itemFocused", "OnContinueItemFocused")
+    m.continueGrid.ObserveField("visibleRect", "OnContinueVisibleRectChange")
 
     ' R7.2: Up Next rail (single row, hidden until populated).
     m.upNextGrid = m.top.FindNode("upNextGrid")
@@ -27,6 +29,7 @@ sub Init()
     if m.upNextGrid <> invalid then
         m.upNextGrid.ObserveField("itemSelected", "OnUpNextItemSelected")
         m.upNextGrid.ObserveField("itemFocused", "OnUpNextItemFocused")
+        m.upNextGrid.ObserveField("visibleRect", "OnUpNextVisibleRectChange")
     end if
 
     ' Search entry (header). Opens the SearchScene.
@@ -219,15 +222,18 @@ sub OnLibrariesResponse(resp as Object)
         ' Build the grid from each library's canonical name/id.
         content = CreateObject("roSGNode", "ContentNode")
         for each library in m.libraries
-            content.AddChild({
+            contentItem = content.AddChild({
                 Title: library.name
                 Description: "Library"
-                HDPosterUrl: "pkg:/images/placeholder.png"
                 ShortDescriptionLine1: library.name
                 Type: "library"
                 id: library.id
             })
+            ' R5: Lazy image loading — store placeholder URL for later activation
+            normalizedItem = { poster_url: "pkg:/images/placeholder.png" }
+            SetLazyPosterUrl(contentItem, normalizedItem, "poster_url")
         end for
+        m.libraryContent = content
         m.libraryGrid.content = content
     end if
     ' NOTE: no chain to continue-watching here - it's now launched in parallel
@@ -244,13 +250,16 @@ sub OnContinueWatchingResponse(resp as Object)
 
     content = CreateObject("roSGNode", "ContentNode")
     for each item in items
-        content.AddChild({
+        contentItem = content.AddChild({
             Title: item.name
             ShortDescriptionLine1: item.name
             Type: "continue"
-            HDPosterUrl: ContinuePosterUrl(item)
         })
+        ' R5: Lazy image loading — resolve URL first, then store for later activation
+        normalizedItem = { poster_url: ContinuePosterUrl(item) }
+        SetLazyPosterUrl(contentItem, normalizedItem, "poster_url")
     end for
+    m.continueContent = content
     m.continueGrid.content = content
 
     m.continueLabel.visible = true
@@ -277,12 +286,15 @@ sub OnUpNextResponse(resp as Object)
     m.upNextItems = [item]
 
     content = CreateObject("roSGNode", "ContentNode")
-    content.AddChild({
+    contentItem = content.AddChild({
         Title: item.name
         ShortDescriptionLine1: item.name
         Type: "upnext"
-        HDPosterUrl: UpNextPosterUrl(item)
     })
+    ' R5: Lazy image loading — resolve URL first, then store for later activation
+    normalizedItem = { poster_url: UpNextPosterUrl(item) }
+    SetLazyPosterUrl(contentItem, normalizedItem, "poster_url")
+    m.upNextContent = content
     if m.upNextGrid <> invalid then m.upNextGrid.content = content
 
     if m.upNextLabel <> invalid then m.upNextLabel.visible = true
@@ -353,6 +365,56 @@ sub OnUpNextItemFocused(event as Object)
     if m.descriptionLabel <> invalid and item.name <> invalid then
         m.descriptionLabel.text = item.name
     end if
+end sub
+
+' R5: Lazy loading for Continue Watching grid
+sub OnContinueVisibleRectChange(event as Object)
+    if m.continueContent = invalid then return
+    vr = event.getData()
+    if vr = invalid then return
+    ActivateVisibleRange(m.continueContent, vr, 5, 230, 280)
+end sub
+
+' R5: Lazy loading for Up Next grid
+sub OnUpNextVisibleRectChange(event as Object)
+    if m.upNextContent = invalid then return
+    vr = event.getData()
+    if vr = invalid then return
+    ActivateVisibleRange(m.upNextContent, vr, 5, 230, 280)
+end sub
+
+' R5: Lazy loading for Library grid
+sub OnLibraryVisibleRectChange(event as Object)
+    if m.libraryContent = invalid then return
+    vr = event.getData()
+    if vr = invalid then return
+    ActivateVisibleRange(m.libraryContent, vr, 5, 230, 280)
+end sub
+
+' R5: Generic visible range activator
+sub ActivateVisibleRange(content as Object, vr as Object, numCols as Integer, colWidth as Integer, rowHeight as Integer)
+    if content = invalid or vr = invalid then return
+
+    firstVisibleRow = Int(vr.y / rowHeight)
+    lastVisibleRow = Int((vr.y + vr.height) / rowHeight) + 1
+    firstVisibleIndex = firstVisibleRow * numCols
+    lastVisibleIndex = lastVisibleRow * numCols + numCols
+
+    i = 0
+    child = content.GetChild(i)
+    while child <> invalid
+        if i >= firstVisibleIndex - numCols and i <= lastVisibleIndex + numCols then
+            if child.HDPosterUrl = "" and child.doesExist("_lazyPosterUrl") then
+                ActivateLazyPosterUrl(child)
+            end if
+        else
+            if child.HDPosterUrl <> "" then
+                ClearLazyPosterUrl(child)
+            end if
+        end if
+        i = i + 1
+        child = content.GetChild(i)
+    end while
 end sub
 
 ' Best-effort poster for a continue-watching tile. CW items are RAW JOIN rows
