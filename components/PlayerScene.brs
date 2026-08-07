@@ -323,7 +323,9 @@ sub Show(itemId as String, args as Object)
             m.titleLabel.text = m.item.name + " (Preparing...)"
         end if
         ' Start transcode via apiTask (same pattern as OnPlayerStateChange error handler).
+        if m.apiTask.state = "run" then return
         m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
+        m.apiTask.state = "run"
         m.apiTask.control = "run"
         return
     end if
@@ -724,8 +726,10 @@ sub OnProgressResponse(event as Object)
             if not m.apiSessionCreateRetry then
                 m.apiSessionCreateRetry = true
                 print "OnProgressResponse: createSession failed, retrying..."
+                if m.progressTask.state = "run" then return
                 m.currentOp = "createSession"
                 m.progressTask.request = { op: "createSession" }
+                m.progressTask.state = "run"
                 m.progressTask.control = "run"
             else
                 ' R4.11: Retry exhausted - surface error to user.
@@ -2718,7 +2722,9 @@ sub OnPlaybackRetry(index as Integer)
     if m.titleLabel <> invalid then
         m.titleLabel.text = m.item.name + " (Preparing...)"
     end if
+    if m.apiTask.state = "run" then return
     m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
+    m.apiTask.state = "run"
     m.apiTask.control = "run"
 end sub
 
@@ -2769,7 +2775,9 @@ sub ShowUpNextCard()
 
     ' Fetch next up item from API via m.apiTask (one-shot)
     ' The response is handled by OnUpNextResponse
+    if m.apiTask.state = "run" then return
     m.apiTask.request = { op: "getNextUp" }
+    m.apiTask.state = "run"
     m.apiTask.control = "run"
 end sub
 
@@ -2921,7 +2929,9 @@ sub OnUpNextItemResponse(resp as Object)
 
     ' Fetch playback info
     m.upNextItem = item
+    if m.apiTask.state = "run" then return
     m.apiTask.request = { op: "getItemPlaybackInfo", itemId: mediaItemId }
+    m.apiTask.state = "run"
     m.apiTask.control = "run"
 end sub
 

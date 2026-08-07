@@ -109,11 +109,13 @@ sub OnSearchTimerFire(event as Object)
     m.results = []
     m.contentNode = invalid
 
+    if m.apiTask.state = "run" then return
     m.apiTask.request = {
         op: "search"
         query: query
         options: { limit: m.limit, offset: m.offset }
     }
+    m.apiTask.state = "run"
     m.apiTask.control = "run"
 end sub
 

@@ -134,6 +134,8 @@ sub LoadLibrariesAsync()
     task = CreateObject("roSGNode", "ApiTask")
     task.ObserveField("response", "OnLibrariesResponse")
     task.request = { op: "getLibraries" }
+    if task.state = "run" then return
+    task.state = "run"
     task.control = "run"
 end sub
 
@@ -141,6 +143,8 @@ sub LoadContinueWatchingAsync()
     task = CreateObject("roSGNode", "ApiTask")
     task.ObserveField("response", "OnContinueWatchingResponse")
     task.request = { op: "getContinueWatching" }
+    if task.state = "run" then return
+    task.state = "run"
     task.control = "run"
 end sub
 
@@ -149,6 +153,8 @@ sub LoadUpNextAsync()
     task = CreateObject("roSGNode", "ApiTask")
     task.ObserveField("response", "OnUpNextResponse")
     task.request = { op: "getNextUp" }
+    if task.state = "run" then return
+    task.state = "run"
     task.control = "run"
 end sub
 
@@ -327,7 +333,9 @@ sub OnUpNextItemSelected(event as Object)
         mediaItemId: mediaItemId
         item: invalid
     }
+    if m.apiTask.state = "run" then return
     m.apiTask.request = { op: "getItem", itemId: mediaItemId }
+    m.apiTask.state = "run"
     m.apiTask.control = "run"
 end sub
 

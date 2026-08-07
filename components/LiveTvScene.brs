@@ -62,6 +62,8 @@ sub Init()
 
     ' One-shot channel list load on Init.
     m.channelListTask.op = "getChannels"
+    if m.channelListTask.state = "run" then return
+    m.channelListTask.state = "run"
     m.channelListTask.control = "run"
 end sub
 
