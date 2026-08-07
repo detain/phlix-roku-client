@@ -54,6 +54,9 @@ sub Init()
     ' Focus zone: "keyboard" or "results".
     m.zone = "keyboard"
 
+    ' Observe our own requestClose so a child can ask us to close.
+    m.top.ObserveField("requestClose", "OnChildRequestClose")
+
     ' Paging state for infinite scroll (R5.2)
     m.offset = 0
     m.limit = 50
@@ -275,6 +278,7 @@ sub ShowSeries(seriesId as String, seriesName as String)
 
     scene = CreateObject("roSGNode", "SeriesScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadSeries(seriesId, name)
 end sub
 
@@ -284,13 +288,20 @@ sub ShowSeason(seasonId as String, seasonName as String)
 
     scene = CreateObject("roSGNode", "SeasonScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadSeason(seasonId, name)
 end sub
 
 sub ShowItemDetail(itemId as String)
     scene = CreateObject("roSGNode", "DetailScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadItem(itemId)
+end sub
+
+' Bubble requestClose from a child scene up to the parent.
+sub OnChildRequestClose()
+    m.top.requestClose = true
 end sub
 
 ' Pair every ObserveField with an UnObserveField so the scene does not leak.

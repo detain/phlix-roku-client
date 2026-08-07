@@ -37,6 +37,9 @@ sub Init()
     m.albumId = ""
     m.libraryId = ""
     m.photos = []
+
+    ' Observe our own requestClose so a child can ask us to close.
+    m.top.ObserveField("requestClose", "OnChildRequestClose")
 end sub
 
 ' Cross-component callable (declared in the <interface>). Loads one album's
@@ -142,6 +145,7 @@ sub ShowViewer(startIndex as Integer)
     ' (by-reference), NOT a node field write across a Task boundary.
     scene = CreateObject("roSGNode", "PhotoViewerScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadPhotos(m.photos, startIndex)
 end sub
 
@@ -152,6 +156,11 @@ sub Teardown()
         m.photosGrid.UnObserveField("itemFocused")
     end if
     if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
+end sub
+
+' Bubble requestClose from a child scene up to the parent.
+sub OnChildRequestClose()
+    m.top.requestClose = true
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean

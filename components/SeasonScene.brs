@@ -45,6 +45,9 @@ sub Init()
     m.loadingPage = false
     m.contentNode = invalid
     m.prefetchThreshold = 15 ' one screen (5 cols x 3 rows = 15 visible)
+
+    ' Observe our own requestClose so a child can ask us to close.
+    m.top.ObserveField("requestClose", "OnChildRequestClose")
 end sub
 
 ' Cross-component callable (declared in the <interface>). Loads the episodes of
@@ -180,7 +183,13 @@ end sub
 sub ShowItemDetail(itemId as String)
     scene = CreateObject("roSGNode", "DetailScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadItem(itemId)
+end sub
+
+' Bubble requestClose from a child scene up to the parent.
+sub OnChildRequestClose()
+    m.top.requestClose = true
 end sub
 
 sub OnBackPressed()

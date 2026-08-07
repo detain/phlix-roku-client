@@ -73,6 +73,9 @@ sub Init()
 
     ' Focus the first action button.
     if m.approveButton <> invalid then m.approveButton.SetFocus(true)
+
+    ' Observe our own requestClose so a child can ask us to close.
+    m.top.ObserveField("requestClose", "OnChildRequestClose")
 end sub
 
 ' Interface fn: called by UserAdminScene with the selected user's id+name.
@@ -137,6 +140,7 @@ sub OnProfiles(event as Object)
 
     scene = CreateObject("roSGNode", "ProfilesScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadProfiles(m.userId, m.userName)
 end sub
 
@@ -278,6 +282,11 @@ sub Teardown()
     if m.profilesButton <> invalid then m.profilesButton.UnObserveField("buttonSelected")
     if m.refreshButton <> invalid then m.refreshButton.UnObserveField("buttonSelected")
     if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
+end sub
+
+' Bubble requestClose from a child scene up to the parent.
+sub OnChildRequestClose()
+    m.top.requestClose = true
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean

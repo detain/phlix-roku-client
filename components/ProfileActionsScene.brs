@@ -71,6 +71,9 @@ sub Init()
     ' Focus the first rating button.
     if m.ratingGButton <> invalid then m.ratingGButton.SetFocus(true)
 
+    ' Observe our own requestClose so a child can ask us to close.
+    m.top.ObserveField("requestClose", "OnChildRequestClose")
+
     ' Do NOT load here - profileId is not known until LoadProfile().
 end sub
 
@@ -168,6 +171,7 @@ sub ShowParentalControls(profileId as String, profileName as String)
 
     scene = CreateObject("roSGNode", "ParentalControlsScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadProfile(profileId, name)
 end sub
 
@@ -310,6 +314,11 @@ sub Teardown()
     if m.parentalControlsButton <> invalid then m.parentalControlsButton.UnObserveField("buttonSelected")
     if m.refreshButton <> invalid then m.refreshButton.UnObserveField("buttonSelected")
     if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
+end sub
+
+' Bubble requestClose from a child scene up to the parent.
+sub OnChildRequestClose()
+    m.top.requestClose = true
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean

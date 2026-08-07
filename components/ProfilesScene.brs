@@ -50,6 +50,9 @@ sub Init()
     m.userId = ""
     m.userName = ""
 
+    ' Observe our own requestClose so a child can ask us to close.
+    m.top.ObserveField("requestClose", "OnChildRequestClose")
+
     ' Do NOT fire the load here - userId is not known until LoadProfiles().
 end sub
 
@@ -214,6 +217,7 @@ sub ShowProfileActions(profileId as String, profileName as String)
 
     scene = CreateObject("roSGNode", "ProfileActionsScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadProfile(profileId, name)
 end sub
 
@@ -224,6 +228,11 @@ sub Teardown()
         m.profileList.UnObserveField("itemFocused")
     end if
     if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
+end sub
+
+' Bubble requestClose from a child scene up to the parent.
+sub OnChildRequestClose()
+    m.top.requestClose = true
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean

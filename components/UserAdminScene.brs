@@ -37,6 +37,9 @@ sub Init()
 
     m.users = []
 
+    ' Observe our own requestClose so a child can ask us to close.
+    m.top.ObserveField("requestClose", "OnChildRequestClose")
+
     SetStatus("Loading…")
 
     ' One-shot load on Init (no status = all users).
@@ -149,7 +152,13 @@ sub ShowActions(userId as String, userName as String)
 
     scene = CreateObject("roSGNode", "UserAdminActionsScene")
     m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
     scene.LoadUser(userId, name)
+end sub
+
+' Bubble requestClose from a child scene up to the parent.
+sub OnChildRequestClose()
+    m.top.requestClose = true
 end sub
 
 ' Pair every ObserveField with an UnObserveField so the scene does not leak.
