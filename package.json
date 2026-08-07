@@ -28,6 +28,6 @@
   "license": "MIT",
   "devDependencies": {
     "brighterscript": "0.72.5",
-    "rooibos": "6.0.0"
+    "rooibos-roku": "^5.16.4"
   }
 }
