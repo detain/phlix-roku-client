@@ -16,7 +16,6 @@
     <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
-    <script type="text/brightscript" uri="pkg:/source/player/SkipButton.brs" />
     <!-- F13 SyncPlay: PlayerScene reads SyncPlayProtocol() in BuildSyncPlayWsUrl
          (and may format status). The socket itself lives in SyncPlayTask. -->
     <script type="text/brightscript" uri="pkg:/source/lib/SyncPlayProtocol.brs" />
@@ -71,6 +70,11 @@
                 <Button height="50" width="100" translation="[940,15]"
                         title="PiP"
                         id="pipButton" />
+
+                <!-- R2.5: Chapters button - opens chapter picker overlay -->
+                <Button height="50" width="130" translation="[1060,15]"
+                        title="Chapters"
+                        id="chapterButton" />
             </Rectangle>
 
             <!-- P2-S5: Chapter label shown briefly when seeking to a chapter -->
