@@ -18,9 +18,7 @@
     <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/AuthManager.brs" />
-    <script type="text/brightscript" uri="pkg:/source/lib/SessionManager.brs" />
-    <script type="text/brightscript" uri="pkg:/source/lib/LibraryManager.brs" />
-    <script type="text/brightscript" uri="pkg:/source/lib/TaskManager.brs" />
+    <!-- R7.5: SessionManager, LibraryManager, and TaskManager removed - unused -->
     <script type="text/brightscript" uri="pkg:/components/PhlixApp.brs" />
     <children>
         <!-- Boot loading state: shown immediately while auth check runs on ApiTask -->

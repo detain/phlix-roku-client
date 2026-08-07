@@ -81,11 +81,11 @@ sub OnItemSelected(event as Object)
     end if
 end sub
 
-sub OnKeyEvent(key as String, press as Boolean) as Boolean
+function OnKeyEvent(key as String, press as Boolean) as Boolean
     if press then
         if key = "back" then
             return true
         end if
     end if
     return false
-end sub
+end function

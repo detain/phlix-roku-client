@@ -172,6 +172,11 @@ sub Init()
 
     ' R7.2: Pending up-next item while fetching its playback info (invalid when not in up-next flow).
     m.pendingUpNextItem = invalid
+    ' R7.2: Up Next prefetch state — true once we've requested getNextUp during last 60s.
+    ' Guarded by m.apiTask.state busy check in OnPositionUpdate.
+    m.upNextPrefetched = false
+    ' R7.2: The prefetched up-next item (used when state="finished" fires).
+    m.upNextItem = invalid
 
     ' ============================================================= '
     ' G4 Quality picker (multi-variant ABR) - additive, inert until the '
@@ -461,9 +466,12 @@ sub OnPlayerStateChange(event as Object)
         ' Playback reached the end naturally — send completion before tearing down.
         m.isPlaying = false
         StopPlayback()
-        ' R7.2: Show Up Next card with 10s countdown
+        ' R7.2: Show Up Next card with 10s countdown.
+        ' Do NOT call ClosePlayer() here — the scene must stay open so the user
+        ' can interact with the Up Next card. ClosePlayer() is called from
+        ' OnUpNextCancel() if the user cancels, or the scene is replaced when
+        ' OnUpNextPlayNow() creates a new PlayerScene for the next item.
         ShowUpNextCard()
-        ClosePlayer()
     end if
 end sub
 
@@ -594,6 +602,17 @@ sub OnPositionUpdate(event as Object)
         if position - m.lastReportedPosition > 10 then
             ReportProgress(position)
             m.lastReportedPosition = position
+        end if
+
+        ' R7.2: Prefetch next item during last 60 seconds of playback.
+        ' Respects Task-busy guard (m.apiTask.state <> "run") per R1.4.
+        ' If we already have m.upNextItem from a prefetch, ShowUpNextCard() will
+        ' use it (guard in ShowUpNextCard prevents re-fetch while task is busy).
+        if not m.upNextPrefetched and m.apiTask.state <> "run" and m.upNextItem = invalid then
+            if duration - position <= 60 then
+                m.upNextPrefetched = true
+                ShowUpNextCard()
+            end if
         end if
 
         ' R4.4: Fallback for devices where "finished" state does not fire.
@@ -913,7 +932,6 @@ sub BuildChapterMarkers()
         if ch = invalid then goto nextChapter
         startSec = ch.start_seconds
         endSec = ch.end_seconds
-        title = ch.title
 
         if startSec = invalid or startSec < 0 then goto nextChapter
         if endSec = invalid or endSec <= startSec then goto nextChapter
@@ -1219,7 +1237,7 @@ sub RescheduleTranscodePoll()
     m.transcodePollTimer.control  = "start"
 end sub
 
-sub OnKeyEvent(key as String, press as Boolean) as Boolean
+function OnKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
     if press then
@@ -1347,7 +1365,7 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
     end if
 
     return handled
-end sub
+end function
 
 sub SeekRelative(seconds as Float)
     if m.videoPlayer = invalid then return
@@ -3104,6 +3122,9 @@ sub OnUpNextCancel()
 
     ' Reset the item
     m.upNextItem = invalid
+
+    ' R7.2: Return to the origin scene (not home screen) by closing this player.
+    m.top.requestClose = true
 end sub
 
 ' ===================================================================== '

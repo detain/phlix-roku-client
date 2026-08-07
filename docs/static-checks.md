@@ -16,3 +16,4 @@ Source: `scripts/verify-runtime.sh`
 | 9 | Invalid Roku key | Logic bug | §3.6 | `OnKeyEvent` invalid remote key comparison |
 | 10 | Render-thread network | Performance/crash | §5.3 | `ApiClient.wait/sync` outside ApiTask |
 | 14 | media_items.type ENUM drift | Logic bug / silent UI loss | S115 | Server ENUM vs client comment + PlayableTypes subset |
+| 19 | hardcoded i18n strings | Translation gaps | R7.12 | Hardcoded user-facing strings in SettingsScene/DetailScene/Utilities |

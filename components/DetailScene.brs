@@ -176,6 +176,15 @@ sub OnApiResponse(event as Object)
             end if
             ShowErrorDialog(m.top, "Error", "Couldn't mark as unwatched. Please try again.")
         end if
+    else if resp.op = "like" then
+        ' Optimistic update already applied; revert on failure.
+        if not resp.ok then
+            if m.userData <> invalid then
+                m.userData.liked = not m.userData.liked
+                RenderLike()
+            end if
+            ShowErrorDialog(m.top, "Error", "Couldn't update like. Please try again.")
+        end if
     else if resp.op = "getItemSimilar" then
         ' R7.4: Store similar items and display if available.
         if resp.ok and resp.data <> invalid then
@@ -322,6 +331,7 @@ sub RenderItem()
         if m.favoriteButton <> invalid then m.favoriteButton.visible = true
         if m.ratingButton <> invalid then m.ratingButton.visible = true
         if m.watchedButton <> invalid then m.watchedButton.visible = true
+        if m.likeButton <> invalid then m.likeButton.visible = true
         if m.collectionButton <> invalid then m.collectionButton.visible = true
 
         m.pendingRating = 0
@@ -332,6 +342,7 @@ sub RenderItem()
         RenderFavorite()
         RenderRating()
         RenderWatched()
+        RenderLike()
         RenderCollection()
     end if
 
@@ -381,6 +392,24 @@ sub RenderWatched()
         m.watchedButton.title = "Mark as Unwatched"
     else
         m.watchedButton.title = "Mark as Watched"
+    end if
+end sub
+
+' ---------------------------------------------------------------------
+' R7.5: Render like button state.
+' When user_data.liked is true, shows "Unlike". Otherwise shows "Like".
+' ---------------------------------------------------------------------
+sub RenderLike()
+    if m.likeButton = invalid then return
+    if m.userData = invalid then return
+
+    isLiked = false
+    if m.userData.DoesExist("liked") and m.userData.liked = true then isLiked = true
+
+    if isLiked then
+        m.likeButton.title = "Unlike"
+    else
+        m.likeButton.title = "Like"
     end if
 end sub
 
@@ -616,6 +645,31 @@ sub OnWatchedToggle()
         m.userData.watched = true
         RenderWatched()
         m.apiTask.request = { op: "markWatched", itemId: m.itemId }
+        m.apiTask.control = "run"
+    end if
+end sub
+
+' ---------------------------------------------------------------------
+' R7.5: Toggle like state.
+' Optimistically updates local state and reverts on failure.
+' ---------------------------------------------------------------------
+sub OnLikeToggle()
+    if m.userData = invalid or m.itemId = "" then return
+
+    isLiked = false
+    if m.userData.DoesExist("liked") and m.userData.liked = true then isLiked = true
+
+    if isLiked then
+        ' Optimistic: mark as unliked
+        m.userData.liked = false
+        RenderLike()
+        m.apiTask.request = { op: "like", itemId: m.itemId }
+        m.apiTask.control = "run"
+    else
+        ' Optimistic: mark as liked
+        m.userData.liked = true
+        RenderLike()
+        m.apiTask.request = { op: "like", itemId: m.itemId }
         m.apiTask.control = "run"
     end if
 end sub

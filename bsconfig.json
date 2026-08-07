@@ -5,9 +5,12 @@
         "source/**/*.brs",
         "components/**/*.brs",
         "components/**/*.xml",
-        "images/**/*",
-        "tests/**"
+        "images/**/*"
     ],
     "createPackage": false,
-    "copyToStaging": false
+    "copyToStaging": false,
+    "plugins": [
+        "@rokucommunity/bslint"
+    ],
+    "lintConfig": "bslint.json"
 }

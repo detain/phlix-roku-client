@@ -414,7 +414,6 @@ sub OnApiResponse(event as Object)
     if resp = invalid then return
 
     ' Clear pending op FIRST so chained refreshes can queue new operations
-    priorOp = m.pendingOp
     m.pendingOp = invalid
 
     if resp.op = "getProfileSchedules" then

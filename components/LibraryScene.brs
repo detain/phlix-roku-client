@@ -180,13 +180,11 @@ end sub
 sub ShowSortOptions()
     ' Build list of sort options with current selection marked
     sortList = []
-    selectedIndex = 0
     idx = 0
     for each field in [m.sortName, m.sortYear, m.sortRating, m.sortDateAdded, m.sortRuntime]
         label = m.sortLabels[field]
         if label = invalid then label = field
         if field = m.sortField then
-            selectedIndex = idx
             label = label + " *"
         end if
         sortList.push(label)
@@ -361,6 +359,64 @@ sub OnApiResponse(event as Object)
         else
             m.letterIndex = []
         end if
+        ' Build A-Z buttons from the letter index
+        BuildAzBar()
+    end if
+end sub
+
+sub BuildAzBar()
+    if m.azBar = invalid then return
+
+    ' Clear existing buttons
+    m.azBar.removeChildren()
+
+    ' Create buttons for each letter with items (count > 0)
+    letterButtons = []
+    for each letterData in m.letterIndex
+        if letterData.count > 0 then
+            letter = letterData.letter
+            button = CreateObject("roSGNode", "Button")
+            button.id = letter
+            button.text = letter
+            button.height = 35
+            button.width = 40
+            button.font = "font:SmallSystemFont"
+            button.setField("buttonSelected", "OnAzButtonPressed")
+            letterButtons.push(button)
+        end if
+    end for
+
+    ' Add buttons to azBar
+    for each btn in letterButtons
+        m.azBar.appendChild(btn)
+    end for
+end sub
+
+sub OnAzButtonPressed(event as Object)
+    node = event.getNode()
+    letter = node.id
+    if letter <> invalid and letter <> "" then
+        OnLetterSelected(letter)
+    end if
+end sub
+
+sub ShowFilterOptions()
+    ' Show genre filter dialog - cycle through available genres
+    if m.availableGenres.count() = 0 then return
+
+    ' Cycle to next genre: All -> first genre -> second -> ... -> All
+    if m.selectedGenre = "" then
+        ' No filter active, apply first genre
+        OnGenreSelected(m.availableGenres[0])
+    else
+        ' Find current genre index and move to next
+        idx = m.availableGenres.find(m.selectedGenre)
+        if idx = -1 or idx >= m.availableGenres.count() - 1 then
+            ' Last genre or not found, reset to all
+            OnGenreSelected("")
+        else
+            OnGenreSelected(m.availableGenres[idx + 1])
+        end if
     end if
 end sub
 
@@ -429,7 +485,7 @@ sub OnBackPressed()
     m.top.requestClose = true
 end sub
 
-sub OnKeyEvent(key as String, press as Boolean) as Boolean
+function OnKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
     if press then
@@ -440,4 +496,4 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
     end if
 
     return handled
-end sub
+end function

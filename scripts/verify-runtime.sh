@@ -636,4 +636,183 @@ PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+FOUND=0
+echo ""
+echo "=== Check 19: hardcoded i18n strings in target files (R7.12) ==="
+PYOUT=$(python3 - <<'PYEOF'
+import re, os, sys
+
+repo = '/home/sites/phlix/phlix-roku-client'
+os.chdir(repo)
+
+TARGETS = [
+    'components/SettingsScene.brs',
+    'components/DetailScene.brs',
+    'source/lib/Utilities.brs',
+]
+
+# Allow-list: patterns that are NOT user-facing hardcoded i18n strings
+EXEMPT = [
+    re.compile(r'^[\'"]HTTP/'),            # HTTP protocol strings
+    re.compile(r'^[\'"]https?://'),         # URL scheme literals
+    re.compile(r'^[\'"]ws[s]?://'),         # WebSocket scheme literals
+    re.compile(r'^[\'"][a-z]+://'),         # any scheme://
+    re.compile(r'localhost'),               # localhost hostnames
+    re.compile(r'192\.168\.'),             # private IP patterns
+    re.compile(r'10\.'),                    # private IP patterns
+    re.compile(r'172\.(1[6-9]|2[0-9]|3[0-1])\.'),  # private IP patterns
+    re.compile(r'127\.'),                   # loopback
+    re.compile(r'^[\'"][0-9]+[\'"]$'),     # bare numeric strings
+    re.compile(r'^[\'"][0-9]+\.[0-9]+[\'"]$'),  # version strings in quotes
+    re.compile(r'\bstr\s*\('),             # str() runtime formatting calls
+    re.compile(r'\bFormatTime\b'),         # time formatting functions
+    re.compile(r'\bFormatUnixTime\b'),
+    re.compile(r'\bParseTime\b'),
+    re.compile(r'\bUrlEncode\b'),          # URL encoding function
+    re.compile(r'\bEscapeString\b'),       # string escape functions
+    re.compile(r'\bUnescapeString\b'),
+    re.compile(r'\.state\s*='),            # node state field assignments
+    re.compile(r'control\s*='),            # node control field assignments
+    re.compile(r'isFullscreen'),            # Video node boolean field
+    re.compile(r'streamFormat'),            # Video node field name
+    re.compile(r'\.uri\s*='),              # Poster.uri — data, not UI
+    re.compile(r'\.id\s*='),               # node id field
+    re.compile(r'\.content\s*='),          # ContentNode content field
+    re.compile(r'locale/en_US'),           # references to locale path
+    re.compile(r'GetApiClient\b'),         # function call
+    re.compile(r'GetServerUrl\b'),         # function call
+    re.compile(r'GetDeviceModel\b'),       # function call
+    re.compile(r'GetStorage\b'),           # function call
+    re.compile(r'm\.top\.\w+\s*='),        # m.top interface field writes
+    re.compile(r'm\.item\.\w+\s*='),       # m.item data field writes
+    re.compile(r'm\.\w+\s*=\s*invalid'),   # invalid assignments
+    re.compile(r'\.ObserveField\('),       # observer registration
+    re.compile(r'\.UnObserveField\('),     # observer unregistration
+    re.compile(r'return\s+["\']'),         # return statements with string literals
+    re.compile(r'print\s+'),               # print statements
+    re.compile(r'exit\s+'),                # exit statements
+    re.compile(r'\.DoesExist\('),          # DoesExist method calls
+    re.compile(r'\.Split\('),             # string split calls
+    re.compile(r'\.Split\("_\"\)'),       # underscore split for prefs
+    re.compile(r'\.Lower\(\)'),           # case conversion calls
+    re.compile(r'\.Trim\(\)'),            # trim calls
+    re.compile(r'if\s+.*\s*=\s*["\']'),   # if condition comparisons
+    re.compile(r'\btrue\b|\bfalse\b'),     # boolean literals
+    re.compile(r'\bthen\b'),              # if/then/end if keywords
+    re.compile(r'\belse\b'),              # else keyword
+    re.compile(r'\bfor\s+'),              # for loop keyword
+    re.compile(r'\bnext\b'),              # next keyword
+    re.compile(r'\bto\b'),                # to keyword in for loops
+    re.compile(r'^[\s]*function\s+\w+'),   # function declarations
+    re.compile(r'^[\s]*sub\s+\w+'),       # sub declarations
+    re.compile(r'^[\s]*\'\'\''),         # doc comment lines
+    re.compile(r'^\s*\'\s@'),            # at-tag doc comment lines
+    re.compile(r'chr\s*\(\s*10\s*\)'),   # Chr(10) line feeds — structural
+    re.compile(r'chr\s*\(\s*13\s*\)'),   # Chr(13) — structural
+    re.compile(r'chr\s*\(\s*9\s*\)'),    # Chr(9) — tab characters
+    re.compile(r'Chr\s*\(\s*\d+\s*\)'),  # Any Chr() — structural, not i18n
+    re.compile(r'JoinStrings\('),          # utility function call
+    re.compile(r'SortKeyValue\('),        # utility function call
+    re.compile(r'SortByEpisodeOrder\('),  # utility function call
+    re.compile(r'NormalizeServerUrl\('),  # utility function call
+    re.compile(r'NormalizeAlbumTrack\('), # utility function call
+    re.compile(r'NormalizeCollectionItem\('), # utility function call
+    re.compile(r'IsPlayableItem\('),      # utility function call
+    re.compile(r'IsPlayableType\('),      # utility function call
+    re.compile(r'IsAdminUser\('),         # utility function call
+    re.compile(r'IsTruthyFlag\('),        # utility function call
+    re.compile(r'RatingLabel\('),          # utility function call (returns label array)
+    re.compile(r'\.Replace\('),            # string Replace calls
+    re.compile(r'\.Lower\('),             # string Lower calls
+    re.compile(r'\.Upper\('),             # string Upper calls
+    re.compile(r'\.Trim\('),              # string Trim calls
+    re.compile(r'\.Left\('),              # string Left calls
+    re.compile(r'\.Right\('),             # string Right calls
+    re.compile(r'\.Mid\('),               # string Mid calls
+    re.compile(r'\.Instr\('),             # string Instr calls
+    re.compile(r'\.Len\('),               # string Len calls
+    re.compile(r'\.Replace\('),            # string Replace calls
+    re.compile(r'Repl\s*\('),             # string Repl calls
+    re.compile(r'CreateObject\s*\('),     # CreateObject calls
+    re.compile(r'type\s*\('),             # type() calls
+    re.compile(r'Int\s*\('),              # Int() calls
+    re.compile(r'Val\s*\('),              # Val() calls
+    re.compile(r'Rnd\s*\('),              # Rnd() calls
+    re.compile(r'Abs\s*\('),              # Abs() calls
+    re.compile(r'Asc\s*\('),              # Asc() calls
+    re.compile(r'now\s*\('),              # now() time function
+    re.compile(r'nowMs\s*\('),            # nowMs() time function
+    re.compile(r'SecondsToTicks\s*\('),   # time conversion
+    re.compile(r'HealthOk\s*\('),         # health check function
+    re.compile(r'IsValidUrl\s*\('),       # validation function
+    re.compile(r'TruncateString\s*\('),   # string utility
+    re.compile(r'ByteToHex\s*\('),       # hex utility
+    re.compile(r'GenerateRandomId\s*\('), # ID generator
+]
+
+found_violation = False
+for tpath in TARGETS:
+    if not os.path.isfile(tpath):
+        print(f"  {tpath} — CHECK19: file not found")
+        found_violation = True
+        continue
+    with open(tpath, errors='replace') as f:
+        lines = f.readlines()
+    for lineno, line in enumerate(lines, 1):
+        stripped = line.strip()
+        # Skip pure comment lines (content is a comment, not code)
+        if stripped.startswith("'") and not stripped.startswith("''"):
+            continue
+        if stripped.startswith('"') and len(stripped) > 1 and stripped[1] == '"':
+            continue
+
+        # Find string literals on this line
+        string_literals = re.findall(r'[\'"]([^\'"]+)[\'"]', line)
+        if not string_literals:
+            continue
+
+        # Skip if line matches any exempt pattern
+        if any(p.search(line) for p in EXEMPT):
+            continue
+
+        # This line has a string literal that is not exempt.
+        # Check if it's in a UI context (dialog, label, button title, status).
+        is_ui_context = False
+        # Dialog field assignments
+        if re.search(r'dialog\.(title|message|buttons)\s*=', line):
+            is_ui_context = True
+        # Label/text field assignments
+        if re.search(r'\.text\s*=\s*[\'"]', line) and not re.search(r'\.uri\s*=\s*[\'"]', line):
+            is_ui_context = True
+        # Button/title field assignments on nodes
+        if re.search(r'\.title\s*=\s*[\'"]', line):
+            is_ui_context = True
+        # statusLabel/detailLabel/loadingLabel assignments
+        if re.search(r'm\.\w+(Status|Detail|Loading|Title|Info)\w*\.text\s*=', line):
+            is_ui_context = True
+        # Specific hardcoded strings in conditionals or assignments in Show*Dialog subs
+        if re.search(r'(ShowAccount|ShowServer|ShowPlayback|ShowCaptions|ShowWatchHistory|ShowAbout|TogglePip)\(', line):
+            is_ui_context = True
+        # Error dialog strings — these ARE user-facing and should be in locale
+        if 'ShowErrorDialog' in line:
+            # The string after ShowErrorDialog — check if it's in the call
+            if string_literals and len(string_literals) >= 3:
+                is_ui_context = True
+
+        if is_ui_context:
+            # Skip short all-caps (standard button labels)
+            for s in string_literals:
+                if s.isupper() and len(s) < 6:
+                    continue
+                print(f"  {tpath}:{lineno} — CHECK19: hardcoded user-facing string: {s[:60]}")
+                found_violation = True
+
+if found_violation:
+    sys.exit(1)
+PYEOF
+)
+PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

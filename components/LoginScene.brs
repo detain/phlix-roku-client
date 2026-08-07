@@ -194,7 +194,7 @@ sub HideStatus()
     end if
 end sub
 
-sub OnKeyEvent(key as String, press as Boolean) as Boolean
+function OnKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
     if press then
@@ -205,4 +205,4 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
     end if
 
     return handled
-end sub
+end function

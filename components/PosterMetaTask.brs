@@ -68,7 +68,5 @@ function GetPosterMeta(url as String) as Object
         meta.ok = true
     end if
 
-    bmp = invalid
-
     return meta
 end function

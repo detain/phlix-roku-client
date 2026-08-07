@@ -9,7 +9,9 @@
 ' @fileoverview PhlixApp - Main application controller for SceneGraph
 ' @author Phlix Team
 ' @version 1.0.0
-' @requires ApiClient, Storage, AuthManager, SessionManager, LibraryManager, TaskManager
+' @requires ApiClient, Storage, AuthManager
+' @note R7.5: SessionManager, LibraryManager, and TaskManager were removed — they
+' wrapped ApiClient 1:1 and scenes call ApiClient/ApiTask directly instead.
 '
 ' @description
 ' PhlixApp is the root component of the Phlix Roku application. It serves as the
@@ -54,11 +56,10 @@ sub Init()
     ' Initialize the shared API client (restores token/session from Storage)
     m.api = GetApiClient()
 
-    ' Initialize managers, sharing the single API client
+    ' R7.5: Initialize AuthManager only. SessionManager, LibraryManager, and
+    ' TaskManager were deleted — they wrapped ApiClient 1:1 and added no value;
+    ' scenes call ApiClient/ApiTask directly instead.
     m.auth = AuthManager(m.api)
-    m.session = SessionManager(m.api)
-    m.library = LibraryManager(m.api)
-    m.tasks = TaskManager()
 
     ' R6.8: Initialize device capabilities once at boot for use throughout the app.
     ' Records model, videoMode, and memory tier; gates direct play via DeviceCanDecodeVideo.
@@ -432,12 +433,10 @@ sub OnConnected()
     ' Remove the connect child (the last-appended child).
     m.top.RemoveChild(m.top.GetChild(m.top.GetChildCount() - 1))
 
-    ' Rebuild the shared API client + managers so they bind to the newly
+    ' Rebuild the shared API client + AuthManager so they bind to the newly
     ' persisted server_url (the originals were built against the absent default).
     m.api = GetApiClient()
     m.auth = AuthManager(m.api)
-    m.session = SessionManager(m.api)
-    m.library = LibraryManager(m.api)
 
     ' Fire auth check on ApiTask (off render thread). Uses the same 20s timeout
     ' and boot UI as the boot flow. Server unreachable shows error with retry.
@@ -475,14 +474,12 @@ sub OnServerPicked()
     ' Remove the picker child.
     m.top.RemoveChild(m.top.GetChild(m.top.GetChildCount() - 1))
 
-    ' Rebuild the shared API client + managers so they bind to the relay base
+    ' Rebuild the shared API client + AuthManager so they bind to the relay base
     ' (GetApiClient now returns the relay url because active_server_id is set).
     ' A manager left bound to the pre-pick (bare hub) base would silently route
     ' media calls to the wrong place - same lesson as OnConnected.
     m.api = GetApiClient()
     m.auth = AuthManager(m.api)
-    m.session = SessionManager(m.api)
-    m.library = LibraryManager(m.api)
 
     ShowHome()
 end sub
@@ -547,7 +544,7 @@ end sub
 ' If the item is not found (404) or fetch fails, shows a content-not-found
 ' dialog (R3.1) and returns to the home screen.
 '
-' Uses LibraryManager (m.library) to fetch item metadata off the render thread.
+' Uses ApiTask (m.deepLinkFetchTask) to fetch item metadata off the render thread.
 ' Navigation is driven by the response callback OnDeepLinkItemResponse.
 sub ProcessDeepLink()
     if m.deepLinkParams = invalid then return
@@ -713,7 +710,7 @@ function FindActivePlayerScene() as Object
     return invalid
 end function
 
-sub OnKeyEvent(key as String, press as Boolean) as Boolean
+function OnKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
     if press then
@@ -728,4 +725,4 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
     end if
 
     return handled
-end sub
+end function

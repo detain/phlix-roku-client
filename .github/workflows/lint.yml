@@ -23,6 +23,9 @@ jobs:
       - name: brighterscript (zero-error gate)
         run: npx bsc --project bsconfig.json
 
+      - name: bslint (hard gate - fails on any issue)
+        run: make bslint
+
       - name: Validate XML files
         run: make validate-xml
 

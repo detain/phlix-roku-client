@@ -84,11 +84,23 @@
                         visible="false"
                         id="ratingButton" />
 
+                <!-- R7.11: Add to Collection button -->
+                <Button height="60" width="200" translation="[260,400]"
+                        title="Add to Collection"
+                        visible="false"
+                        id="collectionButton" />
+
                 <!-- R7.5: Mark Watched/Unwatched button -->
                 <Button height="60" width="200" translation="[10,400]"
                         title="Mark as Watched"
                         visible="false"
                         id="watchedButton" />
+
+                <!-- R7.5: Like button -->
+                <Button height="60" width="200" translation="[220,400]"
+                        title="Like"
+                        visible="false"
+                        id="likeButton" />
             </Rectangle>
         </Rectangle>
 

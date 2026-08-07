@@ -1,0 +1,41 @@
+{
+    "rules": {
+        "inline-if-style": "off",
+        "block-if-style": "off",
+        "condition-style": "off",
+        "named-function-style": "off",
+        "anon-function-style": "off",
+        "aa-comma-style": "off",
+        "eol-last": "off",
+
+        "no-print": "off",
+        "no-todo": "off",
+        "todo-pattern": "TODO|todo|FIXME",
+        "no-stop": "warn",
+
+        "type-annotations": "off",
+
+        "color-format": "off",
+        "color-case": "off",
+        "color-alpha": "off",
+        "color-alpha-defaults": "off",
+        "color-cert": "off",
+
+        "assign-all-paths": "error",
+        "unsafe-path-loop": "error",
+        "unsafe-iterators": "error",
+        "unreachable-code": "info",
+        "case-sensitivity": "warn",
+        "unused-variable": "error",
+        "unused-parameter": "off",
+        "consistent-return": "error",
+
+        "no-assocarray-component-field-type": "off",
+        "no-array-component-field-type": "off",
+        "no-regex-duplicates": "off"
+    },
+    "ignores": [
+        "tests/**",
+        "node_modules/**"
+    ]
+}

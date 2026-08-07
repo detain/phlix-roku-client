@@ -1,0 +1,131 @@
+{
+  "_metadata": {
+    "locale": "en_US",
+    "language_name": "English (US)",
+    "version": "1.0.0",
+    "source_files": [
+      "components/SettingsScene.brs",
+      "components/DetailScene.brs",
+      "source/lib/Utilities.brs"
+    ]
+  },
+
+  "settings": {
+    "section_account": "Account",
+    "section_server": "Server",
+    "section_playback": "Playback",
+    "section_captions": "Captions",
+    "section_watch_history": "Watch History",
+    "section_notifications": "Notifications",
+    "section_about": "About",
+
+    "item_user_email": "User Email",
+    "item_server_url": "Server URL",
+    "item_playback_preferences": "Playback Preferences",
+    "item_caption_mode": "Caption Mode",
+    "item_picture_in_picture": "Picture-in-Picture",
+    "item_clear_history": "Clear History",
+    "item_view_history": "View History",
+    "item_push_notifications": "Push Notifications",
+    "item_email_notifications": "Email Notifications",
+    "item_version": "Version",
+
+    "desc_user_email": "View your account email and log out",
+    "desc_server_url": "View and switch the server address",
+    "desc_playback_preferences": "Configure playback quality and autoplay",
+    "desc_caption_mode": "Toggle captions on or off",
+    "desc_picture_in_picture": "Enable PiP during playback",
+    "desc_clear_history": "Remove all watch history data",
+    "desc_view_history": "Browse your watch history",
+    "desc_push_notifications": "Receive push notifications",
+    "desc_email_notifications": "Receive email notifications",
+    "desc_version": "App version and device information",
+
+    "status_logged_in_as": "Logged in as: {email}",
+    "status_server": "Server: {url}",
+    "status_loading_preferences": "Loading playback preferences...",
+    "status_unable_to_load_preferences": "Unable to load playback preferences",
+    "status_clearing_history": "Clearing watch history...",
+    "status_history_cleared": "Watch history cleared",
+    "status_watch_history_options": "Watch history options",
+    "status_notification_prefs_local": "Notification preferences (local only)",
+    "status_notification_prefs_not_set": "Notification preferences not set",
+    "status_prefs_saved_locally": "Preferences saved locally — syncing with server when available",
+    "status_pip_enabled": "Picture-in-Picture enabled",
+    "status_pip_disabled": "Picture-in-Picture disabled",
+    "status_server_switch_not_implemented": "Server switching not implemented",
+
+    "dialog_account_title": "Account",
+    "dialog_account_message": "Email: {email}\n\nDo you want to log out?",
+    "dialog_server_title": "Server",
+    "dialog_server_message": "Current server: {url}\n\nDo you want to switch servers?",
+    "dialog_captions_title": "Captions",
+    "dialog_captions_message": "Current caption mode: {mode}\n\nSelect a mode:",
+    "dialog_watch_history_title": "Watch History",
+    "dialog_watch_history_message": "This will remove all your watch history data.\n\nAre you sure?",
+
+    "button_cancel": "Cancel",
+    "button_log_out": "Log Out",
+    "button_switch": "Switch",
+    "button_clear": "Clear",
+    "button_caption_on": "On",
+    "button_caption_off": "Off",
+    "button_caption_instant_replay": "Instant Replay",
+    "button_caption_when_mute": "When Mute",
+
+    "about_version": "Version: {version}",
+    "about_device_model": "Device Model: {model}",
+    "about_device_id": "Device ID: {id}",
+    "about_device_id_unknown": "Unknown",
+
+    "quality_label": "Quality: {quality}",
+    "autoplay_label": "Autoplay: {state}",
+    "autoplay_on": "On",
+    "autoplay_off": "Off",
+    "caption_mode_label": "Caption mode: {mode}",
+    "caption_mode_set_to": "Caption mode set to: {mode}"
+  },
+
+  "detail": {
+    "favorite_add": "Add to Favorites",
+    "favorite_remove": "Remove from Favorites",
+
+    "watched_mark": "Mark as Watched",
+    "watched_unmark": "Mark as Unwatched",
+
+    "rating_not_set": "Rating: not set",
+    "rating_label": "Rating: {rating}/10",
+
+    "rated_label": "Rated {rating}",
+
+    "chapters_count": "{count} chapters",
+
+    "error_favorite_save": "Error",
+    "error_favorite_save_message": "Couldn't save your favourite. Please try again.",
+    "error_favorite_remove_message": "Couldn't remove your favourite. Please try again.",
+    "error_rating_save_message": "Couldn't save your rating. Please try again.",
+    "error_rating_clear_message": "Couldn't clear your rating. Please try again.",
+    "error_watched_mark_message": "Couldn't mark as watched. Please try again.",
+    "error_watched_unmark_message": "Couldn't mark as unwatched. Please try again."
+  },
+
+  "utilities": {
+    "photo_album_undated": "Undated",
+
+    "rating_g": "G",
+    "rating_pg": "PG",
+    "rating_pg13": "PG-13",
+    "rating_r": "R",
+    "rating_nc17": "NC-17",
+    "rating_x": "X",
+    "rating_unrated": "UNRATED",
+
+    "iso_prefix": "ISO "
+  },
+
+  "common": {
+    "ok": "OK",
+    "error": "Error",
+    "retry": "Retry"
+  }
+}
