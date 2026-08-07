@@ -26,6 +26,15 @@
         <!-- Video Player -->
         <Video height="720" width="1280" id="videoPlayer" />
 
+        <!-- R2.2: Buffering spinner shown during buffering states -->
+        <Spinner id="bufferingSpinner"
+          spinDuration="1"
+          color="#FFFFFF"
+          blendingColor="#00000080"
+          visible="false"
+          width="80" height="80"
+          translation="[620, 340]" />
+
         <!-- Overlay UI -->
         <Rectangle height="720" width="1280" transparency="0.7" visible="false" id="controlsOverlay">
             <!-- Top Bar -->

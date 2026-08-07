@@ -25,6 +25,7 @@ sub Init()
     ' Set up listeners
     m.videoPlayer.ObserveField("state", "OnPlayerStateChange")
     m.videoPlayer.ObserveField("position", "OnPositionUpdate")
+    m.videoPlayer.ObserveField("buffering", "OnBufferingChange")
 
     ' R6.5: Observe globalCaptionMode changes (user can change from Roku menu during playback)
     m.videoPlayer.ObserveField("globalCaptionMode", "OnCaptionModeChanged")
@@ -35,6 +36,9 @@ sub Init()
     m.titleLabel = m.top.FindNode("titleLabel")
     m.backButton = m.top.FindNode("backButton")
     m.controlsOverlay = m.top.FindNode("controlsOverlay")
+
+    ' R2.2: Buffering spinner
+    m.bufferingSpinner = m.top.FindNode("bufferingSpinner")
 
     ' R2.1: Controls auto-hide timer (one-shot, created in ShowControls)
     m.controlsHideTimer = invalid
@@ -472,6 +476,13 @@ sub OnPlayerStateChange(event as Object)
         ' OnUpNextCancel() if the user cancels, or the scene is replaced when
         ' OnUpNextPlayNow() creates a new PlayerScene for the next item.
         ShowUpNextCard()
+    end if
+end sub
+
+sub OnBufferingChange(event as Object)
+    buffering = event.getData()
+    if m.bufferingSpinner <> invalid
+        m.bufferingSpinner.visible = buffering
     end if
 end sub
 
@@ -1243,22 +1254,16 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
     if press then
         ' --- P3-S4 Sleep Timer panel handling. ---
         if m.sleepTimerPanelOpen then
-            if key = "back" or key = "sleep" then
+            if key = "back" then
                 CloseSleepTimerPanel()
                 handled = true
             end if
             return handled
         end if
 
-        ' --- P3-S4 Sleep Timer: press sleep key to open the panel. ---
-        if key = "sleep" then
-            ToggleSleepTimerPanel()
-            handled = true
-        end if
-
         ' --- P3-S4 PiP snapshot overlay: back/exit closes PiP mode. ---
         if m.pipActive then
-            if key = "back" or key = "pip" then
+            if key = "back" then
                 ExitPipMode()
                 handled = true
             end if
