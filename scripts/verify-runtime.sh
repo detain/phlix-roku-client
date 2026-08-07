@@ -57,7 +57,9 @@ echo "=== Check 6: ObserveField callback defined (maps to §5.5) ==="
 for brs in $(git ls-files -- '*.brs'); do
   callbacks=$(grep -oP 'ObserveField\s*\(\s*"[^"]+"\s*,\s*"\K[^"]+' "$brs" 2>/dev/null || true)
   for cb in $callbacks; do
-    if ! grep -qP "^(sub|function)\s+$cb\b" "$brs" 2>/dev/null; then
+    # Check for regular sub/function OR colon-method syntax (OnCallback: sub() or OnCallback: function())
+    if ! grep -qP "^(sub|function)\s+$cb\b" "$brs" 2>/dev/null && \
+       ! grep -qP "^\s+$cb:\s+(sub|function)\b" "$brs" 2>/dev/null; then
       line=$(grep -n "ObserveField.*\"$cb\"" "$brs" | head -1 | cut -d: -f1)
       echo "  $brs:$line — CHECK6: ObserveField target '$cb' has no matching sub/function"
       FOUND=1
@@ -78,7 +80,9 @@ for brs in $(git ls-files -- '*.brs'); do
     ids=$(echo "$content" | grep -oP 'FindNode\s*\(\s*"\K[^"]+' 2>/dev/null || true)
     for id in $ids; do
       if [[ "$id" == *'$'* ]] || [[ "$id" == *'{'* ]]; then continue; fi
-      if ! grep -A200 '<children>' "$xml" 2>/dev/null | grep -B200 '</children>' | grep -q "id=\"$id\"" 2>/dev/null; then
+      # Extract all content between <children> and </children> and search for id=
+      children_content=$(awk '/^[[:space:]]*<\/children>/{found=0} found{print} /^[[:space:]]*<children>/{found=1; next} END{if(found)print}' "$xml" 2>/dev/null || true)
+      if ! echo "$children_content" | grep -q "id=\"$id\"" 2>/dev/null; then
         echo "  $brs:$line — CHECK7: FindNode(\"$id\") but no id=\"$id\" in $xml <children>"
         FOUND=1
       fi
@@ -91,7 +95,7 @@ echo ""
 echo "=== Check 8: m.videoPlayer invalid fields (maps to §5.6) ==="
 # Allow-list of real Video node fields (Roku SceneGraph SDK)
 # https://developer.roku.com/docs/references/scenegraph/media-playback-nodes/video.md
-ALLOW_LIST="command content control currentTime duration endpoint errorMsg focusRing isFullscreen isPhoto loggingUrl manifestHDRType maxHeight maxWidth position rate retargetHeight retargetWidth secureChainingUrl securityKey stream streamFormat streamInfo subtitleStream textTrackTrack track transferType videoLocation videoNode wasPlaying wideAsync"
+ALLOW_LIST="command content control currentTime duration endpoint errorMsg focusRing isFullscreen isPhoto loggingUrl manifestHDRType maxHeight maxWidth position rate retargetHeight retargetWidth secureChainingUrl securityKey stream streamFormat streamInfo subtitleStream textTrackTrack track transferType videoLocation videoNode wasPlaying wideAsync EnableCookies SetCertificatesFile ObserveField UnObserveField SetFocus globalCaptionMode seek audioTrack availableAudioTracks subtitleTracks currentSubtitleTrack errorCode width height translation volume isUnderlyingStreamPlaying notificationPeriod positionAsOfNow"
 VIOLATIONS=0
 while IFS=: read -r file line; do
   field=$(echo "$line" | sed 's/.*m\.videoPlayer\.\([a-zA-Z_][a-zA-Z0-9_]*\).*/\1/' | grep -oP '[a-zA-Z_][a-zA-Z0-9_]*' | head -1)
