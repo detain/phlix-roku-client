@@ -881,7 +881,12 @@ sub SetProgressWarning(msg as String)
     ' Don't overwrite live SyncPlay status while the panel is open.
     if m.syncPanel <> invalid and m.syncPanel.visible then return
 
-    if m.syncStatusLabel <> invalid then
+    ' R3.4: Use generalized toast system
+    toast = GetToastManager()
+    toast.showWarning(msg)
+
+    ' Also update the status label if visible
+    if m.syncStatusLabel <> invalid and m.syncStatusLabel.visible
         m.syncStatusLabel.text = msg
     end if
 end sub

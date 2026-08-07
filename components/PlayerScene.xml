@@ -19,6 +19,8 @@
     <!-- F13 SyncPlay: PlayerScene reads SyncPlayProtocol() in BuildSyncPlayWsUrl
          (and may format status). The socket itself lives in SyncPlayTask. -->
     <script type="text/brightscript" uri="pkg:/source/lib/SyncPlayProtocol.brs" />
+    <!-- R3.4: ToastManager for generalized toast/notification system -->
+    <script type="text/brightscript" uri="pkg:/source/lib/ToastManager.brs" />
     <script type="text/brightscript" uri="pkg:/source/player/SleepTimer.brs" />
     <script type="text/brightscript" uri="pkg:/components/PlayerScene.brs" />
 

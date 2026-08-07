@@ -19,6 +19,8 @@
     <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/AuthManager.brs" />
     <!-- R7.5: SessionManager, LibraryManager, and TaskManager removed - unused -->
+    <!-- R3.4: ToastManager for generalized toast/notification system -->
+    <script type="text/brightscript" uri="pkg:/source/lib/ToastManager.brs" />
     <script type="text/brightscript" uri="pkg:/components/PhlixApp.brs" />
     <children>
         <!-- Boot loading state: shown immediately while auth check runs on ApiTask -->

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ToastScene" extends="Scene">
+  <interface>
+    <field id="message" type="string" />
+    <field id="duration" type="integer" value="3000" />
+  </interface>
+  <children>
+    <Label id="toastLabel"
+           text="Toast text here"
+           color="#FFFFFF"
+           backgroundColor="#CC000000"
+           width="1280"
+           horizAlign="center"
+           vertAlign="bottom"
+           padding="20"
+           visible="false" />
+  </children>
+  <script uri="pkg:/components/ToastScene.brs" />
+</component>

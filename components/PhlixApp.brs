@@ -76,6 +76,10 @@ sub Init()
     m.bootErrorLabel = m.top.FindNode("bootErrorLabel")
     m.bootRetryButton = m.top.FindNode("bootRetryButton")
 
+    ' R3.4: Initialize toast manager
+    m.toastManager = GetToastManager()
+    m.toastManager.setScene(m.top)
+
     ' R6.3: Capture cold-launch deep-link params passed from main.brs.
     ' Stored so they can be processed after the auth flow completes.
     m.deepLinkParams = invalid
@@ -729,3 +733,25 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+' R3.4: Handle messages from child nodes (e.g., showToast from ToastManager)
+sub onMessage(msg as Object)
+    if msg = invalid then return
+
+    messageType = ""
+    data = invalid
+
+    ' Extract message type and data from the roSGNodeEvent-style assoc
+    if type(msg) = "roAssociativeArray" then
+        if msg.DoesExist("messageType") then messageType = msg.messageType
+        if msg.DoesExist("data") then data = msg.data
+    end if
+
+    if messageType = "showToast" then
+        content = data
+        toast = CreateObject("roSGNode", "ToastScene")
+        toast.message = content.title
+        toast.duration = content.duration
+        m.top.ComponentController.Dialog = toast
+    end if
+end sub
