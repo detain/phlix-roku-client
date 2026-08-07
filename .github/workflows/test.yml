@@ -23,6 +23,7 @@ jobs:
         run: npm ci || npm install
 
       - name: Run unit tests
+        if: env.ROKU_HOST != ''
         run: |
           make test-unit
 
