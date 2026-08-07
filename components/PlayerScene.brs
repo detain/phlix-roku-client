@@ -36,21 +36,18 @@ sub Init()
     m.backButton = m.top.FindNode("backButton")
     m.controlsOverlay = m.top.FindNode("controlsOverlay")
 
-    ' Skip button nodes
-    m.skipButton = m.top.FindNode("skipButton")
-    m.skipButtonLabel = m.top.FindNode("skipButtonLabel")
-
-    ' Initialize skip button component
-    m.skipButtonComponent = SkipButton()
-    m.skipButtonComponent.init(m.skipButton, m.skipButtonLabel)
+    ' R2.1: Controls auto-hide timer (one-shot, created in ShowControls)
+    m.controlsHideTimer = invalid
 
     ' Setup button handlers
     if m.backButton <> invalid then
         m.backButton.ObserveField("buttonSelected", "OnBackPressed")
     end if
 
+    ' Skip button - observe skipRequested interface field (SkipButton handles buttonSelected internally)
+    m.skipButton = m.top.FindNode("skipButton")
     if m.skipButton <> invalid then
-        m.skipButton.ObserveField("buttonSelected", "OnSkipButtonSelected")
+        m.skipButton.ObserveField("skipRequested", "OnSkipRequested")
     end if
 
     ' ============================================================= '
@@ -88,6 +85,10 @@ sub Init()
     if pipEnabled = "false" and m.pipButton <> invalid then
         m.pipButton.visible = false
     end if
+
+    ' R2.5: Chapters button - opens chapter picker overlay
+    m.chapterButton = m.top.FindNode("chapterButton")
+    if m.chapterButton <> invalid then m.chapterButton.ObserveField("buttonSelected", "OnChapterButtonPressed")
 
     ' ApiTask: one-shot transcode start (observed).
     ' progressTask: session + progress reporting (guarded by state check).
@@ -276,9 +277,9 @@ sub Show(itemId as String, args as Object)
     ' Skip markers - pass the playback-info skip_button_spec straight through
     ' (its keys match SkipButton's expected skip_intro_start/... fields).
     if m.playbackInfo <> invalid and m.playbackInfo.skip_button_spec <> invalid then
-        m.skipButtonComponent.setMarkers(m.playbackInfo.skip_button_spec)
+        m.skipButton.markers = m.playbackInfo.skip_button_spec
     else
-        m.skipButtonComponent.setMarkers(invalid)
+        m.skipButton.markers = invalid
     end if
 
     ' P3B-S7: capture audio + subtitle tracks from playbackInfo.
@@ -575,8 +576,8 @@ sub OnPositionUpdate(event as Object)
         end if
 
         ' Update skip button based on position
-        if m.skipButtonComponent <> invalid then
-            m.skipButtonComponent.updatePosition(position)
+        if m.skipButton <> invalid then
+            m.skipButton.updatePosition(position)
         end if
 
         ' P2-S5: build chapter markers on first frame when duration is known.
@@ -611,13 +612,10 @@ sub OnBackPressed()
     ClosePlayer()
 end sub
 
-sub OnSkipButtonSelected()
-    ' Get target position from skip button component
-    if m.skipButtonComponent <> invalid then
-        targetPosition = m.skipButtonComponent.getTargetPosition()
-        if targetPosition > 0 and m.videoPlayer <> invalid then
-            m.videoPlayer.seek = targetPosition
-        end if
+sub OnSkipRequested(event as Object)
+    targetPosition = event.getData()
+    if targetPosition > 0 and m.videoPlayer <> invalid then
+        m.videoPlayer.seek = targetPosition
     end if
 end sub
 
@@ -631,7 +629,55 @@ sub ShowControls(shouldShow as Boolean)
         if m.backButton <> invalid then
             m.backButton.setFocus(true)
         end if
+        ' R2.1: Start/reset the auto-hide timer
+        startControlsHideTimer()
+    else
+        ' R2.1: Stop the timer when hiding
+        stopControlsHideTimer()
     end if
+end sub
+
+' R2.1: Hide controls and stop the auto-hide timer
+sub HideControls()
+    stopControlsHideTimer()
+    if m.controlsOverlay <> invalid then
+        m.controlsOverlay.visible = false
+    end if
+end sub
+
+' R2.1: Start or reset the controls auto-hide timer
+sub startControlsHideTimer()
+    ' Stop any existing timer first
+    if m.controlsHideTimer <> invalid then
+        m.controlsHideTimer.control = "stop"
+        m.controlsHideTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.controlsHideTimer)
+        m.controlsHideTimer = invalid
+    end if
+
+    ' Create and start new one-shot timer (4 second auto-hide)
+    m.controlsHideTimer = CreateObject("roSGNode", "Timer")
+    m.controlsHideTimer.duration = 4.0
+    m.controlsHideTimer.repeat = false
+    m.controlsHideTimer.ObserveField("fire", "OnControlsHideTimerFire")
+    m.top.Append(m.controlsHideTimer)
+    m.controlsHideTimer.control = "start"
+end sub
+
+' R2.1: Stop the controls auto-hide timer
+sub stopControlsHideTimer()
+    if m.controlsHideTimer <> invalid then
+        m.controlsHideTimer.control = "stop"
+        m.controlsHideTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.controlsHideTimer)
+        m.controlsHideTimer = invalid
+    end if
+end sub
+
+' R2.1: Called when the controls auto-hide timer fires
+sub OnControlsHideTimerFire()
+    m.controlsHideTimer = invalid
+    HideControls()
 end sub
 
 sub StopPlayback()
@@ -709,10 +755,8 @@ end sub
 '   3. Other failure -> log, count consecutive failures, show warning after
 '      PROGRESS_FAILURES_BEFORE_WARNING consecutive hits (do not interrupt)
 '
-' DEPENDENCY: This handler infers auth failure from a null data field. R3.2/R3.3
-' (HTTP status propagation through ApiClient.request -> ApiTask.ok) will make
-' the 401 detection explicit rather than inferred.
-'
+' R3.2/R3.3 implemented: ApiClient.request provides {status, ok, data, error};
+' auth failure is detected via resp.ok=false, not inferred from null data.
 ' R4.11: Also handles createSession responses (m.currentOp = "createSession").
 ' On failure, retries once before surfacing an error to the user. On success,
 ' flushes any buffered progress report that arrived while waiting for session.
@@ -784,9 +828,9 @@ sub OnProgressResponse(event as Object)
     ' Inferred auth failure: when the refresh token was exhausted, ApiClient.request
     ' clears credentials and the server returns 401 (data becomes invalid). The
     ' session is dead — playback continues but progress is lost. Surface it.
-    ' DEPENDENCY: This inference is the best we can do without R3.2/R3.3 HTTP status.
-    ' R3.2/R3.3 will provide explicit HTTP status; until then, invalid data = auth
-    ' failure (most likely) or network error.
+    ' R3.2/R3.3 implemented: explicit HTTP status via resp.ok; invalid data here
+    ' indicates server returned 401 after refresh token was exhausted — session
+    ' is dead. Playback continues but progress is lost. Surface it.
     if resp.data = invalid then
         ShowProgressAuthError()
         m.progressConsecutiveFailures = 0
@@ -984,9 +1028,9 @@ sub ClosePlayer()
         m.transcodePollTask = invalid
     end if
 
-    ' Clean up skip button
-    if m.skipButtonComponent <> invalid then
-        m.skipButtonComponent.cleanup()
+    ' Clean up skip button - unobserve skipRequested field
+    if m.skipButton <> invalid then
+        m.skipButton.UnObserveField("skipRequested")
     end if
 
     ' P2-S5: clean up chapter markers - remove from whichever parent they were appended to
@@ -1038,8 +1082,8 @@ sub ClosePlayer()
     if m.backButton <> invalid then
         m.backButton.UnObserveField("buttonSelected")
     end if
-    if m.skipButton <> invalid then
-        m.skipButton.UnObserveField("buttonSelected")
+    if m.chapterButton <> invalid then
+        m.chapterButton.UnObserveField("buttonSelected")
     end if
 
     ' Stop observing the API task.
@@ -1292,12 +1336,13 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
             handled = true
         else if key = "info" then
             ' R6.9: Info key shows the item detail overlay.
-            ' Consistent with R2.5's use of options for chapters — info shows item metadata.
             ShowItemInfo()
             handled = true
-        else if key = "C" then
-            ToggleChapterPicker()
-            handled = true
+        end if
+
+        ' R2.1: Reset the auto-hide timer on any key press while controls are visible
+        if m.controlsOverlay <> invalid and m.controlsOverlay.visible then
+            startControlsHideTimer()
         end if
     end if
 
@@ -2249,6 +2294,11 @@ sub ToggleChapterPicker()
     end if
 
     OpenChapterPicker()
+end sub
+
+' R2.5: Handle chapter button press - opens the chapter picker.
+sub OnChapterButtonPressed()
+    ToggleChapterPicker()
 end sub
 
 ' Build and open the chapter list using the trackListPanel.
