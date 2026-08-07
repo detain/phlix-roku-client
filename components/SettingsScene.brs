@@ -329,6 +329,10 @@ sub Teardown()
     end if
 end sub
 
+sub OnChildRequestClose()
+    m.top.requestClose = true
+end sub
+
 ' Helper function to handle conditional values
 function IIF(condition as Boolean, trueValue as String, falseValue as String) as String
     if condition then

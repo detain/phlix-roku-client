@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @copyright 2026 Joe Huss <detain@interserver.net> -->
+<!-- @license   MIT -->
+
+<!-- R7.4a: Watch History Display Scene - Shows user's watch history with posters,
+     progress bars, and navigation to DetailScene. -->
+
+<component name="HistoryScene" extends="Scene">
+    <interface>
+        <field id="requestClose" type="boolean" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <script type="text/brightscript" uri="pkg:/components/HistoryScene.brs" />
+    <children>
+        <!-- Header -->
+        <Rectangle height="100" width="1280" color="#1a1a2e">
+            <Label height="60" width="600" translation="[40,20]"
+                   text="Watch History"
+                   font="font:LargeBoldSystemFont"
+                   color="#FFFFFF" />
+            <!-- Clear All History button -->
+            <Button height="40" width="180" translation="[1060,30]"
+                    text="Clear All"
+                    id="clearAllButton"
+                    color="#FFFFFF"
+                    focusColor="#4a4a6a"
+                    />
+        </Rectangle>
+
+        <!-- Progress bar legend -->
+        <Rectangle height="30" width="1280" translation="[0,100]" color="#0d0d1a">
+            <Label height="30" width="400" translation="[40,5]"
+                   text="Progress bar shows watch position"
+                   font="font:SmallestSystemFont"
+                   color="#888888" />
+        </Rectangle>
+
+        <!-- History grid -->
+        <PosterGrid height="540" width="1280" translation="[0,140]"
+                    numColumns="5" numRows="2"
+                    itemSpacing="[20, 15]"
+                    basePosterSize="[180, 270]"
+                    id="historyGrid">
+        </PosterGrid>
+
+        <!-- Status / empty hint -->
+        <Rectangle height="40" width="1280" translation="[0,680]" color="#0d0d1a">
+            <Label height="40" width="1200" translation="[40,8]"
+                   text="Loading…"
+                   font="font:MediumSystemFont"
+                   color="#AAAAAA"
+                   id="statusLabel" />
+        </Rectangle>
+    </children>
+</component>

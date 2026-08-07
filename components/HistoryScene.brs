@@ -42,6 +42,7 @@ sub Init()
 end sub
 
 sub LoadHistory()
+    ' allow-listed: callback-chained (m.apiTask is a fresh node created in Init, only one op at a time)
     if m.statusLabel <> invalid then
         m.statusLabel.text = "Loading…"
     end if
