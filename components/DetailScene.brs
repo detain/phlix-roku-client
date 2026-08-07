@@ -125,7 +125,7 @@ sub OnApiResponse(event as Object)
                 m.userData.favorite = false
                 RenderFavorite()
             end if
-            ShowErrorDialog(m.top, "Error", "Couldn't save your favourite. Please try again.")
+            ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_error_favorite_save_message"))
         end if
     else if resp.op = "unfavorite" then
         if not resp.ok then
@@ -133,7 +133,7 @@ sub OnApiResponse(event as Object)
                 m.userData.favorite = true
                 RenderFavorite()
             end if
-            ShowErrorDialog(m.top, "Error", "Couldn't remove your favourite. Please try again.")
+            ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_error_favorite_remove_message"))
         end if
     else if resp.op = "setRating" then
         if not resp.ok then
@@ -145,7 +145,7 @@ sub OnApiResponse(event as Object)
                 end if
                 RenderRating()
             end if
-            ShowErrorDialog(m.top, "Error", "Couldn't save your rating. Please try again.")
+            ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_error_rating_save_message"))
         end if
     else if resp.op = "clearRating" then
         if not resp.ok then
@@ -156,7 +156,7 @@ sub OnApiResponse(event as Object)
                 end if
                 RenderRating()
             end if
-            ShowErrorDialog(m.top, "Error", "Couldn't clear your rating. Please try again.")
+            ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_error_rating_clear_message"))
         end if
     else if resp.op = "markWatched" then
         ' Optimistic update already applied; revert on failure.
@@ -165,7 +165,7 @@ sub OnApiResponse(event as Object)
                 m.userData.watched = false
                 RenderWatched()
             end if
-            ShowErrorDialog(m.top, "Error", "Couldn't mark as watched. Please try again.")
+            ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_error_watched_mark_message"))
         end if
     else if resp.op = "markUnwatched" then
         ' Optimistic update already applied; revert on failure.
@@ -174,7 +174,7 @@ sub OnApiResponse(event as Object)
                 m.userData.watched = true
                 RenderWatched()
             end if
-            ShowErrorDialog(m.top, "Error", "Couldn't mark as unwatched. Please try again.")
+            ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_error_watched_unmark_message"))
         end if
     else if resp.op = "like" then
         ' Optimistic update already applied; revert on failure.
@@ -183,7 +183,7 @@ sub OnApiResponse(event as Object)
                 m.userData.liked = not m.userData.liked
                 RenderLike()
             end if
-            ShowErrorDialog(m.top, "Error", "Couldn't update like. Please try again.")
+            ShowErrorDialog(m.top, Translate("common_error"), "Couldn't update like. Please try again.")
         end if
     else if resp.op = "getItemSimilar" then
         ' R7.4: Store similar items and display if available.
@@ -260,11 +260,11 @@ sub OnApiResponse(event as Object)
         end if
     else if resp.op = "addToCollection" then
         if not resp.ok then
-            ShowErrorDialog(m.top, "Error", "Couldn't add to collection. Please try again.")
+            ShowErrorDialog(m.top, Translate("common_error"), "Couldn't add to collection. Please try again.")
         end if
     else if resp.op = "removeFromCollection" then
         if not resp.ok then
-            ShowErrorDialog(m.top, "Error", "Couldn't remove from collection. Please try again.")
+            ShowErrorDialog(m.top, Translate("common_error"), "Couldn't remove from collection. Please try again.")
         end if
     end if
 end sub
@@ -303,7 +303,7 @@ sub RenderItem()
         ' P2-S5: show chapter count if chapters are available on the item.
         if item.chapters <> invalid and type(item.chapters) = "roArray" and item.chapters.count() > 0 then
             if info <> "" then info = info + " • "
-            info = info + str(item.chapters.count()).trim() + " chapters"
+            info = info + str(item.chapters.count()).trim() + " " + Translate("detail_chapters_count")
         end if
         m.infoLabel.text = info
     end if
@@ -360,9 +360,9 @@ sub RenderFavorite()
     if m.userData.DoesExist("favorite") and m.userData.favorite = true then isFav = true
 
     if isFav then
-        m.favoriteButton.title = "Remove from Favorites"
+        m.favoriteButton.title = Translate("detail_favorite_remove")
     else
-        m.favoriteButton.title = "Add to Favorites"
+        m.favoriteButton.title = Translate("detail_favorite_add")
     end if
 end sub
 
@@ -370,9 +370,10 @@ sub RenderRating()
     if m.ratingButton = invalid then return
 
     if m.pendingRating > 0 then
-        m.ratingButton.title = "Rating: " + str(m.pendingRating).trim() + "/10"
+        ratingStr = str(m.pendingRating).trim()
+        m.ratingButton.title = Translate("detail_rating_label") + ratingStr
     else
-        m.ratingButton.title = "Rating: not set"
+        m.ratingButton.title = Translate("detail_rating_not_set")
     end if
 end sub
 
@@ -389,9 +390,9 @@ sub RenderWatched()
     if m.userData.DoesExist("watched") and m.userData.watched = true then isWatched = true
 
     if isWatched then
-        m.watchedButton.title = "Mark as Unwatched"
+        m.watchedButton.title = Translate("detail_watched_unmark")
     else
-        m.watchedButton.title = "Mark as Watched"
+        m.watchedButton.title = Translate("detail_watched_mark")
     end if
 end sub
 
@@ -407,9 +408,9 @@ sub RenderLike()
     if m.userData.DoesExist("liked") and m.userData.liked = true then isLiked = true
 
     if isLiked then
-        m.likeButton.title = "Unlike"
+        m.likeButton.title = Translate("detail_like_unlike")
     else
-        m.likeButton.title = "Like"
+        m.likeButton.title = Translate("detail_like_like")
     end if
 end sub
 
@@ -436,12 +437,12 @@ sub RenderCollection()
             if itemInCollection then exit for
         end for
         if itemInCollection then
-            m.collectionButton.title = "Remove from Collection"
+            m.collectionButton.title = Translate("detail_collection_remove")
         else
-            m.collectionButton.title = "Add to Collection"
+            m.collectionButton.title = Translate("detail_collection_add")
         end if
     else
-        m.collectionButton.title = "Add to Collection"
+        m.collectionButton.title = Translate("detail_collection_add")
     end if
 end sub
 
@@ -470,7 +471,7 @@ end sub
 ' ---------------------------------------------------------------------
 sub ShowCollectionPicker()
     if m.collections.count() = 0 then
-        ShowErrorDialog(m.top, "Error", "No collections available.")
+        ShowErrorDialog(m.top, Translate("common_error"), "No collections available.")
         return
     end if
 
@@ -480,7 +481,7 @@ sub ShowCollectionPicker()
     if firstCollection.DoesExist("id") then
         AddItemToCollection(firstCollection.id)
     else
-        ShowErrorDialog(m.top, "Error", "Collection has no ID")
+        ShowErrorDialog(m.top, Translate("common_error"), "Collection has no ID")
     end if
 end sub
 
@@ -584,7 +585,7 @@ sub RenderContentRating()
     end if
 
     if contentRating <> invalid and contentRating <> "" then
-        m.contentRatingLabel.text = "Rated " + contentRating
+        m.contentRatingLabel.text = Translate("detail_rated_label") + contentRating
     else
         m.contentRatingLabel.text = ""
     end if

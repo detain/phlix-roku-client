@@ -265,6 +265,15 @@ function GetDeviceDiagnostics() as String
 end function
 
 ' ===========================================
+' R7.12: i18n Initialization
+' Loads locale strings from the bundled strings.json on app startup.
+' Called from PhlixApp.Init after device capabilities are initialized.
+' ===========================================
+function InitLocale() as Void
+    LoadLocaleStrings()
+end function
+
+' ===========================================
 ' Admin State (R7.9)
 ' Tracks whether the current logged-in user is an admin.
 ' Set by HomeScene.OnMeResponse after /auth/me returns.

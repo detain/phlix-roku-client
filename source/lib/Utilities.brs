@@ -641,12 +641,12 @@ end function
 ' @param album Object - a photo-album assocarray (may be invalid)
 ' @return String - the album date label, or "Undated"
 function PhotoAlbumCaption(album as Object) as String
-    if album = invalid then return "Undated"
+    if album = invalid then return Translate("utilities_photo_album_undated")
 
     date = ""
     if album.DoesExist("date") and album.date <> invalid then date = album.date
 
-    if date = "" or date = "Unknown" then return "Undated"
+    if date = "" or date = "Unknown" then return Translate("utilities_photo_album_undated")
 
     return date
 end function
@@ -709,7 +709,7 @@ function FormatExifSummary(exif as Object) as String
     end if
     if exif.DoesExist("iso") and exif.iso <> invalid then
         isoVal = Int(exif.iso)
-        if isoVal > 0 then settings.Push("ISO " + str(isoVal).trim())
+        if isoVal > 0 then settings.Push(Translate("utilities_iso_prefix") + str(isoVal).trim())
     end if
     if settings.Count() > 0 then
         lines.Push(JoinStrings(settings, "  •  "))
@@ -844,7 +844,46 @@ end function
 ' @param n Integer - the rating int
 ' @return String - the label
 function RatingLabel(n as Integer) as String
-    labels = ["G", "PG", "PG-13", "R", "NC-17", "X", "UNRATED"]
-    if n < 0 or n > 6 then return "UNRATED"
-    return labels[n]
+    if n < 0 or n > 6 then return Translate("utilities_rating_unrated")
+    labels = ["utilities_rating_g", "utilities_rating_pg", "utilities_rating_pg13", "utilities_rating_r", "utilities_rating_nc17", "utilities_rating_x", "utilities_rating_unrated"]
+    return Translate(labels[n])
+end function
+
+' ===========================================
+' R7.12: i18n support
+' Uses function-property pattern (like DeviceInfoData) to cache locale strings.
+' ===========================================
+
+' Load locale strings from JSON file (called at app startup via AppContext.InitLocale)
+sub LoadLocaleStrings()
+    ' Cached on the function object itself
+    if LoadLocaleStrings._loaded = true then return
+    path = "locale://locale/en_US/strings.json"
+    f = CreateObject("roFileSystem")
+    if not f.Exists(path) then return
+    data = ReadAsciiFile(path)
+    if data = "" or data = invalid then return
+    LoadLocaleStrings._cache = ParseJson(data)
+    LoadLocaleStrings._loaded = true
+end sub
+
+' Translate a string key using loaded locale
+' @param key String - the translation key
+' @return String - the translated string, or the key if not found
+function Translate(key as String) as String
+    if LoadLocaleStrings._loaded <> true then LoadLocaleStrings()
+    if LoadLocaleStrings._loaded <> true then return key
+
+    cache = LoadLocaleStrings._cache
+    sections = ["common", "utilities", "settings", "detail"]
+    for each section in sections
+        if cache.doesExist(section) then
+            sectionData = cache.lookup(section)
+            if type(sectionData) = "roAssociativeArray" and sectionData.doesExist(key) then
+                result = sectionData.lookup(key)
+                if result <> invalid then return result
+            end if
+        end if
+    end for
+    return key
 end function

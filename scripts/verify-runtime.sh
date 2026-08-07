@@ -748,6 +748,7 @@ EXEMPT = [
     re.compile(r'TruncateString\s*\('),   # string utility
     re.compile(r'ByteToHex\s*\('),       # hex utility
     re.compile(r'GenerateRandomId\s*\('), # ID generator
+    re.compile(r'Translate\s*\('),       # i18n translation function (R7.12)
 ]
 
 found_violation = False

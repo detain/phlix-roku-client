@@ -106,7 +106,13 @@
     "error_rating_save_message": "Couldn't save your rating. Please try again.",
     "error_rating_clear_message": "Couldn't clear your rating. Please try again.",
     "error_watched_mark_message": "Couldn't mark as watched. Please try again.",
-    "error_watched_unmark_message": "Couldn't mark as unwatched. Please try again."
+    "error_watched_unmark_message": "Couldn't mark as unwatched. Please try again.",
+
+    "collection_add": "Add to Collection",
+    "collection_remove": "Remove from Collection",
+
+    "like_like": "Like",
+    "like_unlike": "Unlike"
   },
 
   "utilities": {

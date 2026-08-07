@@ -65,6 +65,9 @@ sub Init()
     ' Records model, videoMode, and memory tier; gates direct play via DeviceCanDecodeVideo.
     InitDeviceInfo()
 
+    ' R7.12: Load i18n strings on startup
+    InitLocale()
+
     ' Bootstrap auth state tracking
     m.authCheckDone = false
     m.retryCount = 0

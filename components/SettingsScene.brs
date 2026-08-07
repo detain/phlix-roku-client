@@ -109,12 +109,12 @@ end sub
 
 sub ShowAccount()
     userEmail = GetApiClient().user.email
-    m.statusLabel.text = "Logged in as: " + userEmail
+    m.statusLabel.text = Translate("settings_status_logged_in_as") + userEmail
 
     dialog = CreateObject("roSGNode", "Dialog")
-    dialog.title = "Account"
+    dialog.title = Translate("settings_dialog_account_title")
     dialog.message = "Email: " + userEmail + Chr(10) + Chr(10) + "Do you want to log out?"
-    dialog.buttons = ["Cancel", "Log Out"]
+    dialog.buttons = [Translate("settings_button_cancel"), Translate("settings_button_log_out")]
     dialog.observeField("buttonSelected", "OnLogoutConfirmed")
     m.top.dialog = dialog
 end sub
@@ -131,12 +131,12 @@ end sub
 
 sub ShowServer()
     serverUrl = GetServerUrl()
-    m.statusLabel.text = "Server: " + serverUrl
+    m.statusLabel.text = Translate("settings_status_server") + serverUrl
 
     dialog = CreateObject("roSGNode", "Dialog")
-    dialog.title = "Server"
+    dialog.title = Translate("settings_dialog_server_title")
     dialog.message = "Current server: " + serverUrl + Chr(10) + Chr(10) + "Do you want to switch servers?"
-    dialog.buttons = ["Cancel", "Switch"]
+    dialog.buttons = [Translate("settings_button_cancel"), Translate("settings_button_switch")]
     dialog.observeField("buttonSelected", "OnSwitchServerConfirmed")
     m.top.dialog = dialog
 end sub
@@ -146,21 +146,25 @@ sub OnSwitchServerConfirmed(index as Integer)
     m.top.dialog = invalid
 
     if index = 1 then
-        m.statusLabel.text = "Server switching not implemented"
+        m.statusLabel.text = Translate("settings_status_server_switch_not_implemented")
     end if
 end sub
 
 sub ShowPlayback()
     result = GetApiClient().getPlaybackPreferences()
-    m.statusLabel.text = "Loading playback preferences..."
+    m.statusLabel.text = Translate("settings_status_loading_preferences")
 
     if result <> invalid and result.data <> invalid and result.data.preferences <> invalid then
         prefs = result.data.preferences
-        prefStr = "Quality: " + IIF(prefs.quality <> invalid, prefs.quality, "Auto") + Chr(10)
-        prefStr = prefStr + "Autoplay: " + IIF(prefs.autoplay <> invalid, IIF(prefs.autoplay, "On", "Off"), "On")
+        qualityLabel = Translate("settings_quality_label")
+        qualityValue = IIF(prefs.quality <> invalid, prefs.quality, "Auto")
+        prefStr = qualityLabel + qualityValue + Chr(10)
+        autoplayLabel = Translate("settings_autoplay_label")
+        autoplayValue = IIF(prefs.autoplay <> invalid, IIF(prefs.autoplay, Translate("settings_autoplay_on"), Translate("settings_autoplay_off")), Translate("settings_autoplay_on"))
+        prefStr = prefStr + autoplayLabel + autoplayValue
         m.statusLabel.text = prefStr
     else
-        m.statusLabel.text = "Unable to load playback preferences"
+        m.statusLabel.text = Translate("settings_status_unable_to_load_preferences")
     end if
 end sub
 
@@ -168,12 +172,12 @@ sub ShowCaptions()
     deviceInfo = CreateObject("roDeviceInfo")
     currentMode = deviceInfo.GetCaptionsMode()
 
-    m.statusLabel.text = "Caption mode: " + currentMode
+    m.statusLabel.text = Translate("settings_caption_mode_label") + currentMode
 
     dialog = CreateObject("roSGNode", "Dialog")
-    dialog.title = "Captions"
+    dialog.title = Translate("settings_dialog_captions_title")
     dialog.message = "Current caption mode: " + currentMode + Chr(10) + Chr(10) + "Select a mode:"
-    dialog.buttons = ["On", "Off", "Instant Replay", "When Mute"]
+    dialog.buttons = [Translate("settings_button_caption_on"), Translate("settings_button_caption_off"), Translate("settings_button_caption_instant_replay"), Translate("settings_button_caption_when_mute")]
     dialog.observeField("buttonSelected", "OnCaptionsModeSelected")
     m.top.dialog = dialog
 end sub
@@ -182,21 +186,21 @@ sub OnCaptionsModeSelected(index as Integer)
     if m.top.dialog = invalid then return
     m.top.dialog = invalid
 
-    modes = ["On", "Off", "Instant replay", "When mute"]
+    modes = [Translate("settings_button_caption_on"), Translate("settings_button_caption_off"), Translate("settings_button_caption_instant_replay"), Translate("settings_button_caption_when_mute")]
     if index >= 0 and index < modes.count() then
         deviceInfo = CreateObject("roDeviceInfo")
         deviceInfo.SetCaptionsMode(modes[index])
-        m.statusLabel.text = "Caption mode set to: " + modes[index]
+        m.statusLabel.text = Translate("settings_caption_mode_set_to") + modes[index]
     end if
 end sub
 
 sub ShowWatchHistory()
-    m.statusLabel.text = "Watch history options"
+    m.statusLabel.text = Translate("settings_status_watch_history_options")
 
     dialog = CreateObject("roSGNode", "Dialog")
-    dialog.title = "Watch History"
+    dialog.title = Translate("settings_dialog_watch_history_title")
     dialog.message = "This will remove all your watch history data." + Chr(10) + Chr(10) + "Are you sure?"
-    dialog.buttons = ["Cancel", "Clear"]
+    dialog.buttons = [Translate("settings_button_cancel"), Translate("settings_button_clear")]
     dialog.observeField("buttonSelected", "OnClearHistoryConfirmed")
     m.top.dialog = dialog
 end sub
@@ -206,9 +210,9 @@ sub OnClearHistoryConfirmed(index as Integer)
     m.top.dialog = invalid
 
     if index = 1 then
-        m.statusLabel.text = "Clearing watch history..."
+        m.statusLabel.text = Translate("settings_status_clearing_history")
         GetApiClient().clearWatchHistory()
-        m.statusLabel.text = "Watch history cleared"
+        m.statusLabel.text = Translate("settings_status_history_cleared")
     end if
 end sub
 
@@ -223,8 +227,11 @@ sub TogglePip()
     end if
     GetStorage().set("pip_enabled", newValue)
     GetStorage().flush()
-    enabledStr = IIF(newValue = "true", "enabled", "disabled")
-    m.statusLabel.text = "Picture-in-Picture " + enabledStr
+    if newValue = "true" then
+        m.statusLabel.text = Translate("settings_status_pip_enabled")
+    else
+        m.statusLabel.text = Translate("settings_status_pip_disabled")
+    end if
 end sub
 
 sub ShowNotifications()
@@ -233,9 +240,9 @@ sub ShowNotifications()
     if prefsJson <> invalid and prefsJson <> "" then
         ' prefsJson is stored as a simple "push_email" string for now
         ' Parse it when API is ready
-        m.statusLabel.text = "Notification preferences (local only)"
+        m.statusLabel.text = Translate("settings_status_notification_prefs_local")
     else
-        m.statusLabel.text = "Notification preferences not set"
+        m.statusLabel.text = Translate("settings_status_notification_prefs_not_set")
     end if
 end sub
 
@@ -259,7 +266,7 @@ sub TogglePushNotifications()
     GetStorage().set("notification_prefs", newPrefs)
     GetStorage().flush()
 
-    m.statusLabel.text = "Preferences saved locally — syncing with server when available"
+    m.statusLabel.text = Translate("settings_status_prefs_saved_locally")
 end sub
 
 sub ToggleEmailNotifications()
@@ -282,7 +289,7 @@ sub ToggleEmailNotifications()
     GetStorage().set("notification_prefs", newPrefs)
     GetStorage().flush()
 
-    m.statusLabel.text = "Preferences saved locally — syncing with server when available"
+    m.statusLabel.text = Translate("settings_status_prefs_saved_locally")
 end sub
 
 sub ShowAbout()
@@ -292,11 +299,11 @@ sub ShowAbout()
     videoMode = GetDeviceVideoMode()
     totalMemoryMB = DeviceInfoData().totalMemoryMB
 
-    info = "Version: " + version + Chr(10)
-    info = info + "Device Model: " + deviceModel + Chr(10)
-    info = info + "Device ID: " + IIF(deviceId <> invalid, deviceId, "Unknown") + Chr(10)
-    info = info + "Video Mode: " + videoMode + Chr(10)
-    info = info + "Total Memory: " + str(totalMemoryMB).trim() + " MB"
+    info = Translate("settings_about_version") + ": " + version + Chr(10)
+    info = info + Translate("settings_about_device_model") + ": " + deviceModel + Chr(10)
+    info = info + Translate("settings_about_device_id") + ": " + IIF(deviceId <> invalid, deviceId, Translate("settings_about_device_id_unknown")) + Chr(10)
+    info = info + Translate("settings_about_video_mode") + ": " + videoMode + Chr(10)
+    info = info + Translate("settings_about_total_memory") + ": " + str(totalMemoryMB).trim() + " MB"
 
     m.statusLabel.text = info
 end sub
