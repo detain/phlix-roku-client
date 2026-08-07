@@ -258,7 +258,7 @@ check:
 	fi
 
 verify-runtime:
-	@cd /home/sites/phlix/phlix-roku-client && bash scripts/verify-runtime.sh
+	@bash "$(CURDIR)/scripts/verify-runtime.sh"
 
 # Full validation suite
 validate: validate-manifest validate-xml test

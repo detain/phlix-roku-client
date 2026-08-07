@@ -2,7 +2,8 @@
 # scripts/verify-runtime.sh — Static runtime-defect checker for phlix-roku-client (R0.7)
 # Each check exits non-zero and prints: FILE:LINE — CHECK_NAME: explanation
 set -euo pipefail
-REPO="/home/sites/phlix/phlix-roku-client"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO="$(dirname "$SCRIPT_DIR")"
 cd "$REPO"
 FOUND=0
 VIOLATIONS=0
