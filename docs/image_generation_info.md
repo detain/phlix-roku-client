@@ -6,6 +6,23 @@
 
 ---
 
+## ⚠️ R6.2 — Required for Roku Store Certification
+
+All images in this guide are **required for Roku Store certification**. Incorrect dimensions are a **submission blocker** — the Roku Developer Relations team will reject the channel package if any art asset is off by even 1 pixel.
+
+Current status:
+- ❌ `icon-focus-hd.png` — 540×405 px (needs **290×218 px**) — **WRONG**
+- ❌ `icon-focus-sd.png` — 214×144 px (needs **246×140 px**) — **WRONG**
+- ❌ `icon-side-hd.png` — 175×29 px (needs **176×110 px**) — **WRONG**
+- ❌ `splash-sd.png` — 960×540 px (needs **720×480 px**) — **WRONG**
+- ✅ `splash-hd.png` — 1280×720 px — **CORRECT**
+- ✅ `splash-fhd.png` — 1920×1080 px — **CORRECT** (added to manifest 2026-08-07)
+
+**All four wrong-dimension files must be regenerated before the channel can be submitted to the Roku Store.**
+
+---
+
+
 ## Overview
 
 The Phlix Roku channel requires correctly-sized artwork in 5 categories. All images must be PNG format with no alpha transparency issues on any background.
