@@ -297,14 +297,14 @@ sub ShowAbout()
     version = "1.0.1"
     deviceModel = GetDeviceModel()
     deviceId = GetStorage().get("device_id")
+    videoMode = GetDeviceVideoMode()
+    totalMemoryMB = DeviceInfoData().totalMemoryMB
 
     info = "Version: " + version + Chr(10)
     info = info + "Device Model: " + deviceModel + Chr(10)
     info = info + "Device ID: " + IIF(deviceId <> invalid, deviceId, "Unknown") + Chr(10)
-    info = info + Chr(10)
-    info = info + "Live TV is admin-only (R7.9)" + Chr(10)
-    info = info + "Blocked: channel up/down, now/next," + Chr(10)
-    info = info + "recording, timeshift"
+    info = info + "Video Mode: " + videoMode + Chr(10)
+    info = info + "Total Memory: " + str(totalMemoryMB).trim() + " MB"
 
     m.statusLabel.text = info
 end sub
