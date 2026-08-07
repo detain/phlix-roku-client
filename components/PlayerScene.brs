@@ -13,12 +13,14 @@
 ' ===========================================
 
 sub Init()
-    m.top.SetFocus(true)
-
     ' Create video player
     m.videoPlayer = m.top.FindNode("videoPlayer")
     m.videoPlayer.EnableCookies()
     m.videoPlayer.SetCertificatesFile("common:/certs/ca-bundle.crt")
+
+    ' R2.2: Set focus on Video node so Roku's built-in trick-play UI
+    ' (slow-mo, instant replay via transport keys) works correctly.
+    m.videoPlayer.SetFocus(true)
 
     ' Set up listeners
     m.videoPlayer.ObserveField("state", "OnPlayerStateChange")
