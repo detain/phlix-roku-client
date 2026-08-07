@@ -126,8 +126,8 @@ sub OnLogoutConfirmed(index as Integer)
     m.top.dialog = invalid
 
     if index = 1 then
-        GetApiClient().logout()
-        m.top.requestClose = true
+        ' R1.3: Call OnLogout to clear ALL 6 registry keys, not just ApiClient.logout()
+        m.top.GetParent().GetParent().OnLogout()
     end if
 end sub
 
@@ -300,12 +300,16 @@ sub ShowAbout()
 
     info = "Version: " + version + Chr(10)
     info = info + "Device Model: " + deviceModel + Chr(10)
-    info = info + "Device ID: " + IIF(deviceId <> invalid, deviceId, "Unknown")
+    info = info + "Device ID: " + IIF(deviceId <> invalid, deviceId, "Unknown") + Chr(10)
+    info = info + Chr(10)
+    info = info + "Live TV is admin-only (R7.9)" + Chr(10)
+    info = info + "Blocked: channel up/down, now/next," + Chr(10)
+    info = info + "recording, timeshift"
 
     m.statusLabel.text = info
 end sub
 
-sub OnKeyEvent(key as String, press as Boolean) as Boolean
+function OnKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
 
     if key = "back" then
@@ -320,7 +324,7 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
     end if
 
     return false
-end sub
+end function
 
 sub Teardown()
     if m.settingsList <> invalid then

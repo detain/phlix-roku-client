@@ -257,11 +257,28 @@ function GetPosterDecodeSize() as Integer
 end function
 
 ' Get device diagnostics string for logging.
-' R6.8: Device model and video mode appear in diagnostics output.
+' R7.8: Device model and video mode appear in diagnostics output.
 ' @return String - formatted diagnostics string
 function GetDeviceDiagnostics() as String
     info = DeviceInfoData()
     return "device=" + info.model + " videoMode=" + info.videoMode + " memoryTier=" + info.memoryTier + " (" + info.totalMemoryMB.toStr() + "MB)"
+end function
+
+' ===========================================
+' Admin State (R7.9)
+' Tracks whether the current logged-in user is an admin.
+' Set by HomeScene.OnMeResponse after /auth/me returns.
+' Used by AdminScene to gate Live TV and other admin-only menu items.
+' Function-property pattern provides module-level persistence.
+' ===========================================
+function SetIsAdmin(value as Boolean) as Void
+    SetIsAdmin.isAdmin = value
+end function
+
+function GetIsAdmin() as Boolean
+    v = SetIsAdmin.isAdmin
+    if v = invalid then return false
+    return v
 end function
 
 

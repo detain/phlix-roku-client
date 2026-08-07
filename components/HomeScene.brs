@@ -197,6 +197,8 @@ sub OnMeResponse(resp as Object)
 
     if resp.ok and resp.data <> invalid then
         m.isAdmin = IsAdminUser(resp.data)
+        ' R7.9: Persist admin state for AdminScene menu filtering
+        SetIsAdmin(m.isAdmin)
         if m.isAdmin and m.adminButton <> invalid then m.adminButton.visible = true
     end if
 
@@ -622,7 +624,7 @@ sub OnChildRequestClose()
     m.top.requestClose = true
 end sub
 
-sub OnKeyEvent(key as String, press as Boolean) as Boolean
+function OnKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
     if press then
@@ -705,4 +707,4 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
     end if
 
     return handled
-end sub
+end function

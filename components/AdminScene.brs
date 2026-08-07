@@ -19,17 +19,25 @@
 sub Init()
     m.top.SetFocus(true)
 
-    ' Static menu backing array. Each row: { label, scene }. Extensible - future
-    ' slices push more rows (Libraries, Users, Live TV) here.
+    ' R7.9: Base admin menu (always shown to admins).
+    ' TV Guide, Recordings, and Series Rules are also admin-only on the server
+    ' (403 for non-admins) but are kept visible since this scene is only
+    ' reachable by admins (HomeScene hides the admin button for non-admins).
+    ' Live TV is hidden for non-admins as an extra client-side guard.
     m.menuItems = [
         { label: "Dashboard", scene: "DashboardScene" }
         { label: "Libraries", scene: "LibraryAdminScene" }
         { label: "Users", scene: "UserAdminScene" }
-        { label: "Live TV", scene: "LiveTvScene" }
-        { label: "TV Guide", scene: "GuideScene" }
-        { label: "Recordings", scene: "RecordingsScene" }
-        { label: "Series Rules", scene: "SeriesRulesScene" }
     ]
+
+    ' R7.9: Live TV, Guide, Recordings, Series Rules are admin-only.
+    ' Hide these entries when GetIsAdmin() is false (belt-and-suspenders guard).
+    if GetIsAdmin() then
+        m.menuItems.Push({ label: "Live TV", scene: "LiveTvScene" })
+        m.menuItems.Push({ label: "TV Guide", scene: "GuideScene" })
+        m.menuItems.Push({ label: "Recordings", scene: "RecordingsScene" })
+        m.menuItems.Push({ label: "Series Rules", scene: "SeriesRulesScene" })
+    end if
 
     ' Text list (admin sections have no artwork).
     m.adminMenu = m.top.FindNode("adminMenu")
