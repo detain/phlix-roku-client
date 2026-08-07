@@ -32,6 +32,7 @@ sub Init()
     m.timeLabel = m.top.FindNode("timeLabel")
     m.titleLabel = m.top.FindNode("titleLabel")
     m.backButton = m.top.FindNode("backButton")
+    m.controlsOverlay = m.top.FindNode("controlsOverlay")
 
     ' Skip button nodes
     m.skipButton = m.top.FindNode("skipButton")
@@ -613,7 +614,16 @@ sub OnSkipButtonSelected()
 end sub
 
 sub ShowControls(shouldShow as Boolean)
-    ' Animate controls visibility
+    if m.controlsOverlay = invalid then return
+
+    m.controlsOverlay.visible = shouldShow
+
+    if shouldShow then
+        ' When showing controls, give focus to the back button
+        if m.backButton <> invalid then
+            m.backButton.setFocus(true)
+        end if
+    end if
 end sub
 
 sub StopPlayback()
@@ -868,7 +878,13 @@ sub BuildChapterMarkers()
         marker.translation = [chapterX, seekbarY]
         marker.visible = true
 
-        m.top.Append(marker)
+        ' P2-S5: Append markers to controlsOverlay so they render above video
+        ' but within the overlay's coordinate space
+        if m.controlsOverlay <> invalid then
+            m.controlsOverlay.Append(marker)
+        else
+            m.top.Append(marker)
+        end if
         m.chapterMarkers.Push(marker)
 
         nextChapter:
@@ -965,10 +981,14 @@ sub ClosePlayer()
         m.skipButtonComponent.cleanup()
     end if
 
-    ' P2-S5: clean up chapter markers
+    ' P2-S5: clean up chapter markers - remove from whichever parent they were appended to
     for each marker in m.chapterMarkers
         if marker <> invalid then
-            m.top.RemoveChild(marker)
+            if m.controlsOverlay <> invalid and marker.getParent() = m.controlsOverlay then
+                m.controlsOverlay.RemoveChild(marker)
+            else
+                m.top.RemoveChild(marker)
+            end if
         end if
     end for
     m.chapterMarkers = []
@@ -981,6 +1001,23 @@ sub ClosePlayer()
     end if
     if m.chapterLabel <> invalid then
         m.chapterLabel.visible = false
+    end if
+
+    ' --- P3-S4 PiP cleanup: hide overlay and reset state ---
+    if m.pipSnapshotContainer <> invalid then
+        m.pipSnapshotContainer.visible = false
+    end if
+    if m.pipExitButton <> invalid then
+        m.pipExitButton.UnObserveField("buttonSelected")
+    end if
+    ' Reset PiP video state if active
+    if m.pipActive then
+        m.pipActive = false
+        if m.videoPlayer <> invalid then
+            m.videoPlayer.width = 1280
+            m.videoPlayer.height = 720
+            m.videoPlayer.translation = [0, 0]
+        end if
     end if
 
     ' Unobserve the video node fields registered in Init.
@@ -1141,6 +1178,12 @@ sub OnKeyEvent(key as String, press as Boolean) as Boolean
                 handled = true
             end if
             return handled
+        end if
+
+        ' --- P3-S4 Sleep Timer: press sleep key to open the panel. ---
+        if key = "sleep" then
+            ToggleSleepTimerPanel()
+            handled = true
         end if
 
         ' --- P3-S4 PiP snapshot overlay: back/exit closes PiP mode. ---
