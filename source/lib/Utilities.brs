@@ -304,6 +304,16 @@ sub ShowErrorDialog(scene as Object, title as String, message as String, buttons
     if scene = invalid then return
     if buttons = invalid or (type(buttons) = "roArray" and buttons.Count() = 0) then buttons = ["OK"]
 
+    ' Track the currently-focused node so we can restore it when the dialog closes.
+    ' R3.1: Without this, focus is lost on dismiss → remote becomes unresponsive.
+    previousFocus = invalid
+    for each child in scene.GetChildren(-1, 0)
+        if child.IsInFocusChain() then
+            previousFocus = child
+            exit for
+        end if
+    end for
+
     dialog = CreateObject("roSGNode", "Dialog")
     dialog.title = title
     dialog.message = message
@@ -315,12 +325,15 @@ sub ShowErrorDialog(scene as Object, title as String, message as String, buttons
         dialog.callback = callback
     end if
 
+    ' R3.1: Store previous focus on the dialog for restoration on dismiss.
+    dialog.previousFocus = previousFocus
+
     dialog.observeField("wasClosed", "OnDialogClosed")
     scene.dialog = dialog
 end sub
 
 ' Observer handler for dialog buttonSelected — fires when user presses a button.
-' Invokes the stored callback with the button index, then clears the dialog reference.
+' Invokes the stored callback with the button index, then closes and restores focus.
 sub OnDialogButtonSelected(event as Object)
     dialog = event.GetNode()
     index = event.GetData()
@@ -328,15 +341,23 @@ sub OnDialogButtonSelected(event as Object)
         dialog.callback(index)
     end if
     dialog.Close = true
+    ' R3.1: Restore focus to the previously-focused node if it's not already focused.
+    if dialog.previousFocus <> invalid and not dialog.previousFocus.IsInFocusChain() then
+        dialog.previousFocus.SetFocus(true)
+    end if
 end sub
 
 ' Observer handler for dialog wasClosed — fires when user dismisses via Back.
-' Clears the dialog reference from the scene without invoking any callback.
+' Closes the dialog (if not already closing) and restores focus to the previous node.
 sub OnDialogClosed(event as Object)
     dialog = event.GetNode()
     ' wasClosed fires after any button press too; guard to avoid double-close.
     if dialog.Close <> true then
         dialog.Close = true
+    end if
+    ' R3.1: Restore focus to the previously-focused node if it's not already focused.
+    if dialog.previousFocus <> invalid and not dialog.previousFocus.IsInFocusChain() then
+        dialog.previousFocus.SetFocus(true)
     end if
 end sub
 
