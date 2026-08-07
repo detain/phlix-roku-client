@@ -81,8 +81,6 @@ sub OnItemSelected(event as Object)
         TogglePip()
     else if index = 10 then
         ShowWatchHistory()
-    else if index = 11 then
-        ShowHistory()
     else if index = 12 then
         ' Notifications header - do nothing, sub-items handle toggles
     else if index = 13 then
@@ -212,12 +210,6 @@ sub OnClearHistoryConfirmed(index as Integer)
         GetApiClient().clearWatchHistory()
         m.statusLabel.text = "Watch history cleared"
     end if
-end sub
-
-sub ShowHistory()
-    scene = CreateObject("roSGNode", "HistoryScene")
-    m.top.Append(scene)
-    scene.ObserveField("requestClose", "OnChildRequestClose")
 end sub
 
 sub TogglePip()

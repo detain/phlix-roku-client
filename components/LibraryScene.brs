@@ -64,6 +64,7 @@ sub Init()
     m.loadingPage = false
     m.contentNode = invalid
     m.prefetchThreshold = 15 ' one screen (5 cols x 3 rows = 15 visible)
+    m.teardownOnClose = true
 
     ' Sort/filter state
     m.sortField = m.sortName
@@ -478,6 +479,7 @@ end sub
 
 ' Bubble requestClose from a child scene up to the parent.
 sub OnChildRequestClose()
+    Teardown()
     m.top.requestClose = true
 end sub
 
@@ -497,3 +499,19 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+sub Teardown()
+    if m.posterGrid <> invalid
+        m.posterGrid.UnObserveField("itemSelected")
+        m.posterGrid.UnObserveField("itemFocused")
+    end if
+    if m.backButton <> invalid
+        m.backButton.UnObserveField("buttonSelected")
+    end if
+    if m.optionsButton <> invalid
+        m.optionsButton.UnObserveField("buttonSelected")
+    end if
+    if m.top <> invalid
+        m.top.UnObserveField("requestClose")
+    end if
+end sub

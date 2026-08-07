@@ -530,29 +530,6 @@ sub ExecRequest()
                     CacheStore(api, "GET", cachePath, resp)
                 end if
             end if
-        else if req.op = "getWatchHistory" then
-            ' R7.4a: Watch history - no caching (frequently updated)
-            opts = req.options
-            if opts = invalid then opts = {}
-            limit = 50
-            offset = 0
-            if opts.DoesExist("limit") then limit = opts.limit
-            if opts.DoesExist("offset") then offset = opts.offset
-            cachePath = "/users/me/history?limit=" + str(limit).trim() + "&offset=" + str(offset).trim()
-            cachedResp = CacheTryGet(api, "GET", cachePath)
-            if cachedResp <> invalid then
-                result.data = cachedResp
-                result.ok = DeriveResponseOk(cachedResp)
-                result.error = DeriveResponseError(cachedResp)
-            else
-                resp = api.request("GET", cachePath, invalid)
-                result.data = resp
-                result.ok = DeriveResponseOk(resp)
-                result.error = DeriveResponseError(resp)
-                if result.ok then
-                    CacheStore(api, "GET", cachePath, resp)
-                end if
-            end if
         else if req.op = "getArtists" then
             result.data = api.getArtists()
             result.ok = DeriveResponseOk(result.data)
