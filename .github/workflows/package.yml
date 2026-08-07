@@ -103,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ROKU_HOST: ${{ secrets.ROKU_HOST }}
-    if: env.ROKU_HOST != ''
+    if: secrets.ROKU_HOST != ''
     steps:
       - uses: actions/checkout@v6
       - name: Build signed package
