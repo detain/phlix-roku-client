@@ -15,12 +15,24 @@ TESTS_DIR = tests
 LIB_DIR = $(SOURCE_DIR)/lib
 COMPONENTS_DIR = components
 
+# R8.8: Inject version from package.json into manifest at build time
+BUILD_DIR = build
+MANIFEST_SRC = manifest
+MANIFEST_OUT = $(BUILD_DIR)/manifest
+
+_update-manifest: $(MANIFEST_SRC)
+	@mkdir -p $(BUILD_DIR)
+	@sed -e 's/^major_version=.*/major_version=$(shell $(CURDIR)/scripts/derive-version.sh --major)/' \
+	      -e 's/^minor_version=.*/minor_version=$(shell $(CURDIR)/scripts/derive-version.sh --minor)/' \
+	      -e 's/^build_version=.*/build_version=$(shell $(CURDIR)/scripts/derive-version.sh --build)/' \
+	      $(MANIFEST_SRC) > $(MANIFEST_OUT)
+
 all: package
 
 # Create zip package for sideloading
-package:
-	@echo "Creating $(PKG_NAME).zip..."
-	zip -r $(PKG_NAME).zip manifest source components images
+package: _update-manifest
+	@echo "Packaging version $(PKG_VERSION)..."
+	zip -r $(PKG_NAME).zip $(MANIFEST_OUT) source components images
 
 # Build a signed package for store submission
 # Requires: ROKU_DEV_PASSWORD set, rokudev auth via `rokudev auth`
