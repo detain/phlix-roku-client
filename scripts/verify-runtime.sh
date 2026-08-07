@@ -518,4 +518,4 @@ PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
-[[ $VIOLATIONS -eq 1 ]] && exit 1
+exit $((VIOLATIONS))
