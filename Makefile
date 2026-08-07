@@ -118,7 +118,7 @@ test-unit:
 		echo "Tests require hardware — skipping"; \
 		echo "Unit test files present:"; \
 		if [ -d $(TESTS_DIR)/unit ]; then find $(TESTS_DIR)/unit -name "*.test.brs" -exec basename {} \; | head -10; else echo "  (none)"; fi; \
-		exit 0; \
+		exit 2; \
 	fi
 
 _run_rooibos_unit:
