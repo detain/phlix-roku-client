@@ -1078,7 +1078,7 @@ function ApiClient(baseUrl as String) as Object
 
         ' POST /syncplay/groups/{id}/leave -> {message}
         leaveSyncPlayGroup: function(roomId as String) as Object
-            return m.request("POST", "/syncplay/groups/" + roomId + "/leave", invalid)
+            return m.request("DELETE", "/syncplay/groups/" + roomId + "/leave", invalid)
         end function
 
         ' ---------------------------------------------------------------------
@@ -1158,22 +1158,6 @@ function ApiClient(baseUrl as String) as Object
         ' ---------------------------------------------------------------------
         clearWatchHistory: function() as Object
             return m.request("DELETE", "/users/me/history", invalid)
-        end function
-
-        ' GET /users/me/history?limit&offset -> {items:[...],total}
-        ' Returns watch history items with id, title, poster, progress, lastWatched.
-        getWatchHistory: function(options = {} as Object) as Object
-            limit = 50
-            offset = 0
-            if options.DoesExist("limit") then limit = options.limit
-            if options.DoesExist("offset") then offset = options.offset
-
-            params = []
-            params.push("limit=" + str(limit).trim())
-            params.push("offset=" + str(offset).trim())
-
-            query = "?" + JoinStrings(params, "&")
-            return m.request("GET", "/users/me/history" + query, invalid)
         end function
 
         ' ---------------------------------------------------------------------
