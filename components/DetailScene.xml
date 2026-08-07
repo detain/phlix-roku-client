@@ -102,6 +102,9 @@
                         visible="false"
                         id="likeButton" />
             </Rectangle>
+
+            <!-- R7.4: Cast row - horizontal scrollable list of cast members -->
+            <Row id="castRow" title="Cast" visible="false" translation="[0,460]" />
         </Rectangle>
 
         <!-- Loading Indicator -->

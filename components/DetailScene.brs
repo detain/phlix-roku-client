@@ -851,6 +851,23 @@ sub DisplayCast(data as Object)
 
     ' Cast data stored for UI consumption
     m.castData = castArray
+
+    ' R7.4: Wire data to UI - find cast row and populate with content nodes
+    if m.castRow = invalid then m.castRow = m.top.FindNode("castRow")
+    if m.castRow = invalid then return
+
+    content = CreateObject("roSGNode", "ContentNode")
+    for each person in castArray
+        item = content.CreateChild("ContentNode")
+        item.Title = person.name
+        item.Description = person.role
+        if person.thumbnail_url <> invalid and person.thumbnail_url <> "" then
+            item.HDPosterUrl = person.thumbnail_url
+        end if
+    end for
+
+    m.castRow.content = content
+    m.castRow.visible = (castArray.Count() > 0)
 end sub
 
 ' ---------------------------------------------------------------------
