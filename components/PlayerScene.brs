@@ -2935,6 +2935,28 @@ sub OnUpNextItemResponse(resp as Object)
     m.apiTask.control = "run"
 end sub
 
+' R7.2: Handle requestClose from the Up Next child scene
+sub OnChildRequestClose(event as Object)
+    child = event.GetNode()
+    if child <> invalid then
+        ' Stop any timers and clean up the child scene
+        if m.upNextTimer <> invalid then
+            m.upNextTimer.control = "stop"
+            m.upNextTimer.UnObserveField("fire")
+            m.top.RemoveChild(m.upNextTimer)
+            m.upNextTimer = invalid
+        end if
+        
+        ' Dismiss the up-next card
+        if m.upNextCard <> invalid then
+            m.upNextCard.visible = false
+        end if
+        
+        ' Remove the child scene
+        m.top.RemoveChild(child)
+    end if
+end sub
+
 ' R7.2: Handle getItemPlaybackInfo response — launch PlayerScene for the up-next item.
 sub OnUpNextPlaybackInfoResponse(resp as Object)
     if m.pendingUpNextItem = invalid then return
