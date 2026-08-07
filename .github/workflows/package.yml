@@ -63,13 +63,51 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ROKU_HOST: ${{ secrets.ROKU_HOST }}
-    if: ${{ env.ROKU_HOST }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm ci
+      - name: Run unit tests
+        if: env.ROKU_HOST != ''
+        run: make test-unit
+
+  # ===========================================
+  # Package and release
+  # ===========================================
+
+  package:
+    name: Build sideload package
+    needs: [lint-bsc, lint-validate-xml, lint-validate-manifest, lint-verify-runtime]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build sideload zip (manifest + source + images)
+        run: make package
+
+      - name: Upload sideload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: phlix-roku-sideload
+          path: phlix.zip
+          if-no-files-found: error
+
+  package-signed:
+    name: Build signed package (device-dependent)
+    needs: package
+    runs-on: ubuntu-latest
     env:
       ROKU_HOST: ${{ secrets.ROKU_HOST }}
-    if: ${{ env.ROKU_HOST != '' }}
     steps:
       - uses: actions/checkout@v6
       - name: Build signed package
+        if: env.ROKU_HOST != ''
         run: make package-signed
 
   release-latest:
