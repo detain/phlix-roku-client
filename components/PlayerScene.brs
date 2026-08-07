@@ -506,7 +506,7 @@ sub OnApiResponse(event as Object)
 
     if resp.op = "startTranscode" then
         if not resp.ok or resp.data = invalid then
-            ShowErrorDialog(m.top, "Error", "Could not start transcode.", ["Retry", "Cancel"], OnStartTranscodeRetry)
+            ShowErrorDialog(m.top, "Error", GetErrorMessage(resp.error), ["Retry", "Cancel"], OnStartTranscodeRetry)
             return
         end if
         data = resp.data
@@ -554,7 +554,7 @@ sub OnTranscodePollResponse(event as Object)
         PlayPreferredOrMaster()
     else if data.status = "failed" then
         stopTranscodePollTimer()
-        ShowErrorDialog(m.top, "Error", "Transcode failed.", ["Retry", "Cancel"], OnTranscodeFailedRetry)
+        ShowErrorDialog(m.top, "Error", GetErrorMessage(resp.error), ["Retry", "Cancel"], OnTranscodeFailedRetry)
     end if
 end sub
 

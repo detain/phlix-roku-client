@@ -749,6 +749,24 @@ function FormatExifSummary(exif as Object) as String
     return JoinStrings(lines, Chr(10))
 end function
 
+' R3.2: Get user-friendly error message, falling back to generic message for HTTP codes
+function GetErrorMessage(apiError as String) as String
+    if apiError = "" or apiError = invalid then return "An error occurred. Please try again."
+    if left(apiError, 5) = "http_" then
+        ' Generic HTTP error codes - use friendly messages
+        code = right(apiError, len(apiError) - 5)
+        if code = "401" then return "You are not logged in. Please sign in again."
+        if code = "403" then return "You don't have permission to do that."
+        if code = "404" then return "The requested item was not found."
+        if code = "500" then return "Server error. Please try again later."
+        if code = "502" or code = "503" then return "Server is temporarily unavailable."
+        return "An error occurred. Please try again."
+    end if
+    ' Specific server error message - use it
+    if len(apiError) > 0 then return apiError
+    return "An error occurred. Please try again."
+end function
+
 ' True when the user assocarray is flagged admin. is_admin arrives from JSON as a
 ' TINYINT Integer (1/0) but may be a Boolean; both coerce via Int() (Int(true)=1,
 ' Int(false)=0). Only Int()-coerce numeric/boolean types — Int() on a String can

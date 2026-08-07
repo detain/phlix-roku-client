@@ -183,7 +183,7 @@ sub OnApiResponse(event as Object)
                 m.userData.liked = not m.userData.liked
                 RenderLike()
             end if
-            ShowErrorDialog(m.top, Translate("common_error"), "Couldn't update like. Please try again.")
+            ShowErrorDialog(m.top, Translate("common_error"), GetErrorMessage(resp.error))
         end if
     else if resp.op = "getItemSimilar" then
         ' R7.4: Store similar items and display if available.
@@ -260,11 +260,11 @@ sub OnApiResponse(event as Object)
         end if
     else if resp.op = "addToCollection" then
         if not resp.ok then
-            ShowErrorDialog(m.top, Translate("common_error"), "Couldn't add to collection. Please try again.")
+            ShowErrorDialog(m.top, Translate("common_error"), GetErrorMessage(resp.error))
         end if
     else if resp.op = "removeFromCollection" then
         if not resp.ok then
-            ShowErrorDialog(m.top, Translate("common_error"), "Couldn't remove from collection. Please try again.")
+            ShowErrorDialog(m.top, Translate("common_error"), GetErrorMessage(resp.error))
         end if
     end if
 end sub
