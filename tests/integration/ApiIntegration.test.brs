@@ -13,7 +13,7 @@
 
 sub TestApiConnection()
     ' Skip if no server available
-    serverUrl = Storage.get("server_url")
+    serverUrl = GetStorage().get("server_url")
     if serverUrl = "" then
         print "Skipping TestApiConnection - no server configured"
         return
