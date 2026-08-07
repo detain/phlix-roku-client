@@ -20,6 +20,7 @@ sub Init()
         { title: "Picture-in-Picture", type: "toggle", description: "Enable PiP during playback" },
         { title: "Watch History", type: "header" },
         { title: "Clear History", type: "action", description: "Remove all watch history data" },
+        { title: "View History", type: "action", description: "Browse your watch history" },
         { title: "Notifications", type: "header" },
         { title: "Push Notifications", type: "toggle", description: "Receive push notifications" },
         { title: "Email Notifications", type: "toggle", description: "Receive email notifications" },
@@ -81,14 +82,16 @@ sub OnItemSelected(event as Object)
     else if index = 10 then
         ShowWatchHistory()
     else if index = 11 then
-        ' Notifications header - do nothing, sub-items handle toggles
+        ShowHistory()
     else if index = 12 then
-        TogglePushNotifications()
+        ' Notifications header - do nothing, sub-items handle toggles
     else if index = 13 then
-        ToggleEmailNotifications()
+        TogglePushNotifications()
     else if index = 14 then
-        ShowAbout()
+        ToggleEmailNotifications()
     else if index = 15 then
+        ShowAbout()
+    else if index = 16 then
         ShowAbout()
     end if
 end sub
@@ -209,6 +212,12 @@ sub OnClearHistoryConfirmed(index as Integer)
         GetApiClient().clearWatchHistory()
         m.statusLabel.text = "Watch history cleared"
     end if
+end sub
+
+sub ShowHistory()
+    scene = CreateObject("roSGNode", "HistoryScene")
+    m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
 end sub
 
 sub TogglePip()
