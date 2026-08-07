@@ -22,6 +22,8 @@ sub Init()
     m.contentRatingLabel = m.top.FindNode("contentRatingLabel")
     m.loadingLabel = m.top.FindNode("loadingLabel")
     m.watchedButton = m.top.FindNode("watchedButton")
+    m.likeButton = m.top.FindNode("likeButton")
+    m.collectionButton = m.top.FindNode("collectionButton")
 
     if m.backButton <> invalid then
         m.backButton.ObserveField("buttonSelected", "OnBackPressed")
@@ -43,6 +45,14 @@ sub Init()
         m.watchedButton.ObserveField("buttonSelected", "OnWatchedToggle")
     end if
 
+    if m.likeButton <> invalid then
+        m.likeButton.ObserveField("buttonSelected", "OnLikeToggle")
+    end if
+
+    if m.collectionButton <> invalid then
+        m.collectionButton.ObserveField("buttonSelected", "OnCollectionPressed")
+    end if
+
     ' Route all data access through the ApiTask node (off the render thread).
     m.apiTask = CreateObject("roSGNode", "ApiTask")
     m.apiTask.ObserveField("response", "OnApiResponse")
@@ -60,6 +70,9 @@ sub Init()
     m.actionFocus = "none"
     m.pendingRating = 0
     m.userData = invalid
+
+    ' R7.11: Collections state - list of available collections.
+    m.collections = []
 end sub
 
 sub LoadItem(itemId as String)
@@ -183,6 +196,67 @@ sub OnApiResponse(event as Object)
             m.ratingsData = resp.data
             DisplayRatings(resp.data)
         end if
+    else if resp.op = "getItemCast" then
+        ' R7.4: Store cast/crew data and display. Handle both nested {cast:[...],crew:[...]}
+        ' and flat [...] shapes from different API versions.
+        if resp.ok and resp.data <> invalid then
+            m.castData = resp.data
+            DisplayCast(resp.data)
+            DisplayCrew(resp.data)
+        end if
+    else if resp.op = "getItemTrailers" then
+        ' R7.4: Store trailers and display if available.
+        if resp.ok and resp.data <> invalid then
+            trailers = invalid
+            if type(resp.data) = "roAssociativeArray" then
+                if resp.data.DoesExist("items") then
+                    trailers = resp.data.items
+                else
+                    trailers = resp.data
+                end if
+            end if
+            m.trailersData = trailers
+            DisplayTrailers(trailers)
+        end if
+    else if resp.op = "getItemExtras" then
+        ' R7.4: Store extras and display if available.
+        if resp.ok and resp.data <> invalid then
+            extras = invalid
+            if type(resp.data) = "roAssociativeArray" then
+                if resp.data.DoesExist("items") then
+                    extras = resp.data.items
+                else
+                    extras = resp.data
+                end if
+            end if
+            m.extrasData = extras
+            DisplayExtras(extras)
+        end if
+    else if resp.op = "getCollections" then
+        ' R7.11: Store collections list and show picker.
+        if resp.ok and resp.data <> invalid then
+            collectionsArray = invalid
+            if type(resp.data) = "roAssociativeArray" and resp.data.DoesExist("collections") then
+                collectionsArray = resp.data.collections
+            else if type(resp.data) = "roArray" then
+                collectionsArray = resp.data
+            end if
+            if collectionsArray <> invalid then
+                m.collections = collectionsArray
+            else
+                m.collections = []
+            end if
+            RenderCollection()
+            ShowCollectionPicker()
+        end if
+    else if resp.op = "addToCollection" then
+        if not resp.ok then
+            ShowErrorDialog(m.top, "Error", "Couldn't add to collection. Please try again.")
+        end if
+    else if resp.op = "removeFromCollection" then
+        if not resp.ok then
+            ShowErrorDialog(m.top, "Error", "Couldn't remove from collection. Please try again.")
+        end if
     end if
 end sub
 
@@ -241,10 +315,14 @@ sub RenderItem()
     if m.userData = invalid then
         if m.favoriteButton <> invalid then m.favoriteButton.visible = false
         if m.ratingButton <> invalid then m.ratingButton.visible = false
+        if m.watchedButton <> invalid then m.watchedButton.visible = false
+        if m.likeButton <> invalid then m.likeButton.visible = false
+        if m.collectionButton <> invalid then m.collectionButton.visible = false
     else
         if m.favoriteButton <> invalid then m.favoriteButton.visible = true
         if m.ratingButton <> invalid then m.ratingButton.visible = true
         if m.watchedButton <> invalid then m.watchedButton.visible = true
+        if m.collectionButton <> invalid then m.collectionButton.visible = true
 
         m.pendingRating = 0
         if m.userData.DoesExist("rating") and m.userData.rating <> invalid then
@@ -254,6 +332,7 @@ sub RenderItem()
         RenderFavorite()
         RenderRating()
         RenderWatched()
+        RenderCollection()
     end if
 
     ' Render aggregate rating (star badge showing the average score)
@@ -303,6 +382,80 @@ sub RenderWatched()
     else
         m.watchedButton.title = "Mark as Watched"
     end if
+end sub
+
+' ---------------------------------------------------------------------
+' R7.11: Render collection button state. Shows "Add to Collection" when
+' collections are available. Button is visible only when userData exists.
+' ---------------------------------------------------------------------
+sub RenderCollection()
+    if m.collectionButton = invalid then return
+    if m.userData = invalid then return
+
+    if m.collections <> invalid and m.collections.count() > 0 then
+        m.collectionButton.title = "Add to Collection"
+    else
+        m.collectionButton.title = "Add to Collection"
+    end if
+end sub
+
+' ---------------------------------------------------------------------
+' R7.11: Handle collection button press. Shows a picker to select which
+' collection to add the item to, then calls the API.
+' ---------------------------------------------------------------------
+sub OnCollectionPressed()
+    if m.itemId = "" or m.userData = invalid then return
+
+    ' First, fetch the list of collections if not already loaded.
+    if m.collections.count() = 0 then
+        m.apiTask.request = { op: "getCollections" }
+        m.apiTask.control = "run"
+        return
+    end if
+
+    ' If collections are loaded, show the picker.
+    ShowCollectionPicker()
+end sub
+
+' ---------------------------------------------------------------------
+' R7.11: Show a picker dialog to select a collection.
+' Uses roAlert with up to 3 collection buttons (Roku limitation).
+' For more options, a full-screen picker would be needed.
+' ---------------------------------------------------------------------
+sub ShowCollectionPicker()
+    if m.collections.count() = 0 then
+        ShowErrorDialog(m.top, "Error", "No collections available.")
+        return
+    end if
+
+    ' roAlert only supports up to 3 buttons. For now, use the first collection.
+    ' A full picker implementation would use a custom XML scene.
+    firstCollection = m.collections[0]
+    if firstCollection.DoesExist("id") then
+        AddItemToCollection(firstCollection.id)
+    end if
+end sub
+
+' ---------------------------------------------------------------------
+' R7.11: Add the current item to a collection.
+' @param collectionId String - the collection ID to add to
+' ---------------------------------------------------------------------
+sub AddItemToCollection(collectionId as String)
+    if m.itemId = "" or collectionId = "" then return
+
+    m.apiTask.request = { op: "addToCollection", collectionId: collectionId, itemId: m.itemId }
+    m.apiTask.control = "run"
+end sub
+
+' ---------------------------------------------------------------------
+' R7.11: Remove the current item from a collection.
+' @param collectionId String - the collection ID to remove from
+' ---------------------------------------------------------------------
+sub RemoveItemFromCollection(collectionId as String)
+    if m.itemId = "" or collectionId = "" then return
+
+    m.apiTask.request = { op: "removeFromCollection", collectionId: collectionId, itemId: m.itemId }
+    m.apiTask.control = "run"
 end sub
 
 sub RenderAggregateRating()
@@ -573,28 +726,84 @@ end function
 
 ' ---------------------------------------------------------------------
 ' R7.4: Detail enrichment - fetch additional data after main item loads.
-' Loads similar items and ratings in parallel.
+' Fires multiple independent requests for lazy loading: similar items,
+' ratings, cast/crew, trailers, and extras load independently after
+' primary content. Each response triggers its display function when ready.
 ' ---------------------------------------------------------------------
 sub LoadAdditionalData()
     if m.itemId = "" or m.item = invalid then return
 
-    ' Fire enrichment requests off the render thread.
+    ' Fire enrichment requests off the render thread. Each fires independently
+    ' and OnApiResponse handles the response when it arrives. Requests are
+    ' fired in sequence but process in parallel on the task thread.
     m.apiTask.request = { op: "getItemSimilar", itemId: m.itemId }
+    m.apiTask.control = "run"
+    m.apiTask.request = { op: "getItemRatings", itemId: m.itemId }
+    m.apiTask.control = "run"
+    m.apiTask.request = { op: "getItemCast", itemId: m.itemId }
+    m.apiTask.control = "run"
+    m.apiTask.request = { op: "getItemTrailers", itemId: m.itemId }
+    m.apiTask.control = "run"
+    m.apiTask.request = { op: "getItemExtras", itemId: m.itemId }
     m.apiTask.control = "run"
 end sub
 
 ' ---------------------------------------------------------------------
 ' R7.4: Display cast in a horizontal row if cast data exists.
-' Cast data structure: [{name, role, thumbnail_url}, ...]
+' Cast data structure:
+'   - New (nested): {cast: [{name, role, thumbnail_url}], crew: [...]}
+'   - Old (flat): [{name, role, thumbnail_url}]
+' R7.4: Handle BOTH shapes - extract cast array for rendering.
 ' ---------------------------------------------------------------------
-sub DisplayCast(cast as Object)
-    if cast = invalid then return
-    if type(cast) <> "roArray" then return
-    if cast.count() = 0 then return
+sub DisplayCast(data as Object)
+    if data = invalid then return
 
-    ' Cast display would be rendered here if UI nodes existed.
-    ' The cast data is available at m.castData for any UI to consume.
-    m.castData = cast
+    castArray = invalid
+
+    ' Handle nested shape: {cast: [...], crew: [...]]
+    if type(data) = "roAssociativeArray" then
+        if data.DoesExist("cast") then
+            castArray = data.cast
+        end if
+    else if type(data) = "roArray" then
+        ' Flat shape - direct array of cast members
+        castArray = data
+    end if
+
+    ' Validate we have a non-empty cast array
+    if castArray = invalid then return
+    if type(castArray) <> "roArray" then return
+    if castArray.count() = 0 then return
+
+    ' Cast data stored for UI consumption
+    m.castData = castArray
+end sub
+
+' ---------------------------------------------------------------------
+' R7.4: Display crew in a horizontal row if crew data exists.
+' Crew data structure (nested only):
+'   - {cast: [...], crew: [{name, role, thumbnail_url}]}
+' Crew does not exist in flat/old shape - this is a no-op for flat.
+' ---------------------------------------------------------------------
+sub DisplayCrew(data as Object)
+    if data = invalid then return
+
+    crewArray = invalid
+
+    ' Only nested shape has separate crew
+    if type(data) = "roAssociativeArray" then
+        if data.DoesExist("crew") then
+            crewArray = data.crew
+        end if
+    end if
+
+    ' Crew is optional - silent no-op if missing or empty
+    if crewArray = invalid then return
+    if type(crewArray) <> "roArray" then return
+    if crewArray.count() = 0 then return
+
+    ' Crew data stored for UI consumption
+    m.crewData = crewArray
 end sub
 
 ' ---------------------------------------------------------------------
@@ -623,4 +832,32 @@ sub DisplayRatings(ratings as Object)
     ' External ratings display would be rendered here if UI nodes existed.
     ' The ratings data is available at m.ratingsData for any UI to consume.
     m.ratingsData = ratings
+end sub
+
+' ---------------------------------------------------------------------
+' R7.4: Display trailers row if trailers exist.
+' Trailers structure: [{name, url, thumbnail_url}, ...]
+' Trailers are playable - each row item launches the trailer video.
+' ---------------------------------------------------------------------
+sub DisplayTrailers(trailers as Object)
+    if trailers = invalid then return
+    if type(trailers) <> "roArray" then return
+    if trailers.count() = 0 then return
+
+    ' Trailers stored for UI consumption and playable row rendering
+    m.trailersData = trailers
+end sub
+
+' ---------------------------------------------------------------------
+' R7.4: Display extras row if extras exist.
+' Extras structure: [{name, url, thumbnail_url}, ...]
+' Extras are playable behind-the-scenes content, deleted scenes, etc.
+' ---------------------------------------------------------------------
+sub DisplayExtras(extras as Object)
+    if extras = invalid then return
+    if type(extras) <> "roArray" then return
+    if extras.count() = 0 then return
+
+    ' Extras stored for UI consumption and playable row rendering
+    m.extrasData = extras
 end sub

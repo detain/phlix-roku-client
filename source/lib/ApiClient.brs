@@ -661,6 +661,15 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
+        ' Likes (R7.5). PUT toggles the like state for the authenticated user.
+        ' ---------------------------------------------------------------------
+
+        ' PUT /media/{id}/like -> {message} ; toggles like state.
+        like: function(itemId as String) as Object
+            return m.request("PUT", "/media/" + itemId + "/like", invalid)
+        end function
+
+        ' ---------------------------------------------------------------------
         ' Music (F6). All /music/* routes are Bearer-gated and aggregate across
         ' ALL music libraries server-side (no library_id param). These return
         ' the WHOLE envelope (mirror getFavorites); the scene reads the named key.
@@ -737,6 +746,24 @@ function ApiClient(baseUrl as String) as Object
         ' row with Utilities.NormalizeCollectionItem.
         getCollection: function(collectionId as String) as Object
             return m.request("GET", "/collections/" + collectionId, invalid)
+        end function
+
+        ' ---------------------------------------------------------------------
+        ' Collection write actions (R7.11). These are Bearer-gated (AuthMiddleware
+        ' added post-F8). A collection id and media item id are both UUIDs -> path
+        ' directly (no UrlEncode, consistent with getItem/addFavorite).
+        ' ---------------------------------------------------------------------
+
+        ' POST /collections/{id}/items/{mediaItemId} -> {message} ; adds an item
+        ' to a collection.
+        addToCollection: function(collectionId as String, mediaItemId as String) as Object
+            return m.request("POST", "/collections/" + collectionId + "/items/" + mediaItemId, invalid)
+        end function
+
+        ' DELETE /collections/{id}/items/{mediaItemId} -> {message} ; removes an
+        ' item from a collection.
+        removeFromCollection: function(collectionId as String, mediaItemId as String) as Object
+            return m.request("DELETE", "/collections/" + collectionId + "/items/" + mediaItemId, invalid)
         end function
 
         ' ---------------------------------------------------------------------
@@ -1162,6 +1189,26 @@ function ApiClient(baseUrl as String) as Object
         ' GET /media/{id}/ratings -> {ratings:{...}} ; returns external ratings.
         getItemRatings: function(mediaItemId as String) as Object
             return m.request("GET", "/media/" + mediaItemId + "/ratings", invalid)
+        end function
+
+        ' ---------------------------------------------------------------------
+        ' R7.4: Detail enrichment - cast/crew, trailers, extras.
+        ' ---------------------------------------------------------------------
+
+        ' GET /media/{id}/cast -> {cast:[{name,role,thumbnail_url}],crew:[{name,role,thumbnail_url}]}
+        ' or flat [{name,role,thumbnail_url}] for older APIs.
+        getItemCast: function(mediaItemId as String) as Object
+            return m.request("GET", "/media/" + mediaItemId + "/cast", invalid)
+        end function
+
+        ' GET /media/{id}/trailers -> {items:[{name,url,thumbnail_url}]} ; playable trailers.
+        getItemTrailers: function(mediaItemId as String) as Object
+            return m.request("GET", "/media/" + mediaItemId + "/trailers", invalid)
+        end function
+
+        ' GET /media/{id}/extras -> {items:[{name,url,thumbnail_url}]} ; behind-the-scenes etc.
+        getItemExtras: function(mediaItemId as String) as Object
+            return m.request("GET", "/media/" + mediaItemId + "/extras", invalid)
         end function
 
         ' ---------------------------------------------------------------------

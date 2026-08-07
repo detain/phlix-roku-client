@@ -289,13 +289,9 @@ sub ExecRequest()
             if opts = invalid then opts = {}
             limit = 50
             offset = 0
-            sort = "name"
-            order = "asc"
             if opts.DoesExist("limit") then limit = opts.limit
             if opts.DoesExist("offset") then offset = opts.offset
             if opts.DoesExist("startIndex") then offset = opts.startIndex
-            if opts.DoesExist("sort") then sort = opts.sort
-            if opts.DoesExist("order") then order = opts.order
             params = []
             if opts.DoesExist("parentId") then
                 params.push("parentId=" + UrlEncode(opts.parentId))
@@ -305,8 +301,10 @@ sub ExecRequest()
             end if
             params.push("limit=" + str(limit).trim())
             params.push("offset=" + str(offset).trim())
-            params.push("sort=" + UrlEncode(sort))
-            params.push("order=" + UrlEncode(order))
+            if opts.DoesExist("sort") then params.push("sort=" + UrlEncode(opts.sort))
+            if opts.DoesExist("order") then params.push("order=" + UrlEncode(opts.order))
+            if opts.DoesExist("genres") then params.push("genres=" + UrlEncode(opts.genres))
+            if opts.DoesExist("letter") then params.push("letter=" + UrlEncode(opts.letter))
             if opts.DoesExist("search") then params.push("search=" + UrlEncode(opts.search))
             cachePath = "/media?" + JoinStrings(params, "&")
             cachedResp = CacheTryGet(api, "GET", cachePath)
@@ -360,6 +358,18 @@ sub ExecRequest()
             result.data = api.getItemRatings(req.itemId)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
+        else if req.op = "getItemCast" then
+            result.data = api.getItemCast(req.itemId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+        else if req.op = "getItemTrailers" then
+            result.data = api.getItemTrailers(req.itemId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+        else if req.op = "getItemExtras" then
+            result.data = api.getItemExtras(req.itemId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
         else if req.op = "startTranscode" then
             result.data = api.startTranscode(req.itemId)
             result.ok = DeriveResponseOk(result.data)
@@ -394,6 +404,24 @@ sub ExecRequest()
                 result.error = DeriveResponseError(resp)
                 if result.ok then
                     CacheStore(api, "GET", "/me/continue-watching", resp)
+                end if
+            end if
+        else if req.op = "getNextUp" then
+            ' R7.2: Fetch the next episode/item for autoplay card and Up Next rail.
+            ' Endpoint: GET /api/v1/users/me/next-up
+            ' Response: direct item object (or null if nothing up next)
+            cachedResp = CacheTryGet(api, "GET", "/me/next-up")
+            if cachedResp <> invalid then
+                result.data = cachedResp
+                result.ok = DeriveResponseOk(cachedResp)
+                result.error = DeriveResponseError(cachedResp)
+            else
+                resp = api.request("GET", "/me/next-up", invalid)
+                result.data = resp
+                result.ok = DeriveResponseOk(resp)
+                result.error = DeriveResponseError(resp)
+                if result.ok then
+                    CacheStore(api, "GET", "/me/next-up", resp)
                 end if
             end if
         else if req.op = "getRecommendations" then
@@ -468,6 +496,14 @@ sub ExecRequest()
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
             ' R7.5: Invalidate cache after unwatched mutation.
+            if result.ok then
+                CacheInvalidateItem(api, req.itemId)
+            end if
+        else if req.op = "like" then
+            result.data = api.like(req.itemId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+            ' R7.5: Invalidate cache after like mutation.
             if result.ok then
                 CacheInvalidateItem(api, req.itemId)
             end if
@@ -571,6 +607,14 @@ sub ExecRequest()
             result.error = DeriveResponseError(result.data)
         else if req.op = "getCollection" then
             result.data = api.getCollection(req.collectionId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+        else if req.op = "addToCollection" then
+            result.data = api.addToCollection(req.collectionId, req.itemId)
+            result.ok = DeriveResponseOk(result.data)
+            result.error = DeriveResponseError(result.data)
+        else if req.op = "removeFromCollection" then
+            result.data = api.removeFromCollection(req.collectionId, req.itemId)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
         else if req.op = "getMe" then
