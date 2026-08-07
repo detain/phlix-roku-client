@@ -262,5 +262,24 @@
                         id="errorOkButton" />
             </Rectangle>
         </Rectangle>
+
+        <!-- Up Next card (R7.2) -->
+        <Rectangle height="300" width="500" translation="[390,240]"
+                   color="#1a1a2e" opacity="0.95" visible="false"
+                   id="upNextCard">
+            <LayoutGroup layoutDirection="horiz" translation="[15,15]" vertAlignment="center">
+                <Poster height="180" width="120" id="upNextCardPoster" />
+                <LayoutGroup translation="[20,0]" vertAlignment="top">
+                    <Label height="30" width="320" font="font:MediumBoldSystemFont"
+                           color="#FFFFFF" id="upNextCardTitle" />
+                    <Label height="20" width="320" font="font:SmallSystemFont"
+                           color="#AAAAAA" text="Up Next in" id="upNextCardCountdown" />
+                    <Button height="36" width="120" title="Play" translation="[0,10]"
+                            id="upNextPlayButton" />
+                    <Button height="36" width="120" title="Cancel" translation="[130,10]"
+                            id="upNextCancelButton" />
+                </LayoutGroup>
+            </LayoutGroup>
+        </Rectangle>
     </children>
 </component>

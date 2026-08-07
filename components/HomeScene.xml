@@ -52,6 +52,21 @@
                     id="continueGrid">
         </PosterGrid>
 
+        <!-- Up Next rail (R7.2 — shown after Continue Watching) -->
+        <Label height="36" width="1200" translation="[40,448]"
+               text="Up Next"
+               font="font:MediumBoldSystemFont"
+               color="#FFFFFF"
+               visible="false"
+               id="upNextLabel" />
+        <PosterGrid height="300" width="1280" translation="[0,488]"
+                    numColumns="5" numRows="1"
+                    itemSpacing="[20,15]"
+                    basePosterSize="[220,280]"
+                    visible="false"
+                    id="upNextGrid">
+        </PosterGrid>
+
         <!-- Libraries label -->
         <Label height="32" width="1200" translation="[40,448]"
                text="Libraries"
