@@ -68,6 +68,9 @@ sub Init()
     if m.statusLabel <> invalid then
         m.statusLabel.text = "Type to search…"
     end if
+
+    ' R5.2: Generation counter to discard stale (out-of-order) responses.
+    m.searchGen = 0
 end sub
 
 ' Keyboard text changed: debounce a search, or clear when the query is too short.
@@ -113,10 +116,15 @@ sub OnSearchTimerFire(event as Object)
     m.contentNode = invalid
 
     if m.apiTask.state = "run" then return
+
+    ' R5.2: Increment generation counter so stale responses are discarded.
+    m.searchGen = m.searchGen + 1
+
     m.apiTask.request = {
         op: "search"
         query: query
         options: { limit: m.limit, offset: m.offset }
+        searchGen: m.searchGen
     }
     m.apiTask.state = "run"
     m.apiTask.control = "run"
@@ -134,11 +142,17 @@ sub LoadMoreItems()
 
     m.loadingPage = true
 
+    ' R5.2: Capture current generation so stale page responses are discarded
+    ' if a new search fires before this page loads.
+    currentGen = m.searchGen
+
     m.apiTask.request = {
         op: "search"
         query: query
         options: { limit: m.limit, offset: m.offset }
+        searchGen: currentGen
     }
+    if m.apiTask.state = "run" then return
     m.apiTask.control = "run"
 end sub
 
@@ -147,6 +161,11 @@ sub OnApiResponse(event as Object)
     if resp = invalid then return
 
     if resp.op = "search" then
+        ' R5.2: Discard stale response if generation counter has advanced.
+        if resp.searchGen <> invalid and resp.searchGen <> m.searchGen then
+            return
+        end if
+
         ' Hide loading indicator.
         if m.statusLabel <> invalid and m.loadingPage then
             m.statusLabel.text = ""

@@ -1078,7 +1078,7 @@ function ApiClient(baseUrl as String) as Object
 
         ' POST /syncplay/groups/{id}/leave -> {message}
         leaveSyncPlayGroup: function(roomId as String) as Object
-            return m.request("DELETE", "/syncplay/groups/" + roomId + "/leave", invalid)
+            return m.request("POST", "/syncplay/groups/" + roomId + "/leave", invalid)
         end function
 
         ' ---------------------------------------------------------------------

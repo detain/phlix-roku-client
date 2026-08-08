@@ -71,6 +71,10 @@ sub Init()
     if m.sleepTimerPresetList <> invalid then m.sleepTimerPresetList.ObserveField("itemSelected", "OnSleepTimerPresetSelected")
     if m.sleepTimerCancelButton <> invalid then m.sleepTimerCancelButton.ObserveField("buttonSelected", "OnSleepTimerCancelPressed")
 
+    ' R2.6: Wire up the Sleep button to open the timer panel
+    m.sleepButton = m.top.FindNode("sleepButton")
+    if m.sleepButton <> invalid then m.sleepButton.ObserveField("buttonSelected", "OnSleepButtonPressed")
+
     ' ============================================================= '
     ' P3-S4 Picture-in-Picture: PiP snapshot overlay. Additive -      '
     ' default playback path is byte-unchanged when never used.        '
@@ -375,6 +379,7 @@ sub Show(itemId as String, args as Object)
     end if
 
     ' R6.10: Trickplay BIF thumbnails — set bifDisplay when server provides the URL
+    ' (per docs/bif_thumbs.md — bifDisplay is a real Video node field per Roku SDK)
     if m.playbackInfo <> invalid and m.playbackInfo.trickplay_bif_url <> invalid and m.playbackInfo.trickplay_bif_url <> "" then
         m.videoPlayer.bifDisplay = m.playbackInfo.trickplay_bif_url
     end if
@@ -945,11 +950,13 @@ sub BuildChapterMarkers()
         return
     end if
 
-    ' The seekbar parent is at translation [213,40] with height 80.
-    ' We place markers just above the seekbar (at y offset 32 = 40 - 8).
-    seekbarX = 213
-    seekbarY = 32
-    seekbarWidth = 854
+    ' R2.4: Read seekbar geometry from the progressBar's parent (the seekbar container)
+    ' at runtime instead of using hardcoded values.
+    seekbarContainer = m.progressBar.parent
+    if seekbarContainer = invalid then return
+    seekbarX = seekbarContainer.translation[0]
+    seekbarY = seekbarContainer.translation[1] - 8   ' 8px above the seekbar
+    seekbarWidth = seekbarContainer.width
     markerHeight = 6
     markerWidth = 3
 
@@ -973,12 +980,9 @@ sub BuildChapterMarkers()
         marker.translation = [chapterX, seekbarY]
         marker.visible = true
 
-        ' P2-S5: Append markers to controlsOverlay so they render above video
-        ' but within the overlay's coordinate space
+        ' R2.4: Append markers to controlsOverlay only (no fallback to m.top)
         if m.controlsOverlay <> invalid then
             m.controlsOverlay.Append(marker)
-        else
-            m.top.Append(marker)
         end if
         m.chapterMarkers.Push(marker)
 
@@ -1719,8 +1723,8 @@ function SyncGroupCaption(g as Object) as String
     if name = "" then name = "Group"
 
     count = ""
-    if g.DoesExist("member_count") and g.member_count <> invalid then
-        count = " (" + str(Int(g.member_count)).Trim() + ")"
+    if g.DoesExist("members") and g.members <> invalid and type(g.members) = "roArray" then
+        count = " (" + str(g.members.Count()).Trim() + ")"
     end if
 
     lock = ""
@@ -2768,6 +2772,11 @@ sub OnSleepTimerCancelPressed()
     CloseSleepTimerPanel()
 end sub
 
+' R2.6: Handle the Sleep button press - opens the sleep timer panel.
+sub OnSleepButtonPressed(event as Object)
+    ToggleSleepTimerPanel()
+end sub
+
 ' Called when the Sleep Timer fires (playback stops).
 sub SleepTimerFire()
     print "SleepTimer fired - stopping playback"
@@ -2878,6 +2887,7 @@ end sub
 sub OnTranscodeFailedRetry(index as Integer)
     if index <> 0 then return
     if m.itemId = invalid or m.itemId = "" then return
+    if m.apiTask.state = "run" then return
     m.transcodeJobId = invalid
     m.transcodePollStartTime = 0
     m.transcodePollInterval  = 1.0

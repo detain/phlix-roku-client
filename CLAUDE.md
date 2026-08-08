@@ -16,6 +16,7 @@ All workflows go through `Makefile`. `package.json` exists only to alias these f
 | `make install ROKU_IP=… ROKU_DEV=… ROKU_PASSWORD=…` | Packages, then POSTs the zip to `http://$ROKU_IP:8060/install/app`. |
 | `make launch` / `make stop` | ECP keypress/launch calls — also need `ROKU_IP` etc. |
 | `make lint` | Runs `npx bsc --project bsconfig.json` (brighterscript type-check). This IS a hard gate — it exits non‑zero on any diagnostic (type error, missing field, malformed XML/component pairing). The old grep-script description is stale. |
+| `make bslint` | Runs `npx bslint --project bsconfig.json` (brighterscript style linter). A separate hard gate from `make lint` — exits non-zero on any error or warning. |
 | `make test` / `make test-unit` / `make test-integration` | **Does not run any tests.** Only `find`s and lists `*.test.brs` filenames. BrightScript tests can only execute on a device. |
 | `make validate-manifest` / `make validate-xml` | Greps `manifest` for required keys and checks XML files contain `<?xml` + `</component>`. The only `make` targets that `exit 1` on failure. |
 
@@ -40,6 +41,7 @@ These commands are run in CI and must pass before merging:
 - `make validate-manifest` — manifest has required fields
 - `make validate-xml` — all XML files are valid SceneGraph documents
 - `make lint` — runs bsc, the actual hard gate
+- `make bslint` — runs bslint, a separate hard style gate (zero errors/warnings required)
 
 ## Architecture
 

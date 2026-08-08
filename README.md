@@ -29,7 +29,7 @@ The following features are not currently available:
 - Books / e-reader functionality
 - DVR write operations
 - Casting / screen mirroring
-- Hub-mode PUT/DELETE over relay (direct mode required for favorites-remove, rating-set/clear)
+
 
 ## Prerequisites
 

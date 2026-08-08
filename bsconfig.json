@@ -5,7 +5,8 @@
         "source/**/*.brs",
         "components/**/*.brs",
         "components/**/*.xml",
-        "images/**/*"
+        "images/**/*",
+        "tests/**/*.brs"
     ],
     "createPackage": false,
     "copyToStaging": false,

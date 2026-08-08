@@ -38,6 +38,10 @@ sub Init()
     m.apiTask = CreateObject("roSGNode", "ApiTask")
     m.apiTask.ObserveField("response", "OnApiResponse")
 
+    ' R5.4: Observe visibility to refetch when returning after a favorite change
+    ' in a child scene (e.g., DetailScene).
+    m.top.ObserveField("visible", "OnVisibilityChanged")
+
     m.results = []
 
     ' Paging state for infinite scroll (R5.4)
@@ -243,6 +247,39 @@ sub Teardown()
     if m.apiTask <> invalid then
         m.apiTask.UnObserveField("response")
     end if
+    m.top.UnObserveField("visible")
+end sub
+
+' R5.4: Refetch favorites when scene becomes visible again after a child
+' scene (e.g., DetailScene) was used to remove a favorite.
+sub OnVisibilityChanged(event as Object)
+    if event.getData() = true then
+        ' Scene became visible — refetch to reflect any removals made in child scenes.
+        RefetchFavorites()
+    end if
+end sub
+
+' R5.4: Reset paging state and fire a fresh getFavorites request.
+sub RefetchFavorites()
+    m.offset = 0
+    m.hasMore = true
+    m.loadingPage = false
+    m.results = []
+    m.contentNode = invalid
+
+    if m.favoritesGrid <> invalid then
+        m.favoritesGrid.content = CreateObject("roSGNode", "ContentNode")
+    end if
+
+    if m.statusLabel <> invalid then
+        m.statusLabel.text = "Loading…"
+    end if
+
+    m.apiTask.request = {
+        op: "getFavorites"
+        options: { limit: m.limit, offset: m.offset }
+    }
+    m.apiTask.control = "run"
 end sub
 
 ' Bubble requestClose from a child scene up to PhlixApp (which holds PopScreen).

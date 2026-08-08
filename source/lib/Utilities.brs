@@ -87,20 +87,51 @@ function NormalizeServerUrl(raw as String) as String
     else
         ' Infer scheme from the host. Local/private hosts default to http://,
         ' everything else (a real domain) to https://.
+        ' R4.7 fix: only apply RFC1918 checks to actual IP addresses (not hostnames
+        ' like "10th-street.example.com" that happen to start with a private prefix).
         isLocal = false
-        if lower.Left(9) = "localhost" then isLocal = true
-        if lower.Left(4) = "127." then isLocal = true
-        if lower.Left(8) = "192.168." then isLocal = true
-        if lower.Left(3) = "10." then isLocal = true
-        ' RFC1918 private range for 172 is 172.16.0.0/12 (172.16.x.x - 172.31.x.x).
-        ' Validate second octet is 16-31 by checking position 4 is 1-3 and
-        ' position 5 is 6-9 when position 4 is 1, 0-9 when 2, or 0-1 when 3.
-        if lower.Left(4) = "172." then
-            c4 = Mid(lower, 5, 1)
-            c5 = Mid(lower, 6, 1)
-            if c4 = "1" and c5 >= "6" and c5 <= "9" then isLocal = true
-            if c4 = "2" and c5 >= "0" and c5 <= "9" then isLocal = true
-            if c4 = "3" and c5 >= "0" and c5 <= "1" then isLocal = true
+
+        ' Extract just the host portion (strip any path / port)
+        host = lower
+        slashPos = Instr(1, host, "/")
+        if slashPos > 0 then host = Left(host, slashPos - 1)
+        colonPos = Instr(1, host, ":")
+        if colonPos > 0 then host = Left(host, colonPos - 1)
+
+        ' Only apply RFC1918 checks when host is a dotted-quad IP (all 4 parts numeric)
+        if host <> "" then
+            parts = host.Split(".")
+            if parts.Count() = 4 then
+                allNumeric = true
+                for each p in parts
+                    ' Len check + digit check: each part must be 1-3 digits
+                    if Len(p) < 1 or Len(p) > 3 then
+                        allNumeric = false
+                        exit for
+                    end if
+                    for i = 1 to Len(p)
+                        c = Mid(p, i, 1)
+                        if c < "0" or c > "9" then
+                            allNumeric = false
+                            exit for
+                        end if
+                    end for
+                    if not allNumeric then exit for
+                end for
+
+                if allNumeric then
+                    ' Now safe to apply RFC1918 range checks (parts are IP octets)
+                    if parts[0] = "10" then isLocal = true
+                    if parts[0] = "192" and parts[1] = "168" then isLocal = true
+                    if parts[0] = "172" then
+                        octet = 0
+                        for i = 1 to Len(parts[1])
+                            octet = octet * 10 + Asc(Mid(parts[1], i, 1)) - 48
+                        end for
+                        if octet >= 16 and octet <= 31 then isLocal = true
+                    end if
+                end if
+            end if
         end if
 
         if isLocal then
