@@ -156,7 +156,9 @@ function ProfileRatingLabel(profile as Object) as String
     if profile.DoesExist("rating") and profile.rating <> invalid then
         v = profile.rating
         t = type(v)
-        if t = "Integer" or t = "roInt" or t = "LongInteger" or t = "roLongInteger" or t = "Float" or t = "roFloat" or t = "Double" or t = "roDouble" then
+        if t = "String" or t = "roString" then
+            return v
+        else if t = "Integer" or t = "roInt" or t = "LongInteger" or t = "roLongInteger" or t = "Float" or t = "roFloat" or t = "Double" or t = "roDouble" then
             return RatingLabel(Int(v))
         end if
     end if

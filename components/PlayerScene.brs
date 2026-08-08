@@ -342,10 +342,12 @@ sub Show(itemId as String, args as Object)
             m.titleLabel.text = m.item.name + " (Preparing...)"
         end if
         ' Start transcode via apiTask (same pattern as OnPlayerStateChange error handler).
-        if m.apiTask.state = "run" then return
-        m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
-        m.apiTask.state = "run"
-        m.apiTask.control = "run"
+        if m.itemId <> "" and m.itemId <> invalid then
+            if m.apiTask.state = "run" then return
+            m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
+            m.apiTask.state = "run"
+            m.apiTask.control = "run"
+        end if
         return
     end if
 
@@ -419,8 +421,10 @@ sub OnPlayerStateChange(event as Object)
                 m.titleLabel.text = m.item.name + " (Preparing...)"
             end if
             ' un guarded: m.transcodeAttempted is set above; this block runs once.
-            m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
-            m.apiTask.control = "run"
+            if m.itemId <> "" and m.itemId <> invalid then
+                m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
+                m.apiTask.control = "run"
+            end if
         else
             ShowErrorDialog(m.top, "Error", "Playback failed. Please try again.", ["Retry", "Cancel"], OnPlaybackRetry)
         end if
@@ -2851,7 +2855,7 @@ end sub
 ' Retry callback: re-attempt transcode after a playback error.
 sub OnPlaybackRetry(index as Integer)
     if index <> 0 then return
-    if m.item = invalid or m.itemId = invalid then return
+    if m.item = invalid or m.itemId = invalid or m.itemId = "" then return
     m.transcodeAttempted = true
     if m.titleLabel <> invalid then
         m.titleLabel.text = m.item.name + " (Preparing...)"
@@ -2865,7 +2869,7 @@ end sub
 ' Retry callback: re-fire the startTranscode request after it failed.
 sub OnStartTranscodeRetry(index as Integer)
     if index <> 0 then return
-    if m.itemId = invalid then return
+    if m.itemId = invalid or m.itemId = "" then return
     m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
     m.apiTask.control = "run"
 end sub
@@ -2873,7 +2877,7 @@ end sub
 ' Retry callback: restart transcode job after it reported failed.
 sub OnTranscodeFailedRetry(index as Integer)
     if index <> 0 then return
-    if m.itemId = invalid then return
+    if m.itemId = invalid or m.itemId = "" then return
     m.transcodeJobId = invalid
     m.transcodePollStartTime = 0
     m.transcodePollInterval  = 1.0

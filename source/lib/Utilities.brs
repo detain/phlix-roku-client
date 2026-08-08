@@ -416,38 +416,26 @@ end function
 ' @param items Object - array of media-item assocarrays (may be invalid)
 ' @return Object - a new sorted array (empty array when input is invalid)
 function SortByEpisodeOrder(items as Object) as Object
-    sorted = []
-    if items = invalid then return sorted
+    if items = invalid then return []
 
+    ' Build a sort-key array: { sortKey: number, item: assocarray }
+    ' Key = season*100000 + episode so season takes precedence.
+    decorated = []
     for each item in items
-        ' Find the insertion index in `sorted` for this item.
-        sKey = SortKeyValue(item, "season_number")
-        eKey = SortKeyValue(item, "episode_number")
-        insertAt = sorted.Count()
-
-        for i = 0 to sorted.Count() - 1
-            existing = sorted[i]
-            existS = SortKeyValue(existing, "season_number")
-            existE = SortKeyValue(existing, "episode_number")
-            if sKey < existS or (sKey = existS and eKey < existE) then
-                insertAt = i
-                exit for
-            end if
-        end for
-
-        if insertAt >= sorted.Count() then
-            sorted.Push(item)
-        else
-            sorted.Unshift(invalid)
-            ' Shift tail right by one, then drop the new value in.
-            for j = sorted.Count() - 1 to insertAt + 1 step -1
-                sorted[j] = sorted[j - 1]
-            end for
-            sorted[insertAt] = item
-        end if
+        s = SortKeyValue(item, "season_number")
+        e = SortKeyValue(item, "episode_number")
+        decorated.Push({ sortKey: s * 100000 + e, item: item })
     end for
 
-    return sorted
+    ' ArraySort is O(n log n) merge sort; sort by sortKey ascending.
+    decorated.SortBy("sortKey", "asc", false)
+
+    ' Extract the sorted items back out.
+    result = []
+    for each d in decorated
+        result.Push(d.item)
+    end for
+    return result
 end function
 
 ' Build a one-line caption for an episode list row. When episode_number is
@@ -585,42 +573,29 @@ end function
 ' @param tracks Object - array of normalized track assocarrays (may be invalid)
 ' @return Object - a new sorted array (empty array when input is invalid)
 function SortByTrackOrder(tracks as Object) as Object
-    sorted = []
-    if tracks = invalid then return sorted
+    if tracks = invalid then return []
 
+    ' Build a sort-key array: { sortKey: number, track: assocarray }
+    ' Key = disc*100000 + track so disc takes precedence.
+    ' SortKeyValue returns 999999 for invalid/missing, which sorts last.
+    decorated = []
     for each track in tracks
-        dKey = SortKeyValue(track, "disc_number")
-        tKey = SortKeyValue(track, "track_number")
-        ' SortKeyValue returns the value (0 for unnumbered); promote 0 to the
-        ' end-sentinel so unnumbered tracks sink below numbered ones.
-        if dKey = 0 then dKey = 999999
-        if tKey = 0 then tKey = 999999
-        insertAt = sorted.Count()
-
-        for i = 0 to sorted.Count() - 1
-            existing = sorted[i]
-            existD = SortKeyValue(existing, "disc_number")
-            existT = SortKeyValue(existing, "track_number")
-            if existD = 0 then existD = 999999
-            if existT = 0 then existT = 999999
-            if dKey < existD or (dKey = existD and tKey < existT) then
-                insertAt = i
-                exit for
-            end if
-        end for
-
-        if insertAt >= sorted.Count() then
-            sorted.Push(track)
-        else
-            sorted.Unshift(invalid)
-            for j = sorted.Count() - 1 to insertAt + 1 step -1
-                sorted[j] = sorted[j - 1]
-            end for
-            sorted[insertAt] = track
-        end if
+        d = SortKeyValue(track, "disc_number")
+        t = SortKeyValue(track, "track_number")
+        if d = 0 then d = 999999
+        if t = 0 then t = 999999
+        decorated.Push({ sortKey: d * 100000 + t, track: track })
     end for
 
-    return sorted
+    ' ArraySort is O(n log n) merge sort; sort by sortKey ascending.
+    decorated.SortBy("sortKey", "asc", false)
+
+    ' Extract the sorted tracks back out.
+    result = []
+    for each d in decorated
+        result.Push(d.track)
+    end for
+    return result
 end function
 
 ' Build a one-line caption for a track list row: "<track_number>. <name>" when
