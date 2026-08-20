@@ -5,6 +5,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(dirname "$SCRIPT_DIR")"
 cd "$REPO"
+# Check 14 reads the phlix-server migrations dir; in CI it is checked out as a
+# sibling repo (../phlix-server), same layout as the dev sandbox.
+SERVER_DIR="${PHLIX_SERVER_DIR:-$(dirname "$REPO")/phlix-server}"
+export REPO SERVER_DIR
 FOUND=0
 VIOLATIONS=0
 
@@ -146,10 +150,11 @@ VIOLATIONS=0
 # or that document the callback-chained "one op at a time" pattern (comments
 # containing "two control" + "never" + "outstanding" or "un guarded"), are
 # allowed.  All others are flagged.
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
 import subprocess, re, sys, os
 
-os.chdir('/home/sites/phlix/phlix-roku-client')
+os.chdir(os.environ['REPO'])
 result = subprocess.run(
     ['git', 'grep', '-n', r'control\s*=\s*"run"', '--', '*.brs'],
     capture_output=True, text=True
@@ -241,8 +246,7 @@ for gline in result.stdout.strip().split('\n'):
 if found_violation:
     sys.exit(1)
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
@@ -266,11 +270,12 @@ if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
 echo ""
 echo "=== Check 14: media_items.type ENUM drift vs server (S115) ==="
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
 import re, os, sys
 
 # ── 1. Find the authoritative ENUM from server migrations ──────────────────────
-migration_dir = "/home/sites/phlix/phlix-server/migrations"
+migration_dir = os.path.join(os.environ['SERVER_DIR'], 'migrations')
 if not os.path.isdir(migration_dir):
     print(f"  CHECK14: server migration dir not found at {migration_dir}")
     sys.exit(1)
@@ -309,7 +314,7 @@ if len(server_members) < 13:
     sys.exit(1)
 
 # ── 2. Extract the full type list from Utilities.brs ───────────────────────────
-utilities_path = "/home/sites/phlix/phlix-roku-client/source/lib/Utilities.brs"
+utilities_path = os.path.join(os.environ['REPO'], 'source/lib/Utilities.brs')
 if not os.path.isfile(utilities_path):
     print(f"  CHECK14: Utilities.brs not found at {utilities_path}")
     sys.exit(1)
@@ -318,9 +323,11 @@ with open(utilities_path, errors="replace") as f:
     util_content = f.read()
 
 # The full ENUM is documented in the comment block above PlayableTypes().
-# The list spans exactly 2 lines (lines 732-733 in Utilities.brs) — capture them
-# directly rather than using a greedy pattern that could spill into explanatory
-# comment lines (which also start with ' but contain no commas).
+# The list spans exactly 2 lines (lines 853-855 in Utilities.brs: the
+# "' The full ENUM is:" banner at 853 and the member list at 854-855) —
+# capture them directly rather than using a greedy pattern that could spill
+# into explanatory comment lines (which also start with ' but contain no
+# commas).
 # Note: \s* (zero-or-more) is used because lines start with ' directly, no leading WS.
 enum_match = re.search(
     r"The full ENUM is:\s*\n((?:\s*'   [^\n]*\n){2})",
@@ -382,17 +389,17 @@ if not_in_server:
 print(f"  PASS — server ENUM ({server_fname}): {server_members}")
 print(f"         PlayableTypes() subset OK: {playable_members}")
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
 echo ""
 echo "=== Check 15: hardcoded localhost URL (R4.10) ==="
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
 import re, os, sys
 
-os.chdir('/home/sites/phlix/phlix-roku-client')
+os.chdir(os.environ['REPO'])
 
 # Allow-list: files/patterns that legitimately contain localhost
 exempt_files = {
@@ -450,8 +457,7 @@ for ext in ('brs', 'xml'):
 if found_violation:
     sys.exit(1)
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
@@ -464,10 +470,11 @@ echo "=== Check 16: placeholder channel art file size (R6.2) ==="
 # Minimum bytes per pixel: 0.5 B/px (ultra-flat illustration still needs hundreds
 # of bytes per pixel after DEFLATE; 1-bit placeholder palettes compress to nothing).
 # Fail if: bytes < width * height * 0.5
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
 import os, sys, struct, zlib
 
-repo = '/home/sites/phlix/phlix-roku-client'
+repo = os.environ['REPO']
 images_dir = os.path.join(repo, 'images')
 if not os.path.isdir(images_dir):
     print(f"  CHECK16: images/ directory not found at {images_dir}")
@@ -513,8 +520,7 @@ for fname in sorted(os.listdir(images_dir)):
 if found_violation:
     sys.exit(1)
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
@@ -523,10 +529,11 @@ echo ""
 echo "=== Check 17: echo ERROR paired with exit/state (self-audit) ==="
 # Every echo command with ERROR in its output should set FOUND=1, VIOLATIONS=1,
 # or exit 1 to ensure the script properly fails when errors are detected.
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
-import re, sys
+import re, sys, os
 
-script_path = '/home/sites/phlix/phlix-roku-client/scripts/verify-runtime.sh'
+script_path = os.path.join(os.environ['REPO'], 'scripts/verify-runtime.sh')
 # Exclude the meta-check block itself (check 17) to avoid self-referential false positives
 exclude_start = "=== Check 17:"
 exclude_end = "exit $((VIOLATIONS))"
@@ -562,17 +569,17 @@ if violations:
 
 print("  PASS — all echo ERROR commands properly paired with state/exit")
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
 echo ""
 echo "=== Check 18: version drift between package.json and manifest (R8.8) ==="
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
 import re, os, sys, json
 
-repo = '/home/sites/phlix/phlix-roku-client'
+repo = os.environ['REPO']
 
 # Read package.json version
 pkg_json = os.path.join(repo, 'package.json')
@@ -631,18 +638,18 @@ if drift:
 
 print(f"  PASS — package.json={pkg_version}, manifest major_version={man_major}, minor_version={man_minor}, build_version={man_build}")
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
 FOUND=0
 echo ""
 echo "=== Check 19: hardcoded i18n strings in target files (R7.12) ==="
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
 import re, os, sys
 
-repo = '/home/sites/phlix/phlix-roku-client'
+repo = os.environ['REPO']
 os.chdir(repo)
 
 TARGETS = [
@@ -811,8 +818,7 @@ for tpath in TARGETS:
 if found_violation:
     sys.exit(1)
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 

@@ -29,5 +29,8 @@ jobs:
       - name: Validate XML files
         run: make validate-xml
 
-      - name: verify-runtime (informational — may have false positives)
-        run: make verify-runtime || true
+      - name: Checkout phlix-server (Check 14 ENUM reference)
+        run: git clone --depth 1 --branch master https://github.com/detain/phlix-server.git ../phlix-server
+
+      - name: verify-runtime (hard gate - fails on any issue)
+        run: make verify-runtime
