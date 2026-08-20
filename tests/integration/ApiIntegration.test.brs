@@ -24,6 +24,7 @@ sub TestApiConnection()
     ' Try to get user (should fail without auth)
     user = client.request("GET", "/Users/Me", {})
     ' Should be invalid without authentication
+    assertTrue(user = invalid, "unauthenticated /Users/Me request should return invalid")
 
     print "TestApiConnection passed"
 end sub
@@ -37,6 +38,7 @@ sub TestLibraryRetrieval()
 
     libraries = api.getLibraries()
     ' Libraries should be an array or invalid
+    assertTrue(libraries = invalid or type(libraries) = "roArray", "getLibraries() should return an array or invalid")
 
     print "TestLibraryRetrieval passed"
 end sub

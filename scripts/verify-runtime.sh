@@ -5,6 +5,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(dirname "$SCRIPT_DIR")"
 cd "$REPO"
+# Check 14 reads the phlix-server migrations dir; in CI it is checked out as a
+# sibling repo (../phlix-server), same layout as the dev sandbox.
+SERVER_DIR="${PHLIX_SERVER_DIR:-$(dirname "$REPO")/phlix-server}"
+export REPO SERVER_DIR
 FOUND=0
 VIOLATIONS=0
 
@@ -12,6 +16,7 @@ echo "=== Check 1: Storage.factory misuse (R0.2 regression) ==="
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK1: Storage.factory used directly (use GetStorage())"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn 'Storage\.\(get\|set\|delete\|clear\)' -- '*.brs' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -21,6 +26,7 @@ echo "=== Check 2: m.top.Close() calls (R0.4 regression) ==="
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK2: m.top.Close() called (use m.top.requestClose = true)"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn 'm\.top\.Close()' -- '*.brs' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -30,6 +36,7 @@ echo "=== Check 3: ContentEmitter stub XML (R0.5 regression) ==="
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK3: ContentEmitter is not a real SceneGraph node"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn '<ContentEmitter' -- '*.xml' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -39,6 +46,7 @@ echo "=== Check 4: caption1Icon / handle:// invalid fields (R0.5 regression) ===
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK4: caption1Icon/handle:// is not a real PosterGrid field or valid URI"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn -E 'caption1Icon|handle://' -- '*.xml' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -48,6 +56,7 @@ echo "=== Check 5: halign= XML attribute (R0.6 regression — should be horizAli
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK5: halign= is not a Label field (use horizAlign=)"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn 'halign=' -- '*.xml' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -63,6 +72,7 @@ for brs in $(git ls-files -- '*.brs'); do
       line=$(grep -n "ObserveField.*\"$cb\"" "$brs" | head -1 | cut -d: -f1)
       echo "  $brs:$line — CHECK6: ObserveField target '$cb' has no matching sub/function"
       FOUND=1
+      VIOLATIONS=1
     fi
   done
 done
@@ -85,6 +95,7 @@ for brs in $(git ls-files -- '*.brs'); do
       if ! echo "$children_content" | grep -q "id=\"$id\"" 2>/dev/null; then
         echo "  $brs:$line — CHECK7: FindNode(\"$id\") but no id=\"$id\" in $xml <children>"
         FOUND=1
+        VIOLATIONS=1
       fi
     done
   done < <(grep -n 'FindNode' "$brs" 2>/dev/null || true)
@@ -146,10 +157,11 @@ VIOLATIONS=0
 # or that document the callback-chained "one op at a time" pattern (comments
 # containing "two control" + "never" + "outstanding" or "un guarded"), are
 # allowed.  All others are flagged.
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
 import subprocess, re, sys, os
 
-os.chdir('/home/sites/phlix/phlix-roku-client')
+os.chdir(os.environ['REPO'])
 result = subprocess.run(
     ['git', 'grep', '-n', r'control\s*=\s*"run"', '--', '*.brs'],
     capture_output=True, text=True
@@ -241,8 +253,7 @@ for gline in result.stdout.strip().split('\n'):
 if found_violation:
     sys.exit(1)
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
@@ -252,6 +263,7 @@ echo "=== Check 12: syncplay/rooms instead of /groups (R4.1) ==="
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK12: syncplay uses /groups endpoint, not /rooms"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn 'syncplay/rooms' -- '*.brs' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -261,21 +273,23 @@ echo "=== Check 13: DELETE verb on syncplay endpoint (R4.1 — leave is POST) ==
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK13: syncplay leave uses POST, not DELETE"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn 'syncplay' -- '*.brs' 2>/dev/null | grep 'DELETE' || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
 echo ""
 echo "=== Check 14: media_items.type ENUM drift vs server (S115) ==="
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
 import re, os, sys
 
 # ── 1. Find the authoritative ENUM from server migrations ──────────────────────
-migration_dir = "/home/sites/phlix/phlix-server/migrations"
+migration_dir = os.path.join(os.environ['SERVER_DIR'], 'migrations')
 if not os.path.isdir(migration_dir):
     print(f"  CHECK14: server migration dir not found at {migration_dir}")
     sys.exit(1)
 
-# Collect every ENUM definition found across all migration files.
+# Collect every media_items.type ENUM definition found across all migration files.
 # The final (most complete) one represents the current schema state.
 enum_defs = {}  # name -> sorted list of members
 for fname in sorted(os.listdir(migration_dir)):
@@ -284,12 +298,16 @@ for fname in sorted(os.listdir(migration_dir)):
     fpath = os.path.join(migration_dir, fname)
     with open(fpath, errors="replace") as f:
         content = f.read()
-    # Match MODIFY/CHANGE COLUMN ... ENUM('a', 'b', ...) — captures the ENUM value list
-    # up to the first closing paren (the list contains no embedded parens).
+    # Match ALTER TABLE media_items MODIFY COLUMN type ENUM('a', 'b', ...) — captures
+    # the ENUM value list up to the first closing paren (the list contains no embedded
+    # parens). Scoped to the media_items.type column so a member-richer ENUM on another
+    # table (e.g. content_rating in 083, stats media_type in 094) can never hijack the
+    # authoritative source. \s+ spans the newline between `media_items` and `MODIFY`,
+    # hence DOTALL is required.
     for m in re.finditer(
-        r"ENUM\(([^)]+)\)",
+        r"ALTER\s+TABLE\s+media_items\s+MODIFY\s+COLUMN\s+`?type`?\s+ENUM\(([^)]+)\)",
         content,
-        re.IGNORECASE,
+        re.IGNORECASE | re.DOTALL,
     ):
         raw = m.group(1)
         members = [e.strip().strip("'") for e in raw.split(",")]
@@ -309,7 +327,7 @@ if len(server_members) < 13:
     sys.exit(1)
 
 # ── 2. Extract the full type list from Utilities.brs ───────────────────────────
-utilities_path = "/home/sites/phlix/phlix-roku-client/source/lib/Utilities.brs"
+utilities_path = os.path.join(os.environ['REPO'], 'source/lib/Utilities.brs')
 if not os.path.isfile(utilities_path):
     print(f"  CHECK14: Utilities.brs not found at {utilities_path}")
     sys.exit(1)
@@ -318,9 +336,11 @@ with open(utilities_path, errors="replace") as f:
     util_content = f.read()
 
 # The full ENUM is documented in the comment block above PlayableTypes().
-# The list spans exactly 2 lines (lines 732-733 in Utilities.brs) — capture them
-# directly rather than using a greedy pattern that could spill into explanatory
-# comment lines (which also start with ' but contain no commas).
+# The list spans exactly 2 lines (lines 853-855 in Utilities.brs: the
+# "' The full ENUM is:" banner at 853 and the member list at 854-855) —
+# capture them directly rather than using a greedy pattern that could spill
+# into explanatory comment lines (which also start with ' but contain no
+# commas).
 # Note: \s* (zero-or-more) is used because lines start with ' directly, no leading WS.
 enum_match = re.search(
     r"The full ENUM is:\s*\n((?:\s*'   [^\n]*\n){2})",
@@ -382,17 +402,17 @@ if not_in_server:
 print(f"  PASS — server ENUM ({server_fname}): {server_members}")
 print(f"         PlayableTypes() subset OK: {playable_members}")
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
 echo ""
 echo "=== Check 15: hardcoded localhost URL (R4.10) ==="
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
 import re, os, sys
 
-os.chdir('/home/sites/phlix/phlix-roku-client')
+os.chdir(os.environ['REPO'])
 
 # Allow-list: files/patterns that legitimately contain localhost
 exempt_files = {
@@ -450,8 +470,7 @@ for ext in ('brs', 'xml'):
 if found_violation:
     sys.exit(1)
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
@@ -464,10 +483,11 @@ echo "=== Check 16: placeholder channel art file size (R6.2) ==="
 # Minimum bytes per pixel: 0.5 B/px (ultra-flat illustration still needs hundreds
 # of bytes per pixel after DEFLATE; 1-bit placeholder palettes compress to nothing).
 # Fail if: bytes < width * height * 0.5
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
 import os, sys, struct, zlib
 
-repo = '/home/sites/phlix/phlix-roku-client'
+repo = os.environ['REPO']
 images_dir = os.path.join(repo, 'images')
 if not os.path.isdir(images_dir):
     print(f"  CHECK16: images/ directory not found at {images_dir}")
@@ -513,8 +533,7 @@ for fname in sorted(os.listdir(images_dir)):
 if found_violation:
     sys.exit(1)
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
@@ -523,13 +542,16 @@ echo ""
 echo "=== Check 17: echo ERROR paired with exit/state (self-audit) ==="
 # Every echo command with ERROR in its output should set FOUND=1, VIOLATIONS=1,
 # or exit 1 to ensure the script properly fails when errors are detected.
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
-import re, sys
+import re, sys, os
 
-script_path = '/home/sites/phlix/phlix-roku-client/scripts/verify-runtime.sh'
-# Exclude the meta-check block itself (check 17) to avoid self-referential false positives
+script_path = os.path.join(os.environ['REPO'], 'scripts/verify-runtime.sh')
+# Exclude only the meta-check block itself (check 17) to avoid self-referential
+# false positives: the audit range is [Check 17 marker, Check 18 marker), so
+# checks 18-19 and the final exit block are included in the audit.
 exclude_start = "=== Check 17:"
-exclude_end = "exit $((VIOLATIONS))"
+exclude_end = "=== Check 18:"
 
 try:
     with open(script_path, 'r') as f:
@@ -544,6 +566,8 @@ in_meta_check = False
 for line in raw_lines:
     if exclude_start in line:
         in_meta_check = True
+    if exclude_end in line:
+        in_meta_check = False
     if not in_meta_check:
         lines_to_audit.append(line)
 
@@ -562,17 +586,17 @@ if violations:
 
 print("  PASS — all echo ERROR commands properly paired with state/exit")
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
 echo ""
 echo "=== Check 18: version drift between package.json and manifest (R8.8) ==="
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
 import re, os, sys, json
 
-repo = '/home/sites/phlix/phlix-roku-client'
+repo = os.environ['REPO']
 
 # Read package.json version
 pkg_json = os.path.join(repo, 'package.json')
@@ -631,18 +655,18 @@ if drift:
 
 print(f"  PASS — package.json={pkg_version}, manifest major_version={man_major}, minor_version={man_minor}, build_version={man_build}")
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
 FOUND=0
 echo ""
 echo "=== Check 19: hardcoded i18n strings in target files (R7.12) ==="
+PYRET=0
 PYOUT=$(python3 - <<'PYEOF'
 import re, os, sys
 
-repo = '/home/sites/phlix/phlix-roku-client'
+repo = os.environ['REPO']
 os.chdir(repo)
 
 TARGETS = [
@@ -811,8 +835,7 @@ for tpath in TARGETS:
 if found_violation:
     sys.exit(1)
 PYEOF
-)
-PYRET=$?
+) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 

@@ -51,6 +51,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Checkout phlix-server (Check 14 ENUM reference)
+        run: git clone --depth 1 --branch master https://github.com/detain/phlix-server.git ../phlix-server
       - name: verify-runtime checks
         run: make verify-runtime
 
