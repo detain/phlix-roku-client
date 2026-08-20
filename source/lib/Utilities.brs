@@ -852,7 +852,7 @@ end function
 '
 ' The full ENUM is:
 '   movie, series, season, episode, track, music, album, artist, video, audio,
-'   book, photo, audiobook
+    '   book, photo
 '
 ' Excluded on purpose: series/season/album/artist/music are CONTAINERS (they
 ' drill down to children, they have no stream of their own), and book/photo
