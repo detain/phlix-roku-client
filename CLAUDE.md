@@ -24,7 +24,7 @@ Running a single test: there is no host runner. To execute a test you must sidel
 
 ### CI caveat
 
-`.github/workflows/{lint,test}.yml` invoke every step with `|| true`. `make test` never fails (no host runner); `make lint` now runs `bsc` which DOES exit non-zero on errors, so it is a real gate. Don't trust CI alone — verify by sideloading.
+`lint.yml` runs `bsc`, `bslint`, and `verify-runtime` as hard gates — no `|| true`. `make test` never fails (no host runner); `test.yml` runs the unit-test step only when `ROKU_HOST` is set. Don't trust CI alone — verify by sideloading.
 
 ## Automated Quality Gates
 
@@ -37,7 +37,7 @@ Running a single test: there is no host runner. To execute a test you must sidel
 These commands are run in CI and must pass before merging:
 
 - `npx bsc --project bsconfig.json` — brighterscript type-check (zero diagnostics required)
-- `make verify-runtime` — 11+ grep-based runtime-defect checks (scripts/verify-runtime.sh)
+- `make verify-runtime` — 19 runtime-defect checks (scripts/verify-runtime.sh); hard CI gate in lint.yml and package.yml
 - `make validate-manifest` — manifest has required fields
 - `make validate-xml` — all XML files are valid SceneGraph documents
 - `make lint` — runs bsc, the actual hard gate
