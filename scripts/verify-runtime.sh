@@ -16,6 +16,7 @@ echo "=== Check 1: Storage.factory misuse (R0.2 regression) ==="
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK1: Storage.factory used directly (use GetStorage())"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn 'Storage\.\(get\|set\|delete\|clear\)' -- '*.brs' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -25,6 +26,7 @@ echo "=== Check 2: m.top.Close() calls (R0.4 regression) ==="
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK2: m.top.Close() called (use m.top.requestClose = true)"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn 'm\.top\.Close()' -- '*.brs' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -34,6 +36,7 @@ echo "=== Check 3: ContentEmitter stub XML (R0.5 regression) ==="
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK3: ContentEmitter is not a real SceneGraph node"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn '<ContentEmitter' -- '*.xml' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -43,6 +46,7 @@ echo "=== Check 4: caption1Icon / handle:// invalid fields (R0.5 regression) ===
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK4: caption1Icon/handle:// is not a real PosterGrid field or valid URI"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn -E 'caption1Icon|handle://' -- '*.xml' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -52,6 +56,7 @@ echo "=== Check 5: halign= XML attribute (R0.6 regression — should be horizAli
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK5: halign= is not a Label field (use horizAlign=)"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn 'halign=' -- '*.xml' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -67,6 +72,7 @@ for brs in $(git ls-files -- '*.brs'); do
       line=$(grep -n "ObserveField.*\"$cb\"" "$brs" | head -1 | cut -d: -f1)
       echo "  $brs:$line — CHECK6: ObserveField target '$cb' has no matching sub/function"
       FOUND=1
+      VIOLATIONS=1
     fi
   done
 done
@@ -89,6 +95,7 @@ for brs in $(git ls-files -- '*.brs'); do
       if ! echo "$children_content" | grep -q "id=\"$id\"" 2>/dev/null; then
         echo "  $brs:$line — CHECK7: FindNode(\"$id\") but no id=\"$id\" in $xml <children>"
         FOUND=1
+        VIOLATIONS=1
       fi
     done
   done < <(grep -n 'FindNode' "$brs" 2>/dev/null || true)
@@ -256,6 +263,7 @@ echo "=== Check 12: syncplay/rooms instead of /groups (R4.1) ==="
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK12: syncplay uses /groups endpoint, not /rooms"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn 'syncplay/rooms' -- '*.brs' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -265,6 +273,7 @@ echo "=== Check 13: DELETE verb on syncplay endpoint (R4.1 — leave is POST) ==
 while IFS=: read -r file line; do
   echo "  $file:$line — CHECK13: syncplay leave uses POST, not DELETE"
   FOUND=1
+  VIOLATIONS=1
 done < <(git grep -rn 'syncplay' -- '*.brs' 2>/dev/null | grep 'DELETE' || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -280,7 +289,7 @@ if not os.path.isdir(migration_dir):
     print(f"  CHECK14: server migration dir not found at {migration_dir}")
     sys.exit(1)
 
-# Collect every ENUM definition found across all migration files.
+# Collect every media_items.type ENUM definition found across all migration files.
 # The final (most complete) one represents the current schema state.
 enum_defs = {}  # name -> sorted list of members
 for fname in sorted(os.listdir(migration_dir)):
@@ -289,12 +298,16 @@ for fname in sorted(os.listdir(migration_dir)):
     fpath = os.path.join(migration_dir, fname)
     with open(fpath, errors="replace") as f:
         content = f.read()
-    # Match MODIFY/CHANGE COLUMN ... ENUM('a', 'b', ...) — captures the ENUM value list
-    # up to the first closing paren (the list contains no embedded parens).
+    # Match ALTER TABLE media_items MODIFY COLUMN type ENUM('a', 'b', ...) — captures
+    # the ENUM value list up to the first closing paren (the list contains no embedded
+    # parens). Scoped to the media_items.type column so a member-richer ENUM on another
+    # table (e.g. content_rating in 083, stats media_type in 094) can never hijack the
+    # authoritative source. \s+ spans the newline between `media_items` and `MODIFY`,
+    # hence DOTALL is required.
     for m in re.finditer(
-        r"ENUM\(([^)]+)\)",
+        r"ALTER\s+TABLE\s+media_items\s+MODIFY\s+COLUMN\s+`?type`?\s+ENUM\(([^)]+)\)",
         content,
-        re.IGNORECASE,
+        re.IGNORECASE | re.DOTALL,
     ):
         raw = m.group(1)
         members = [e.strip().strip("'") for e in raw.split(",")]
@@ -534,9 +547,11 @@ PYOUT=$(python3 - <<'PYEOF'
 import re, sys, os
 
 script_path = os.path.join(os.environ['REPO'], 'scripts/verify-runtime.sh')
-# Exclude the meta-check block itself (check 17) to avoid self-referential false positives
+# Exclude only the meta-check block itself (check 17) to avoid self-referential
+# false positives: the audit range is [Check 17 marker, Check 18 marker), so
+# checks 18-19 and the final exit block are included in the audit.
 exclude_start = "=== Check 17:"
-exclude_end = "exit $((VIOLATIONS))"
+exclude_end = "=== Check 18:"
 
 try:
     with open(script_path, 'r') as f:
@@ -551,6 +566,8 @@ in_meta_check = False
 for line in raw_lines:
     if exclude_start in line:
         in_meta_check = True
+    if exclude_end in line:
+        in_meta_check = False
     if not in_meta_check:
         lines_to_audit.append(line)
 
