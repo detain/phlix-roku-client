@@ -89,17 +89,8 @@ sub RunConsumer()
     while not m.stopped
         if m.attempt > 0 then SetState("reconnecting")
         if not MintAndConnect(host, port, apiBase, serverId, token) then
-            m.attempt = m.attempt + 1
-            if m.stopped then exit while
-            if m.attempt > MaxAttempts() then
-                SetState("closed")
-                exit while
-            end if
-            ' Back off on the shared port; a "close" command interrupts the wait.
-            ev = wait(BackoffMs(m.attempt - 1), m.port)
-            if type(ev) = "roSGNodeEvent" then
-                HandleCommand(ev.getData())
-            end if
+            ' Connect/mint failure — ladder it.
+            if BackoffAndCheckSpent() then exit while
         else
             ' Connected + handshake done: consume frames until the socket dies
             ' or the scene sends a close.
@@ -115,11 +106,34 @@ sub RunConsumer()
                     if not HandleCommand(msg.getData()) then running = false
                 end if
             end while
+            ' The socket DIED (not a scene close): count the drop as a ladder
+            ' attempt and back off before re-minting, so a hub that accepts then
+            ' drops connections cannot be hammered by mint+connect cycles.
+            if BackoffAndCheckSpent() then exit while
         end if
     end while
 
     Cleanup()
 end sub
+
+' Count one failure on the reconnect ladder, wait the backoff on the shared port
+' (a "close" command interrupts the wait), and report whether the ladder is
+' spent or the scene asked to stop.
+' @return Boolean - true when the loop should stop (ladder spent or close)
+function BackoffAndCheckSpent() as Boolean
+    if m.stopped then return true
+    m.attempt = m.attempt + 1
+    if m.attempt > MaxAttempts() then
+        SetState("closed")
+        return true
+    end if
+    ' Back off on the shared port; a "close" command interrupts the wait.
+    ev = wait(BackoffMs(m.attempt - 1), m.port)
+    if type(ev) = "roSGNodeEvent" then
+        HandleCommand(ev.getData())
+    end if
+    return m.stopped
+end function
 
 ' Mint a fresh relay token, then connect + complete the WS upgrade. Returns true
 ' only when the socket is open and the handshake accepted (101).
@@ -291,7 +305,7 @@ sub HandleFrame(frame as Object)
 
     if frame.opcode = m.proto.OP_PING then
         pong = m.proto.BuildPongFrame(frame.payloadBytes)
-        if m.sock <> invalid then m.sock.Send(pong)
+        if m.sock <> invalid then m.sock.Send(pong, 0, pong.Count())
         return
     end if
 

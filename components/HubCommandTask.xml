@@ -43,10 +43,8 @@
 
     <!-- Transitive closure: a component scope does NOT auto-include pkg:/source.
          The consumer loop is driven entirely by the `config`/`command` fields
-         (the scene builds the config), so it needs only Storage (token
-         fallback), Utilities, SyncPlayProtocol (framing/handshake) + own .brs. -->
-    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
-    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+         (the scene builds the config), so it needs only SyncPlayProtocol
+         (framing/handshake) + own .brs. -->
     <script type="text/brightscript" uri="pkg:/source/lib/SyncPlayProtocol.brs" />
     <script type="text/brightscript" uri="pkg:/components/HubCommandTask.brs" />
 </component>
