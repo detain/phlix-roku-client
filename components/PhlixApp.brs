@@ -332,6 +332,7 @@ sub OnHubAuthResponse(event as Object)
         ' Authenticated
         if GetActiveServerId() <> "" then
             ' Outcome 1 & 2: server is picked
+            StartHubCommandConsumer()
             if m.deepLinkParams <> invalid then
                 ProcessDeepLink()
             else
@@ -488,6 +489,11 @@ sub OnServerPicked()
     m.api = GetApiClient()
     m.auth = AuthManager(m.api)
 
+    ' S298: the picked server changes the hub relay identity — rebind the
+    ' pending_command consumer to the new server id.
+    StopHubCommandConsumer()
+    StartHubCommandConsumer()
+
     ShowHome()
 end sub
 
@@ -495,6 +501,77 @@ sub ShowHome()
     homeScene = CreateObject("roSGNode", "HomeScene")
     m.top.Append(homeScene)
     homeScene.SetFocus(true)
+end sub
+
+' =============================================================================
+' S298 — hub relay pending_command consumer lifecycle.
+'
+' "Alexa, play X" lands on the hub's SyncPlay relay (`ws://<hub>:8804`), which
+' matches an authenticated (hub user, server) socket — NOT a SyncPlay room. The
+' consumer socket therefore opens whenever the app is open in hub mode with a
+' picked server, independently of any watch-together session. Direct mode has
+' no hub relay session at all (no hub token, no server id), so nothing opens.
+' =============================================================================
+
+' Start (or replace) the HubCommandTask for the current hub context.
+' No-op in direct mode or before a server is picked.
+sub StartHubCommandConsumer()
+    if GetConnectionKind() <> "hub" then return
+    serverId = GetActiveServerId()
+    if serverId = "" then return
+
+    hubUrl = GetServerUrl()
+    if hubUrl = "" then return
+
+    ' Parse the hub host out of the persisted hub URL (http://host[:port]).
+    host = hubUrl
+    schemeIdx = Instr(1, host, "://")
+    if schemeIdx > 0 then host = Mid(host, schemeIdx + 3)
+    slashIdx = Instr(1, host, "/")
+    if slashIdx > 0 then host = Left(host, slashIdx - 1)
+    if host = "" then return
+
+    token = GetStorage().get("auth_token")
+    if token = invalid or token = "" then return
+
+    StopHubCommandConsumer()
+
+    m.hubCommandTask = CreateObject("roSGNode", "HubCommandTask")
+    m.hubCommandTask.ObserveField("event", "OnPendingHubCommand")
+    m.top.Append(m.hubCommandTask)
+    m.hubCommandTask.config = {
+        host: host
+        port: 8804
+        apiBase: hubUrl
+        serverId: serverId
+        token: token
+    }
+    m.hubCommandTask.control = "run"
+end sub
+
+' Stop the consumer task (logout, server switch, app teardown).
+sub StopHubCommandConsumer()
+    if m.hubCommandTask = invalid then return
+    m.hubCommandTask.UnobserveField("event")
+    m.hubCommandTask.command = { kind: "close" }
+    m.top.RemoveChild(m.hubCommandTask)
+    m.hubCommandTask = invalid
+end sub
+
+' Route a delivered pending_command to the player through the SAME deep-link
+' machinery R6.3 uses for link intents: fetch the item, then open DetailScene
+' with auto-play. A second command while one is already being processed is
+' ignored (a command is already in flight).
+sub OnPendingHubCommand(event as Object)
+    if m.hubCommandTask = invalid or m.hubCommandTask <> event.GetNode() then return
+    data = event.GetData()
+    if data = invalid or data.kind <> "pending_command" then return
+    if data.mediaId = invalid or data.mediaId = "" then return
+
+    if m.deepLinkFetchTask <> invalid then return
+
+    m.deepLinkParams = { contentId: data.mediaId, action: "play" }
+    ProcessDeepLink()
 end sub
 
 sub OnLoginSuccess()
@@ -522,6 +599,10 @@ sub OnLogout()
     ' R1.6: ResetCachedStorage(fullReset) uses DeleteAll+Flush (1 NVRAM write
     ' instead of 6 separate delete+flush cycles) and invalidates the read cache.
     ResetCachedStorage(true)
+
+    ' S298: the hub relay consumer holds a live token-scoped socket — stop it
+    ' before credentials are cleared.
+    StopHubCommandConsumer()
 
     ' Clear the screen stack (stale references to removed nodes) and remove all
     ' children so the next Show* call starts from a clean scene tree.

@@ -267,60 +267,6 @@ function SyncPlayManager(api as Object) as Object
         end function
 
         ' ============================================================= '
-        ' WebSocket Configuration Builder
-        ' ============================================================= '
-
-        ' Build WebSocket URL parts from the current session's serverUrl.
-        ' Returns {host, port, path} for SyncPlayTask.config.
-        ' Forces ws:// (plaintext TCP, no TLS).
-        ' Returns invalid if not in a room or no serverUrl.
-        buildWsParts: function() as Object
-            if m._session = invalid then return invalid
-
-            serverUrl = m._session.serverUrl
-            if serverUrl = invalid or serverUrl = "" then return invalid
-
-            ' Strip scheme
-            rest = serverUrl
-            schemeIdx = Instr(1, rest, "://")
-            if schemeIdx > 0 then rest = Mid(rest, schemeIdx + 3)
-
-            ' Drop any path/query after authority
-            slashIdx = Instr(1, rest, "/")
-            if slashIdx > 0 then rest = Left(rest, slashIdx - 1)
-
-            ' Split host:port
-            host = rest
-            colonIdx = Instr(1, rest, ":")
-            if colonIdx > 0 then host = Left(rest, colonIdx - 1)
-            if host = "" then return invalid
-
-            ' Extract port if present
-            port = 8804
-            if colonIdx > 0 then
-                portStr = Mid(rest, colonIdx + 1)
-                portVal = 0
-                for i = 1 to Len(portStr)
-                    c = Asc(Mid(portStr, i, 1))
-                    if c >= 48 and c <= 57 then
-                        portVal = portVal * 10 + (c - 48)
-                    else
-                        exit for
-                    end if
-                end for
-                if portVal > 0 then port = portVal
-            end if
-
-            ' Build path with roomId and token
-            token = GetStorage().get("auth_token")
-            if token = invalid then token = ""
-
-            path = "/syncplay/" + m._session.roomId + "?token=" + UrlEncode(token)
-
-            return { host: host, port: port, path: path }
-        end function
-
-        ' ============================================================= '
         ' State Updates (from WebSocket events)
         ' ============================================================= '
 
