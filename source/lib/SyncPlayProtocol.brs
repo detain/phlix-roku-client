@@ -282,15 +282,22 @@ function SyncPlayProtocol() as Object
         end function
 
         ' Build the GET upgrade request string (CRLF-joined, trailing blank line).
-        ' The path already carries the ?token=<access_token> query (built by the
-        ' scene). We send a valid random key but do NOT verify the server's
-        ' Sec-WebSocket-Accept hash (see HandshakeAccepted).
+        ' The path already carries the relay path (`/syncplay/{server_id}`, built
+        ' by the caller). We send a valid random key but do NOT verify the
+        ' server's Sec-WebSocket-Accept hash (see HandshakeAccepted).
+        ' `extraHeaders` is an OPTIONAL assocarray of { name: value } added
+        ' verbatim before the terminating blank line — the hub relay requires the
+        ' relay token on a sanctioned carrier, and a raw handshake is the only
+        ' place a Roku client can put `Authorization: Bearer <token>` (S298). The
+        ' existing :8097 SyncPlay caller passes no extra headers, so this is
+        ' purely additive.
         ' @param host String - the server host
-        ' @param port Integer - the plaintext WS port (8097)
-        ' @param path String - "/syncplay?token=..."
+        ' @param port Integer - the plaintext WS port (8097 / 8804)
+        ' @param path String - the request path
         ' @param keyB64 String - NewWebSocketKey()
+        ' @param extraHeaders Object - optional { "Authorization": "Bearer x" }
         ' @return String - the raw request bytes to Send
-        BuildHandshakeRequest: function(host as String, port as Integer, path as String, keyB64 as String) as String
+        BuildHandshakeRequest: function(host as String, port as Integer, path as String, keyB64 as String, extraHeaders = invalid as Object) as String
             crlf = Chr(13) + Chr(10)
             hostHeader = host + ":" + str(port).Trim()
             req = "GET " + path + " HTTP/1.1" + crlf
@@ -299,6 +306,11 @@ function SyncPlayProtocol() as Object
             req = req + "Connection: Upgrade" + crlf
             req = req + "Sec-WebSocket-Key: " + keyB64 + crlf
             req = req + "Sec-WebSocket-Version: 13" + crlf
+            if extraHeaders <> invalid then
+                for each h in extraHeaders
+                    req = req + h + ": " + extraHeaders[h] + crlf
+                end for
+            end if
             req = req + crlf
             return req
         end function

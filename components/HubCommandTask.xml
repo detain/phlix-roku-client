@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @copyright 2026 Joe Huss <detain@interserver.net> -->
+<!-- @license   MIT -->
+
+<!-- copyright 2026 Joe Huss -->
+
+<!-- S298 — the hub relay pending_command consumer.
+
+     The ONLY Phlix surface that can receive "Alexa, play X" is the hub's
+     SyncPlay relay WebSocket (`ws://<hub>:8804/syncplay/{server_id}`). Before
+     S298 no client connected there at all. This task is the Roku consumer:
+     it mints a per-user relay token from the hub, connects with the token on
+     the `Authorization: Bearer` header (the sanctioned carrier for a raw
+     RFC6455 client), and forwards `pending_command` / `play_media` frames to
+     the scene via the `event` field. The socket is long-lived ("open whenever
+     the app is open" — NOT gated on a SyncPlay room join) with a bounded
+     reconnect ladder that re-mints on every attempt (relay tokens expire
+     hourly). -->
+<component name="HubCommandTask" extends="Task">
+    <interface>
+        <!-- Scene->task connection config:
+             { host, port, apiBase, serverId, token }
+             host     - hub host for the relay socket
+             port     - relay port (default 8804)
+             apiBase  - hub origin for minting the relay token
+             serverId - the server the token is scoped to (also the
+                        /syncplay/{server_id} path segment)
+             token    - the HUB access JWT used to mint the relay token -->
+        <field id="config" type="assocarray" />
+
+        <!-- Scene->task imperative commands. alwaysNotify so two identical kinds
+             in a row still fire. { kind, ... } — see RunConsumer's HandleCommand. -->
+        <field id="command" type="assocarray" alwaysNotify="true" />
+
+        <!-- Task->scene events. alwaysNotify so repeated kinds still notify.
+             { kind, ... } — "open" | "closed" | "pending_command" -->
+        <field id="event" type="assocarray" alwaysNotify="true" />
+
+        <!-- Task->scene connection state string:
+             "idle" | "connecting" | "open" | "reconnecting" | "closed" -->
+        <field id="connectionState" type="string" />
+    </interface>
+
+    <!-- Transitive closure: a component scope does NOT auto-include pkg:/source.
+         The consumer loop is driven entirely by the `config`/`command` fields
+         (the scene builds the config), so it needs only Storage (token
+         fallback), Utilities, SyncPlayProtocol (framing/handshake) + own .brs. -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/SyncPlayProtocol.brs" />
+    <script type="text/brightscript" uri="pkg:/components/HubCommandTask.brs" />
+</component>
