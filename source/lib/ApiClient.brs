@@ -1092,7 +1092,7 @@ function ApiClient(baseUrl as String) as Object
             return m.request("GET", "/profiles/" + profileId + "/schedules", invalid)
         end function
 
-        ' POST /profiles/{id}/schedules {name,startTime,endTime,daysOfWeek,isActive}
+        ' POST /profiles/{id}/schedules {name,start_time,end_time,days_of_week,is_active}
         ' -> {schedule} (the created schedule) or {error}
         createProfileSchedule: function(profileId as String, schedule as Object) as Object
             return m.request("POST", "/profiles/" + profileId + "/schedules", schedule)
@@ -1108,7 +1108,7 @@ function ApiClient(baseUrl as String) as Object
             return m.request("GET", "/profiles/" + profileId + "/tags", invalid)
         end function
 
-        ' POST /profiles/{id}/tags {tag,tagType} -> {tag} (the created tag)
+        ' POST /profiles/{id}/tags {tag,tag_type} -> {tag} (the created tag)
         createProfileTag: function(profileId as String, tag as Object) as Object
             return m.request("POST", "/profiles/" + profileId + "/tags", tag)
         end function
