@@ -252,10 +252,10 @@ sub OnAddSchedule()
         profileId: m.profileId,
         schedule: {
             name: name,
-            startTime: startTime,
-            endTime: endTime,
-            daysOfWeek: days,
-            isActive: true
+            start_time: startTime,
+            end_time: endTime,
+            days_of_week: days,
+            is_active: true
         }
     }
     m.apiTask.control = "run"
@@ -356,7 +356,7 @@ sub OnAddTag()
     m.apiTask.request = {
         op: "createProfileTag",
         profileId: m.profileId,
-        tag: { tag: tagName, tagType: "blocked" }
+        tag: { tag: tagName, tag_type: "blocked" }
     }
     m.apiTask.control = "run"
 end sub
@@ -502,8 +502,8 @@ function ScheduleCaption(schedule as Object) as String
     end if
 
     daysStr = ""
-    if schedule.DoesExist("daysOfWeek") and schedule.daysOfWeek <> invalid then
-        days = schedule.daysOfWeek
+    if schedule.DoesExist("days_of_week") and schedule.days_of_week <> invalid then
+        days = schedule.days_of_week
         if type(days) = "roArray" and days.Count() > 0 then
             ' Short day names
             dayMap = { mon: "M", tue: "T", wed: "W", thu: "T", fri: "F", sat: "S", sun: "S" }
@@ -516,17 +516,15 @@ function ScheduleCaption(schedule as Object) as String
     end if
 
     startTime = ""
-    if schedule.DoesExist("startTime") and schedule.startTime <> invalid then startTime = schedule.startTime
+    if schedule.DoesExist("start_time") and schedule.start_time <> invalid then startTime = schedule.start_time
     endTime = ""
-    if schedule.DoesExist("endTime") and schedule.endTime <> invalid then endTime = schedule.endTime
+    if schedule.DoesExist("end_time") and schedule.end_time <> invalid then endTime = schedule.end_time
 
     timeStr = ""
     if startTime <> "" and endTime <> "" then timeStr = " " + startTime + "-" + endTime
 
     activeStr = ""
-    if schedule.DoesExist("isActive") and schedule.isActive <> invalid then
-        if not IsTruthyFlag(schedule, "isActive") then activeStr = " (inactive)"
-    end if
+    if not IsTruthyFlag(schedule, "is_active") then activeStr = " (inactive)"
 
     return name + "  (" + daysStr + timeStr + ")" + activeStr
 end function
@@ -554,8 +552,8 @@ function TagCaption(tag as Object) as String
     end if
 
     tagType = ""
-    if tag.DoesExist("tagType") and tag.tagType <> invalid then
-        tagType = "[" + tag.tagType + "] "
+    if tag.DoesExist("tag_type") and tag.tag_type <> invalid then
+        tagType = "[" + tag.tag_type + "] "
     end if
 
     return tagType + tagName
