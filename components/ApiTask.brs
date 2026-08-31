@@ -358,10 +358,6 @@ sub ExecRequest()
             result.data = api.getItemRatings(req.itemId)
             result.ok = DeriveResponseOk(result.data)
             result.error = DeriveResponseError(result.data)
-        else if req.op = "getItemCast" then
-            result.data = api.getItemCast(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
         else if req.op = "getItemTrailers" then
             result.data = api.getItemTrailers(req.itemId)
             result.ok = DeriveResponseOk(result.data)
@@ -410,18 +406,18 @@ sub ExecRequest()
             ' R7.2: Fetch the next episode/item for autoplay card and Up Next rail.
             ' Endpoint: GET /api/v1/users/me/next-up
             ' Response: direct item object (or null if nothing up next)
-            cachedResp = CacheTryGet(api, "GET", "/me/next-up")
+            cachedResp = CacheTryGet(api, "GET", "/users/me/next-up")
             if cachedResp <> invalid then
                 result.data = cachedResp
                 result.ok = DeriveResponseOk(cachedResp)
                 result.error = DeriveResponseError(cachedResp)
             else
-                resp = api.request("GET", "/me/next-up", invalid)
+                resp = api.request("GET", "/users/me/next-up", invalid)
                 result.data = resp
                 result.ok = DeriveResponseOk(resp)
                 result.error = DeriveResponseError(resp)
                 if result.ok then
-                    CacheStore(api, "GET", "/me/next-up", resp)
+                    CacheStore(api, "GET", "/users/me/next-up", resp)
                 end if
             end if
         else if req.op = "getRecommendations" then
