@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+### Added — S280 client route gate (roku half)
+
+- **`tests/fixtures/server-route-manifest.json`** — vendored byte-for-byte from
+  `@phlix/contracts` `dist/server-route-manifest.json` (400 `[method, pathTemplate]`
+  tuples derived from phlix-server `8f72faec`; provenance pinned inside the gate).
+- **`tests/scripts/verify-route-manifest.mjs`** (`make validate-routes`, also wired
+  into `make validate` and `test.yml`) — statically scans every `.request("VERB",
+  …)` / `.sendRaw("VERB", …)` site in `source/` + `components/` (including
+  `path`/`cachePath` variable-assignment chains) and requires each issued URL to
+  be tuple-exact against the manifest: exact segment count, `{param}` spans one
+  segment, never a substring (no sibling-wildcard absorption). Coverage is
+  pinned: **91 request sites / 81 distinct tuples across 2 modules**.
+  Partition exceptions are enumerated with reasons AND negative-pinned
+  (`GET /me/servers` is hub-only — it reds the moment the server registers it);
+  `GET /health` (probeHealth, outside the `/api/v1` concat) is positively pinned.
+  `--self-test` proves the matcher is falsifiable on demand; the planted-unserved
+  URL was demonstrated RED on a real source file and reverted to green.
+
+### Fixed — three calls to routes phlix-server never registered (S280)
+
+- **`markWatched`** POSTed `/users/me/history/{id}` — only the DELETE half of
+  that path exists. Now `POST /api/v1/media/{id}/watched` (the registered
+  mark-watched rail; detail-screen "Mark watched" finally stops 404ing).
+- **ApiTask next-up** requested `/me/next-up`; the served rail is
+  `/api/v1/users/me/next-up` (its own code comment always said so). Fixed in
+  the request and both cache-key literals.
+- **`getItemCast` + the cast/crew display chain REMOVED**: `GET /media/{id}/cast`
+  is on neither registry (the server's HTTP layer emits no cast key anywhere —
+  `/cast` is Chromecast devices only), so the detail-screen fetch 404'd on every
+  open and the invalid-guarded handler rendered nothing since the feature was
+  written. Removed: `ApiClient.getItemCast`, the `ApiTask` op branch, the
+  `DetailScene` handler + request site + `DisplayCast`/`DisplayCrew`. Same
+  verdict s280ui/S285 reached for can-never-succeed placeholders. If the server
+  ever registers credits (W19 routes-or-removal), re-add against the manifest.
+- **Dead notification-preferences surface REMOVED** (`getNotificationPreferences`
+  / `updateNotificationPreferences` → `GET|PUT /users/me/notifications`, never
+  served anywhere, zero callers in source, tests, or docs).
+
 ### Fixed — parental-controls creates 400'd on the wire shape (S234)
 
 - `OnAddTag` now posts `{tag, tag_type}` and `OnAddSchedule` posts `{name, start_time, end_time, days_of_week, is_active}` — the previous camelCase bodies (`tagType`, `startTime`, …) 400'd against the server on every create. The path is reachable (ParentalControlsScene → ApiTask `createProfileTag`/`createProfileSchedule` → ApiClient).

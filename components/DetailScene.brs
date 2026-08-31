@@ -205,14 +205,6 @@ sub OnApiResponse(event as Object)
             m.ratingsData = resp.data
             DisplayRatings(resp.data)
         end if
-    else if resp.op = "getItemCast" then
-        ' R7.4: Store cast/crew data and display. Handle both nested {cast:[...],crew:[...]}
-        ' and flat [...] shapes from different API versions.
-        if resp.ok and resp.data <> invalid then
-            m.castData = resp.data
-            DisplayCast(resp.data)
-            DisplayCrew(resp.data)
-        end if
     else if resp.op = "getItemTrailers" then
         ' R7.4: Store trailers and display if available.
         if resp.ok and resp.data <> invalid then
@@ -814,105 +806,10 @@ sub LoadAdditionalData()
     m.apiTask.control = "run"
     m.apiTask.request = { op: "getItemRatings", itemId: m.itemId }
     m.apiTask.control = "run"
-    m.apiTask.request = { op: "getItemCast", itemId: m.itemId }
-    m.apiTask.control = "run"
     m.apiTask.request = { op: "getItemTrailers", itemId: m.itemId }
     m.apiTask.control = "run"
     m.apiTask.request = { op: "getItemExtras", itemId: m.itemId }
     m.apiTask.control = "run"
-end sub
-
-' ---------------------------------------------------------------------
-' R7.4: Display cast in a horizontal row if cast data exists.
-' Cast data structure:
-'   - New (nested): {cast: [{name, role, thumbnail_url}], crew: [...]}
-'   - Old (flat): [{name, role, thumbnail_url}]
-' R7.4: Handle BOTH shapes - extract cast array for rendering.
-' ---------------------------------------------------------------------
-sub DisplayCast(data as Object)
-    if data = invalid then return
-
-    castArray = invalid
-
-    ' Handle nested shape: {cast: [...], crew: [...]]
-    if type(data) = "roAssociativeArray" then
-        if data.DoesExist("cast") then
-            castArray = data.cast
-        end if
-    else if type(data) = "roArray" then
-        ' Flat shape - direct array of cast members
-        castArray = data
-    end if
-
-    ' Validate we have a non-empty cast array
-    if castArray = invalid then return
-    if type(castArray) <> "roArray" then return
-    if castArray.count() = 0 then return
-
-    ' Cast data stored for UI consumption
-    m.castData = castArray
-
-    ' R7.4: Wire data to UI - find cast row and populate with content nodes
-    if m.castRow = invalid then m.castRow = m.top.FindNode("castRow")
-    if m.castRow = invalid then return
-
-    content = CreateObject("roSGNode", "ContentNode")
-    for each person in castArray
-        item = content.CreateChild("ContentNode")
-        item.Title = person.name
-        item.Description = person.role
-        if person.thumbnail_url <> invalid and person.thumbnail_url <> "" then
-            item.HDPosterUrl = person.thumbnail_url
-        end if
-    end for
-
-    m.castRow.content = content
-    m.castRow.visible = (castArray.Count() > 0)
-end sub
-
-' ---------------------------------------------------------------------
-' R7.4: Display crew in a horizontal row if crew data exists.
-' Crew data structure (nested only):
-'   - {cast: [...], crew: [{name, job, department, thumbnail_url}]}
-' Crew does not exist in flat/old shape - this is a no-op for flat.
-' ---------------------------------------------------------------------
-sub DisplayCrew(data as Object)
-    if data = invalid then return
-
-    crewArray = invalid
-
-    ' Only nested shape has separate crew
-    if type(data) = "roAssociativeArray" then
-        if data.DoesExist("crew") then
-            crewArray = data.crew
-        end if
-    end if
-
-    ' Crew is optional - silent no-op if missing or empty
-    if crewArray = invalid then return
-    if type(crewArray) <> "roArray" then return
-    if crewArray.count() = 0 then return
-
-    ' Crew data stored for UI consumption
-    m.crewData = crewArray
-
-    if m.crewRow = invalid then m.crewRow = m.top.FindNode("crewRow")
-    if m.crewRow = invalid then return
-
-    content = CreateObject("roSGNode", "ContentNode")
-    for each person in crewArray
-        item = content.CreateChild("ContentNode")
-        item.Title = person.name
-        item.Description = person.job + ": " + person.department
-        if person.thumbnail_url <> invalid and person.thumbnail_url <> "" then
-            item.HDPosterUrl = person.thumbnail_url
-        else
-            item.HDPosterUrl = "pkg:/images/placeholder.png"
-        end if
-    end for
-
-    m.crewRow.content = content
-    m.crewRow.visible = (crewArray.Count() > 0)
 end sub
 
 ' ---------------------------------------------------------------------

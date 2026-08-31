@@ -648,10 +648,13 @@ function ApiClient(baseUrl as String) as Object
         ' explicit manual marking independent of playback sessions.
         ' ---------------------------------------------------------------------
 
-        ' POST /users/me/history/{mediaItemId} -> {message} ; marks item as
-        ' watched (adds to user's watch history).
+        ' POST /media/{id}/watched -> {message} ; marks item as watched (adds
+        ' to the user's watch history). S280: this used to POST
+        ' /users/me/history/{id}, a route the server NEVER registers (only the
+        ' DELETE half exists) — the call 404'd on every tap; the manifest now
+        ' pins it so the drift cannot return.
         markWatched: function(mediaItemId as String) as Object
-            return m.request("POST", "/users/me/history/" + mediaItemId, invalid)
+            return m.request("POST", "/media/" + mediaItemId + "/watched", invalid)
         end function
 
         ' DELETE /users/me/history/{mediaItemId} -> {message} ; marks item as
@@ -1141,17 +1144,16 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
-        ' Notification preferences (R7.4b). GET /me/notifications -> {prefs}.
+        ' S280 REMOVED: getNotificationPreferences / updateNotificationPreferences
+        ' (GET|PUT /users/me/notifications). The route exists on NEITHER registry —
+        ' not phlix-server's ROUTE_MANIFEST (all 400 rails checked via
+        ' `make validate-routes`) nor the hub — and the functions had ZERO
+        ' callers in source, tests, or docs. A client can call a URL that has
+        ' never existed and nothing reddened: that is the S280 gap, closed for
+        ' roku by this gate, and this surface died in it rather than being
+        ' pinned as a permanent exception (same verdict s280ui/S285 reached for
+        ' the no-op send-state placeholders).
         ' ---------------------------------------------------------------------
-        getNotificationPreferences: function() as Object
-            return m.request("GET", "/users/me/notifications", invalid)
-        end function
-
-        ' PUT /users/me/notifications {prefs} -> {message}
-        ' prefs: { push_enabled: Boolean, email_enabled: Boolean }
-        updateNotificationPreferences: function(prefs as Object) as Object
-            return m.request("PUT", "/users/me/notifications", prefs)
-        end function
 
         ' ---------------------------------------------------------------------
         ' Watch history (R7.1). DELETE /api/v1/users/me/history -> {message}.
@@ -1179,11 +1181,16 @@ function ApiClient(baseUrl as String) as Object
         ' R7.4: Detail enrichment - cast/crew, trailers, extras.
         ' ---------------------------------------------------------------------
 
-        ' GET /media/{id}/cast -> {cast:[{name,role,thumbnail_url}],crew:[{name,role,thumbnail_url}]}
-        ' or flat [{name,role,thumbnail_url}] for older APIs.
-        getItemCast: function(mediaItemId as String) as Object
-            return m.request("GET", "/media/" + mediaItemId + "/cast", invalid)
-        end function
+        ' S280 REMOVED: getItemCast (GET /media/{id}/cast). The route is on
+        ' NEITHER registry — the server's HTTP layer emits no `cast` key at any
+        ' endpoint and the hub proxy re-anchors to the same server 404. Every
+        ' detail-screen cast fetch has therefore 404'd since the feature was
+        ' written; the invalid-guarded handler rendered nothing. The whole
+        ' inert chain (op branch + scene handler + DisplayCast/DisplayCrew)
+        ' goes with it — same verdict s280ui/S285 reached for placeholders that
+        ' can never succeed. If the server ever registers a credits route
+        ' (W19 routes-or-removal audit), re-add from git history against the
+        ' manifest entry, never from the old URL.
 
         ' GET /media/{id}/trailers -> {items:[{name,url,thumbnail_url}]} ; playable trailers.
         getItemTrailers: function(mediaItemId as String) as Object

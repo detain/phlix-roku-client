@@ -1,4 +1,4 @@
-.PHONY: all package install dev clean test lint lint-fix validate-manifest _run_rooibos _run_rooibos_unit _run_rooibos_integration
+.PHONY: all package install dev clean test lint lint-fix validate-manifest validate-routes _run_rooibos _run_rooibos_unit _run_rooibos_integration
 
 # Roku IP address (set via environment or edit here)
 ROKU_IP ?= 192.168.1.100
@@ -291,8 +291,17 @@ check:
 verify-runtime:
 	@bash "$(CURDIR)/scripts/verify-runtime.sh"
 
+# S280: client route gate — every URL this client issues must be tuple-exact
+# against the vendored phlix-server manifest (tests/fixtures/server-route-manifest.json).
+# Device-free by design: static scan + exact compare, runs anywhere Node runs.
+validate-routes:
+	@echo "Validating issued routes against the vendored server manifest (S280)..."
+	@node tests/scripts/verify-route-manifest.mjs
+	@echo "  ✓ route gate green"
+	@echo "  ✓ route gate falsifiability:" && node tests/scripts/verify-route-manifest.mjs --self-test
+
 # Full validation suite
-validate: validate-manifest validate-xml test
+validate: validate-manifest validate-xml validate-routes test
 	@echo ""
 	@echo "All validations passed."
 
