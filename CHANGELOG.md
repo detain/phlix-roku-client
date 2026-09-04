@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Changed — W29 (cs17): route-manifest provenance re-pin (no route change) — 2026-09-04
+
+- **cs#17 currency cascade.** `tests/fixtures/server-route-manifest.json`
+  re-vendored verbatim from `@phlix/contracts` master `55311c68` (regen
+  against server master `4b620f59`; previous provenance `888a42b2`). All 400
+  tuples byte-identical — only provenance moves.
+  `tests/scripts/verify-route-manifest.mjs` follows its `PROVENANCE_SHA` pin
+  to `4b620f59` (this gate pins provenance sha, not md5). No coverage or
+  partition pin moved.
+
 ### Added — S280 client route gate (roku half)
 
 - **`tests/fixtures/server-route-manifest.json`** — vendored byte-for-byte from
