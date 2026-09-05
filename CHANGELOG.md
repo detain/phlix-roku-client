@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Changed — W31 (cs18): route-manifest provenance re-pin (no route change) — 2026-09-05
+
+- **cs#18 currency cascade.** `tests/fixtures/server-route-manifest.json`
+  re-vendored verbatim from `@phlix/contracts` master `51ed6cd3` (regen
+  against server master `e74cdc88`; previous provenance `4b620f59`). All 400
+  tuples byte-identical — only provenance moves.
+  `tests/scripts/verify-route-manifest.mjs` follows its `PROVENANCE_SHA` pin
+  to `e74cdc88` (this gate pins provenance sha, not md5). The issued set
+  stays 91 request sites / 81 distinct tuples — the delta is tuple-neutral;
+  no coverage or partition pin moved.
+
 ### Changed — W29 (cs17): route-manifest provenance re-pin (no route change) — 2026-09-04
 
 - **cs#17 currency cascade.** `tests/fixtures/server-route-manifest.json`
