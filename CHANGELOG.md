@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Changed — W34 (cs20retag): route-manifest provenance re-pin (no route change) — 2026-09-05
+
+- **cs#20 currency leg of the combined re-tag wave.** `tests/fixtures/server-route-manifest.json`
+  re-vendored verbatim from `@phlix/contracts` master `f2e284b3` (regen against server master
+  `f35a5742` — the web-ui `@phlix/ui` v0.99.1 re-pin commit, zero PHP, zero route hunks; previous
+  provenance `2250def2`/`3a253991`). All 400 tuples byte-identical — only provenance moves.
+  `tests/scripts/verify-route-manifest.mjs` moves the `PROVENANCE_SHA` pin to `f35a5742`;
+  `TOTAL_TUPLES = 400` and every coverage pin stay. No md5 assertion here (unchanged posture).
+  Verified: 91 request sites / 81 distinct tuples — tuple-exact @ the new provenance; `--self-test`
+  falsifiability green; `make lint` green. No version or install-pin moves in this repo.
+
 ### Changed — W33 (cs19): route-manifest provenance re-pin (no route change) — 2026-09-05
 
 - **cs#19 currency cascade.** `tests/fixtures/server-route-manifest.json`
