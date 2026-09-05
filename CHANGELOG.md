@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Changed — W33 (cs19): route-manifest provenance re-pin (no route change) — 2026-09-05
+
+- **cs#19 currency cascade.** `tests/fixtures/server-route-manifest.json`
+  re-vendored verbatim from `@phlix/contracts` master `2250def2` (regen
+  against server master `3a253991`; previous provenance `e74cdc88` — S431
+  executable census, one commit, no route hunks). All 400 tuples byte-identical
+  — only provenance moves. `tests/scripts/verify-route-manifest.mjs` moves the
+  `PROVENANCE_SHA` pin to `3a253991`; `TOTAL_TUPLES = 400` and every coverage
+  pin stay. No md5 assertion here (unchanged posture). Untagged wave: no
+  version or install-pin moves.
+
 ### Changed — W31 (cs18): route-manifest provenance re-pin (no route change) — 2026-09-05
 
 - **cs#18 currency cascade.** `tests/fixtures/server-route-manifest.json`
