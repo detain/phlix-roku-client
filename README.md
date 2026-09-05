@@ -283,6 +283,10 @@ The app uses these configurable constants (in source files):
 make package
 
 # This creates: phlix.zip
+# Version fields are injected into build/manifest by scripts/derive-version.sh
+
+# Or build a signed store-submission package (see docs/publishing.md)
+make package-signed
 ```
 
 ### Install to Device
@@ -312,8 +316,8 @@ telnet 192.168.1.100 8080
 ### Manual Deployment
 
 ```bash
-# Create package manually
-zip -r phlix.zip manifest source images
+# Create package manually (components/ is required - omitting it ships a UI-less channel)
+zip -r phlix.zip manifest source components images
 
 # Sideload via curl
 curl -v -u rokudev:password -X POST \
@@ -329,13 +333,15 @@ curl -v -u rokudev:password -X POST \
 Unit tests are located in `tests/unit/` and use BrightScript's testing patterns.
 
 ```bash
-# List available tests
-make test
+# Run the unit suite (rooibos) - requires a device
+ROKU_HOST=192.168.1.100 make test-unit
 
-# Output shows:
-# Found test: tests/unit/ApiClient.test.brs
-# Found test: tests/unit/Storage.test.brs
-# Found test: tests/unit/Utilities.test.brs
+# Without ROKU_HOST the target lists the files it would run and exits 2:
+# Tests require hardware - skipping
+# Unit test files present:
+#   ApiClient.test.brs
+#   Storage.test.brs
+#   Utilities.test.brs
 ```
 
 ### Running Tests on Device
@@ -352,6 +358,23 @@ Integration tests in `tests/integration/` test API client against a live server.
 # Deploy tests to device and run via developer portal
 ```
 
+### Route Manifest Gate (S280)
+
+Every URL the client can put on the wire is pinned **tuple-exact** against a vendored copy of the
+phlix-server route manifest. It is device-free (static scan + exact compare) and runs in CI via
+`.github/workflows/test.yml`.
+
+```bash
+# Compare every issued URL against tests/fixtures/server-route-manifest.json
+make validate-routes
+
+# Same gate, plus a planted unserved URL proving the check can still go red
+node tests/scripts/verify-route-manifest.mjs --self-test
+```
+
+Re-vendoring `tests/fixtures/server-route-manifest.json` also moves the `PROVENANCE_SHA` /
+`TOTAL_TUPLES` pins at the top of `tests/scripts/verify-route-manifest.mjs` — update both together.
+
 ### Test Structure
 
 ```
@@ -360,8 +383,13 @@ tests/
 │   ├── ApiClient.test.brs      # API client unit tests
 │   ├── Storage.test.brs         # Storage unit tests
 │   └── Utilities.test.brs       # Utilities unit tests
-└── integration/
-    └── ApiIntegration.test.brs  # API integration tests
+├── integration/
+│   └── ApiIntegration.test.brs  # API integration tests
+├── fixtures/
+│   └── server-route-manifest.json   # vendored phlix-server route manifest (S280)
+└── scripts/
+    ├── verify-route-manifest.mjs    # make validate-routes
+    └── verify-runtime-portable.sh   # verify-runtime.sh portability regression
 ```
 
 ## Deployment to Roku
@@ -588,43 +616,49 @@ phlix-roku/
 │   │   ├── LibraryManager.brs  # Library browsing logic
 │   │   ├── TaskManager.brs     # Background task management
 │   │   ├── SyncPlayProtocol.brs # SyncPlay: pure RFC6455 WS framing + flat syncplay_* codec + NTP TimeSync (no I/O / no UI)
+│   │   ├── SyncPlayManager.brs  # SyncPlay: coordinates the REST group snapshot + the WS session state
+│   │   ├── ToastManager.brs     # Toast/notification singleton for background errors (GetToastManager())
 │   │   └── Utilities.brs        # Helper functions
-│   ├── components/
-│   │   ├── PhlixApp.brs       # Main app controller
-│   │   ├── HomeScene.brs       # Home screen
-│   │   ├── LibraryScene.brs    # Library browser
-│   │   ├── DetailScene.brs     # Item detail view
-│   │   ├── CollectionsScene.brs # Collections list (LabelList of collection names, read-only)
-│   │   ├── CollectionScene.brs  # One collection's items (poster grid; raw rows normalized client-side)
-│   │   ├── AdminScene.brs       # Admin menu (LabelList; is_admin-gated entry; rows: Dashboard, Libraries, Users, Live TV, TV Guide, Recordings, Series Rules)
-│   │   ├── DashboardScene.brs   # Read-only admin dashboard (now-playing / storage / activity in one list)
-│   │   ├── LibraryAdminScene.brs # Admin libraries list (LabelList; drills into per-library actions)
-│   │   ├── LibraryAdminActionsScene.brs # Per-library admin actions (Scan / Rescan / Match Metadata / Refresh Status + scan-status line)
-│   │   ├── UserAdminScene.brs    # Admin users list (LabelList of all users; drills into per-user actions)
-│   │   ├── UserAdminActionsScene.brs # Per-user admin actions (Approve / Disable / Make-or-Remove Admin / Reset Password / Profiles / Refresh + user detail line)
-│   │   ├── ProfilesScene.brs     # Per-user profile list (one-shot LabelList; read-only; drills into per-profile actions)
-│   │   ├── ProfileActionsScene.brs # Per-profile admin actions (7 Rating buttons / Clear PIN / Refresh + profile detail line)
-│   │   ├── LiveTvScene.brs       # Admin Live TV channels list (one-shot LabelList; row-select resolves stream → live player)
-│   │   ├── LivePlayerScene.brs   # Dedicated lightweight live Video player (no sessions/progress/transcode/markers)
-│   │   ├── GuideScene.brs        # Admin Live TV guide/EPG list (one-shot LabelList; read-only, selection inert)
-│   │   ├── RecordingsScene.brs   # Admin Live TV recordings list (one-shot LabelList; read-only, selection inert)
-│   │   ├── SeriesRulesScene.brs  # Admin Live TV series-rules list (one-shot LabelList; read-only, selection inert)
-│   │   ├── PlayerScene.brs     # Video player (+ additive "Watch Together" SyncPlay overlay, opened with the "*"/Options key; gated, hub-disabled, ws:// only) (+ additive video-quality picker, opened with the Up key; server-A7-dependent, no-ops without a ladder) (+ additive Audio/Subtitles Settings panel, opened with the Down key; persists preferred_audio_track / preferred_subtitle_track)
-│   │   ├── SyncPlayTask.{xml,brs} # Long-lived Task running the SyncPlay ws:// socket off the render thread (roStreamSocket; RunSocket loop; flat syncplay_* frames)
-│   │   ├── ConnectScene.brs    # First-run "Connect to server" screen (normalizes + probes /health, persists server_url, then proceeds to login)
-│   │   ├── LoginScene.brs      # Login screen (username/password only); after login probes GET /me/servers to detect hub vs direct
-│   │   └── ServerPickerScene.brs # Hub mode: "Choose a server" list (one-shot GET /me/servers); pick persists active_server_id → relay routing
 │   ├── player/
-│   │   └── SkipButton.brs      # Skip intro/outro button
-│   ├── pages/
-│   │   ├── HomePage.brs        # Home page controller
-│   │   ├── LibraryPage.brs      # Library page controller
-│   │   └── SettingsPage.brs    # Settings page controller
+│   │   ├── SkipButton.brs      # Skip intro/outro button
+│   │   └── SleepTimer.brs      # Sleep timer
 │   └── data/
 │       └── Theme.brs           # Theme constants
+├── components/                  # SceneGraph scenes + Task nodes (each .brs paired with its .xml)
+│   ├── PhlixApp.brs       # Main app controller
+│   ├── HomeScene.brs       # Home screen
+│   ├── LibraryScene.brs    # Library browser
+│   ├── DetailScene.brs     # Item detail view
+│   ├── CollectionsScene.brs # Collections list (LabelList of collection names, read-only)
+│   ├── CollectionScene.brs  # One collection's items (poster grid; raw rows normalized client-side)
+│   ├── AdminScene.brs       # Admin menu (LabelList; is_admin-gated entry; rows: Dashboard, Libraries, Users, Live TV, TV Guide, Recordings, Series Rules)
+│   ├── DashboardScene.brs   # Read-only admin dashboard (now-playing / storage / activity in one list)
+│   ├── LibraryAdminScene.brs # Admin libraries list (LabelList; drills into per-library actions)
+│   ├── LibraryAdminActionsScene.brs # Per-library admin actions (Scan / Rescan / Match Metadata / Refresh Status + scan-status line)
+│   ├── UserAdminScene.brs    # Admin users list (LabelList of all users; drills into per-user actions)
+│   ├── UserAdminActionsScene.brs # Per-user admin actions (Approve / Disable / Make-or-Remove Admin / Reset Password / Profiles / Refresh + user detail line)
+│   ├── ProfilesScene.brs     # Per-user profile list (one-shot LabelList; read-only; drills into per-profile actions)
+│   ├── ProfileActionsScene.brs # Per-profile admin actions (7 Rating buttons / Clear PIN / Refresh + profile detail line)
+│   ├── LiveTvScene.brs       # Admin Live TV channels list (one-shot LabelList; row-select resolves stream → live player)
+│   ├── LivePlayerScene.brs   # Dedicated lightweight live Video player (no sessions/progress/transcode/markers)
+│   ├── GuideScene.brs        # Admin Live TV guide/EPG list (one-shot LabelList; read-only, selection inert)
+│   ├── RecordingsScene.brs   # Admin Live TV recordings list (one-shot LabelList; read-only, selection inert)
+│   ├── SeriesRulesScene.brs  # Admin Live TV series-rules list (one-shot LabelList; read-only, selection inert)
+│   ├── PlayerScene.brs     # Video player (+ additive "Watch Together" SyncPlay overlay, opened with the "*"/Options key; gated, hub-disabled, ws:// only) (+ additive video-quality picker, opened with the Up key; server-A7-dependent, no-ops without a ladder) (+ additive Audio/Subtitles Settings panel, opened with the Down key; persists preferred_audio_track / preferred_subtitle_track)
+│   ├── SyncPlayTask.{xml,brs} # Long-lived Task running the SyncPlay ws:// socket off the render thread (roStreamSocket; RunSocket loop; flat syncplay_* frames)
+│   ├── HubCommandTask.{xml,brs} # Long-lived Task consuming hub relay pending_command / play_media frames (mints a relay token, Bearer on the RFC6455 handshake)
+│   ├── ToastScene.brs      # Toast/notification overlay driven by ToastManager
+│   ├── ConnectScene.brs    # First-run "Connect to server" screen (normalizes + probes /health, persists server_url, then proceeds to login)
+│   ├── LoginScene.brs      # Login screen (username/password only); after login probes GET /me/servers to detect hub vs direct
+│   └── ServerPickerScene.brs # Hub mode: "Choose a server" list (one-shot GET /me/servers); pick persists active_server_id → relay routing
 ├── tests/
 │   ├── unit/                   # Unit tests
-│   └── integration/            # Integration tests
+│   ├── integration/            # Integration tests
+│   ├── fixtures/               # Vendored server-route-manifest.json (S280 route gate)
+│   └── scripts/                # verify-route-manifest.mjs, verify-runtime-portable.sh
+├── scripts/                     # verify-runtime.sh, derive-version.sh, package-signed.sh
+├── locale/
+│   └── en_US/strings.json      # Base-locale user-facing strings (see docs/i18n.md)
 ├── images/                      # App icons and splash screens
 ├── manifest                    # App manifest
 ├── Makefile                    # Build automation

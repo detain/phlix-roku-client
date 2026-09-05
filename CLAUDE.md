@@ -12,19 +12,21 @@ All workflows go through `Makefile`. `package.json` exists only to alias these f
 
 | Command | What it actually does |
 |---|---|
-| `make package` | `zip -r phlix.zip manifest source components images`. That zip is the entire build artifact. ⚠️ **Omitting `components` ships a UI-less channel** — the entire SceneGraph UI lives in `components/`, so a zip without it produces a black screen on the device. |
+| `make package` | Runs `_update-manifest` first (`scripts/derive-version.sh` rewrites `major_version`/`minor_version`/`build_version` into `build/manifest`), then `zip -r phlix.zip build/manifest source components images`. That zip is the entire build artifact. ⚠️ **Omitting `components` ships a UI-less channel** — the entire SceneGraph UI lives in `components/`, so a zip without it produces a black screen on the device. |
+| `make package-signed` | Runs `scripts/package-signed.sh` to build a signed store-submission package — see `docs/publishing.md`. |
 | `make install ROKU_IP=… ROKU_DEV=… ROKU_PASSWORD=…` | Packages, then POSTs the zip to `http://$ROKU_IP:8060/install/app`. |
 | `make launch` / `make stop` | ECP keypress/launch calls — also need `ROKU_IP` etc. |
 | `make lint` | Runs `npx bsc --project bsconfig.json` (brighterscript type-check). This IS a hard gate — it exits non‑zero on any diagnostic (type error, missing field, malformed XML/component pairing). The old grep-script description is stale. |
 | `make bslint` | Runs `npx bslint --project bsconfig.json` (brighterscript style linter). A separate hard gate from `make lint` — exits non-zero on any error or warning. |
-| `make test` / `make test-unit` / `make test-integration` | **Does not run any tests.** Only `find`s and lists `*.test.brs` filenames. BrightScript tests can only execute on a device. |
-| `make validate-manifest` / `make validate-xml` | Greps `manifest` for required keys and checks XML files contain `<?xml` + `</component>`. The only `make` targets that `exit 1` on failure. |
+| `make test` / `make test-unit` / `make test-integration` | Drive `rooibos` (`npx rooibos-roku`), which **requires a device** — they only execute when `ROKU_HOST` (or `ROKU_TEST_HOST`) is set. Without one `make test` falls back to `make lint` and exits 1, and `make test-unit` lists the `tests/unit/*.test.brs` files and exits 2. |
+| `make validate-routes` | S280 route gate — `node tests/scripts/verify-route-manifest.mjs` scans every URL the client can issue and compares it **tuple-exact** against the vendored `tests/fixtures/server-route-manifest.json`, then re-runs with `--self-test` to prove it can still go red. |
+| `make validate-manifest` / `make validate-xml` | Greps `manifest` for required keys and checks XML files contain `<?xml` + `</component>`. Both `exit 1` on failure. |
 
-Running a single test: there is no host runner. To execute a test you must sideload the package and invoke the test from the device (via the developer portal or telnet console on port 8080).
+Running a single test: there is no host runner — `rooibos --group unit` / `--group integration` still need `ROKU_HOST`. Otherwise sideload the package and invoke the test from the device (via the developer portal or telnet console on port 8080).
 
 ### CI caveat
 
-`lint.yml` runs `bsc`, `bslint`, and `verify-runtime` as hard gates — no `|| true`. `make test` never fails (no host runner); `test.yml` runs the unit-test step only when `ROKU_HOST` is set. Don't trust CI alone — verify by sideloading.
+`lint.yml` runs `bsc`, `bslint`, `validate-xml`, and `verify-runtime` as hard gates — no `|| true`. `test.yml` runs `make lint`, `make validate-routes`, `make validate-manifest`, and `make check`, and runs the unit-test step only when `ROKU_HOST` is set. Don't trust CI alone — verify by sideloading.
 
 ## Automated Quality Gates
 
@@ -38,6 +40,7 @@ These commands are run in CI and must pass before merging:
 
 - `npx bsc --project bsconfig.json` — brighterscript type-check (zero diagnostics required)
 - `make verify-runtime` — 19 runtime-defect checks (scripts/verify-runtime.sh); hard CI gate in lint.yml and package.yml
+- `make validate-routes` — S280 route gate: every issued URL is tuple-exact against `tests/fixtures/server-route-manifest.json`; hard CI gate in test.yml
 - `make validate-manifest` — manifest has required fields
 - `make validate-xml` — all XML files are valid SceneGraph documents
 - `make lint` — runs bsc, the actual hard gate
@@ -49,9 +52,10 @@ These commands are run in CI and must pass before merging:
 
 ```
 source/main.brs            → boots an roSGScreen, instantiates the PhlixApp scene, runs the message loop
-components/*.{brs,xml}      → SceneGraph scenes + Task nodes (PhlixApp, Connect, Login, ServerPicker, Home, Library, Detail, Player, Recommendations, ApiTask, SyncPlayTask, …)
-source/lib/*.brs           → pure BrightScript modules, all using the factory-object pattern (incl. SyncPlayProtocol)
+components/*.{brs,xml}      → SceneGraph scenes + Task nodes (PhlixApp, Connect, Login, ServerPicker, Home, Library, Detail, Player, Recommendations, ApiTask, SyncPlayTask, HubCommandTask, ToastScene, …)
+source/lib/*.brs           → pure BrightScript modules, all using the factory-object pattern (incl. SyncPlayProtocol, SyncPlayManager, ToastManager)
 source/data/Theme.brs      → constants
+locale/en_US/strings.json  → base-locale user-facing strings (see docs/i18n.md)
 ```
 
 > The old `source/hub/` (`HubAuth.brs`, `HubConfig.brs`), `source/views/HubSettings.brs`, and
@@ -77,7 +81,7 @@ Every file in `source/lib/` exposes a single `PascalCase` factory function that 
 
 In **hub mode** the media `ApiClient`'s `baseUrl` is the relay base `{hub}/api/v1/servers/{id}/proxy` (from `GetMediaBaseUrl()`), so the same transport produces `{hub}/api/v1/servers/{id}/proxy/api/v1{path}` — the hub captures the trailing `api/v1{path}`, re-anchors it as `/api/v1{path}`, and tunnels it to the server. The existing Bearer-send is correct as-is (the hub token *is* the relay auth); no transport change was needed for relay routing. `getMyServers()` (`GET /me/servers`) was added for hub detection / the server picker.
 
-Managers (`AuthManager`, `SessionManager`, `LibraryManager`, `TaskManager`) are thin wrappers around `ApiClient` that own a slice of state and the user-facing verbs. Scenes call managers, managers call `ApiClient`, `ApiClient` calls the server. Do not let scenes call `ApiClient` directly — that bypasses the manager state.
+Managers (`AuthManager`, `SessionManager`, `LibraryManager`, `TaskManager`, `SyncPlayManager`) are thin wrappers around `ApiClient` that own a slice of state and the user-facing verbs. Scenes call managers, managers call `ApiClient`, `ApiClient` calls the server. Do not let scenes call `ApiClient` directly — that bypasses the manager state.
 
 ### Boot / connection gate
 
@@ -221,3 +225,53 @@ These are conventions enforced informally (sometimes by `make lint`'s greps); fo
 - `DEVELOPER.md` — extensive coding conventions, scene-graph patterns, mocking patterns for tests. Consult before writing new patterns from scratch.
 - `docs/debugging.md` — telnet debugging guide with the full error dictionary (`&hEC`, `&hF4`, silent no-ops, etc.) and ECP endpoints.
 - `docs/architecture-apitask.md` — ApiTask op-dispatch threading model, response envelope, and scaling notes.
+- `docs/static-checks.md` — the 19 `make verify-runtime` checks, their CI wiring, and the `tests/scripts/verify-runtime-portable.sh` regression test.
+- `docs/i18n.md` — the `locale/en_US/strings.json` scaffold and how CHECK 19 enforces it.
+- `docs/publishing.md` — `make package-signed` and the store-submission steps.
+
+<!-- caliber:managed:pre-commit -->
+## Before Committing
+
+**IMPORTANT:** Before every git commit, you MUST ensure Caliber syncs agent configs with the latest code changes.
+
+First, check if the pre-commit hook is already installed:
+```bash
+grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "hook-active" || echo "no-hook"
+```
+
+- If **hook-active**: the hook handles sync automatically — just commit normally. Tell the user: "Caliber will sync your agent configs automatically via the pre-commit hook."
+- If **no-hook**: run Caliber manually before committing:
+  1. Tell the user: "Caliber: Syncing agent configs with your latest changes..."
+  2. Run: `caliber refresh && git add CALIBER_LEARNINGS.md CLAUDE.md .claude/ 2>/dev/null`
+  3. After it completes, briefly tell the user what Caliber updated. Then proceed with the commit.
+
+**Valid `caliber refresh` options:** `--quiet` (suppress output) and `--dry-run` (preview without writing). Do not pass any other flags — options like `--auto-approve`, `--debug`, or `--force` do not exist and will cause errors.
+
+**`caliber config`** takes no flags — it runs an interactive provider setup. Do not pass `--provider`, `--api-key`, or `--endpoint`.
+
+If `caliber` is not found, tell the user: "This project uses Caliber for agent config sync. Run /setup-caliber to get set up."
+<!-- /caliber:managed:pre-commit -->
+
+<!-- caliber:managed:learnings -->
+## Session Learnings
+
+Read `CALIBER_LEARNINGS.md` for patterns and anti-patterns learned from previous sessions.
+These are auto-extracted from real tool usage — treat them as project-specific rules.
+<!-- /caliber:managed:learnings -->
+
+<!-- caliber:managed:model-config -->
+## Model Configuration
+
+Recommended default: `claude-sonnet-4-6` with high effort (stronger reasoning; higher cost and latency than smaller models).
+Smaller/faster models trade quality for speed and cost — pick what fits the task.
+Pin your choice (`/model` in Claude Code, or `CALIBER_MODEL` when using Caliber with an API provider) so upstream default changes do not silently change behavior.
+
+<!-- /caliber:managed:model-config -->
+
+<!-- caliber:managed:sync -->
+## Context Sync
+
+This project uses [Caliber](https://github.com/caliber-ai-org/ai-setup) to keep AI agent configs in sync across Claude Code, Cursor, Copilot, and Codex.
+Configs update automatically before each commit via `caliber refresh`.
+If the pre-commit hook is not set up, run `/setup-caliber` to configure everything automatically.
+<!-- /caliber:managed:sync -->
