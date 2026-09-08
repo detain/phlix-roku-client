@@ -37,8 +37,8 @@ const MANIFEST_FILE = path.join(REPO, 'tests', 'fixtures', 'server-route-manifes
 const QUIET = process.argv.includes('--quiet');
 const SELF_TEST = process.argv.includes('--self-test');
 
-const PROVENANCE_SHA = '2746677eddf8f7a0847d2c6a687f2171b44c68c0';
-const TOTAL_TUPLES = 400;
+const PROVENANCE_SHA = '1e14b53983df0b86a58c711d5f09b23cf4a3e93b';
+const TOTAL_TUPLES = 401;
 
 /**
  * Sites the scanner DELIBERATELY does not check against the server manifest,
