@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Changed — W43 (cs26): route-manifest re-pin — REAL route add, non-pure, 401 tuples — 2026-09-08
+
+- **cs#26 currency leg.** `tests/fixtures/server-route-manifest.json` re-vendored verbatim from
+  `@phlix/contracts` master `97c87f27` (regen against server master `1e14b539` — S273
+  `POST /api/v1/admin/updates/check`, a real route add; previous provenance `e837e31c`/`2746677e`).
+  Unlike cs#23–25 this leg is NON-PURE: the server tuple set moves 400 → 401 — the admin route
+  this client never calls, so client-side coverage is untouched.
+  `tests/scripts/verify-route-manifest.mjs` moves `PROVENANCE_SHA` to `1e14b539` and
+  `TOTAL_TUPLES` to 401 (per the rule in `.claude/rules/route-manifest-gate.md` the two pins
+  move together); the 91-site / 81-tuple `CHECK_COUNTS` pins stay. No md5 assertion here
+  (unchanged posture; the vendored bytes themselves verified md5 `e3647899` against the
+  contracts dist at the source of the copy).
+  Verified on skynet2: `[S280 route gate] roku: 91 request sites / 81 distinct tuples` —
+  tuple-exact @ the new provenance; `--self-test` falsifiability green; the full device-free CI
+  gate set green (`make lint`, `bslint`, `validate-xml`, `validate-manifest`, `check`,
+  `verify-runtime` with the server sibling supplied). No version or install-pin moves in this repo.
+
 ### Changed — W38 (cs25): route-manifest provenance re-pin (no route change) — 2026-09-08
 
 - **cs#25 currency leg.** `tests/fixtures/server-route-manifest.json` re-vendored verbatim from
