@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Changed — W38 (cs25): route-manifest provenance re-pin (no route change) — 2026-09-08
+
+- **cs#25 currency leg.** `tests/fixtures/server-route-manifest.json` re-vendored verbatim from
+  `@phlix/contracts` master `e837e31c` (regen against server master `2746677e` — S112/S166
+  landing, zero route hunks; previous provenance `59fd9b02`/`df6aa8e5`).
+  All 400 tuples byte-identical — only provenance moves.
+  `tests/scripts/verify-route-manifest.mjs` moves the `PROVENANCE_SHA` pin to `2746677e`;
+  `TOTAL_TUPLES = 400` and every coverage pin stay. No md5 assertion here (unchanged posture).
+  Verified on skynet2: 91 request sites / 81 distinct tuples — tuple-exact @ the new provenance;
+  `--self-test` falsifiability green; `make lint` green. No version or install-pin moves in this repo.
+
 ### Changed — W38 (cs24): route-manifest provenance re-pin (no route change) — 2026-09-07
 
 - **cs#24 currency leg.** `tests/fixtures/server-route-manifest.json` re-vendored verbatim from
