@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Changed — W50 (cs30 era-2): route-manifest provenance re-pin — PURE, 401 tuples unchanged — 2026-09-09
+
+- Server moved mid-wave (`32183f5b` → `5986b61d`, S210 #749 — docker boot-gate bounds only,
+  route-zero re-proven: Router/Application/guard blobs and Routes/+FastPath/ trees byte-identical).
+  Vendored `server-route-manifest.json` re-vendored byte-identical from `@phlix/contracts` master
+  `57a8528a` (era-2 regen; full-file md5 `cb53d53f` → `045c0984`, blob identity `dd0cbaca` verified
+  against the contracts dist artifact; stripped route-content md5 `508a…` holds — 401 tuples).
+  Gate pins advance in the same commit; counts unchanged.
+
 ### Changed — W49 (cs30): route-manifest provenance re-pin — PURE, 401 tuples unchanged — 2026-09-09
 
 - **cs#30 currency leg.** `tests/fixtures/server-route-manifest.json` re-vendored verbatim from
