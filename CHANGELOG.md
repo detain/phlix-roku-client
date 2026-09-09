@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Changed — W48 (cs29): route-manifest provenance re-pin — PURE, 401 tuples unchanged — 2026-09-09
+
+- **cs#29 currency leg.** `tests/fixtures/server-route-manifest.json` re-vendored verbatim from
+  `@phlix/contracts` master `8697c099` (untagged regen #16 against server master `e15d9543`; previous
+  provenance `a1ca39d8`/`a5cde27e` — the cs#28 leg). The span `a5cde27e` → `e15d9543` is two merges
+  (S211 #745, S114 #746), re-proven route-zero at the contracts leg: route-authority blobs/trees
+  identical, zero route-wiring hunks in the moved `Application.php` — the tuple set is byte-identical
+  (stripped route-set md5 `508a6415` old = new, 401 both sides), only provenance moves. `TOTAL_TUPLES`
+  stays 401 and the 91-site / 81-tuple `CHECK_COUNTS` pins stay; `PROVENANCE_SHA` moves to `e15d9543`
+  (full literal; the summary line now prints that sha8 — currency, not drift). No md5 assertion here
+  (unchanged posture; vendored bytes verified against the contracts dist blob `73b945aa` at the source
+  of the copy). Gate + planted-divergence self-test GREEN in-lane; `make lint` 0 errors, 24 warning
+  lines.
+
 ### Changed — W47 (cs28): route-manifest provenance re-pin — PURE, 401 tuples unchanged — 2026-09-09
 
 - **cs#28 currency leg.** `tests/fixtures/server-route-manifest.json` re-vendored verbatim from
