@@ -37,7 +37,7 @@ const MANIFEST_FILE = path.join(REPO, 'tests', 'fixtures', 'server-route-manifes
 const QUIET = process.argv.includes('--quiet');
 const SELF_TEST = process.argv.includes('--self-test');
 
-const PROVENANCE_SHA = '5986b61dac4a21c03814d6c623d9cb2ab9903415';
+const PROVENANCE_SHA = '9721448df523423b793d0f2cba6b9f065cb54b3a';
 const TOTAL_TUPLES = 401;
 
 /**

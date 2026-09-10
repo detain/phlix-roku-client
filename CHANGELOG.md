@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Changed — W53 (cs31): route-manifest provenance re-pin — PURE, 401 tuples unchanged — 2026-09-10
+
+- PURE provenance re-pin, zero route bytes: vendored
+  `tests/fixtures/server-route-manifest.json` re-vendored byte-identical from
+  `@phlix/contracts` master (fresh regen against the current
+  phlix-server master tip; purity re-proven before regenerating — the server
+  route-relevant span is empty and both generator-input guard blobs hash
+  identically at both ends). 401 `[method, path]` tuples unchanged; the
+  provenance-stripped route-content md5 measures equal old-vs-new, only
+  provenance bytes move. Gate pin `PROVENANCE_SHA` in
+  `tests/scripts/verify-route-manifest.mjs` advances in the same commit; the
+  gate self-derives its site/tuple counts (unchanged). Untagged wave: the
+  dependency tag pin stays put.
+
 ### Changed — W50 (cs30 era-2): route-manifest provenance re-pin — PURE, 401 tuples unchanged — 2026-09-09
 
 - Server moved mid-wave (`32183f5b` → `5986b61d`, S210 #749 — docker boot-gate bounds only,
