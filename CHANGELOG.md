@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Changed — W59 (cs35): route-manifest full regen (401 → 402 tuples) — 2026-09-11
+
+- **cs#35 currency re-pin cascade (lane cs35).** Vendored
+  `tests/fixtures/server-route-manifest.json` re-vendored byte-identical from
+  `@phlix/contracts` master (untagged regen against the current phlix-server
+  master tip). Genuine full regen, not provenance-only: the server gained one
+  WebPortal route, so the manifest moves 401 → 402 `[method, path]` tuples
+  (Application source count holds, WebPortal source count rises by one, shared
+  overlap unchanged). Gate pins `PROVENANCE_SHA` and `TOTAL_TUPLES` in
+  `tests/scripts/verify-route-manifest.mjs` advance in the same commit; the gate
+  self-derives its own site/tuple counts (91 sites / 81 tuples — unchanged)
+  because no Roku request site calls the new route, so the vendored manifest is
+  simply a superset. Untagged wave: the dependency tag pin stays put.
+
+### Prior era snapshot — W58 (cs34): PURE provenance re-pin (401 tuples)
+
 ### Changed — W58 (cs34): route-manifest provenance re-pin — PURE, 401 tuples unchanged — 2026-09-10
 
 - PURE provenance re-pin, zero route bytes: vendored
