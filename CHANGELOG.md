@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Changed — W61 (cs36): route-manifest currency re-pin to current server master — 2026-09-11
+
+- **cs#36 currency re-pin cascade (lane cs36).** Vendored
+  `tests/fixtures/server-route-manifest.json` re-vendored byte-identical from
+  `@phlix/contracts` master (untagged regen against the current phlix-server
+  master tip). **Pure provenance re-pin, not a content change:** the server span
+  since the prior pin touched only a test file and the CHANGELOG, so the manifest
+  still carries exactly 402 `[method, path]` tuples and the stripped route content
+  is unchanged — only `provenance.serverSha` / `generatedAt` advance. The single
+  code pin `tests/scripts/verify-route-manifest.mjs` (`PROVENANCE_SHA`) moves in
+  the same commit; the client-route scan it runs stays exactly as before — 91
+  request sites / 81 distinct tuples across 2 modules, tuple-exact. No Roku
+  request surface changed.
+
 ### Changed — W59 (cs35): route-manifest full regen (401 → 402 tuples) — 2026-09-11
 
 - **cs#35 currency re-pin cascade (lane cs35).** Vendored
