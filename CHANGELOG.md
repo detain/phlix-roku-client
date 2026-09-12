@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Changed — W81 (cs43): route-manifest CONTENT regen (402→404) — pure currency, no client migration — 2026-09-12
+
+- **cs#43 currency cascade (lane cs43) — a CONTENT regen.** phlix-server S240
+  merged two ADDITIVE query-param rails (`GET /api/v1/music/artist?name=` and
+  `GET /api/v1/music/album?name=`), so the vendored route manifest grows
+  **402 → 404 `[method, path]` tuples**. `tests/fixtures/server-route-manifest.json`
+  re-vendored byte-identical from `@phlix/contracts` master (untagged regen #30
+  against the current phlix-server tip `e96f586d`); the blob is content-identical
+  across the estate.
+- **Roku is PURE currency this wave — no client migration.** The two code pins in
+  `tests/scripts/verify-route-manifest.mjs` (`PROVENANCE_SHA` → the era sha,
+  `TOTAL_TUPLES` → 404) advance in the same commit. Roku's legacy
+  `/music/albums/{name}` + `/music/artists/{name}` builders in
+  `source/lib/ApiClient.brs` stay put: S240 is additive and the server still
+  serves the path-param rails, so they remain tuple-exact in the 404 superset. The
+  client-route scan is unchanged — re-measured at **91 request sites / 81 distinct
+  tuples across 2 modules, tuple-exact**; `--self-test` still demonstrates the gate
+  is falsifiable (planted-unserved RED + sibling-absence RED + served GREEN). Roku
+  carries no md5 pin. Untagged wave.
+
 ### Changed — W79 (cs42): route-manifest currency re-pin to current server master — 2026-09-12
 
 - **cs#42 currency re-pin cascade (lane cs42).** Vendored
