@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Changed — W85 (cs45): route-manifest PROVENANCE re-pin (404 tuples — route bytes unmoved) — 2026-09-13
+
+- **cs#45 currency cascade (lane cs45) — PROVENANCE-only re-pin.** Roku is PURE
+  currency: `tests/fixtures/server-route-manifest.json` re-vendored byte-identical
+  from the `@phlix/contracts` canonical master export (untagged regen #32), and
+  the two code pins in `tests/scripts/verify-route-manifest.mjs`
+  (`PROVENANCE_SHA` → the era sha, `TOTAL_TUPLES` → 404, held) advance in the same
+  commit. The server span since the previous pin is bundle-only: no
+  route-registration file and nothing under the server's `include/` or `src/`
+  moved, so the `[method, path]` tuples are byte-for-byte identical and the count
+  holds at 404; only the embedded provenance moves, which rotates the vendored
+  blob while the described route surface is unchanged. Roku's legacy
+  `/music/albums/{name}` + `/music/artists/{name}` builders stay put (S240 is
+  additive; they remain tuple-exact in the 404 superset) and the client-route scan
+  is unchanged — re-measured at **91 request sites / 81 distinct tuples**, with
+  the falsifiability self-test green. No survival-token home in this repo — the
+  wave token lives in its two verified code homes.
+
 ### Changed — W83 (cs44): route-manifest PROVENANCE re-pin (404 tuples — route bytes unmoved) — 2026-09-13
 
 - **cs#44 currency cascade (lane cs44) — PROVENANCE-only re-pin.** Roku is PURE
