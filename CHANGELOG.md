@@ -2,15 +2,32 @@
 
 ## [Unreleased]
 
+### Changed — W83 (cs44): route-manifest PROVENANCE re-pin (404 tuples — route bytes unmoved) — 2026-09-13
+
+- **cs#44 currency cascade (lane cs44) — PROVENANCE-only re-pin.** Roku is PURE
+  currency: `tests/fixtures/server-route-manifest.json` re-vendored byte-identical
+  from the `@phlix/contracts` canonical master export, and the two code pins in
+  `tests/scripts/verify-route-manifest.mjs` (`PROVENANCE_SHA` → the era sha,
+  `TOTAL_TUPLES` → 404, held) advance in the same commit. The server span since the
+  previous pin is bundle-only: no route-registration file and nothing under the
+  server's `include/` or `src/` moved, so the `[method, path]` tuples are
+  byte-for-byte identical and the count holds at 404; only the embedded provenance
+  moves, which rotates the vendored blob while the described route surface is
+  unchanged. Roku's legacy `/music/albums/{name}` + `/music/artists/{name}` builders
+  stay put (S240 is additive; they remain tuple-exact in the 404 superset) and the
+  client-route scan is unchanged — re-measured at **91 request sites / 81 distinct
+  tuples**. No survival-token home in this repo — the wave token lives in its two
+  verified code homes.
+
 ### Changed — W81 (cs43): route-manifest CONTENT regen (402→404) — pure currency, no client migration — 2026-09-12
 
 - **cs#43 currency cascade (lane cs43) — a CONTENT regen.** phlix-server S240
   merged two ADDITIVE query-param rails (`GET /api/v1/music/artist?name=` and
   `GET /api/v1/music/album?name=`), so the vendored route manifest grows
   **402 → 404 `[method, path]` tuples**. `tests/fixtures/server-route-manifest.json`
-  re-vendored byte-identical from `@phlix/contracts` master (untagged regen #30
-  against the current phlix-server tip `e96f586d`); the blob is content-identical
-  across the estate.
+   re-vendored byte-identical from `@phlix/contracts` master (untagged regen #30
+   against the then-current phlix-server tip); the blob is content-identical
+   across the estate.
 - **Roku is PURE currency this wave — no client migration.** The two code pins in
   `tests/scripts/verify-route-manifest.mjs` (`PROVENANCE_SHA` → the era sha,
   `TOTAL_TUPLES` → 404) advance in the same commit. Roku's legacy
