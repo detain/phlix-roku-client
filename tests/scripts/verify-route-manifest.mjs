@@ -37,7 +37,10 @@ const MANIFEST_FILE = path.join(REPO, 'tests', 'fixtures', 'server-route-manifes
 const QUIET = process.argv.includes('--quiet');
 const SELF_TEST = process.argv.includes('--self-test');
 
-const PROVENANCE_SHA = '694752cd2050c8688f99aa6e12539226d19c2540';
+// cs#46 currency re-vendor ritual token (code-resident survival assertion target).
+export const CS46_CURRENCY_TOKEN = 'CS46CURRENCYPINX9X1';
+
+const PROVENANCE_SHA = 'c9c551e0506a742220c17a34022d4a2f497e6989';
 const TOTAL_TUPLES = 404;
 
 /**

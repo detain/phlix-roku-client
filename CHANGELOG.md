@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Changed — W93 (cs46a): route-manifest PROVENANCE re-vendor (404 tuples — route bytes unmoved) — 2026-09-15
+
+- **cs#46 currency re-vendor (lane cs46a) — PROVENANCE-only re-pin.** Roku is PURE
+  currency: `tests/fixtures/server-route-manifest.json` re-vendored byte-identical
+  from the `@phlix/contracts` canonical master export (untagged regen #33), and the
+  code pin in `tests/scripts/verify-route-manifest.mjs` (`PROVENANCE_SHA` → the era
+  sha; `TOTAL_TUPLES` → 404, held) advances in the same commit. The diff against the
+  previous vendored bytes is provenance-only: no route-registration change upstream,
+  so the `[method, path]` tuples are byte-for-byte identical and the count holds at
+  404; only the embedded provenance moves, which rotates the vendored blob while the
+  described route surface is unchanged. The client-route scan is unchanged —
+  re-measured at **91 request sites / 81 distinct tuples**, with the falsifiability
+  self-test green.
+
 ### Changed — W85 (cs45): route-manifest PROVENANCE re-pin (404 tuples — route bytes unmoved) — 2026-09-13
 
 - **cs#45 currency cascade (lane cs45) — PROVENANCE-only re-pin.** Roku is PURE
