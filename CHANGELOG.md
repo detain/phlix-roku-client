@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Changed — W111 (cs47b): route-manifest CONTENT re-vendor (404→410 tuples) — 2026-09-17
+
+- **cs#47 currency re-vendor (lane cs47b) — CONTENT regen, roku is NOT pure this
+  wave.** `tests/fixtures/server-route-manifest.json` re-vendored byte-identical
+  from the `@phlix/contracts` canonical master export (untagged regen #34), and
+  the code pins in `tests/scripts/verify-route-manifest.mjs` (`PROVENANCE_SHA` →
+  the era sha; `TOTAL_TUPLES` → 410, RISEN with the six new quick-connect /
+  telemetry routes; Application guard count 367→373, WebPortal 48 and shared 11
+  hold) advance in the same commit; the header gains the regen-lineage note. The
+  route-content bytes move alongside provenance — every tuple the gate still
+  matches is unchanged, so no roku request site needed re-pinning: the client-route
+  scan re-measures at the same 91 request sites / 81 distinct tuples with the
+  falsifiability self-test green.
+
 ### Changed — W93 (cs46a): route-manifest PROVENANCE re-vendor (404 tuples — route bytes unmoved) — 2026-09-15
 
 - **cs#46 currency re-vendor (lane cs46a) — PROVENANCE-only re-pin.** Roku is PURE

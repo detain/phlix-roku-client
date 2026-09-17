@@ -6,7 +6,10 @@
  * WHAT IT PINS: every URL phlix-roku-client can put on the wire is tuple-exact
  * against the VENDORED phlix-server route manifest
  * (`tests/fixtures/server-route-manifest.json`, a byte-for-byte copy of
- * `@phlix/contracts` `dist/server-route-manifest.json`). The expected set is
+ * `@phlix/contracts` `dist/server-route-manifest.json`). Current currency:
+ * untagged contracts master regen #34 at phlix-server `730e55b7` — a CONTENT
+ * regen, 404→410 tuples (quick-connect pairing + consent-gated telemetry;
+ * cs#46 chain: `c9c551e0`/regen #33, 404). The expected set is
  * derived from the SERVER side only — a check derived from its subject
  * self-adjusts and passes every defect it exists to catch, which is exactly
  * why S264/S276/S279 shipped in three repos before anyone pinned anything.
@@ -40,8 +43,8 @@ const SELF_TEST = process.argv.includes('--self-test');
 // cs#46 currency re-vendor ritual token (code-resident survival assertion target).
 export const CS46_CURRENCY_TOKEN = 'CS46CURRENCYPINX9X1';
 
-const PROVENANCE_SHA = 'c9c551e0506a742220c17a34022d4a2f497e6989';
-const TOTAL_TUPLES = 404;
+const PROVENANCE_SHA = '730e55b7d3ad44a155f6b46374a9f6c463792840';
+const TOTAL_TUPLES = 410;
 
 /**
  * Sites the scanner DELIBERATELY does not check against the server manifest,
