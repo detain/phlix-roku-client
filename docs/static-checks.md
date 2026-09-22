@@ -24,7 +24,7 @@ Source: `scripts/verify-runtime.sh`
 | 17 | echo ERROR pairing | Self-audit / CI reliability | R0.x | echo ERROR commands must set FOUND=1/VIOLATIONS=1/exit 1 |
 | 18 | package.json vs manifest drift | Version mismatch | R8.8 | package.json version must match manifest major/minor_version |
 | 19 | hardcoded i18n strings | Translation gaps | R7.12 | Hardcoded user-facing strings in SettingsScene/DetailScene/Utilities |
-| 20 | Translate() key resolution | Translation gaps / silent raw-key UI | i18n fix | Every literal Translate("key") + the dynamic RatingLabel labels[] must resolve against locale/en_US/strings.json under the flattened "<section>_<bareKey>" convention |
+| 20 | Translate() key resolution | Translation gaps / silent raw-key UI | i18n fix | Every literal Translate("key") + the dynamic RatingLabel labels[] must resolve against locale/en_US/strings.json under the flattened "<section>_<bareKey>" convention; comment runs (whole-line and trailing inline ') are masked before scanning, and non-string catalog leaves are rejected (Translate() returns `as String`) |
 
 ## CI enforcement
 
@@ -35,7 +35,7 @@ Source: `scripts/verify-runtime.sh`
 
 Previously the script hardcoded 8 `/home/sites/phlix/...` absolute paths. In CI it crashed at Check 11 with FileNotFoundError, so checks 11-19 had never executed in CI, and downstream `package` / `package-signed` / `release-latest` jobs were skipped (a skipped job counts as success). The script now derives `REPO` from its own location and `SERVER_DIR="${PHLIX_SERVER_DIR:-$(dirname "$REPO")/phlix-server}"`, exports both to its python heredocs, and contains zero hardcoded host paths. `lint.yml` previously ran it with `|| true`, so it could never fail the run.
 
-All 19 checks now contribute to the exit code: checks 1-7 and 12-13 previously printed violations but never set `VIOLATIONS` (so the build stayed green); they now set `VIOLATIONS=1`. Per-check python failures no longer abort the whole run (`PYRET`/`PYOUT` accumulation) — all checks execute and print, and the script exits `$((VIOLATIONS))`.
+All 20 checks now contribute to the exit code: checks 1-7 and 12-13 previously printed violations but never set `VIOLATIONS` (so the build stayed green); they now set `VIOLATIONS=1`. Each python check owns its `[[ $PYRET -eq 0 ]] && ... || VIOLATIONS=1` gate directly after its own output — a per-check gate left stranded in the wrong section once let Check 19 violations print while the script exited 0. Per-check python failures no longer abort the whole run (`PYRET`/`PYOUT` accumulation) — all checks execute and print, and the script exits `$((VIOLATIONS))`.
 
 ## Cross-repo reference (Check 14)
 
@@ -45,4 +45,4 @@ In CI the reference crosses the repo boundary: the workflow clones the public `d
 
 ## Regression test
 
-`tests/scripts/verify-runtime-portable.sh` is a standalone regression test (run with `bash tests/scripts/verify-runtime-portable.sh`). It builds a scratch CI layout in /tmp, proves the script runs from an arbitrary location with a sibling phlix-server, asserts checks 11-19 all execute, and asserts a deliberately-broken input (audiobook removed from the ENUM comment) makes the script exit non-zero.
+`tests/scripts/verify-runtime-portable.sh` is a standalone regression test (run with `bash tests/scripts/verify-runtime-portable.sh`). It builds a scratch CI layout in /tmp, proves the script runs from an arbitrary location with a sibling phlix-server, asserts checks 11-20 all execute, and asserts a deliberately-broken input (audiobook removed from the ENUM comment) makes the script exit non-zero.

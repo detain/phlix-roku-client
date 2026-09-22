@@ -920,10 +920,14 @@ end function
 ' ===========================================
 
 ' Flatten a parsed catalog into a single-level "<section>_<bareKey>" lookup
-' table. "_metadata" is skipped. Pure: returns a new assocarray; raw is never
-' mutated.
+' table. "_metadata" is skipped. String leaves only: a non-string value
+' (array/object under a section) is SKIPPED, because Translate() returns
+' `as String` and receiving a non-string would type-crash on device — the
+' skip lets the documented raw-key fallback happen instead. Check 20 rejects
+' such leaves in CI, so this guard is defense-in-depth, not an invitation.
+' Pure: returns a new assocarray; raw is never mutated.
 ' @param raw Object|invalid - parsed catalog (sections of bare-key assocarrays)
-' @return Object - roAssociativeArray of flattened keys to values
+' @return Object - roAssociativeArray of flattened keys to string values
 function FlattenLocaleCatalog(raw as Object) as Object
     flat = CreateObject("roAssociativeArray")
     if raw = invalid then return flat
@@ -932,7 +936,10 @@ function FlattenLocaleCatalog(raw as Object) as Object
             sectionData = raw[section]
             if type(sectionData) = "roAssociativeArray"
                 for each bareKey in sectionData.getKeysAsArray()
-                    flat[section + "_" + bareKey] = sectionData[bareKey]
+                    leaf = sectionData[bareKey]
+                    if type(leaf) = "String" or type(leaf) = "roString"
+                        flat[section + "_" + bareKey] = leaf
+                    end if
                 end for
             end if
         end if
@@ -991,6 +998,8 @@ end sub
 '   2. nested probe raw[section][key] — legacy support for bare-key callers
 '   3. return the key unchanged — graceful fallback that renders visibly
 '      broken instead of silently wrong, and keeps Translate total.
+' Only string-typed catalog values are returned; a non-string leaf (a shape
+' Check 20 rejects in CI) falls through steps 1-2 to the raw-key return.
 ' @param key String - the translation key
 ' @return String - the translated string, or the key if not found
 function Translate(key as String) as String
@@ -1010,7 +1019,10 @@ function Translate(key as String) as String
             sectionData = raw.lookup(section)
             if type(sectionData) = "roAssociativeArray" and sectionData.doesExist(key) then
                 result = sectionData.lookup(key)
-                if result <> invalid then return result
+                ' String-typed values only — same guard as the flat table, so a
+                ' CI-rejected non-string leaf falls through to the raw key instead
+                ' of crashing this function's `as String` return.
+                if result <> invalid and (type(result) = "String" or type(result) = "roString") then return result
             end if
         end if
     end for

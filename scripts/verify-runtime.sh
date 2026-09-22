@@ -837,8 +837,8 @@ if found_violation:
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
-FOUND=0
 echo ""
 echo "=== Check 20: Translate() keys resolve against the locale catalog ==="
 # The loader (source/lib/Utilities.brs LoadLocaleStrings) flattens every catalog
@@ -855,21 +855,57 @@ os.chdir(repo)
 
 CATALOG = 'locale/en_US/strings.json'
 
+# Fail fast on a broken catalog with a one-line CHECK20 message (printed to
+# stdout so it survives the PYOUT capture) instead of a raw traceback.
+try:
+    with open(CATALOG) as f:
+        catalog = json.load(f)
+except (OSError, ValueError) as err:
+    print(f"  CHECK20: locale catalog unreadable: {err}")
+    sys.exit(1)
+if not isinstance(catalog, dict):
+    print("  CHECK20: locale catalog unreadable: top level is not a JSON object")
+    sys.exit(1)
+
 # Mirror of FlattenLocaleCatalog(): section S + bare key K -> "S_K".
-with open(CATALOG) as f:
-    catalog = json.load(f)
+# Leaf policy mirrors the device loader: only strings enter the flattened
+# table; a non-string leaf is a latent device type-crash (Translate() returns
+# `as String`) and is rejected here so it can never ship.
 flat = set()
+bad_leaves = []
 for section, data in catalog.items():
     if section == '_metadata' or not isinstance(data, dict):
         continue
-    for bare_key in data:
+    for bare_key, value in data.items():
+        if not isinstance(value, str):
+            bad_leaves.append(f"{section}.{bare_key}")
+            continue
         flat.add(section + '_' + bare_key)
 
 # Every literal Translate("...") call across the client. The \s* after the
 # paren keeps this safe when the call opens on one line and the string literal
-# sits on the next; matches are located in the full text so line numbers stay
-# exact. Lines whose Translate( token sits on a comment line are skipped.
+# sits on the next; matches are located in the comment-masked full text so
+# line numbers stay exact. BrightScript strings are double-quoted only, so a
+# single quote outside a string literal opens a comment that runs to the end
+# of its line — whole-line AND trailing inline comments are both masked out.
 TRANSLATE_RE = re.compile(r'Translate\(\s*"([A-Za-z0-9_]+)"')
+
+
+def mask_brs_comments(text):
+    # Replace each comment run with spaces of identical length, so offsets
+    # (and therefore line attribution) of all remaining code stay exact.
+    masked_lines = []
+    for line in text.split('\n'):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        masked_lines.append(line[:cut].ljust(len(line)))
+    return '\n'.join(masked_lines)
 
 brs_files = []
 for scan_dir in ('source', 'components'):
@@ -884,10 +920,14 @@ checked_keys = set()
 for path in brs_files:
     with open(path, errors='replace') as f:
         text = f.read()
-    for mo in TRANSLATE_RE.finditer(text):
-        line_start = text.rfind('\n', 0, mo.start()) + 1
-        prefix = text[line_start:mo.start()]
-        if prefix.lstrip().startswith("'") or prefix.lstrip().startswith('"'):
+    masked = mask_brs_comments(text)
+    for mo in TRANSLATE_RE.finditer(masked):
+        line_start = masked.rfind('\n', 0, mo.start()) + 1
+        prefix = masked[line_start:mo.start()]
+        # Lines that open with a double-quoted literal are doc-style noise,
+        # never live calls (mirrors Check 19's own skip rule). Whole-line and
+        # inline ' comments were already blanked by the masker.
+        if prefix.lstrip().startswith('"'):
             continue
         key = mo.group(1)
         checked_keys.add(key)
@@ -925,8 +965,11 @@ for path, lineno, key in misses:
     report.append(f"  {where} — CHECK20: Translate key '{key}' has no flattened entry in {CATALOG}")
 for line in sorted(set(report)):
     print(line)
-if misses:
-    print(f"  CHECK20: {len(set(report))} unresolved key(s) of {len(checked_keys)} checked")
+for leaf in sorted(set(bad_leaves)):
+    print(f"  {CATALOG} — CHECK20: non-string leaf '{leaf}' — catalog values must be strings (Translate() returns as String)")
+if misses or bad_leaves:
+    if misses:
+        print(f"  CHECK20: {len(set(report))} unresolved key(s) of {len(checked_keys)} checked")
     sys.exit(1)
 print(f"  CHECK20: all {len(checked_keys)} Translate keys resolve under the flattened convention")
 PYEOF
