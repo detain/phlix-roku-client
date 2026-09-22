@@ -837,6 +837,101 @@ if found_violation:
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
+
+FOUND=0
+echo ""
+echo "=== Check 20: Translate() keys resolve against the locale catalog ==="
+# The loader (source/lib/Utilities.brs LoadLocaleStrings) flattens every catalog
+# section into "<section>_<bareKey>", and Translate() probes that table first.
+# Every literal Translate("key") call in source/ + components/ must therefore
+# have a matching flattened entry in locale/en_US/strings.json, or the UI
+# silently renders the raw key. This check closes that gap for CI.
+PYRET=0
+PYOUT=$(python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ['REPO']
+os.chdir(repo)
+
+CATALOG = 'locale/en_US/strings.json'
+
+# Mirror of FlattenLocaleCatalog(): section S + bare key K -> "S_K".
+with open(CATALOG) as f:
+    catalog = json.load(f)
+flat = set()
+for section, data in catalog.items():
+    if section == '_metadata' or not isinstance(data, dict):
+        continue
+    for bare_key in data:
+        flat.add(section + '_' + bare_key)
+
+# Every literal Translate("...") call across the client. The \s* after the
+# paren keeps this safe when the call opens on one line and the string literal
+# sits on the next; matches are located in the full text so line numbers stay
+# exact. Lines whose Translate( token sits on a comment line are skipped.
+TRANSLATE_RE = re.compile(r'Translate\(\s*"([A-Za-z0-9_]+)"')
+
+brs_files = []
+for scan_dir in ('source', 'components'):
+    for root, dirs, names in os.walk(scan_dir):
+        dirs.sort()
+        for name in sorted(names):
+            if name.endswith('.brs'):
+                brs_files.append(os.path.join(root, name))
+
+misses = []
+checked_keys = set()
+for path in brs_files:
+    with open(path, errors='replace') as f:
+        text = f.read()
+    for mo in TRANSLATE_RE.finditer(text):
+        line_start = text.rfind('\n', 0, mo.start()) + 1
+        prefix = text[line_start:mo.start()]
+        if prefix.lstrip().startswith("'") or prefix.lstrip().startswith('"'):
+            continue
+        key = mo.group(1)
+        checked_keys.add(key)
+        if key not in flat:
+            lineno = text.count('\n', 0, mo.start()) + 1
+            misses.append((path, lineno, key))
+
+# The single dynamic call site — Translate(labels[n]) in RatingLabel — hides
+# its keys from any literal-call scanner. Bind to the array inside its
+# enclosing function so a future second `labels` variable cannot be scanned.
+UTILITIES = 'source/lib/Utilities.brs'
+with open(UTILITIES, errors='replace') as f:
+    util_text = f.read()
+rating_fn = re.search(r'function RatingLabel\(.*?\nend function', util_text, re.DOTALL)
+if rating_fn is None:
+    print("  CHECK20: RatingLabel function not found in " + UTILITIES)
+    sys.exit(1)
+labels_arr = re.search(r'labels\s*=\s*\[([^\]]*)\]', rating_fn.group(0))
+if labels_arr is None:
+    print("  CHECK20: literal labels array not found inside RatingLabel")
+    sys.exit(1)
+label_keys = re.findall(r'"([A-Za-z0-9_]+)"', labels_arr.group(1))
+if not label_keys:
+    print("  CHECK20: labels array in RatingLabel is empty — scanner assumption broken")
+    sys.exit(1)
+for key in label_keys:
+    checked_keys.add(key)
+    if key not in flat:
+        misses.append((UTILITIES, 0, key))
+
+# Deterministic reporting: sorted, deduplicated, per-key miss listing.
+report = []
+for path, lineno, key in misses:
+    where = path if lineno == 0 else f"{path}:{lineno}"
+    report.append(f"  {where} — CHECK20: Translate key '{key}' has no flattened entry in {CATALOG}")
+for line in sorted(set(report)):
+    print(line)
+if misses:
+    print(f"  CHECK20: {len(set(report))} unresolved key(s) of {len(checked_keys)} checked")
+    sys.exit(1)
+print(f"  CHECK20: all {len(checked_keys)} Translate keys resolve under the flattened convention")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
 exit $((VIOLATIONS))

@@ -32,7 +32,7 @@ all: package
 # Create zip package for sideloading
 package: _update-manifest
 	@echo "Packaging version $(PKG_VERSION)..."
-	zip -r $(PKG_NAME).zip $(MANIFEST_OUT) source components images
+	zip -r $(PKG_NAME).zip $(MANIFEST_OUT) source components images locale
 
 # Build a signed package for store submission
 # Requires: ROKU_DEV_PASSWORD set, rokudev auth via `rokudev auth`

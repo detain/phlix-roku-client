@@ -77,6 +77,8 @@
     "about_device_model": "Device Model: {model}",
     "about_device_id": "Device ID: {id}",
     "about_device_id_unknown": "Unknown",
+    "about_video_mode": "Video Mode",
+    "about_total_memory": "Total Memory",
 
     "quality_label": "Quality: {quality}",
     "autoplay_label": "Autoplay: {state}",

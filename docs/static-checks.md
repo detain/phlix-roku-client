@@ -24,6 +24,7 @@ Source: `scripts/verify-runtime.sh`
 | 17 | echo ERROR pairing | Self-audit / CI reliability | R0.x | echo ERROR commands must set FOUND=1/VIOLATIONS=1/exit 1 |
 | 18 | package.json vs manifest drift | Version mismatch | R8.8 | package.json version must match manifest major/minor_version |
 | 19 | hardcoded i18n strings | Translation gaps | R7.12 | Hardcoded user-facing strings in SettingsScene/DetailScene/Utilities |
+| 20 | Translate() key resolution | Translation gaps / silent raw-key UI | i18n fix | Every literal Translate("key") + the dynamic RatingLabel labels[] must resolve against locale/en_US/strings.json under the flattened "<section>_<bareKey>" convention |
 
 ## CI enforcement
 

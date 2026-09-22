@@ -907,24 +907,90 @@ function RatingLabel(n as Integer) as String
 end function
 
 ' ===========================================
-' R7.12: i18n support
+' R7.12: i18n support (wiring completed in the key-resolution fix)
 ' Uses function-property pattern (like DeviceInfoData) to cache locale strings.
+'
+' KEY CONVENTION: the catalog nests BARE keys under sections
+' ("settings": {"button_cancel": "Cancel"}), while every call site passes the
+' FLATTENED, section-prefixed form ("settings_button_cancel"). The loader
+' flattens "<section>_<bareKey>" -> value once at parse time so the dominant
+' call-site style resolves with zero call-site churn. To add a string: nest the
+' bare key under its section in locale/<tag>/strings.json and call
+' Translate("<section>_<bareKey>").
 ' ===========================================
 
-' Load locale strings from JSON file (called at app startup via AppContext.InitLocale)
+' Flatten a parsed catalog into a single-level "<section>_<bareKey>" lookup
+' table. "_metadata" is skipped. Pure: returns a new assocarray; raw is never
+' mutated.
+' @param raw Object|invalid - parsed catalog (sections of bare-key assocarrays)
+' @return Object - roAssociativeArray of flattened keys to values
+function FlattenLocaleCatalog(raw as Object) as Object
+    flat = CreateObject("roAssociativeArray")
+    if raw = invalid then return flat
+    for each section in raw.getKeysAsArray()
+        if section <> "_metadata"
+            sectionData = raw[section]
+            if type(sectionData) = "roAssociativeArray"
+                for each bareKey in sectionData.getKeysAsArray()
+                    flat[section + "_" + bareKey] = sectionData[bareKey]
+                end for
+            end if
+        end if
+    end for
+    return flat
+end function
+
+' Load locale strings from the bundled JSON catalog (called at app startup via
+' AppContext.InitLocale; Translate retries lazily until it succeeds).
+'
+' MOUNT: direct pkg:/ read. The former "locale://..." URL requires the
+' locale=/country_code= manifest keys that mount that protocol; this channel's
+' manifest never declared them, so roFileSystem.Exists() was always false and
+' the catalog silently never loaded. pkg:/ needs no manifest wiring. NOTE: the
+' locale/ tree must stay in the package zip (see Makefile `package` target and
+' bsconfig.json "files") or these paths do not exist on device.
+'
+' SELECTION: roAppInfo.GetCurrentLocale() picks locale/<tag>/strings.json when
+' it exists and has content. Firmware varies between "en-US" and "en_US", so
+' the tag is normalized to underscores before folder resolution. ReadAsciiFile
+' returns "" for BOTH missing and empty files, so an empty/whitespace-only
+' device catalog counts as missing. Fallback: the base locale en_US.
 sub LoadLocaleStrings()
     ' Cached on the function object itself
     if LoadLocaleStrings._loaded = true then return
-    path = "locale://locale/en_US/strings.json"
-    f = CreateObject("roFileSystem")
-    if not f.Exists(path) then return
-    data = ReadAsciiFile(path)
-    if data = "" or data = invalid then return
-    LoadLocaleStrings._cache = ParseJson(data)
+
+    base = "pkg:/locale/en_US/strings.json"
+    data = invalid
+
+    appInfo = CreateObject("roAppInfo")
+    if appInfo <> invalid
+        tag = appInfo.GetCurrentLocale()
+        if tag <> invalid and tag.Trim() <> ""
+            candidate = "pkg:/locale/" + tag.Trim().Replace("-", "_") + "/strings.json"
+            if candidate <> base
+                deviceData = ReadAsciiFile(candidate)
+                if deviceData <> invalid and deviceData.Trim() <> "" then data = deviceData
+            end if
+        end if
+    end if
+
+    if data = invalid then data = ReadAsciiFile(base)
+    if data = invalid or data.Trim() = "" then return
+    raw = ParseJson(data)
+    if raw = invalid then return
+
+    LoadLocaleStrings._raw = raw
+    LoadLocaleStrings._cache = FlattenLocaleCatalog(raw)
     LoadLocaleStrings._loaded = true
 end sub
 
-' Translate a string key using loaded locale
+' Translate a string key using the loaded locale.
+' Resolution order (first hit wins):
+'   1. exact match in the flattened "<section>_<bareKey>" table — the call-site
+'      convention every scene uses ("settings_button_cancel")
+'   2. nested probe raw[section][key] — legacy support for bare-key callers
+'   3. return the key unchanged — graceful fallback that renders visibly
+'      broken instead of silently wrong, and keeps Translate total.
 ' @param key String - the translation key
 ' @return String - the translated string, or the key if not found
 function Translate(key as String) as String
@@ -932,10 +998,16 @@ function Translate(key as String) as String
     if LoadLocaleStrings._loaded <> true then return key
 
     cache = LoadLocaleStrings._cache
+    if cache <> invalid and cache.doesExist(key) then
+        flatResult = cache.lookup(key)
+        if flatResult <> invalid then return flatResult
+    end if
+
+    raw = LoadLocaleStrings._raw
     sections = ["common", "utilities", "settings", "detail"]
     for each section in sections
-        if cache.doesExist(section) then
-            sectionData = cache.lookup(section)
+        if raw <> invalid and raw.doesExist(section) then
+            sectionData = raw.lookup(section)
             if type(sectionData) = "roAssociativeArray" and sectionData.doesExist(key) then
                 result = sectionData.lookup(key)
                 if result <> invalid then return result

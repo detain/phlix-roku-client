@@ -17,7 +17,7 @@
 #     $tmp/repo/           fake checkout — the REAL scripts/verify-runtime.sh,
 #                          source/lib/Utilities.brs,
 #                          components/SettingsScene.brs + DetailScene.brs
-#                          (Check 19's fixed target list), images/, package.json,
+#                          (Check 19's fixed target list), locale/en_US/strings.json (Check 20's catalog), images/, package.json,
 #                          manifest; a git index so checks 1-13 (git grep /
 #                          git ls-files) work
 #     $tmp/phlix-server/migrations/034_media_items_type_audiobook.sql
@@ -27,7 +27,7 @@
 # exercised. Asserts:
 #   (1) exit code 0
 #   (2) stdout contains "Check 14", "034_media_items_type_audiobook.sql", "PASS"
-#   (3) stdout contains every "=== Check 11:" .. "=== Check 19:" header
+#   (3) stdout contains every "=== Check 11:" .. "=== Check 20:" header
 #   (4) negative: audiobook removed from the Utilities.brs ENUM comment ->
 #       exit code non-zero with a CHECK14 diagnostic
 #
@@ -81,6 +81,8 @@ cp -a "$REAL_REPO/images"/. "$FAKE_REPO/images/"
 cp "$REAL_REPO/package.json" "$FAKE_REPO/package.json"
 cp "$REAL_REPO/manifest"     "$FAKE_REPO/manifest"
 cp "$MIGRATION" "$FAKE_SERVER/migrations/034_media_items_type_audiobook.sql"
+# Check 20 resolves Translate() keys against the real catalog — ship it in the fake repo.
+cp -a "$REAL_REPO/locale" "$FAKE_REPO/locale"
 
 # Checks 1-13 use `git grep` / `git ls-files`, so the fake repo needs an index.
 git -C "$FAKE_REPO" init -q
@@ -97,7 +99,7 @@ set -e
 assert_contains "=== Check 14:" "$POSITIVE_OUT"
 assert_contains "034_media_items_type_audiobook.sql" "$POSITIVE_OUT"
 assert_contains "PASS" "$POSITIVE_OUT"
-for i in $(seq 11 19); do
+for i in $(seq 11 20); do
   assert_contains "=== Check $i:" "$POSITIVE_OUT"
 done
 
@@ -131,4 +133,4 @@ set -e
 [ "$NEG_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the ENUM comment drops audiobook (got 0)"
 assert_contains "CHECK14" "$NEG_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-19 headers present) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-20 headers present) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
