@@ -977,4 +977,171 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo ""
+echo "=== Check 21: every shipped locale catalog mirrors en_US ==="
+# locale/ ships one folder per device locale tag (en_US is the base). The device
+# loader (Utilities.brs LoadLocaleStrings) selects pkg:/locale/<tag>/strings.json
+# from the normalized roAppInfo locale and FALLS BACK to pkg:/locale/en_US/-
+# strings.json, and Translate() returns whatever the selected catalog holds —
+# so a sibling catalog that is missing a key renders a raw key on that device,
+# a stripped {placeholder} hands a format token to String.format-style callers
+# as literal text, and a non-string leaf crashes the `as String` return. Check
+# 20 only guards the en_US fallback; this check pins EVERY locale folder to it:
+#   (a) flattened key set identical (missing AND extra both fail, listed per file)
+#   (b) {placeholder} multisets identical per shared key
+#   (c) newline-escape parity per shared key (the '\n\n' dialog bodies)
+#   (d) non-string leaves rejected in ALL catalogs, and the runtime fallback in
+#       Utilities.brs must still name pkg:/locale/en_US/strings.json verbatim
+# en_US stays the sole Translate-literal source of truth — Check 20 above is
+# intentionally untouched and keeps comparing against locale/en_US only.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ['REPO']
+os.chdir(repo)
+
+BASE = 'en_US'
+LOCALE_ROOT = 'locale'
+UTILITIES = 'source/lib/Utilities.brs'
+FALLBACK_RE = re.compile(r'"pkg:/locale/en_US/strings\.json"')
+PLACEHOLDER_RE = re.compile(r'\{[A-Za-z0-9_]+\}')
+
+problems = []
+
+
+def open_path(path):
+    return open(path, encoding='utf-8')
+
+
+def load(path):
+    """Parse a catalog or record a friendly problem (never a raw traceback)."""
+    try:
+        with open_path(path) as f:
+            data = json.load(f)
+    except (OSError, ValueError) as err:
+        problems.append(f"  {path} — CHECK21: locale catalog unreadable: {err}")
+        return None
+    if not isinstance(data, dict):
+        problems.append(f"  {path} — CHECK21: locale catalog unreadable: top level is not a JSON object")
+        return None
+    return data
+
+
+def flat_strings(catalog, path):
+    """Mirror of FlattenLocaleCatalog(): section S + bare key K -> "S_K",
+    skipping _metadata. Non-string leaves are rejected (device Translate()
+    returns `as String`)."""
+    flat = {}
+    for section, data in catalog.items():
+        if section == '_metadata' or not isinstance(data, dict):
+            continue
+        for bare_key, value in data.items():
+            if not isinstance(value, str):
+                problems.append(
+                    f"  {path} — CHECK21: non-string leaf '{section}.{bare_key}' — "
+                    "catalog values must be strings (Translate() returns as String)")
+                continue
+            flat[section + '_' + bare_key] = value
+    return flat
+
+
+if not os.path.isdir(LOCALE_ROOT):
+    print(f"  CHECK21: {LOCALE_ROOT}/ directory not found")
+    sys.exit(1)
+
+folders = sorted(d for d in os.listdir(LOCALE_ROOT)
+                 if os.path.isdir(LOCALE_ROOT + '/' + d))
+
+base_path = os.path.join(LOCALE_ROOT, BASE, 'strings.json')
+if not os.path.isfile(base_path):
+    print(f"  CHECK21: base catalog {base_path} missing — {BASE} is the sole fallback and source of truth")
+    sys.exit(1)
+
+base = load(base_path)
+if base is None:
+    for line in problems:
+        print(line)
+    sys.exit(1)
+base_flat = flat_strings(base, base_path)
+base_meta = base.get('_metadata')
+if not isinstance(base_meta, dict):
+    problems.append(f"  {base_path} — CHECK21: _metadata section missing or not an object")
+    base_meta = {}
+
+for folder in folders:
+    path = os.path.join(LOCALE_ROOT, folder, 'strings.json')
+    if not os.path.isfile(path):
+        problems.append(f"  {path} — CHECK21: locale folder '{folder}' has no strings.json")
+        continue
+    catalog = load(path)
+    if catalog is None:
+        continue
+    flat = flat_strings(catalog, path)
+
+    meta = catalog.get('_metadata')
+    if not isinstance(meta, dict):
+        problems.append(f"  {path} — CHECK21: _metadata section missing or not an object")
+        meta = {}
+    if meta.get('locale') != folder:
+        problems.append(
+            f"  {path} — CHECK21: _metadata.locale is {meta.get('locale')!r} but folder is '{folder}'")
+    if folder != BASE and isinstance(base_meta.get('source_files'), list) \
+            and meta.get('source_files') != base_meta['source_files']:
+        problems.append(f"  {path} — CHECK21: _metadata.source_files drifted from {base_path}")
+
+    if folder == BASE:
+        continue
+
+    missing = sorted(set(base_flat) - set(flat))
+    extra = sorted(set(flat) - set(base_flat))
+    if missing:
+        problems.append(
+            f"  {path} — CHECK21: {len(missing)} key(s) missing vs {base_path}: {', '.join(missing)}")
+    if extra:
+        problems.append(
+            f"  {path} — CHECK21: {len(extra)} key(s) not present in {base_path}: {', '.join(extra)}")
+
+    for key in sorted(set(base_flat) & set(flat)):
+        want = sorted(PLACEHOLDER_RE.findall(base_flat[key]))
+        have = sorted(PLACEHOLDER_RE.findall(flat[key]))
+        if want != have:
+            problems.append(
+                f"  {path} — CHECK21: placeholder mismatch on '{key}': en_US has "
+                f"{', '.join(want) if want else '(none)'}, {folder} has "
+                f"{', '.join(have) if have else '(none)'}")
+        if base_flat[key].count('\n') != flat[key].count('\n'):
+            problems.append(
+                f"  {path} — CHECK21: newline-escape parity broken on '{key}' "
+                f"(en_US has {base_flat[key].count(chr(10))} newline(s), {folder} has "
+                f"{flat[key].count(chr(10))})")
+
+# (d) The runtime fallback must stay pinned to en_US — LoadLocaleStrings' base
+# constant is what every missing-device-locale path lands on.
+try:
+    with open_path(UTILITIES) as f:
+        util_text = f.read()
+except OSError as err:
+    problems.append(f"  {UTILITIES} — CHECK21: unreadable: {err}")
+else:
+    if not FALLBACK_RE.search(util_text):
+        problems.append(
+            f"  {UTILITIES} — CHECK21: LoadLocaleStrings fallback target changed — "
+            'the literal "pkg:/locale/en_US/strings.json" must remain the sole base locale')
+
+# Deterministic reporting: problems were appended in sorted-folder order.
+for line in problems:
+    print(line)
+if problems:
+    print(f"  CHECK21: {len(problems)} locale-parity problem(s) across {len(folders)} locale folder(s)")
+    sys.exit(1)
+
+print(f"  CHECK21: all {len(folders)} locale folders mirror en_US — {len(base_flat)} "
+      "flattened keys, placeholders, newline escapes and string leaves aligned")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
