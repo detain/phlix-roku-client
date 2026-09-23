@@ -6,6 +6,7 @@
         "components/**/*.brs",
         "components/**/*.xml",
         "images/**/*",
+        "locale/**/*",
         "tests/**/*.brs"
     ],
     "createPackage": false,

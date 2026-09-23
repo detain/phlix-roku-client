@@ -1,0 +1,139 @@
+{
+  "_metadata": {
+    "locale": "fr_FR",
+    "language_name": "Français (France)",
+    "version": "1.0.0",
+    "source_files": [
+      "components/SettingsScene.brs",
+      "components/DetailScene.brs",
+      "source/lib/Utilities.brs"
+    ]
+  },
+
+  "settings": {
+    "section_account": "Compte",
+    "section_server": "Serveur",
+    "section_playback": "Lecture",
+    "section_captions": "Sous-titres",
+    "section_watch_history": "Historique de lecture",
+    "section_notifications": "Notifications",
+    "section_about": "À propos",
+
+    "item_user_email": "E-mail de l'utilisateur",
+    "item_server_url": "URL du serveur",
+    "item_playback_preferences": "Préférences de lecture",
+    "item_caption_mode": "Mode de sous-titres",
+    "item_picture_in_picture": "Image dans l'image",
+    "item_clear_history": "Effacer l'historique",
+    "item_view_history": "Voir l'historique",
+    "item_push_notifications": "Notifications push",
+    "item_email_notifications": "Notifications par e-mail",
+    "item_version": "Version",
+
+    "desc_user_email": "Afficher l'e-mail de votre compte et vous déconnecter",
+    "desc_server_url": "Afficher et changer l'adresse du serveur",
+    "desc_playback_preferences": "Configurer la qualité de lecture et la lecture automatique",
+    "desc_caption_mode": "Activer ou désactiver les sous-titres",
+    "desc_picture_in_picture": "Activer l'image dans l'image pendant la lecture",
+    "desc_clear_history": "Supprimer toutes les données de l'historique",
+    "desc_view_history": "Parcourir votre historique de lecture",
+    "desc_push_notifications": "Recevoir des notifications push",
+    "desc_email_notifications": "Recevoir des notifications par e-mail",
+    "desc_version": "Version de l'application et informations de l'appareil",
+
+    "status_logged_in_as": "Connecté en tant que : {email}",
+    "status_server": "Serveur : {url}",
+    "status_loading_preferences": "Chargement des préférences de lecture...",
+    "status_unable_to_load_preferences": "Impossible de charger les préférences de lecture",
+    "status_clearing_history": "Effacement de l'historique de lecture...",
+    "status_history_cleared": "Historique de lecture effacé",
+    "status_watch_history_options": "Options de l'historique de lecture",
+    "status_notification_prefs_local": "Préférences de notifications (local uniquement)",
+    "status_notification_prefs_not_set": "Préférences de notifications non définies",
+    "status_prefs_saved_locally": "Préférences enregistrées localement — synchronisation avec le serveur dès que possible",
+    "status_pip_enabled": "Image dans l'image activée",
+    "status_pip_disabled": "Image dans l'image désactivée",
+    "status_server_switch_not_implemented": "Changement de serveur non implémenté",
+
+    "dialog_account_title": "Compte",
+    "dialog_account_message": "E-mail : {email}\n\nVoulez-vous vous déconnecter ?",
+    "dialog_server_title": "Serveur",
+    "dialog_server_message": "Serveur actuel : {url}\n\nVoulez-vous changer de serveur ?",
+    "dialog_captions_title": "Sous-titres",
+    "dialog_captions_message": "Mode de sous-titres actuel : {mode}\n\nSélectionnez un mode :",
+    "dialog_watch_history_title": "Historique de lecture",
+    "dialog_watch_history_message": "Cette action supprimera toutes les données de votre historique de lecture.\n\nVoulez-vous continuer ?",
+
+    "button_cancel": "Annuler",
+    "button_log_out": "Se déconnecter",
+    "button_switch": "Changer",
+    "button_clear": "Effacer",
+    "button_caption_on": "Activés",
+    "button_caption_off": "Désactivés",
+    "button_caption_instant_replay": "Reprise instantanée",
+    "button_caption_when_mute": "En sourdine",
+
+    "about_version": "Version : {version}",
+    "about_device_model": "Modèle de l'appareil : {model}",
+    "about_device_id": "ID de l'appareil : {id}",
+    "about_device_id_unknown": "Inconnu",
+    "about_video_mode": "Mode vidéo",
+    "about_total_memory": "Mémoire totale",
+
+    "quality_label": "Qualité : {quality}",
+    "autoplay_label": "Lecture automatique : {state}",
+    "autoplay_on": "Activée",
+    "autoplay_off": "Désactivée",
+    "caption_mode_label": "Mode de sous-titres : {mode}",
+    "caption_mode_set_to": "Mode de sous-titres défini sur : {mode}"
+  },
+
+  "detail": {
+    "favorite_add": "Ajouter aux favoris",
+    "favorite_remove": "Retirer des favoris",
+
+    "watched_mark": "Marquer comme vu",
+    "watched_unmark": "Marquer comme non vu",
+
+    "rating_not_set": "Note : non définie",
+    "rating_label": "Note : {rating}/10",
+
+    "rated_label": "Classé {rating}",
+
+    "chapters_count": "{count} chapitres",
+
+    "error_favorite_save": "Erreur",
+    "error_favorite_save_message": "Impossible d'enregistrer votre favori. Veuillez réessayer.",
+    "error_favorite_remove_message": "Impossible de retirer votre favori. Veuillez réessayer.",
+    "error_rating_save_message": "Impossible d'enregistrer votre note. Veuillez réessayer.",
+    "error_rating_clear_message": "Impossible de supprimer votre note. Veuillez réessayer.",
+    "error_watched_mark_message": "Impossible de marquer comme vu. Veuillez réessayer.",
+    "error_watched_unmark_message": "Impossible de marquer comme non vu. Veuillez réessayer.",
+
+    "collection_add": "Ajouter à la collection",
+    "collection_remove": "Retirer de la collection",
+
+    "like_like": "J'aime",
+    "like_unlike": "Je n'aime plus"
+  },
+
+  "utilities": {
+    "photo_album_undated": "Sans date",
+
+    "rating_g": "G",
+    "rating_pg": "PG",
+    "rating_pg13": "PG-13",
+    "rating_r": "R",
+    "rating_nc17": "NC-17",
+    "rating_x": "X",
+    "rating_unrated": "NON CLASSÉ",
+
+    "iso_prefix": "ISO "
+  },
+
+  "common": {
+    "ok": "OK",
+    "error": "Erreur",
+    "retry": "Réessayer"
+  }
+}

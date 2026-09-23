@@ -474,7 +474,6 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
-FOUND=0
 echo ""
 echo "=== Check 16: placeholder channel art file size (R6.2) ==="
 # Each image in images/ must be large enough to plausibly contain real art at its
@@ -537,7 +536,6 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
-FOUND=0
 echo ""
 echo "=== Check 17: echo ERROR paired with exit/state (self-audit) ==="
 # Every echo command with ERROR in its output should set FOUND=1, VIOLATIONS=1,
@@ -659,7 +657,6 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
-FOUND=0
 echo ""
 echo "=== Check 19: hardcoded i18n strings in target files (R7.12) ==="
 PYRET=0
@@ -834,6 +831,311 @@ for tpath in TARGETS:
 
 if found_violation:
     sys.exit(1)
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo ""
+echo "=== Check 20: Translate() keys resolve against the locale catalog ==="
+# The loader (source/lib/Utilities.brs LoadLocaleStrings) flattens every catalog
+# section into "<section>_<bareKey>", and Translate() probes that table first.
+# Every literal Translate("key") call in source/ + components/ must therefore
+# have a matching flattened entry in locale/en_US/strings.json, or the UI
+# silently renders the raw key. This check closes that gap for CI.
+PYRET=0
+PYOUT=$(python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ['REPO']
+os.chdir(repo)
+
+CATALOG = 'locale/en_US/strings.json'
+
+# Fail fast on a broken catalog with a one-line CHECK20 message (printed to
+# stdout so it survives the PYOUT capture) instead of a raw traceback.
+try:
+    with open(CATALOG) as f:
+        catalog = json.load(f)
+except (OSError, ValueError) as err:
+    print(f"  CHECK20: locale catalog unreadable: {err}")
+    sys.exit(1)
+if not isinstance(catalog, dict):
+    print("  CHECK20: locale catalog unreadable: top level is not a JSON object")
+    sys.exit(1)
+
+# Mirror of FlattenLocaleCatalog(): section S + bare key K -> "S_K".
+# Leaf policy mirrors the device loader: only strings enter the flattened
+# table; a non-string leaf is a latent device type-crash (Translate() returns
+# `as String`) and is rejected here so it can never ship.
+flat = set()
+bad_leaves = []
+for section, data in catalog.items():
+    if section == '_metadata' or not isinstance(data, dict):
+        continue
+    for bare_key, value in data.items():
+        if not isinstance(value, str):
+            bad_leaves.append(f"{section}.{bare_key}")
+            continue
+        flat.add(section + '_' + bare_key)
+
+# Every literal Translate("...") call across the client. The \s* after the
+# paren keeps this safe when the call opens on one line and the string literal
+# sits on the next; matches are located in the comment-masked full text so
+# line numbers stay exact. BrightScript strings are double-quoted only, so a
+# single quote outside a string literal opens a comment that runs to the end
+# of its line — whole-line AND trailing inline comments are both masked out.
+TRANSLATE_RE = re.compile(r'Translate\(\s*"([A-Za-z0-9_]+)"')
+
+
+def mask_brs_comments(text):
+    # Replace each comment run with spaces of identical length, so offsets
+    # (and therefore line attribution) of all remaining code stay exact.
+    masked_lines = []
+    for line in text.split('\n'):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        masked_lines.append(line[:cut].ljust(len(line)))
+    return '\n'.join(masked_lines)
+
+brs_files = []
+for scan_dir in ('source', 'components'):
+    for root, dirs, names in os.walk(scan_dir):
+        dirs.sort()
+        for name in sorted(names):
+            if name.endswith('.brs'):
+                brs_files.append(os.path.join(root, name))
+
+misses = []
+checked_keys = set()
+for path in brs_files:
+    with open(path, errors='replace') as f:
+        text = f.read()
+    masked = mask_brs_comments(text)
+    for mo in TRANSLATE_RE.finditer(masked):
+        line_start = masked.rfind('\n', 0, mo.start()) + 1
+        prefix = masked[line_start:mo.start()]
+        # Lines that open with a double-quoted literal are doc-style noise,
+        # never live calls (mirrors Check 19's own skip rule). Whole-line and
+        # inline ' comments were already blanked by the masker.
+        if prefix.lstrip().startswith('"'):
+            continue
+        key = mo.group(1)
+        checked_keys.add(key)
+        if key not in flat:
+            lineno = text.count('\n', 0, mo.start()) + 1
+            misses.append((path, lineno, key))
+
+# The single dynamic call site — Translate(labels[n]) in RatingLabel — hides
+# its keys from any literal-call scanner. Bind to the array inside its
+# enclosing function so a future second `labels` variable cannot be scanned.
+UTILITIES = 'source/lib/Utilities.brs'
+with open(UTILITIES, errors='replace') as f:
+    util_text = f.read()
+rating_fn = re.search(r'function RatingLabel\(.*?\nend function', util_text, re.DOTALL)
+if rating_fn is None:
+    print("  CHECK20: RatingLabel function not found in " + UTILITIES)
+    sys.exit(1)
+labels_arr = re.search(r'labels\s*=\s*\[([^\]]*)\]', rating_fn.group(0))
+if labels_arr is None:
+    print("  CHECK20: literal labels array not found inside RatingLabel")
+    sys.exit(1)
+label_keys = re.findall(r'"([A-Za-z0-9_]+)"', labels_arr.group(1))
+if not label_keys:
+    print("  CHECK20: labels array in RatingLabel is empty — scanner assumption broken")
+    sys.exit(1)
+for key in label_keys:
+    checked_keys.add(key)
+    if key not in flat:
+        misses.append((UTILITIES, 0, key))
+
+# Deterministic reporting: sorted, deduplicated, per-key miss listing.
+report = []
+for path, lineno, key in misses:
+    where = path if lineno == 0 else f"{path}:{lineno}"
+    report.append(f"  {where} — CHECK20: Translate key '{key}' has no flattened entry in {CATALOG}")
+for line in sorted(set(report)):
+    print(line)
+for leaf in sorted(set(bad_leaves)):
+    print(f"  {CATALOG} — CHECK20: non-string leaf '{leaf}' — catalog values must be strings (Translate() returns as String)")
+if misses or bad_leaves:
+    if misses:
+        print(f"  CHECK20: {len(set(report))} unresolved key(s) of {len(checked_keys)} checked")
+    sys.exit(1)
+print(f"  CHECK20: all {len(checked_keys)} Translate keys resolve under the flattened convention")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo ""
+echo "=== Check 21: every shipped locale catalog mirrors en_US ==="
+# locale/ ships one folder per device locale tag (en_US is the base). The device
+# loader (Utilities.brs LoadLocaleStrings) selects pkg:/locale/<tag>/strings.json
+# from the normalized roAppInfo locale and FALLS BACK to pkg:/locale/en_US/-
+# strings.json, and Translate() returns whatever the selected catalog holds —
+# so a sibling catalog that is missing a key renders a raw key on that device,
+# a stripped {placeholder} hands a format token to String.format-style callers
+# as literal text, and a non-string leaf crashes the `as String` return. Check
+# 20 only guards the en_US fallback; this check pins EVERY locale folder to it:
+#   (a) flattened key set identical (missing AND extra both fail, listed per file)
+#   (b) {placeholder} multisets identical per shared key
+#   (c) newline-escape parity per shared key (the '\n\n' dialog bodies)
+#   (d) non-string leaves rejected in ALL catalogs, and the runtime fallback in
+#       Utilities.brs must still name pkg:/locale/en_US/strings.json verbatim
+# en_US stays the sole Translate-literal source of truth — Check 20 above is
+# intentionally untouched and keeps comparing against locale/en_US only.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ['REPO']
+os.chdir(repo)
+
+BASE = 'en_US'
+LOCALE_ROOT = 'locale'
+UTILITIES = 'source/lib/Utilities.brs'
+FALLBACK_RE = re.compile(r'"pkg:/locale/en_US/strings\.json"')
+PLACEHOLDER_RE = re.compile(r'\{[A-Za-z0-9_]+\}')
+
+problems = []
+
+
+def open_path(path):
+    return open(path, encoding='utf-8')
+
+
+def load(path):
+    """Parse a catalog or record a friendly problem (never a raw traceback)."""
+    try:
+        with open_path(path) as f:
+            data = json.load(f)
+    except (OSError, ValueError) as err:
+        problems.append(f"  {path} — CHECK21: locale catalog unreadable: {err}")
+        return None
+    if not isinstance(data, dict):
+        problems.append(f"  {path} — CHECK21: locale catalog unreadable: top level is not a JSON object")
+        return None
+    return data
+
+
+def flat_strings(catalog, path):
+    """Mirror of FlattenLocaleCatalog(): section S + bare key K -> "S_K",
+    skipping _metadata. Non-string leaves are rejected (device Translate()
+    returns `as String`)."""
+    flat = {}
+    for section, data in catalog.items():
+        if section == '_metadata' or not isinstance(data, dict):
+            continue
+        for bare_key, value in data.items():
+            if not isinstance(value, str):
+                problems.append(
+                    f"  {path} — CHECK21: non-string leaf '{section}.{bare_key}' — "
+                    "catalog values must be strings (Translate() returns as String)")
+                continue
+            flat[section + '_' + bare_key] = value
+    return flat
+
+
+if not os.path.isdir(LOCALE_ROOT):
+    print(f"  CHECK21: {LOCALE_ROOT}/ directory not found")
+    sys.exit(1)
+
+folders = sorted(d for d in os.listdir(LOCALE_ROOT)
+                 if os.path.isdir(LOCALE_ROOT + '/' + d))
+
+base_path = os.path.join(LOCALE_ROOT, BASE, 'strings.json')
+if not os.path.isfile(base_path):
+    print(f"  CHECK21: base catalog {base_path} missing — {BASE} is the sole fallback and source of truth")
+    sys.exit(1)
+
+base = load(base_path)
+if base is None:
+    for line in problems:
+        print(line)
+    sys.exit(1)
+base_flat = flat_strings(base, base_path)
+base_meta = base.get('_metadata')
+if not isinstance(base_meta, dict):
+    problems.append(f"  {base_path} — CHECK21: _metadata section missing or not an object")
+    base_meta = {}
+
+for folder in folders:
+    path = os.path.join(LOCALE_ROOT, folder, 'strings.json')
+    if not os.path.isfile(path):
+        problems.append(f"  {path} — CHECK21: locale folder '{folder}' has no strings.json")
+        continue
+    catalog = load(path)
+    if catalog is None:
+        continue
+    flat = flat_strings(catalog, path)
+
+    meta = catalog.get('_metadata')
+    if not isinstance(meta, dict):
+        problems.append(f"  {path} — CHECK21: _metadata section missing or not an object")
+        meta = {}
+    if meta.get('locale') != folder:
+        problems.append(
+            f"  {path} — CHECK21: _metadata.locale is {meta.get('locale')!r} but folder is '{folder}'")
+    if folder != BASE and isinstance(base_meta.get('source_files'), list) \
+            and meta.get('source_files') != base_meta['source_files']:
+        problems.append(f"  {path} — CHECK21: _metadata.source_files drifted from {base_path}")
+
+    if folder == BASE:
+        continue
+
+    missing = sorted(set(base_flat) - set(flat))
+    extra = sorted(set(flat) - set(base_flat))
+    if missing:
+        problems.append(
+            f"  {path} — CHECK21: {len(missing)} key(s) missing vs {base_path}: {', '.join(missing)}")
+    if extra:
+        problems.append(
+            f"  {path} — CHECK21: {len(extra)} key(s) not present in {base_path}: {', '.join(extra)}")
+
+    for key in sorted(set(base_flat) & set(flat)):
+        want = sorted(PLACEHOLDER_RE.findall(base_flat[key]))
+        have = sorted(PLACEHOLDER_RE.findall(flat[key]))
+        if want != have:
+            problems.append(
+                f"  {path} — CHECK21: placeholder mismatch on '{key}': en_US has "
+                f"{', '.join(want) if want else '(none)'}, {folder} has "
+                f"{', '.join(have) if have else '(none)'}")
+        if base_flat[key].count('\n') != flat[key].count('\n'):
+            problems.append(
+                f"  {path} — CHECK21: newline-escape parity broken on '{key}' "
+                f"(en_US has {base_flat[key].count(chr(10))} newline(s), {folder} has "
+                f"{flat[key].count(chr(10))})")
+
+# (d) The runtime fallback must stay pinned to en_US — LoadLocaleStrings' base
+# constant is what every missing-device-locale path lands on.
+try:
+    with open_path(UTILITIES) as f:
+        util_text = f.read()
+except OSError as err:
+    problems.append(f"  {UTILITIES} — CHECK21: unreadable: {err}")
+else:
+    if not FALLBACK_RE.search(util_text):
+        problems.append(
+            f"  {UTILITIES} — CHECK21: LoadLocaleStrings fallback target changed — "
+            'the literal "pkg:/locale/en_US/strings.json" must remain the sole base locale')
+
+# Deterministic reporting: problems were appended in sorted-folder order.
+for line in problems:
+    print(line)
+if problems:
+    print(f"  CHECK21: {len(problems)} locale-parity problem(s) across {len(folders)} locale folder(s)")
+    sys.exit(1)
+
+print(f"  CHECK21: all {len(folders)} locale folders mirror en_US — {len(base_flat)} "
+      "flattened keys, placeholders, newline escapes and string leaves aligned")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
