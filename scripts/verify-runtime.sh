@@ -474,7 +474,6 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
-FOUND=0
 echo ""
 echo "=== Check 16: placeholder channel art file size (R6.2) ==="
 # Each image in images/ must be large enough to plausibly contain real art at its
@@ -537,7 +536,6 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
-FOUND=0
 echo ""
 echo "=== Check 17: echo ERROR paired with exit/state (self-audit) ==="
 # Every echo command with ERROR in its output should set FOUND=1, VIOLATIONS=1,
@@ -659,7 +657,6 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
-FOUND=0
 echo ""
 echo "=== Check 19: hardcoded i18n strings in target files (R7.12) ==="
 PYRET=0
