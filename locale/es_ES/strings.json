@@ -1,0 +1,139 @@
+{
+  "_metadata": {
+    "locale": "es_ES",
+    "language_name": "Español (España)",
+    "version": "1.0.0",
+    "source_files": [
+      "components/SettingsScene.brs",
+      "components/DetailScene.brs",
+      "source/lib/Utilities.brs"
+    ]
+  },
+
+  "settings": {
+    "section_account": "Cuenta",
+    "section_server": "Servidor",
+    "section_playback": "Reproducción",
+    "section_captions": "Subtítulos",
+    "section_watch_history": "Historial de reproducción",
+    "section_notifications": "Notificaciones",
+    "section_about": "Acerca de",
+
+    "item_user_email": "Correo del usuario",
+    "item_server_url": "URL del servidor",
+    "item_playback_preferences": "Preferencias de reproducción",
+    "item_caption_mode": "Modo de subtítulos",
+    "item_picture_in_picture": "Imagen en imagen",
+    "item_clear_history": "Borrar historial",
+    "item_view_history": "Ver historial",
+    "item_push_notifications": "Notificaciones push",
+    "item_email_notifications": "Notificaciones por correo",
+    "item_version": "Versión",
+
+    "desc_user_email": "Ver el correo de tu cuenta y cerrar sesión",
+    "desc_server_url": "Ver y cambiar la dirección del servidor",
+    "desc_playback_preferences": "Configurar la calidad de reproducción y la reproducción automática",
+    "desc_caption_mode": "Activar o desactivar los subtítulos",
+    "desc_picture_in_picture": "Activar el PiP durante la reproducción",
+    "desc_clear_history": "Eliminar todos los datos del historial",
+    "desc_view_history": "Explorar tu historial de reproducción",
+    "desc_push_notifications": "Recibir notificaciones push",
+    "desc_email_notifications": "Recibir notificaciones por correo",
+    "desc_version": "Versión de la aplicación e información del dispositivo",
+
+    "status_logged_in_as": "Conectado como: {email}",
+    "status_server": "Servidor: {url}",
+    "status_loading_preferences": "Cargando preferencias de reproducción...",
+    "status_unable_to_load_preferences": "No se pudieron cargar las preferencias de reproducción",
+    "status_clearing_history": "Borrando historial de reproducción...",
+    "status_history_cleared": "Historial de reproducción borrado",
+    "status_watch_history_options": "Opciones del historial de reproducción",
+    "status_notification_prefs_local": "Preferencias de notificaciones (solo local)",
+    "status_notification_prefs_not_set": "Preferencias de notificaciones no configuradas",
+    "status_prefs_saved_locally": "Preferencias guardadas localmente — sincronizando con el servidor cuando esté disponible",
+    "status_pip_enabled": "Imagen en imagen activada",
+    "status_pip_disabled": "Imagen en imagen desactivada",
+    "status_server_switch_not_implemented": "Cambio de servidor no implementado",
+
+    "dialog_account_title": "Cuenta",
+    "dialog_account_message": "Correo: {email}\n\n¿Quieres cerrar sesión?",
+    "dialog_server_title": "Servidor",
+    "dialog_server_message": "Servidor actual: {url}\n\n¿Quieres cambiar de servidor?",
+    "dialog_captions_title": "Subtítulos",
+    "dialog_captions_message": "Modo de subtítulos actual: {mode}\n\nSelecciona un modo:",
+    "dialog_watch_history_title": "Historial de reproducción",
+    "dialog_watch_history_message": "Esto eliminará todos los datos de tu historial de reproducción.\n\n¿Estás seguro?",
+
+    "button_cancel": "Cancelar",
+    "button_log_out": "Cerrar sesión",
+    "button_switch": "Cambiar",
+    "button_clear": "Borrar",
+    "button_caption_on": "Activados",
+    "button_caption_off": "Desactivados",
+    "button_caption_instant_replay": "Repetición instantánea",
+    "button_caption_when_mute": "Al silenciar",
+
+    "about_version": "Versión: {version}",
+    "about_device_model": "Modelo del dispositivo: {model}",
+    "about_device_id": "ID del dispositivo: {id}",
+    "about_device_id_unknown": "Desconocido",
+    "about_video_mode": "Modo de vídeo",
+    "about_total_memory": "Memoria total",
+
+    "quality_label": "Calidad: {quality}",
+    "autoplay_label": "Reproducción automática: {state}",
+    "autoplay_on": "Activada",
+    "autoplay_off": "Desactivada",
+    "caption_mode_label": "Modo de subtítulos: {mode}",
+    "caption_mode_set_to": "Modo de subtítulos establecido en: {mode}"
+  },
+
+  "detail": {
+    "favorite_add": "Añadir a favoritos",
+    "favorite_remove": "Quitar de favoritos",
+
+    "watched_mark": "Marcar como vista",
+    "watched_unmark": "Marcar como no vista",
+
+    "rating_not_set": "Valoración: sin establecer",
+    "rating_label": "Valoración: {rating}/10",
+
+    "rated_label": "Clasificación {rating}",
+
+    "chapters_count": "{count} capítulos",
+
+    "error_favorite_save": "Error",
+    "error_favorite_save_message": "No se pudo guardar tu favorito. Inténtalo de nuevo.",
+    "error_favorite_remove_message": "No se pudo quitar tu favorito. Inténtalo de nuevo.",
+    "error_rating_save_message": "No se pudo guardar tu valoración. Inténtalo de nuevo.",
+    "error_rating_clear_message": "No se pudo borrar tu valoración. Inténtalo de nuevo.",
+    "error_watched_mark_message": "No se pudo marcar como vista. Inténtalo de nuevo.",
+    "error_watched_unmark_message": "No se pudo marcar como no vista. Inténtalo de nuevo.",
+
+    "collection_add": "Añadir a la colección",
+    "collection_remove": "Quitar de la colección",
+
+    "like_like": "Me gusta",
+    "like_unlike": "Ya no me gusta"
+  },
+
+  "utilities": {
+    "photo_album_undated": "Sin fecha",
+
+    "rating_g": "G",
+    "rating_pg": "PG",
+    "rating_pg13": "PG-13",
+    "rating_r": "R",
+    "rating_nc17": "NC-17",
+    "rating_x": "X",
+    "rating_unrated": "SIN CLASIFICAR",
+
+    "iso_prefix": "ISO "
+  },
+
+  "common": {
+    "ok": "OK",
+    "error": "Error",
+    "retry": "Reintentar"
+  }
+}

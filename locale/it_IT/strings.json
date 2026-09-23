@@ -1,0 +1,139 @@
+{
+  "_metadata": {
+    "locale": "it_IT",
+    "language_name": "Italiano (Italia)",
+    "version": "1.0.0",
+    "source_files": [
+      "components/SettingsScene.brs",
+      "components/DetailScene.brs",
+      "source/lib/Utilities.brs"
+    ]
+  },
+
+  "settings": {
+    "section_account": "Account",
+    "section_server": "Server",
+    "section_playback": "Riproduzione",
+    "section_captions": "Sottotitoli",
+    "section_watch_history": "Cronologia visualizzazione",
+    "section_notifications": "Notifiche",
+    "section_about": "Informazioni",
+
+    "item_user_email": "Email utente",
+    "item_server_url": "URL server",
+    "item_playback_preferences": "Preferenze riproduzione",
+    "item_caption_mode": "Modalità sottotitoli",
+    "item_picture_in_picture": "Picture-in-Picture",
+    "item_clear_history": "Cancella cronologia",
+    "item_view_history": "Vedi cronologia",
+    "item_push_notifications": "Notifiche push",
+    "item_email_notifications": "Notifiche email",
+    "item_version": "Versione",
+
+    "desc_user_email": "Visualizza l'email del tuo account e disconnettiti",
+    "desc_server_url": "Visualizza e cambia l'indirizzo del server",
+    "desc_playback_preferences": "Configura qualità di riproduzione e riproduzione automatica",
+    "desc_caption_mode": "Attiva o disattiva i sottotitoli",
+    "desc_picture_in_picture": "Attiva il Picture-in-Picture durante la riproduzione",
+    "desc_clear_history": "Rimuovi tutti i dati della cronologia di visualizzazione",
+    "desc_view_history": "Sfoglia la cronologia delle tue visualizzazioni",
+    "desc_push_notifications": "Ricevi notifiche push",
+    "desc_email_notifications": "Ricevi notifiche email",
+    "desc_version": "Versione dell'app e informazioni sul dispositivo",
+
+    "status_logged_in_as": "Accesso effettuato come: {email}",
+    "status_server": "Server: {url}",
+    "status_loading_preferences": "Caricamento delle preferenze di riproduzione...",
+    "status_unable_to_load_preferences": "Impossibile caricare le preferenze di riproduzione",
+    "status_clearing_history": "Cancellazione della cronologia di visualizzazione...",
+    "status_history_cleared": "Cronologia di visualizzazione cancellata",
+    "status_watch_history_options": "Opzioni cronologia di visualizzazione",
+    "status_notification_prefs_local": "Preferenze notifiche (solo locale)",
+    "status_notification_prefs_not_set": "Preferenze notifiche non impostate",
+    "status_prefs_saved_locally": "Preferenze salvate localmente — sincronizzazione con il server quando disponibile",
+    "status_pip_enabled": "Picture-in-Picture attivato",
+    "status_pip_disabled": "Picture-in-Picture disattivato",
+    "status_server_switch_not_implemented": "Cambio server non implementato",
+
+    "dialog_account_title": "Account",
+    "dialog_account_message": "Email: {email}\n\nVuoi disconnetterti?",
+    "dialog_server_title": "Server",
+    "dialog_server_message": "Server attuale: {url}\n\nVuoi cambiare server?",
+    "dialog_captions_title": "Sottotitoli",
+    "dialog_captions_message": "Modalità sottotitoli attuale: {mode}\n\nSeleziona una modalità:",
+    "dialog_watch_history_title": "Cronologia visualizzazione",
+    "dialog_watch_history_message": "Verranno rimossi tutti i dati della tua cronologia di visualizzazione.\n\nSei sicuro?",
+
+    "button_cancel": "Annulla",
+    "button_log_out": "Disconnetti",
+    "button_switch": "Cambia",
+    "button_clear": "Cancella",
+    "button_caption_on": "Attivi",
+    "button_caption_off": "Disattivi",
+    "button_caption_instant_replay": "Riproduzione istantanea",
+    "button_caption_when_mute": "Quando è muto",
+
+    "about_version": "Versione: {version}",
+    "about_device_model": "Modello dispositivo: {model}",
+    "about_device_id": "ID dispositivo: {id}",
+    "about_device_id_unknown": "Sconosciuto",
+    "about_video_mode": "Modalità video",
+    "about_total_memory": "Memoria totale",
+
+    "quality_label": "Qualità: {quality}",
+    "autoplay_label": "Riproduzione automatica: {state}",
+    "autoplay_on": "Attiva",
+    "autoplay_off": "Disattiva",
+    "caption_mode_label": "Modalità sottotitoli: {mode}",
+    "caption_mode_set_to": "Modalità sottotitoli impostata su: {mode}"
+  },
+
+  "detail": {
+    "favorite_add": "Aggiungi ai preferiti",
+    "favorite_remove": "Rimuovi dai preferiti",
+
+    "watched_mark": "Segna come visto",
+    "watched_unmark": "Segna come non visto",
+
+    "rating_not_set": "Valutazione: non impostata",
+    "rating_label": "Valutazione: {rating}/10",
+
+    "rated_label": "Classificato {rating}",
+
+    "chapters_count": "{count} capitoli",
+
+    "error_favorite_save": "Errore",
+    "error_favorite_save_message": "Impossibile salvare il preferito. Riprova.",
+    "error_favorite_remove_message": "Impossibile rimuovere il preferito. Riprova.",
+    "error_rating_save_message": "Impossibile salvare la valutazione. Riprova.",
+    "error_rating_clear_message": "Impossibile cancellare la valutazione. Riprova.",
+    "error_watched_mark_message": "Impossibile segnare come visto. Riprova.",
+    "error_watched_unmark_message": "Impossibile segnare come non visto. Riprova.",
+
+    "collection_add": "Aggiungi alla collezione",
+    "collection_remove": "Rimuovi dalla collezione",
+
+    "like_like": "Mi piace",
+    "like_unlike": "Non mi piace più"
+  },
+
+  "utilities": {
+    "photo_album_undated": "Senza data",
+
+    "rating_g": "G",
+    "rating_pg": "PG",
+    "rating_pg13": "PG-13",
+    "rating_r": "R",
+    "rating_nc17": "NC-17",
+    "rating_x": "X",
+    "rating_unrated": "NON CLASSIFICATO",
+
+    "iso_prefix": "ISO "
+  },
+
+  "common": {
+    "ok": "OK",
+    "error": "Errore",
+    "retry": "Riprova"
+  }
+}

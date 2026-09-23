@@ -1,0 +1,139 @@
+{
+  "_metadata": {
+    "locale": "de_DE",
+    "language_name": "Deutsch (Deutschland)",
+    "version": "1.0.0",
+    "source_files": [
+      "components/SettingsScene.brs",
+      "components/DetailScene.brs",
+      "source/lib/Utilities.brs"
+    ]
+  },
+
+  "settings": {
+    "section_account": "Konto",
+    "section_server": "Server",
+    "section_playback": "Wiedergabe",
+    "section_captions": "Untertitel",
+    "section_watch_history": "Wiedergabeverlauf",
+    "section_notifications": "Benachrichtigungen",
+    "section_about": "Info",
+
+    "item_user_email": "Benutzer-E-Mail",
+    "item_server_url": "Server-URL",
+    "item_playback_preferences": "Wiedergabeeinstellungen",
+    "item_caption_mode": "Untertitelmodus",
+    "item_picture_in_picture": "Bild-im-Bild",
+    "item_clear_history": "Verlauf löschen",
+    "item_view_history": "Verlauf anzeigen",
+    "item_push_notifications": "Push-Benachrichtigungen",
+    "item_email_notifications": "E-Mail-Benachrichtigungen",
+    "item_version": "Version",
+
+    "desc_user_email": "Konto-E-Mail anzeigen und abmelden",
+    "desc_server_url": "Serveradresse anzeigen und wechseln",
+    "desc_playback_preferences": "Wiedergabequalität und Autoplay konfigurieren",
+    "desc_caption_mode": "Untertitel ein- oder ausschalten",
+    "desc_picture_in_picture": "Bild-im-Bild während der Wiedergabe aktivieren",
+    "desc_clear_history": "Alle Verlaufsdaten löschen",
+    "desc_view_history": "Wiedergabeverlauf durchsuchen",
+    "desc_push_notifications": "Push-Benachrichtigungen erhalten",
+    "desc_email_notifications": "E-Mail-Benachrichtigungen erhalten",
+    "desc_version": "App-Version und Geräteinformationen",
+
+    "status_logged_in_as": "Angemeldet als: {email}",
+    "status_server": "Server: {url}",
+    "status_loading_preferences": "Wiedergabeeinstellungen werden geladen...",
+    "status_unable_to_load_preferences": "Wiedergabeeinstellungen konnten nicht geladen werden",
+    "status_clearing_history": "Wiedergabeverlauf wird gelöscht...",
+    "status_history_cleared": "Wiedergabeverlauf gelöscht",
+    "status_watch_history_options": "Optionen zum Wiedergabeverlauf",
+    "status_notification_prefs_local": "Benachrichtigungseinstellungen (nur lokal)",
+    "status_notification_prefs_not_set": "Benachrichtigungseinstellungen nicht festgelegt",
+    "status_prefs_saved_locally": "Einstellungen lokal gespeichert — Synchronisierung mit dem Server, wenn verfügbar",
+    "status_pip_enabled": "Bild-im-Bild aktiviert",
+    "status_pip_disabled": "Bild-im-Bild deaktiviert",
+    "status_server_switch_not_implemented": "Serverwechsel nicht implementiert",
+
+    "dialog_account_title": "Konto",
+    "dialog_account_message": "E-Mail: {email}\n\nMöchten Sie sich abmelden?",
+    "dialog_server_title": "Server",
+    "dialog_server_message": "Aktueller Server: {url}\n\nMöchten Sie den Server wechseln?",
+    "dialog_captions_title": "Untertitel",
+    "dialog_captions_message": "Aktueller Untertitelmodus: {mode}\n\nModus auswählen:",
+    "dialog_watch_history_title": "Wiedergabeverlauf",
+    "dialog_watch_history_message": "Dadurch werden alle Ihre Verlaufsdaten entfernt.\n\nSind Sie sicher?",
+
+    "button_cancel": "Abbrechen",
+    "button_log_out": "Abmelden",
+    "button_switch": "Wechseln",
+    "button_clear": "Löschen",
+    "button_caption_on": "Ein",
+    "button_caption_off": "Aus",
+    "button_caption_instant_replay": "Sofortwiederholung",
+    "button_caption_when_mute": "Bei Stummschaltung",
+
+    "about_version": "Version: {version}",
+    "about_device_model": "Gerätemodell: {model}",
+    "about_device_id": "Geräte-ID: {id}",
+    "about_device_id_unknown": "Unbekannt",
+    "about_video_mode": "Videomodus",
+    "about_total_memory": "Gesamtspeicher",
+
+    "quality_label": "Qualität: {quality}",
+    "autoplay_label": "Autoplay: {state}",
+    "autoplay_on": "Ein",
+    "autoplay_off": "Aus",
+    "caption_mode_label": "Untertitelmodus: {mode}",
+    "caption_mode_set_to": "Untertitelmodus geändert auf: {mode}"
+  },
+
+  "detail": {
+    "favorite_add": "Zu Favoriten hinzufügen",
+    "favorite_remove": "Aus Favoriten entfernen",
+
+    "watched_mark": "Als gesehen markieren",
+    "watched_unmark": "Als ungesehen markieren",
+
+    "rating_not_set": "Bewertung: nicht festgelegt",
+    "rating_label": "Bewertung: {rating}/10",
+
+    "rated_label": "Eingestuft als {rating}",
+
+    "chapters_count": "{count} Kapitel",
+
+    "error_favorite_save": "Fehler",
+    "error_favorite_save_message": "Ihr Favorit konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "error_favorite_remove_message": "Ihr Favorit konnte nicht entfernt werden. Bitte erneut versuchen.",
+    "error_rating_save_message": "Ihre Bewertung konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "error_rating_clear_message": "Ihre Bewertung konnte nicht gelöscht werden. Bitte erneut versuchen.",
+    "error_watched_mark_message": "Markierung als gesehen fehlgeschlagen. Bitte erneut versuchen.",
+    "error_watched_unmark_message": "Markierung als ungesehen fehlgeschlagen. Bitte erneut versuchen.",
+
+    "collection_add": "Zur Sammlung hinzufügen",
+    "collection_remove": "Aus Sammlung entfernen",
+
+    "like_like": "Gefällt mir",
+    "like_unlike": "Gefällt mir nicht mehr"
+  },
+
+  "utilities": {
+    "photo_album_undated": "Ohne Datum",
+
+    "rating_g": "G",
+    "rating_pg": "PG",
+    "rating_pg13": "PG-13",
+    "rating_r": "R",
+    "rating_nc17": "NC-17",
+    "rating_x": "X",
+    "rating_unrated": "UNBEWERTET",
+
+    "iso_prefix": "ISO "
+  },
+
+  "common": {
+    "ok": "OK",
+    "error": "Fehler",
+    "retry": "Wiederholen"
+  }
+}

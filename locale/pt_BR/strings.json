@@ -1,0 +1,139 @@
+{
+  "_metadata": {
+    "locale": "pt_BR",
+    "language_name": "Português (Brasil)",
+    "version": "1.0.0",
+    "source_files": [
+      "components/SettingsScene.brs",
+      "components/DetailScene.brs",
+      "source/lib/Utilities.brs"
+    ]
+  },
+
+  "settings": {
+    "section_account": "Conta",
+    "section_server": "Servidor",
+    "section_playback": "Reprodução",
+    "section_captions": "Legendas",
+    "section_watch_history": "Histórico de reprodução",
+    "section_notifications": "Notificações",
+    "section_about": "Sobre",
+
+    "item_user_email": "E-mail do usuário",
+    "item_server_url": "URL do servidor",
+    "item_playback_preferences": "Preferências de reprodução",
+    "item_caption_mode": "Modo de legendas",
+    "item_picture_in_picture": "Imagem na imagem",
+    "item_clear_history": "Limpar histórico",
+    "item_view_history": "Ver histórico",
+    "item_push_notifications": "Notificações push",
+    "item_email_notifications": "Notificações por e-mail",
+    "item_version": "Versão",
+
+    "desc_user_email": "Ver o e-mail da sua conta e sair",
+    "desc_server_url": "Ver e alterar o endereço do servidor",
+    "desc_playback_preferences": "Configurar qualidade de reprodução e reprodução automática",
+    "desc_caption_mode": "Ativar ou desativar as legendas",
+    "desc_picture_in_picture": "Ativar PiP durante a reprodução",
+    "desc_clear_history": "Remover todos os dados do histórico de reprodução",
+    "desc_view_history": "Navegar pelo seu histórico de reprodução",
+    "desc_push_notifications": "Receber notificações push",
+    "desc_email_notifications": "Receber notificações por e-mail",
+    "desc_version": "Versão do aplicativo e informações do dispositivo",
+
+    "status_logged_in_as": "Conectado como: {email}",
+    "status_server": "Servidor: {url}",
+    "status_loading_preferences": "Carregando preferências de reprodução...",
+    "status_unable_to_load_preferences": "Não foi possível carregar as preferências de reprodução",
+    "status_clearing_history": "Limpando o histórico de reprodução...",
+    "status_history_cleared": "Histórico de reprodução limpo",
+    "status_watch_history_options": "Opções do histórico de reprodução",
+    "status_notification_prefs_local": "Preferências de notificação (somente local)",
+    "status_notification_prefs_not_set": "Preferências de notificação não definidas",
+    "status_prefs_saved_locally": "Preferências salvas localmente — sincronizando com o servidor quando disponível",
+    "status_pip_enabled": "Imagem na imagem ativada",
+    "status_pip_disabled": "Imagem na imagem desativada",
+    "status_server_switch_not_implemented": "Troca de servidor não implementada",
+
+    "dialog_account_title": "Conta",
+    "dialog_account_message": "E-mail: {email}\n\nDeseja sair?",
+    "dialog_server_title": "Servidor",
+    "dialog_server_message": "Servidor atual: {url}\n\nDeseja trocar de servidor?",
+    "dialog_captions_title": "Legendas",
+    "dialog_captions_message": "Modo de legendas atual: {mode}\n\nSelecione um modo:",
+    "dialog_watch_history_title": "Histórico de reprodução",
+    "dialog_watch_history_message": "Isso removerá todos os dados do seu histórico de reprodução.\n\nTem certeza?",
+
+    "button_cancel": "Cancelar",
+    "button_log_out": "Sair",
+    "button_switch": "Trocar",
+    "button_clear": "Limpar",
+    "button_caption_on": "Ativadas",
+    "button_caption_off": "Desativadas",
+    "button_caption_instant_replay": "Replay instantâneo",
+    "button_caption_when_mute": "Quando silencioso",
+
+    "about_version": "Versão: {version}",
+    "about_device_model": "Modelo do dispositivo: {model}",
+    "about_device_id": "ID do dispositivo: {id}",
+    "about_device_id_unknown": "Desconhecido",
+    "about_video_mode": "Modo de vídeo",
+    "about_total_memory": "Memória total",
+
+    "quality_label": "Qualidade: {quality}",
+    "autoplay_label": "Reprodução automática: {state}",
+    "autoplay_on": "Ativa",
+    "autoplay_off": "Inativa",
+    "caption_mode_label": "Modo de legendas: {mode}",
+    "caption_mode_set_to": "Modo de legendas definido para: {mode}"
+  },
+
+  "detail": {
+    "favorite_add": "Adicionar aos favoritos",
+    "favorite_remove": "Remover dos favoritos",
+
+    "watched_mark": "Marcar como assistido",
+    "watched_unmark": "Marcar como não assistido",
+
+    "rating_not_set": "Classificação: não definida",
+    "rating_label": "Classificação: {rating}/10",
+
+    "rated_label": "Classificação {rating}",
+
+    "chapters_count": "{count} capítulos",
+
+    "error_favorite_save": "Erro",
+    "error_favorite_save_message": "Não foi possível salvar seu favorito. Tente novamente.",
+    "error_favorite_remove_message": "Não foi possível remover seu favorito. Tente novamente.",
+    "error_rating_save_message": "Não foi possível salvar sua classificação. Tente novamente.",
+    "error_rating_clear_message": "Não foi possível remover sua classificação. Tente novamente.",
+    "error_watched_mark_message": "Não foi possível marcar como assistido. Tente novamente.",
+    "error_watched_unmark_message": "Não foi possível marcar como não assistido. Tente novamente.",
+
+    "collection_add": "Adicionar à coleção",
+    "collection_remove": "Remover da coleção",
+
+    "like_like": "Curtir",
+    "like_unlike": "Descurtir"
+  },
+
+  "utilities": {
+    "photo_album_undated": "Sem data",
+
+    "rating_g": "G",
+    "rating_pg": "PG",
+    "rating_pg13": "PG-13",
+    "rating_r": "R",
+    "rating_nc17": "NC-17",
+    "rating_x": "X",
+    "rating_unrated": "SEM CLASSIFICAÇÃO",
+
+    "iso_prefix": "ISO "
+  },
+
+  "common": {
+    "ok": "OK",
+    "error": "Erro",
+    "retry": "Tentar novamente"
+  }
+}

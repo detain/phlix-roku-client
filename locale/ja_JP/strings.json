@@ -1,0 +1,139 @@
+{
+  "_metadata": {
+    "locale": "ja_JP",
+    "language_name": "日本語 (日本)",
+    "version": "1.0.0",
+    "source_files": [
+      "components/SettingsScene.brs",
+      "components/DetailScene.brs",
+      "source/lib/Utilities.brs"
+    ]
+  },
+
+  "settings": {
+    "section_account": "アカウント",
+    "section_server": "サーバー",
+    "section_playback": "再生",
+    "section_captions": "字幕",
+    "section_watch_history": "視聴履歴",
+    "section_notifications": "通知",
+    "section_about": "情報",
+
+    "item_user_email": "ユーザーメール",
+    "item_server_url": "サーバーURL",
+    "item_playback_preferences": "再生設定",
+    "item_caption_mode": "字幕モード",
+    "item_picture_in_picture": "ピクチャーインピクチャー",
+    "item_clear_history": "履歴を消去",
+    "item_view_history": "履歴を表示",
+    "item_push_notifications": "プッシュ通知",
+    "item_email_notifications": "メール通知",
+    "item_version": "バージョン",
+
+    "desc_user_email": "アカウントのメールを表示し、ログアウトします",
+    "desc_server_url": "サーバーアドレスを表示し、切り替えます",
+    "desc_playback_preferences": "再生品質と自動再生を設定します",
+    "desc_caption_mode": "字幕のオン・オフを切り替えます",
+    "desc_picture_in_picture": "再生中のPiPを有効にします",
+    "desc_clear_history": "視聴履歴データをすべて削除します",
+    "desc_view_history": "視聴履歴を閲覧します",
+    "desc_push_notifications": "プッシュ通知を受け取ります",
+    "desc_email_notifications": "メール通知を受け取ります",
+    "desc_version": "アプリのバージョンと端末情報",
+
+    "status_logged_in_as": "ログイン中: {email}",
+    "status_server": "サーバー: {url}",
+    "status_loading_preferences": "再生設定を読み込んでいます...",
+    "status_unable_to_load_preferences": "再生設定を読み込めません",
+    "status_clearing_history": "視聴履歴を消去しています...",
+    "status_history_cleared": "視聴履歴を消去しました",
+    "status_watch_history_options": "視聴履歴のオプション",
+    "status_notification_prefs_local": "通知設定（ローカルのみ）",
+    "status_notification_prefs_not_set": "通知設定が定義されていません",
+    "status_prefs_saved_locally": "設定はローカルに保存されました — サーバーが利用可能になり次第同期します",
+    "status_pip_enabled": "ピクチャーインピクチャーを有効にしました",
+    "status_pip_disabled": "ピクチャーインピクチャーを無効にしました",
+    "status_server_switch_not_implemented": "サーバーの切り替えは未実装です",
+
+    "dialog_account_title": "アカウント",
+    "dialog_account_message": "メール: {email}\n\nログアウトしますか？",
+    "dialog_server_title": "サーバー",
+    "dialog_server_message": "現在のサーバー: {url}\n\nサーバーを切り替えますか？",
+    "dialog_captions_title": "字幕",
+    "dialog_captions_message": "現在の字幕モード: {mode}\n\nモードを選択してください:",
+    "dialog_watch_history_title": "視聴履歴",
+    "dialog_watch_history_message": "視聴履歴データがすべて削除されます。\n\nよろしいですか？",
+
+    "button_cancel": "キャンセル",
+    "button_log_out": "ログアウト",
+    "button_switch": "切り替え",
+    "button_clear": "消去",
+    "button_caption_on": "オン",
+    "button_caption_off": "オフ",
+    "button_caption_instant_replay": "インスタントリプレイ",
+    "button_caption_when_mute": "ミュート時",
+
+    "about_version": "バージョン: {version}",
+    "about_device_model": "端末モデル: {model}",
+    "about_device_id": "端末ID: {id}",
+    "about_device_id_unknown": "不明",
+    "about_video_mode": "映像モード",
+    "about_total_memory": "合計メモリ",
+
+    "quality_label": "画質: {quality}",
+    "autoplay_label": "自動再生: {state}",
+    "autoplay_on": "オン",
+    "autoplay_off": "オフ",
+    "caption_mode_label": "字幕モード: {mode}",
+    "caption_mode_set_to": "字幕モードを {mode} に設定しました"
+  },
+
+  "detail": {
+    "favorite_add": "お気に入りに追加",
+    "favorite_remove": "お気に入りから削除",
+
+    "watched_mark": "視聴済みとしてマーク",
+    "watched_unmark": "未視聴としてマーク",
+
+    "rating_not_set": "評価: 未設定",
+    "rating_label": "評価: {rating}/10",
+
+    "rated_label": "{rating} レーティング",
+
+    "chapters_count": "{count} 章",
+
+    "error_favorite_save": "エラー",
+    "error_favorite_save_message": "お気に入りを保存できませんでした。もう一度お試しください。",
+    "error_favorite_remove_message": "お気に入りを削除できませんでした。もう一度お試しください。",
+    "error_rating_save_message": "評価を保存できませんでした。もう一度お試しください。",
+    "error_rating_clear_message": "評価を削除できませんでした。もう一度お試しください。",
+    "error_watched_mark_message": "視聴済みとしてマークできませんでした。もう一度お試しください。",
+    "error_watched_unmark_message": "未視聴としてマークできませんでした。もう一度お試しください。",
+
+    "collection_add": "コレクションに追加",
+    "collection_remove": "コレクションから削除",
+
+    "like_like": "いいね",
+    "like_unlike": "いいねを取り消す"
+  },
+
+  "utilities": {
+    "photo_album_undated": "日付なし",
+
+    "rating_g": "G",
+    "rating_pg": "PG",
+    "rating_pg13": "PG-13",
+    "rating_r": "R",
+    "rating_nc17": "NC-17",
+    "rating_x": "X",
+    "rating_unrated": "未評価",
+
+    "iso_prefix": "ISO "
+  },
+
+  "common": {
+    "ok": "OK",
+    "error": "エラー",
+    "retry": "再試行"
+  }
+}
