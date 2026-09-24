@@ -367,7 +367,12 @@ function BuildSceneEvent(jsonText as String) as Object
             codeStr = StringifyId(msg.code)
         end if
         print "SyncPlay error_code: " + codeStr
-        return { kind: "error", message: ReadStr(msg, "message", "SyncPlay error") }
+        ' W5 error-code-first: a recognized code resolves to the localized catalog
+        ' line; the server message is only the debug fallback for unknown codes.
+        ' Utilities.brs is in this component's script closure (SyncPlayTask.xml).
+        localized = LocalizeSyncPlayError(codeStr, ReadStr(msg, "message", ""))
+        if localized = "" then localized = "SyncPlay error"
+        return { kind: "error", message: localized }
     end if
 
     return invalid

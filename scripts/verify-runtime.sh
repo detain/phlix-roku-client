@@ -1141,4 +1141,118 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 22: syncplay error codes resolve in the en_US errors catalog ==="
+# W5 guard law: the thin client localizes syncplay_error frames through the
+# MAPPING LAW in Utilities.brs (SyncPlayErrorCodeToKey: trim, lowercase, "."
+# and "-" -> "_", prefix "errors_"; empty/non-string -> errors_fallback).
+# Silent key-echo fallback must NOT hide a missing translation, so this check
+# re-derives the law in CI and requires:
+#   (a) every literal in SyncPlayKnownErrorCodes() flattens to an existing
+#       en_US errors_<key> entry, with no two codes colliding on one key
+#   (b) errors_fallback exists (the generic localized line)
+#   (c) the normalizer keeps its shape (LCase + "."/"-" -> "_") and
+#       Translate()'s nested-probe sections list still includes "errors"
+#   (d) SyncPlayTask.brs still routes syncplay_error text through
+#       LocalizeSyncPlayError() (wire-in present)
+# Cross-locale parity of the errors section is covered by Check 21, which
+# compares ALL sections of every locale folder against en_US.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ['REPO']
+os.chdir(repo)
+problems = []
+
+UTILITIES = "source/lib/Utilities.brs"
+TASK = "components/SyncPlayTask.brs"
+BASE = "locale/en_US/strings.json"
+
+
+def read(path):
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+util = None
+try:
+    util = read(UTILITIES)
+except OSError as err:
+    problems.append(f"  {UTILITIES} - CHECK22: unreadable: {err}")
+
+codes = []
+if util is not None:
+    m = re.search(r"function SyncPlayKnownErrorCodes\(\).*?end function", util, re.S)
+    if not m:
+        problems.append(f"  {UTILITIES} - CHECK22: SyncPlayKnownErrorCodes() not found")
+    else:
+        codes = re.findall(r'"([^"]+)"', m.group(0))
+        if len(codes) != 16:
+            problems.append(
+                f"  {UTILITIES} - CHECK22: expected 16 known syncplay error codes, "
+                f"found {len(codes)}: {codes}")
+    if not re.search(
+            r'LCase\(raw\)\.Replace\("\.", "_"\)\.Replace\("-", "_"\)', util):
+        problems.append(
+            f"  {UTILITIES} - CHECK22: mapping law shape changed - normalizer no "
+            'longer lowercases and maps "." and "-" to "_"')
+    if not re.search(r'sections = \[[^\]]*"errors"[^\]]*\]', util):
+        problems.append(
+            f'  {UTILITIES} - CHECK22: Translate() nested-probe sections list no '
+            'longer includes "errors"')
+
+flat = set()
+try:
+    doc = json.loads(read(BASE))
+    for section, section_data in doc.items():
+        if section == "_metadata" or not isinstance(section_data, dict):
+            continue
+        for bare_key, leaf in section_data.items():
+            if isinstance(leaf, str):
+                flat.add(f"{section}_{bare_key}")
+except (OSError, ValueError) as err:
+    problems.append(f"  {BASE} - CHECK22: unreadable/unparsable: {err}")
+
+if "errors_fallback" not in flat:
+    problems.append(
+        f"  {BASE} - CHECK22: errors_fallback missing - the generic localized "
+        "last-resolve line is required")
+
+seen = {}
+for code in codes:
+    key = "errors_" + code.strip().lower().replace(".", "_").replace("-", "_")
+    if key in seen:
+        problems.append(
+            f"  {UTILITIES} - CHECK22: codes '{seen[key]}' and '{code}' collide "
+            f"on key '{key}'")
+    seen[key] = code
+    if key not in flat:
+        problems.append(
+            f"  {BASE} - CHECK22: known code '{code}' maps to '{key}' which is "
+            "missing from the en_US errors catalog")
+
+try:
+    task = read(TASK)
+except OSError as err:
+    task = ""
+    problems.append(f"  {TASK} - CHECK22: unreadable: {err}")
+if "LocalizeSyncPlayError(" not in task:
+    problems.append(
+        f"  {TASK} - CHECK22: syncplay_error text no longer routed through "
+        "LocalizeSyncPlayError()")
+
+for line in problems:
+    print(line)
+if problems:
+    print(f"  CHECK22: {len(problems)} syncplay error-catalog problem(s)")
+    sys.exit(1)
+
+print(f"  CHECK22: all {len(codes)} known syncplay error codes + errors_fallback "
+      "resolve in en_US; mapping law and task wire-in intact")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

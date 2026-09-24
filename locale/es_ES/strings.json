@@ -2,10 +2,11 @@
   "_metadata": {
     "locale": "es_ES",
     "language_name": "Español (España)",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
+      "components/SyncPlayTask.brs",
       "source/lib/Utilities.brs"
     ]
   },
@@ -135,5 +136,25 @@
     "ok": "OK",
     "error": "Error",
     "retry": "Reintentar"
+  },
+
+  "errors": {
+    "not_authenticated": "Inicia sesión antes de usar las salas de visionado.",
+    "not_in_group": "No estás en un grupo de visionado.",
+    "not_host": "Solo el anfitrión del grupo puede hacer eso.",
+    "unknown_message": "El servidor rechazó una solicitud no reconocida.",
+    "handler_error": "Algo salió mal en el servidor de sincronización.",
+    "protocol_version_mismatch": "Esta aplicación no es compatible con la versión del servidor.",
+    "invalid_new_host": "El nuevo anfitrión solicitado no es válido.",
+    "member_not_found": "Ese miembro no se encontró en el grupo.",
+    "same_host": "Ese miembro ya es el anfitrión del grupo.",
+    "create_failed": "No se pudo crear el grupo de visionado.",
+    "join_failed": "No se pudo unir al grupo de visionado.",
+    "leave_failed": "No se pudo salir del grupo de visionado.",
+    "syncplay_group_limit_reached": "El anfitrión alcanzó el límite de salas de visionado.",
+    "syncplay_group_not_found": "Ese grupo de visionado ya no existe.",
+    "syncplay_invalid_password": "La contraseña no es correcta.",
+    "syncplay_group_full": "Ese grupo de visionado está lleno.",
+    "fallback": "Ocurrió un error de sincronización."
   }
 }

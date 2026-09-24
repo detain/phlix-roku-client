@@ -2,10 +2,11 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
+      "components/SyncPlayTask.brs",
       "source/lib/Utilities.brs"
     ]
   },
@@ -135,5 +136,25 @@
     "ok": "OK",
     "error": "Error",
     "retry": "Retry"
+  },
+
+  "errors": {
+    "not_authenticated": "Sign in before using watch parties.",
+    "not_in_group": "You are not in a watch group.",
+    "not_host": "Only the group host can do that.",
+    "unknown_message": "The server rejected an unrecognized request.",
+    "handler_error": "Something went wrong on the sync server.",
+    "protocol_version_mismatch": "This app is not compatible with the server version.",
+    "invalid_new_host": "The requested new host is not valid.",
+    "member_not_found": "That member was not found in the group.",
+    "same_host": "That member is already the group host.",
+    "create_failed": "Could not create the watch group.",
+    "join_failed": "Could not join the watch group.",
+    "leave_failed": "Could not leave the watch group.",
+    "syncplay_group_limit_reached": "The host has reached the limit for watch groups.",
+    "syncplay_group_not_found": "That watch group no longer exists.",
+    "syncplay_invalid_password": "That password is not correct.",
+    "syncplay_group_full": "That watch group is full.",
+    "fallback": "A sync error occurred."
   }
 }

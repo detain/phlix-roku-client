@@ -2,10 +2,11 @@
   "_metadata": {
     "locale": "pt_BR",
     "language_name": "Português (Brasil)",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
+      "components/SyncPlayTask.brs",
       "source/lib/Utilities.brs"
     ]
   },
@@ -135,5 +136,25 @@
     "ok": "OK",
     "error": "Erro",
     "retry": "Tentar novamente"
+  },
+
+  "errors": {
+    "not_authenticated": "Entre na sua conta antes de usar as sessões sincronizadas.",
+    "not_in_group": "Você não está em um grupo de exibição.",
+    "not_host": "Somente o anfitrião do grupo pode fazer isso.",
+    "unknown_message": "O servidor rejeitou uma solicitação não reconhecida.",
+    "handler_error": "Algo deu errado no servidor de sincronização.",
+    "protocol_version_mismatch": "Este aplicativo não é compatível com a versão do servidor.",
+    "invalid_new_host": "O novo anfitrião solicitado não é válido.",
+    "member_not_found": "Esse membro não foi encontrado no grupo.",
+    "same_host": "Esse membro já é o anfitrião do grupo.",
+    "create_failed": "Não foi possível criar o grupo de exibição.",
+    "join_failed": "Não foi possível entrar no grupo de exibição.",
+    "leave_failed": "Não foi possível sair do grupo de exibição.",
+    "syncplay_group_limit_reached": "O anfitrião atingiu o limite de sessões sincronizadas.",
+    "syncplay_group_not_found": "Esse grupo de exibição não existe mais.",
+    "syncplay_invalid_password": "A senha não está correta.",
+    "syncplay_group_full": "Esse grupo de exibição está cheio.",
+    "fallback": "Ocorreu um erro de sincronização."
   }
 }

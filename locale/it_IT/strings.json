@@ -2,10 +2,11 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
+      "components/SyncPlayTask.brs",
       "source/lib/Utilities.brs"
     ]
   },
@@ -135,5 +136,25 @@
     "ok": "OK",
     "error": "Errore",
     "retry": "Riprova"
+  },
+
+  "errors": {
+    "not_authenticated": "Accedi prima di usare le sale di visione.",
+    "not_in_group": "Non fai parte di un gruppo di visione.",
+    "not_host": "Solo l’ospite del gruppo può farlo.",
+    "unknown_message": "Il server ha rifiutato una richiesta non riconosciuta.",
+    "handler_error": "Qualcosa è andato storto sul server di sincronizzazione.",
+    "protocol_version_mismatch": "Questa app non è compatibile con la versione del server.",
+    "invalid_new_host": "Il nuovo ospite richiesto non è valido.",
+    "member_not_found": "Il membro non è stato trovato nel gruppo.",
+    "same_host": "Il membro è già l’ospite del gruppo.",
+    "create_failed": "Impossibile creare il gruppo di visione.",
+    "join_failed": "Impossibile unirsi al gruppo di visione.",
+    "leave_failed": "Impossibile uscire dal gruppo di visione.",
+    "syncplay_group_limit_reached": "L’ospite ha raggiunto il limite di sale di visione.",
+    "syncplay_group_not_found": "Quel gruppo di visione non esiste più.",
+    "syncplay_invalid_password": "La password non è corretta.",
+    "syncplay_group_full": "Quel gruppo di visione è pieno.",
+    "fallback": "Si è verificato un errore di sincronizzazione."
   }
 }
