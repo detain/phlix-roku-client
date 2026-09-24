@@ -168,14 +168,17 @@ end sub
 
 sub ShowCaptions()
     deviceInfo = CreateObject("roDeviceInfo")
-    currentMode = deviceInfo.GetCaptionsMode()
+    ' GetCaptionsMode() answers in platform WIRE values - localize for display.
+    currentMode = CaptionsModeLabel(deviceInfo.GetCaptionsMode())
 
     m.statusLabel.text = TranslateWithParams("settings_caption_mode_label", { mode: currentMode })
 
     dialog = CreateObject("roSGNode", "Dialog")
     dialog.title = Translate("settings_dialog_captions_title")
     dialog.message = TranslateWithParams("settings_dialog_captions_message", { mode: currentMode })
-    dialog.buttons = [Translate("settings_button_caption_on"), Translate("settings_button_caption_off"), Translate("settings_button_caption_instant_replay"), Translate("settings_button_caption_when_mute")]
+    ' Display labels only; the machine values these buttons stand for are
+    ' applied by index in OnCaptionsModeSelected (GetCaptionsModeWireValues).
+    dialog.buttons = CaptionsModeLabels()
     dialog.observeField("buttonSelected", "OnCaptionsModeSelected")
     m.top.dialog = dialog
 end sub
@@ -184,11 +187,15 @@ sub OnCaptionsModeSelected(index as Integer)
     if m.top.dialog = invalid then return
     m.top.dialog = invalid
 
-    modes = [Translate("settings_button_caption_on"), Translate("settings_button_caption_off"), Translate("settings_button_caption_instant_replay"), Translate("settings_button_caption_when_mute")]
-    if index >= 0 and index < modes.count() then
+    ' SetCaptionsMode() is a platform API: it wants the WIRE value
+    ' ("On"/"Off"/"Instant replay"/"When mute"), never the translated button
+    ' label - localized text silently mis-sets captions on non-English
+    ' locales. Wire and labels are index-parallel (Utilities.brs).
+    wireModes = GetCaptionsModeWireValues()
+    if index >= 0 and index < wireModes.count() then
         deviceInfo = CreateObject("roDeviceInfo")
-        deviceInfo.SetCaptionsMode(modes[index])
-        m.statusLabel.text = TranslateWithParams("settings_caption_mode_set_to", { mode: modes[index] })
+        deviceInfo.SetCaptionsMode(wireModes[index])
+        m.statusLabel.text = TranslateWithParams("settings_caption_mode_set_to", { mode: CaptionsModeLabel(wireModes[index]) })
     end if
 end sub
 

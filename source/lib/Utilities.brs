@@ -1097,6 +1097,55 @@ function TranslateWithParams(key as String, params as Object) as String
     return ApplyNamedTokens(Translate(key), params)
 end function
 ' ===========================================
+' CAPTIONS MODE VOCABULARY (R6.5 / settings dialog)
+'
+' Doctrine: localized text is NOT the wire value. roDeviceInfo.SetCaptionsMode()
+' and Video.globalCaptionMode accept only the platform's fixed WIRE strings;
+' feeding them translated button labels silently mis-sets captions on every
+' non-English locale (the defect this family closes). WIRE values go to the OS,
+' DISPLAY labels go to the eye - bound by index, never by string equality.
+' PlayerScene's caption-mode list uses the same vocabulary and order.
+' ===========================================
+
+' The four platform captions modes per
+' https://developer.roku.com/dev/docs/video (globalCaptionMode field):
+'   "On"            captions always on
+'   "Off"           captions always off
+'   "Instant replay" on only during instant replay
+'   "When mute"     on only when volume is muted (Roku TVs only)
+' These bytes go to the OS, never to the eye: DO NOT translate them.
+' Pure: returns a fresh array; callers must not mutate module state through it.
+' @return Object - roArray of 4 wire strings, index-parallel with CaptionsModeLabels()
+function GetCaptionsModeWireValues() as Object
+    return ["On", "Off", "Instant replay", "When mute"]
+end function
+
+' Localized display labels for the same four modes, in the exact order of
+' GetCaptionsModeWireValues(). Literal Translate() calls keep Check 20's
+' catalog-resolution coverage on these keys.
+' @return Object - roArray of 4 localized label strings
+function CaptionsModeLabels() as Object
+    return [Translate("settings_button_caption_on"), Translate("settings_button_caption_off"), Translate("settings_button_caption_instant_replay"), Translate("settings_button_caption_when_mute")]
+end function
+
+' Map a captions WIRE value to its localized display label. "" is the
+' documented system-level-off reading of roDeviceInfo.GetCaptionsMode()
+' (mirrors PlayerScene R6.5 start-up normalisation) and renders as the
+' "Off" label; any unrecognized value passes through unchanged so it stays
+' visible for debugging instead of silently lying.
+' @param wireMode String - value from roDeviceInfo.GetCaptionsMode()
+' @return String - localized label, or the input itself when unknown
+function CaptionsModeLabel(wireMode as String) as String
+    wire = GetCaptionsModeWireValues()
+    labels = CaptionsModeLabels()
+    mode = wireMode
+    if mode = "" then mode = "Off"
+    for i = 0 to wire.count() - 1
+        if wire[i] = mode then return labels[i]
+    end for
+    return mode
+end function
+' ===========================================
 ' W5 THIN-CLIENT ERROR LOCALISATION (syncplay_error frames)
 '
 ' Doctrine: error-code-first. The stable error_code on a server frame selects
