@@ -2,10 +2,11 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
+      "components/SyncPlayScene.brs",
       "components/SyncPlayTask.brs",
       "source/lib/Utilities.brs"
     ]
@@ -132,6 +133,21 @@
     "iso_prefix": "ISO "
   },
 
+  "syncplay": {
+    "status_loading_groups": "グループを読み込んでいます...",
+    "status_no_public_groups": "公開中のグループがありません。作成して始めましょう！",
+    "status_creating_group": "グループを作成しています...",
+    "status_joining_group": "グループに参加しています...",
+    "status_connected": "グループに接続しました",
+    "default_group_name": "グループ",
+    "default_room_name": "Rokuルーム",
+    "members_count": "メンバー{count}人",
+    "visibility_public": "[公開]",
+    "visibility_private": "[非公開]",
+    "role_host": "ホスト",
+    "role_guest": "ゲスト"
+  },
+
   "common": {
     "ok": "OK",
     "error": "エラー",
@@ -155,6 +171,15 @@
     "syncplay_group_not_found": "そのウォッチグループは存在しません。",
     "syncplay_invalid_password": "パスワードが正しくありません。",
     "syncplay_group_full": "そのウォッチグループは満員です。",
+    "local_no_config": "同期セッションを準備できませんでした。",
+    "local_no_host": "同期サーバーのアドレスが設定されていません。",
+    "local_socket_unavailable": "このデバイスで同期セッション用のネットワーク接続を開けませんでした。",
+    "local_connect_failed": "同期サーバーに接続できませんでした。",
+    "local_connect_timeout": "同期サーバーの応答が遅すぎます。",
+    "local_room_create_failed": "ウォッチグループを作成できませんでした。",
+    "local_room_join_failed": "ウォッチグループに参加できませんでした。",
+    "local_room_leave_failed": "ウォッチグループから退出できませんでした。",
+    "local_invalid_room": "そのルームは有効ではありません。",
     "fallback": "同期エラーが発生しました。"
   }
 }

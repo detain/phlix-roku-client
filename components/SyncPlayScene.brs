@@ -9,6 +9,12 @@
 ' ===========================================
 ' SyncPlay Scene - P8-S4 Room management UI
 ' Shows public rooms list, create/join form, and room info when joined.
+'
+' i18n: every user-facing line resolves through locale/<tag>/strings.json -
+' display strings via Translate("syncplay_*"), failure lines via
+' LocalizeSyncPlayLocalError("local.*") (the client-minted census in
+' Utilities.brs; REST failures here never ride a frame). Check 20 proves key
+' resolution, Check 23 the census + family separation, Check 21 locale parity.
 ' ===========================================
 
 sub Init()
@@ -55,11 +61,11 @@ end sub
 
 ' Load public groups from REST API
 sub LoadGroups()
-    SetStatus("Loading groups...")
+    SetStatus(Translate("syncplay_status_loading_groups"))
     m.rooms = m.syncMgr.getGroups()
     PopulateRoomList()
     if m.rooms.Count() = 0 then
-        SetStatus("No public groups available. Create one to start!")
+        SetStatus(Translate("syncplay_status_no_public_groups"))
     else
         SetStatus("")
     end if
@@ -78,11 +84,13 @@ sub PopulateRoomList()
     m.roomList.content = content
 end sub
 
-' Caption for a group row: "<name> (<n> members) [public/private]"
+' Caption for a group row: "<name> (<n> members) [public/private]" - every
+' fragment below comes from the locale catalog, so word order and case are the
+' translator's, never this file's.
 function GroupCaption(room as Object) as String
     if room = invalid then return ""
 
-    name = "Group"
+    name = Translate("syncplay_default_group_name")
     if room.DoesExist("name") and type(room.name) = "roString" and room.name <> "" then
         name = room.name
     else if room.DoesExist("roomName") and type(room.roomName) = "roString" and room.roomName <> "" then
@@ -91,21 +99,28 @@ function GroupCaption(room as Object) as String
 
     count = ""
     if room.DoesExist("memberCount") and room.memberCount <> invalid then
-        count = " (" + str(Int(room.memberCount)).Trim() + " members)"
+        count = " (" + MembersCountText(room.memberCount) + ")"
     else if room.DoesExist("member_count") and room.member_count <> invalid then
-        count = " (" + str(Int(room.member_count)).Trim() + " members)"
+        count = " (" + MembersCountText(room.member_count) + ")"
     end if
 
     visibility = ""
     if room.DoesExist("isPublic") then
         if room.isPublic = true or room.isPublic = "true" then
-            visibility = " [public]"
+            visibility = " " + Translate("syncplay_visibility_public")
         else
-            visibility = " [private]"
+            visibility = " " + Translate("syncplay_visibility_private")
         end if
     end if
 
     return name + count + visibility
+end function
+
+' Localized "<n> members" fragment. The {count} token is substituted BY NAME
+' (position-free), so a locale that puts the number after the noun just ships
+' a different value - the surrounding parentheses stay layout owned here.
+function MembersCountText(n as Object) as String
+    return Translate("syncplay_members_count").Replace("{count}", str(Int(n)).Trim())
 end function
 
 ' Create a new room
@@ -114,7 +129,7 @@ sub OnCreatePressed()
 
     roomName = m.roomNameInput.text
     if roomName = invalid or roomName = "" then
-        roomName = "Roku Room"
+        roomName = Translate("syncplay_default_room_name")
     end if
 
     isPublic = true
@@ -122,11 +137,11 @@ sub OnCreatePressed()
         isPublic = m.publicToggle.checked
     end if
 
-    SetStatus("Creating group...")
+    SetStatus(Translate("syncplay_status_creating_group"))
 
     session = m.syncMgr.createGroup(roomName, isPublic)
     if session = invalid or session.roomId = invalid or session.roomId = "" then
-        SetStatus("Failed to create room")
+        SetStatus(LocalizeSyncPlayLocalError("local.room_create_failed"))
         return
     end if
 
@@ -152,15 +167,15 @@ sub OnGroupSelected(event as Object)
     end if
 
     if roomId = "" then
-        SetStatus("Invalid room")
+        SetStatus(LocalizeSyncPlayLocalError("local.invalid_room"))
         return
     end if
 
-    SetStatus("Joining group...")
+    SetStatus(Translate("syncplay_status_joining_group"))
 
     session = m.syncMgr.joinGroup(roomId)
     if session = invalid then
-        SetStatus("Failed to join room")
+        SetStatus(LocalizeSyncPlayLocalError("local.room_join_failed"))
         return
     end if
 
@@ -172,7 +187,7 @@ end sub
 sub OnLeavePressed()
     result = m.syncMgr.leaveGroup()
     if result = invalid then
-        SetStatus("Failed to leave group")
+        SetStatus(LocalizeSyncPlayLocalError("local.room_leave_failed"))
         return
     end if
 
@@ -211,12 +226,12 @@ sub ShowRoomInfoPanel()
         m.currentGroupName.text = m.syncMgr.getGroupName()
     end if
     if m.groupStatus <> invalid then
-        role = "Guest"
-        if m.syncMgr.isHost() then role = "Host"
-        m.groupStatus.text = role + " - " + str(m.syncMgr.getMemberCount()).Trim() + " members"
+        role = Translate("syncplay_role_guest")
+        if m.syncMgr.isHost() then role = Translate("syncplay_role_host")
+        m.groupStatus.text = role + " - " + MembersCountText(m.syncMgr.getMemberCount())
     end if
     if m.syncStatusLabel <> invalid then
-        m.syncStatusLabel.text = "Connected to group"
+        m.syncStatusLabel.text = Translate("syncplay_status_connected")
     end if
 end sub
 

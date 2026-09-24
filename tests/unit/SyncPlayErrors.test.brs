@@ -83,3 +83,57 @@ sub TestLocalizeSyncPlayErrorKnownCodeNeverEmpty()
     assertTrue(result2 <> "")
     print "TestLocalizeSyncPlayErrorKnownCodeNeverEmpty passed"
 end sub
+
+' ---- CLIENT-GENERATED local.* FAMILY (Check 23's runtime mirror) ----
+
+sub TestSyncPlayLocalErrorCodesCensus()
+    ' The local census is non-empty and pinned - same discipline as the 16-strong
+    ' wire list. Every member carries the reserved "local." mint prefix.
+    codes = SyncPlayLocalErrorCodes()
+    assertEqual(codes.count(), 9)
+    for each code in codes
+        assertTrue(code.Left(6) = "local.")
+    end for
+    print "TestSyncPlayLocalErrorCodesCensus passed"
+end sub
+
+sub TestSyncPlayErrorCodeToKeyLocalFamily()
+    ' local.* codes ride the SAME mapping law as wire codes.
+    assertEqual(SyncPlayErrorCodeToKey("local.connect_failed"), "errors_local_connect_failed")
+    assertEqual(SyncPlayErrorCodeToKey("local.room_create_failed"), "errors_local_room_create_failed")
+    assertEqual(SyncPlayErrorCodeToKey("LOCAL.NO_HOST"), "errors_local_no_host")
+    print "TestSyncPlayErrorCodeToKeyLocalFamily passed"
+end sub
+
+sub TestSyncPlayFamiliesAreDisjoint()
+    ' SEPARATION LAW: the wire census never carries a minted local code, the
+    ' local census never collides onto a wire key, and no local code is a
+    ' duplicate within its own family.
+    wireSeen = {}
+    for each code in SyncPlayKnownErrorCodes()
+        assertTrue(LCase(code).Left(6) <> "local.")
+        wireSeen[SyncPlayErrorCodeToKey(code)] = true
+    end for
+    localSeen = {}
+    for each code in SyncPlayLocalErrorCodes()
+        key = SyncPlayErrorCodeToKey(code)
+        assertEqual(localSeen.doesExist(key), false)
+        localSeen[key] = true
+        assertEqual(wireSeen.doesExist(key), false)
+    end for
+    print "TestSyncPlayFamiliesAreDisjoint passed"
+end sub
+
+sub TestLocalizeSyncPlayLocalErrorNeverEmpty()
+    ' Device-independent (holds in both catalog states): a census member, an
+    ' unknown local code, and total garbage all resolve to NON-EMPTY text -
+    ' catalog line, errors_fallback line, or key echo. The task thread has no
+    ' other channel, so blank would be a silent failure.
+    for each code in SyncPlayLocalErrorCodes()
+        assertTrue(LocalizeSyncPlayLocalError(code) <> "")
+    end for
+    assertTrue(LocalizeSyncPlayLocalError("local.not_a_real_code") <> "")
+    assertTrue(LocalizeSyncPlayLocalError(invalid) <> "")
+    assertTrue(LocalizeSyncPlayLocalError(42) <> "")
+    print "TestLocalizeSyncPlayLocalErrorNeverEmpty passed"
+end sub

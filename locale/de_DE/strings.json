@@ -2,10 +2,11 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
+      "components/SyncPlayScene.brs",
       "components/SyncPlayTask.brs",
       "source/lib/Utilities.brs"
     ]
@@ -132,6 +133,21 @@
     "iso_prefix": "ISO "
   },
 
+  "syncplay": {
+    "status_loading_groups": "Gruppen werden geladen...",
+    "status_no_public_groups": "Keine öffentlichen Gruppen verfügbar. Erstelle eine, um zu starten!",
+    "status_creating_group": "Gruppe wird erstellt...",
+    "status_joining_group": "Der Gruppe wird beigetreten...",
+    "status_connected": "Mit der Gruppe verbunden",
+    "default_group_name": "Gruppe",
+    "default_room_name": "Roku-Raum",
+    "members_count": "{count} Mitglieder",
+    "visibility_public": "[öffentlich]",
+    "visibility_private": "[privat]",
+    "role_host": "Host",
+    "role_guest": "Gast"
+  },
+
   "common": {
     "ok": "OK",
     "error": "Fehler",
@@ -155,6 +171,15 @@
     "syncplay_group_not_found": "Diese synchronisierte Gruppe existiert nicht mehr.",
     "syncplay_invalid_password": "Das Passwort ist nicht korrekt.",
     "syncplay_group_full": "Diese synchronisierte Gruppe ist voll.",
+    "local_no_config": "Die Synchronsitzung konnte nicht eingerichtet werden.",
+    "local_no_host": "Die Adresse des Sync-Servers ist nicht konfiguriert.",
+    "local_socket_unavailable": "Dieses Gerät konnte keine Netzwerkverbindung für die Synchronsitzung aufbauen.",
+    "local_connect_failed": "Der Sync-Server konnte nicht erreicht werden.",
+    "local_connect_timeout": "Der Sync-Server hat zu lange nicht geantwortet.",
+    "local_room_create_failed": "Die synchronisierte Gruppe konnte nicht erstellt werden.",
+    "local_room_join_failed": "Der Gruppe konnte nicht beigetreten werden.",
+    "local_room_leave_failed": "Die Gruppe konnte nicht verlassen werden.",
+    "local_invalid_room": "Dieser Gruppenraum ist ungültig.",
     "fallback": "Ein Synchronisierungsfehler ist aufgetreten."
   }
 }

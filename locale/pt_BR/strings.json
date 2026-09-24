@@ -2,10 +2,11 @@
   "_metadata": {
     "locale": "pt_BR",
     "language_name": "Português (Brasil)",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
+      "components/SyncPlayScene.brs",
       "components/SyncPlayTask.brs",
       "source/lib/Utilities.brs"
     ]
@@ -132,6 +133,21 @@
     "iso_prefix": "ISO "
   },
 
+  "syncplay": {
+    "status_loading_groups": "Carregando grupos...",
+    "status_no_public_groups": "Nenhum grupo público disponível. Crie um para começar!",
+    "status_creating_group": "Criando grupo...",
+    "status_joining_group": "Entrando no grupo...",
+    "status_connected": "Conectado ao grupo",
+    "default_group_name": "Grupo",
+    "default_room_name": "Sala Roku",
+    "members_count": "{count} membros",
+    "visibility_public": "[público]",
+    "visibility_private": "[privado]",
+    "role_host": "Anfitrião",
+    "role_guest": "Convidado"
+  },
+
   "common": {
     "ok": "OK",
     "error": "Erro",
@@ -155,6 +171,15 @@
     "syncplay_group_not_found": "Esse grupo de exibição não existe mais.",
     "syncplay_invalid_password": "A senha não está correta.",
     "syncplay_group_full": "Esse grupo de exibição está cheio.",
+    "local_no_config": "Não foi possível preparar a sessão de sincronização.",
+    "local_no_host": "O endereço do servidor de sincronização não está configurado.",
+    "local_socket_unavailable": "Este dispositivo não pôde abrir uma conexão de rede para a sessão.",
+    "local_connect_failed": "Não foi possível acessar o servidor de sincronização.",
+    "local_connect_timeout": "O servidor de sincronização demorou demais para responder.",
+    "local_room_create_failed": "Não foi possível criar o grupo de exibição.",
+    "local_room_join_failed": "Não foi possível entrar no grupo de exibição.",
+    "local_room_leave_failed": "Não foi possível sair do grupo de exibição.",
+    "local_invalid_room": "Essa sala de exibição não é válida.",
     "fallback": "Ocorreu um erro de sincronização."
   }
 }

@@ -1255,4 +1255,218 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 23: client local.* error family stays separate from the wire census ==="
+# The W5 wire census (Check 22) must remain an honest list of codes the SERVER
+# can put on the wire. This build also MINTS local error codes - "local.*"
+# strings produced on-device by SyncPlayTask setup failures and SyncPlayScene
+# REST-path failures, which never ride a frame. They deliberately share the
+# mapping law (SyncPlayErrorCodeToKey -> errors_local_* in the same errors
+# section) but keep a SEPARATE census. Law (mirrored from the CLIENT-GENERATED
+# ERROR FAMILY docblock in Utilities.brs):
+#   (a) SyncPlayLocalErrorCodes() exists; every entry matches local.<snake>
+#   (b) each local code flattens (via the Check 22 normalizer) to an existing
+#       en_US errors_local_* entry, collision-free within the family
+#   (c) WIRE-CENSUS HONESTY: SyncPlayKnownErrorCodes() still lists exactly 16
+#       server-verified codes, none starts with "local.", and no wire code
+#       normalizes onto a local key (the families cannot impersonate each other)
+#   (d) SECTION PURITY: every key in the en_US errors section belongs to
+#       wire - {fallback} - local - nothing unaccounted may squat in the error
+#       registry (this is what makes the census bidirectional, not just forward)
+#   (e) CALL-SITE LAW: every EmitError("...") first argument in
+#       components/SyncPlayTask.brs and every LocalizeSyncPlayLocalError("...")
+#       literal across source/ + components/ names a census member - a task
+#       error may never again carry a raw display literal - and the task still
+#       resolves local text through LocalizeSyncPlayLocalError() (wire-in)
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ["REPO"]
+os.chdir(repo)
+problems = []
+
+UTILITIES = "source/lib/Utilities.brs"
+TASK = "components/SyncPlayTask.brs"
+BASE = "locale/en_US/strings.json"
+
+
+def read(path):
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def norm(code):
+    # Mirror of SyncPlayErrorCodeToKey's normalizer (Check 22 pins its shape).
+    return "errors_" + code.strip().lower().replace(".", "_").replace("-", "_")
+
+
+def mask_brs_comments(text):
+    # Same contract as Check 20's masker: comment runs become spaces of
+    # identical length, so line attribution of the remaining code stays exact
+    # and doc-style examples like LocalizeSyncPlayLocalError("local.*") in a
+    # header comment can never be scanned as call sites.
+    masked_lines = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        masked_lines.append(line[:cut].ljust(len(line)))
+    return "\n".join(masked_lines)
+
+
+local_codes = []
+wire_codes = []
+
+try:
+    util = read(UTILITIES)
+except OSError as err:
+    util = ""
+    problems.append(f"  {UTILITIES} - CHECK23: unreadable: {err}")
+if util:
+    ml = re.search(r"function SyncPlayLocalErrorCodes\(\).*?end function", util, re.S)
+    if not ml:
+        problems.append(
+            f"  {UTILITIES} - CHECK23: SyncPlayLocalErrorCodes() not found - "
+            "the client-generated local.* census is required")
+    else:
+        local_codes = re.findall(r'"([^"]+)"', ml.group(0))
+        if not local_codes:
+            problems.append(f"  {UTILITIES} - CHECK23: local census is empty")
+        for code in local_codes:
+            if not re.fullmatch(r"local\.[a-z0-9_]+", code):
+                problems.append(
+                    f"  {UTILITIES} - CHECK23: local code '{code}' violates the "
+                    "shape local.<snake_name>")
+    mw = re.search(r"function SyncPlayKnownErrorCodes\(\).*?end function", util, re.S)
+    if not mw:
+        problems.append(f"  {UTILITIES} - CHECK23: SyncPlayKnownErrorCodes() not found")
+    else:
+        wire_codes = re.findall(r'"([^"]+)"', mw.group(0))
+    # (c) wire-census honesty
+    if len(wire_codes) != 16:
+        problems.append(
+            f"  {UTILITIES} - CHECK23: wire census must stay the 16 "
+            f"server-verified codes, found {len(wire_codes)} - client-minted "
+            "strings belong in SyncPlayLocalErrorCodes(), never here")
+    for code in wire_codes:
+        if code.strip().lower().startswith("local."):
+            problems.append(
+                f"  {UTILITIES} - CHECK23: wire census contains minted local "
+                f"code '{code}' - wire-census honesty broken")
+
+# (b) family-internal collisions + en_US resolution
+seen = {}
+for code in local_codes:
+    key = norm(code)
+    if key in seen:
+        problems.append(
+            f"  {UTILITIES} - CHECK23: local codes '{seen[key]}' and '{code}' "
+            f"collide on key '{key}'")
+    seen[key] = code
+
+# (c) family disjointness on normalized keys
+wire_keys = {norm(c) for c in wire_codes}
+local_keys = {norm(c) for c in local_codes}
+overlap = sorted(wire_keys & local_keys)
+if overlap:
+    problems.append(
+        f"  {UTILITIES} - CHECK23: wire and local families collide on "
+        f"key(s): {', '.join(overlap)}")
+
+# Catalog side: (b) resolution + (d) section purity
+try:
+    doc = json.loads(read(BASE))
+except (OSError, ValueError) as err:
+    doc = None
+    problems.append(f"  {BASE} - CHECK23: unreadable/unparsable: {err}")
+
+if isinstance(doc, dict):
+    es = doc.get("errors")
+    if not isinstance(es, dict):
+        problems.append(f"  {BASE} - CHECK23: errors section missing")
+        es = {}
+    for code in local_codes:
+        key = norm(code)
+        bare = key[len("errors_"):]
+        if not isinstance(es.get(bare), str):
+            problems.append(
+                f"  {BASE} - CHECK23: local code '{code}' maps to '{key}' "
+                "which is missing from the en_US errors catalog")
+    accounted = set(wire_keys) | {"errors_fallback"} | set(local_keys)
+    for bare in sorted(es):
+        if not isinstance(es[bare], str):
+            continue  # non-string leaves are CHECK20/21 territory
+        if "errors_" + bare not in accounted:
+            problems.append(
+                f"  {BASE} - CHECK23: errors entry '{bare}' belongs to no "
+                "accounted family (wire census, fallback, or local census) - "
+                "the error registry must stay bidirectionally honest")
+
+# (e) call-site law
+local_set = set(local_codes)
+try:
+    task_masked = mask_brs_comments(read(TASK))
+except OSError as err:
+    task_masked = ""
+    problems.append(f"  {TASK} - CHECK23: unreadable: {err}")
+if task_masked:
+    sites = 0
+    for mo in re.finditer(r'EmitError\(\s*"([^"]*)"', task_masked):
+        sites += 1
+        arg = mo.group(1)
+        if arg not in local_set:
+            lineno = task_masked.count("\n", 0, mo.start()) + 1
+            problems.append(
+                f"  {TASK}:{lineno} - CHECK23: EmitError argument '{arg}' is "
+                "not a SyncPlayLocalErrorCodes() member - task errors must "
+                "name cataloged local.* codes, never raw display literals")
+    if sites == 0:
+        problems.append(
+            f"  {TASK} - CHECK23: no EmitError(\"local.*\") call sites found - "
+            "the client error family went unused or the scanner anchor moved")
+    if "LocalizeSyncPlayLocalError(" not in task_masked:
+        problems.append(
+            f"  {TASK} - CHECK23: EmitError no longer resolves local text "
+            "through LocalizeSyncPlayLocalError()")
+
+for scan_dir in ("source", "components"):
+    for root, dirs, names in os.walk(scan_dir):
+        dirs.sort()
+        for name in sorted(names):
+            if not name.endswith(".brs"):
+                continue
+            path = os.path.join(root, name)
+            try:
+                text = mask_brs_comments(read(path))
+            except OSError as err:
+                problems.append(f"  {path} - CHECK23: unreadable: {err}")
+                continue
+            for mo in re.finditer(r'LocalizeSyncPlayLocalError\(\s*"([^"]*)"', text):
+                arg = mo.group(1)
+                if arg not in local_set:
+                    lineno = text.count("\n", 0, mo.start()) + 1
+                    problems.append(
+                        f"  {path}:{lineno} - CHECK23: "
+                        f"LocalizeSyncPlayLocalError argument '{arg}' is not "
+                        "a member of SyncPlayLocalErrorCodes()")
+
+for line in problems:
+    print(line)
+if problems:
+    print(f"  CHECK23: {len(problems)} client-local error-family separation problem(s)")
+    sys.exit(1)
+
+print(f"  CHECK23: all {len(local_codes)} local.* codes + {len(wire_codes)} wire "
+      "codes stay in separate censuses; errors section pure; call-site law intact")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

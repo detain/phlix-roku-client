@@ -2,10 +2,11 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
+      "components/SyncPlayScene.brs",
       "components/SyncPlayTask.brs",
       "source/lib/Utilities.brs"
     ]
@@ -132,6 +133,21 @@
     "iso_prefix": "ISO "
   },
 
+  "syncplay": {
+    "status_loading_groups": "Loading groups...",
+    "status_no_public_groups": "No public groups available. Create one to start!",
+    "status_creating_group": "Creating group...",
+    "status_joining_group": "Joining group...",
+    "status_connected": "Connected to group",
+    "default_group_name": "Group",
+    "default_room_name": "Roku Room",
+    "members_count": "{count} members",
+    "visibility_public": "[public]",
+    "visibility_private": "[private]",
+    "role_host": "Host",
+    "role_guest": "Guest"
+  },
+
   "common": {
     "ok": "OK",
     "error": "Error",
@@ -155,6 +171,15 @@
     "syncplay_group_not_found": "That watch group no longer exists.",
     "syncplay_invalid_password": "That password is not correct.",
     "syncplay_group_full": "That watch group is full.",
+    "local_no_config": "Could not set up the watch session.",
+    "local_no_host": "The sync server address is not configured.",
+    "local_socket_unavailable": "This device could not open a network connection for the watch session.",
+    "local_connect_failed": "Could not reach the sync server.",
+    "local_connect_timeout": "The sync server took too long to respond.",
+    "local_room_create_failed": "Could not create the watch group.",
+    "local_room_join_failed": "Could not join the watch group.",
+    "local_room_leave_failed": "Could not leave the watch group.",
+    "local_invalid_room": "That watch room is not valid.",
     "fallback": "A sync error occurred."
   }
 }

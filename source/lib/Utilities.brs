@@ -1013,7 +1013,7 @@ function Translate(key as String) as String
     end if
 
     raw = LoadLocaleStrings._raw
-    sections = ["common", "utilities", "settings", "detail", "errors"]
+    sections = ["common", "utilities", "settings", "detail", "syncplay", "errors"]
     for each section in sections
         if raw <> invalid and raw.doesExist(section) then
             sectionData = raw.lookup(section)
@@ -1114,4 +1114,70 @@ function LocalizeSyncPlayError(code as Object, serverMessage as String) as Strin
     fallback = Translate("errors_fallback")
     if fallback <> "errors_fallback" then return fallback
     return ""
+end function
+
+' ===========================================
+' CLIENT-GENERATED ERROR FAMILY (local.*) - NEVER WIRE CODES
+'
+' The setup failures in components/SyncPlayTask.brs (config/host/socket/
+' connect) and the REST-path failures in components/SyncPlayScene.brs
+' (create/join/leave/invalid) are produced ON THIS DEVICE and ride no frame.
+' They are not "unrecognized server codes", so they must not squat in the
+' wire census SyncPlayKnownErrorCodes() (Check 22 pins that list at exactly
+' the 16 server-verified codes and that honesty is the point).
+'
+' They DO reuse the W5 MAPPING LAW verbatim (SyncPlayErrorCodeToKey) under a
+' reserved "local." mint prefix: law("local.connect_failed") =
+' "errors_local_connect_failed", so the catalog keeps ONE errors registry
+' and the resolver keeps ONE normalization. The `local.` prefix can never be
+' produced by the server registry (domains are SCREAMING legacy or dotted
+' namespaces like syncplay.*), so provenance is carried by the census, not
+' by the key shape.
+'
+' SEPARATION LAW (mirrored by Check 23 in scripts/verify-runtime.sh):
+'   1. every SyncPlayLocalErrorCodes() entry matches local.<snake_name>
+'   2. no SyncPlayKnownErrorCodes() entry starts with "local."
+'   3. the two families never normalize onto one catalog key
+'   4. every errors_local_* key in en_US is a member of the local census,
+'      and every errors_* key belongs to wire OR fallback OR local
+'      (bidirectional registry - nothing unaccounted may squat)
+'   5. EmitError call sites pass census codes, never raw display literals
+' ===========================================
+
+' Canonical client-generated error codes (SyncPlayTask setup + SyncPlayScene
+' REST paths). Every element MUST resolve to an errors_<law(key)> entry in
+' ALL seven locale catalogs - Check 23 enforces the en_US side plus the
+' separation law, Check 21 pins cross-locale parity.
+' Pure: returns a fresh array; callers must not mutate module state through it.
+' @return Object - roArray of "local.*" code strings (never wire values)
+function SyncPlayLocalErrorCodes() as Object
+    codes = []
+    codes.push("local.no_config")
+    codes.push("local.no_host")
+    codes.push("local.socket_unavailable")
+    codes.push("local.connect_failed")
+    codes.push("local.connect_timeout")
+    codes.push("local.room_create_failed")
+    codes.push("local.room_join_failed")
+    codes.push("local.room_leave_failed")
+    codes.push("local.invalid_room")
+    return codes
+end function
+
+' Resolve the user-facing line for one client-generated local.* code.
+' Unlike LocalizeSyncPlayError (wire frames - a "" return lets the caller's
+' last-resort literal speak), this resolver NEVER returns empty and never
+' needs an English literal argument: the string was minted here, so the
+' priority is catalog hit -> errors_fallback line -> raw key echo. A fully
+' dead catalog rendering the key is VISIBLE breakage, which beats a blank
+' status label (the task thread has no other channel to report through).
+' @param code Object - "local.*" code string
+' @return String - non-empty user-facing text in the device language
+function LocalizeSyncPlayLocalError(code as Object) as String
+    key = SyncPlayErrorCodeToKey(code)
+    text = Translate(key)
+    if text <> key then return text
+    fallback = Translate("errors_fallback")
+    if fallback <> "errors_fallback" then return fallback
+    return key
 end function

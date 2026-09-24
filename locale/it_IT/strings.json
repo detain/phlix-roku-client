@@ -2,10 +2,11 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
+      "components/SyncPlayScene.brs",
       "components/SyncPlayTask.brs",
       "source/lib/Utilities.brs"
     ]
@@ -132,6 +133,21 @@
     "iso_prefix": "ISO "
   },
 
+  "syncplay": {
+    "status_loading_groups": "Caricamento gruppi...",
+    "status_no_public_groups": "Nessun gruppo pubblico disponibile. Creane uno per iniziare!",
+    "status_creating_group": "Creazione del gruppo...",
+    "status_joining_group": "Ingresso nel gruppo...",
+    "status_connected": "Connesso al gruppo",
+    "default_group_name": "Gruppo",
+    "default_room_name": "Stanza Roku",
+    "members_count": "{count} membri",
+    "visibility_public": "[pubblico]",
+    "visibility_private": "[privato]",
+    "role_host": "Ospite",
+    "role_guest": "Partecipante"
+  },
+
   "common": {
     "ok": "OK",
     "error": "Errore",
@@ -155,6 +171,15 @@
     "syncplay_group_not_found": "Quel gruppo di visione non esiste più.",
     "syncplay_invalid_password": "La password non è corretta.",
     "syncplay_group_full": "Quel gruppo di visione è pieno.",
+    "local_no_config": "Impossibile preparare la sessione di sincronizzazione.",
+    "local_no_host": "L’indirizzo del server di sincronizzazione non è configurato.",
+    "local_socket_unavailable": "Questo dispositivo non ha potuto aprire una connessione di rete per la sessione.",
+    "local_connect_failed": "Impossibile raggiungere il server di sincronizzazione.",
+    "local_connect_timeout": "Il server di sincronizzazione ha impiegato troppo tempo a rispondere.",
+    "local_room_create_failed": "Impossibile creare il gruppo di visione.",
+    "local_room_join_failed": "Impossibile unirsi al gruppo di visione.",
+    "local_room_leave_failed": "Impossibile uscire dal gruppo di visione.",
+    "local_invalid_room": "Quella stanza non è valida.",
     "fallback": "Si è verificato un errore di sincronizzazione."
   }
 }
