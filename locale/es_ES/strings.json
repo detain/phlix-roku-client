@@ -2,10 +2,11 @@
   "_metadata": {
     "locale": "es_ES",
     "language_name": "Español (España)",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
+      "components/SyncPlayScene.brs",
       "components/SyncPlayTask.brs",
       "source/lib/Utilities.brs"
     ]
@@ -132,6 +133,21 @@
     "iso_prefix": "ISO "
   },
 
+  "syncplay": {
+    "status_loading_groups": "Cargando grupos...",
+    "status_no_public_groups": "No hay grupos públicos disponibles. ¡Crea uno para empezar!",
+    "status_creating_group": "Creando grupo...",
+    "status_joining_group": "Uniéndote al grupo...",
+    "status_connected": "Conectado al grupo",
+    "default_group_name": "Grupo",
+    "default_room_name": "Sala Roku",
+    "members_count": "{count} miembros",
+    "visibility_public": "[público]",
+    "visibility_private": "[privado]",
+    "role_host": "Anfitrión",
+    "role_guest": "Invitado"
+  },
+
   "common": {
     "ok": "OK",
     "error": "Error",
@@ -155,6 +171,15 @@
     "syncplay_group_not_found": "Ese grupo de visionado ya no existe.",
     "syncplay_invalid_password": "La contraseña no es correcta.",
     "syncplay_group_full": "Ese grupo de visionado está lleno.",
+    "local_no_config": "No se pudo preparar la sesión de sincronización.",
+    "local_no_host": "La dirección del servidor de sincronización no está configurada.",
+    "local_socket_unavailable": "Este dispositivo no pudo abrir una conexión de red para la sesión.",
+    "local_connect_failed": "No se pudo contactar con el servidor de sincronización.",
+    "local_connect_timeout": "El servidor de sincronización tardó demasiado en responder.",
+    "local_room_create_failed": "No se pudo crear el grupo de visionado.",
+    "local_room_join_failed": "No se pudo unir al grupo de visionado.",
+    "local_room_leave_failed": "No se pudo salir del grupo de visionado.",
+    "local_invalid_room": "Esa sala de visionado no es válida.",
     "fallback": "Ocurrió un error de sincronización."
   }
 }

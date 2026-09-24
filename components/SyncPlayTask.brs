@@ -39,7 +39,7 @@ end function
 sub RunSocket()
     cfg = m.top.config
     if cfg = invalid then
-        EmitError("No SyncPlay config")
+        EmitError("local.no_config")
         return
     end if
 
@@ -51,7 +51,7 @@ sub RunSocket()
     if cfg.DoesExist("path") and cfg.path <> invalid then path = cfg.path
 
     if host = "" then
-        EmitError("No SyncPlay host")
+        EmitError("local.no_host")
         return
     end if
 
@@ -71,7 +71,7 @@ sub RunSocket()
     ' Open the plaintext TCP socket.
     m.sock = CreateObject("roStreamSocket")
     if m.sock = invalid then
-        EmitError("Socket unavailable")
+        EmitError("local.socket_unavailable")
         Cleanup()
         return
     end if
@@ -86,14 +86,14 @@ sub RunSocket()
 
     ok = m.sock.Connect()
     if not ok then
-        EmitError("Connect failed")
+        EmitError("local.connect_failed")
         Cleanup()
         return
     end if
 
     ' Wait (bounded) for the socket to become connected, then send the handshake.
     if not WaitForConnect(host, port, path) then
-        EmitError("Connect timed out")
+        EmitError("local.connect_timeout")
         Cleanup()
         return
     end if
@@ -518,10 +518,16 @@ sub EmitEvent(ev as Object)
     m.top.event = ev
 end sub
 
-' Emit an error event + error state.
-sub EmitError(message as String)
+' Emit an error event + error state for a CLIENT-GENERATED failure. The
+' argument is a "local.*" census code (SyncPlayLocalErrorCodes in
+' Utilities.brs), never a display literal and never a wire code - this task
+' minted the string, so it resolves through the shared mapping law to an
+' errors_local_* catalog line in the device language. Check 23 pins the
+' call-site law; the wire family keeps its own route (LocalizeSyncPlayError
+' in BuildSceneEvent, pinned by Check 22).
+sub EmitError(code as String)
     SetState("error")
-    m.top.event = { kind: "error", message: message }
+    m.top.event = { kind: "error", message: LocalizeSyncPlayLocalError(code) }
 end sub
 
 ' Tear down: unobserve the command field, close the socket. Pairs the ObserveField

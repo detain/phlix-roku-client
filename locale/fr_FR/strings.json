@@ -2,10 +2,11 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
+      "components/SyncPlayScene.brs",
       "components/SyncPlayTask.brs",
       "source/lib/Utilities.brs"
     ]
@@ -132,6 +133,21 @@
     "iso_prefix": "ISO "
   },
 
+  "syncplay": {
+    "status_loading_groups": "Chargement des groupes...",
+    "status_no_public_groups": "Aucun groupe public disponible. Créez-en un pour commencer !",
+    "status_creating_group": "Création du groupe...",
+    "status_joining_group": "Connexion au groupe...",
+    "status_connected": "Connecté au groupe",
+    "default_group_name": "Groupe",
+    "default_room_name": "Salon Roku",
+    "members_count": "{count} membres",
+    "visibility_public": "[public]",
+    "visibility_private": "[privé]",
+    "role_host": "Hôte",
+    "role_guest": "Invité"
+  },
+
   "common": {
     "ok": "OK",
     "error": "Erreur",
@@ -155,6 +171,15 @@
     "syncplay_group_not_found": "Ce groupe synchronisé n’existe plus.",
     "syncplay_invalid_password": "Le mot de passe n’est pas correct.",
     "syncplay_group_full": "Ce groupe synchronisé est complet.",
+    "local_no_config": "Impossible de préparer la session de synchronisation.",
+    "local_no_host": "L’adresse du serveur de synchronisation n’est pas configurée.",
+    "local_socket_unavailable": "Cet appareil n’a pas pu ouvrir de connexion réseau pour la session.",
+    "local_connect_failed": "Impossible de contacter le serveur de synchronisation.",
+    "local_connect_timeout": "Le serveur de synchronisation a mis trop de temps à répondre.",
+    "local_room_create_failed": "Impossible de créer le groupe synchronisé.",
+    "local_room_join_failed": "Impossible de rejoindre le groupe synchronisé.",
+    "local_room_leave_failed": "Impossible de quitter le groupe synchronisé.",
+    "local_invalid_room": "Ce salon n’est pas valide.",
     "fallback": "Une erreur de synchronisation est survenue."
   }
 }

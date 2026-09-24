@@ -18,7 +18,7 @@
 #                          source/lib/Utilities.brs,
 #                          components/SettingsScene.brs + DetailScene.brs
 #                          (Check 19's fixed target list) + SyncPlayTask.brs
-#                          (Check 22's wire-in), locale/<all shipped
+#                          (Checks 22/23's wire-in), locale/<all shipped
 #                          folders> (Check 20's catalog + Check 21's mirrors),
 #                          images/, package.json,
 #                          manifest; a git index so checks 1-13 (git grep /
@@ -30,7 +30,7 @@
 # exercised. Asserts:
 #   (1) exit code 0
 #   (2) stdout contains "Check 14", "034_media_items_type_audiobook.sql", "PASS"
-#   (3) stdout contains every "=== Check 11:" .. "=== Check 22:" header
+#   (3) stdout contains every "=== Check 11:" .. "=== Check 23:" header
 #   (4) negative: audiobook removed from the Utilities.brs ENUM comment ->
 #       exit code non-zero with a CHECK14 diagnostic
 #   (5) locale-resolution leg: a "ja-JP"-style device locale normalizes
@@ -42,6 +42,9 @@
 #   (6) negative: common.ok dropped from the ja_JP mirror in a separate
 #       scratch copy -> exit non-zero with a CHECK21 diagnostic, while
 #       CHECK14 stays green in that run (per-check gates stay independent)
+#   (7) negative: an EmitError call site regressed to a raw display literal in
+#       another scratch copy -> exit non-zero with a CHECK23 diagnostic, while
+#       CHECK21/CHECK22 stay green (the local family gate is independent)
 #
 # RUN:  bash tests/scripts/verify-runtime-portable.sh
 # There is no Makefile slot: `make check` is a prerequisites probe, not a script
@@ -51,7 +54,10 @@
 set -euo pipefail
 
 for tool in bash git python3 cp rm mktemp; do
-  command -v "$tool" >/dev/null 2>&1 || { echo "FAIL: required tool '$tool' not found" >&2; exit 1; }
+	command -v "$tool" >/dev/null 2>&1 || {
+		echo "FAIL: required tool '$tool' not found" >&2
+		exit 1
+	}
 done
 
 TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/s335-portable.XXXXXX")
@@ -61,20 +67,20 @@ REAL_SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REAL_REPO="$(cd "$REAL_SCRIPT_DIR/../.." && pwd)"
 
 cleanup() {
-  rm -rf "$TEST_ROOT"
+	rm -rf "$TEST_ROOT"
 }
 trap cleanup EXIT
 
 fail() {
-  echo "FAIL: $*" >&2
-  exit 1
+	echo "FAIL: $*" >&2
+	exit 1
 }
 
 assert_contains() {
-  local needle="$1" haystack="$2"
-  if ! grep -qF "$needle" <<<"$haystack"; then
-    fail "expected output to contain '$needle'"
-  fi
+	local needle="$1" haystack="$2"
+	if ! grep -qF "$needle" <<<"$haystack"; then
+		fail "expected output to contain '$needle'"
+	fi
 }
 
 # --- source files (resolve the migration the same way the script does) ------
@@ -86,14 +92,14 @@ mkdir -p "$FAKE_REPO/scripts" "$FAKE_REPO/source/lib" "$FAKE_REPO/components" "$
 mkdir -p "$FAKE_SERVER/migrations"
 
 cp "$REAL_REPO/scripts/verify-runtime.sh" "$FAKE_REPO/scripts/verify-runtime.sh"
-cp "$REAL_REPO/source/lib/Utilities.brs"  "$FAKE_REPO/source/lib/Utilities.brs"
+cp "$REAL_REPO/source/lib/Utilities.brs" "$FAKE_REPO/source/lib/Utilities.brs"
 cp "$REAL_REPO/components/SettingsScene.brs" "$FAKE_REPO/components/SettingsScene.brs"
-cp "$REAL_REPO/components/DetailScene.brs"   "$FAKE_REPO/components/DetailScene.brs"
+cp "$REAL_REPO/components/DetailScene.brs" "$FAKE_REPO/components/DetailScene.brs"
 # Check 22 requires the syncplay_error wire-in file to exist in the checkout.
-cp "$REAL_REPO/components/SyncPlayTask.brs"  "$FAKE_REPO/components/SyncPlayTask.brs"
+cp "$REAL_REPO/components/SyncPlayTask.brs" "$FAKE_REPO/components/SyncPlayTask.brs"
 cp -a "$REAL_REPO/images"/. "$FAKE_REPO/images/"
 cp "$REAL_REPO/package.json" "$FAKE_REPO/package.json"
-cp "$REAL_REPO/manifest"     "$FAKE_REPO/manifest"
+cp "$REAL_REPO/manifest" "$FAKE_REPO/manifest"
 cp "$MIGRATION" "$FAKE_SERVER/migrations/034_media_items_type_audiobook.sql"
 # Check 20 resolves Translate() keys against the real catalog — ship it in the fake repo.
 cp -a "$REAL_REPO/locale" "$FAKE_REPO/locale"
@@ -113,11 +119,12 @@ set -e
 assert_contains "=== Check 14:" "$POSITIVE_OUT"
 assert_contains "034_media_items_type_audiobook.sql" "$POSITIVE_OUT"
 assert_contains "PASS" "$POSITIVE_OUT"
-for i in $(seq 11 22); do
-  assert_contains "=== Check $i:" "$POSITIVE_OUT"
+for i in $(seq 11 23); do
+	assert_contains "=== Check $i:" "$POSITIVE_OUT"
 done
 assert_contains "CHECK21: all" "$POSITIVE_OUT"
 assert_contains "CHECK22: all" "$POSITIVE_OUT"
+assert_contains "CHECK23: all" "$POSITIVE_OUT"
 
 # --- locale resolution: simulate the device selecting a ja_JP-style locale ---
 # LoadLocaleStrings normalizes roAppInfo.GetCurrentLocale() with .Trim().
@@ -231,13 +238,47 @@ assert_contains "CHECK21" "$RED21_OUT"
 assert_contains "common_ok" "$RED21_OUT"
 # Section-scoped (output length between header and verdict varies per check):
 sed -n '/=== Check 14:/,/=== Check 15:/p' <<<"$RED21_OUT" | grep -q "  PASS" ||
-  fail "Check 14 must stay PASS while Check 21 is red (gate independence)"
+	fail "Check 14 must stay PASS while Check 21 is red (gate independence)"
 sed -n '/=== Check 20:/,/=== Check 21:/p' <<<"$RED21_OUT" | grep -q "  PASS" ||
-  fail "Check 20 must stay PASS while Check 21 is red (gate independence)"
+	fail "Check 20 must stay PASS while Check 21 is red (gate independence)"
 # Check 22 reads en_US + Utilities + SyncPlayTask only - a ja_JP mirror hole
-# must NOT fire it (proves the two locale gates stay independent).
+# must NOT fire it (proves the two locale gates stay independent). Same for
+# Check 23: its catalog face is en_US purity only, sibling holes are CHECK21
+# territory.
 sed -n '/=== Check 22:/,$p' <<<"$RED21_OUT" | grep -q "CHECK22: all 16" ||
-  fail "Check 22 must stay PASS while Check 21 is red (gate independence)"
+	fail "Check 22 must stay PASS while Check 21 is red (gate independence)"
+sed -n '/=== Check 23:/,$p' <<<"$RED21_OUT" | grep -q "CHECK23: all" ||
+	fail "Check 23 must stay PASS while Check 21 is red (gate independence)"
+
+# --- Check 23 red proof on an independent scratch copy: a task call site
+# regressed to a raw display literal (the exact defect class the local family
+# law forbids). CHECK21/CHECK22 must stay green in that run. ---------------
+RED23_ROOT="$TEST_ROOT/red23"
+mkdir -p "$RED23_ROOT"
+cp -a "$TEST_ROOT/repo" "$RED23_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$RED23_ROOT/phlix-server"
+python3 - "$RED23_ROOT/repo/components/SyncPlayTask.brs" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+needle = 'EmitError("local.connect_failed")'
+assert text.count(needle) == 1, "planted-red anchor missing from SyncPlayTask.brs"
+text = text.replace(needle, 'EmitError("Connect failed")')
+with open(path, "w", encoding="utf-8") as f:
+    f.write(text)
+PYEOF
+set +e
+RED23_OUT=$(bash "$RED23_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+RED23_RC=$?
+set -e
+[ "$RED23_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when an EmitError carries a raw literal (got 0)"
+assert_contains "CHECK23" "$RED23_OUT"
+assert_contains "Connect failed" "$RED23_OUT"
+sed -n '/=== Check 21:/,/=== Check 22:/p' <<<"$RED23_OUT" | grep -q "CHECK21: all" ||
+	fail "Check 21 must stay PASS while Check 23 is red (gate independence)"
+sed -n '/=== Check 22:/,/=== Check 23:/p' <<<"$RED23_OUT" | grep -q "CHECK22: all 16" ||
+	fail "Check 22 must stay PASS while Check 23 is red (gate independence)"
 
 # --- negative: audiobook dropped from the ENUM comment -> exit != 0 + CHECK14
 export FAKE_REPO
@@ -269,4 +310,4 @@ set -e
 [ "$NEG_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the ENUM comment drops audiobook (got 0)"
 assert_contains "CHECK14" "$NEG_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-22 headers present, CHECK21 + CHECK22 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-23 headers present, CHECK21 + CHECK22 + CHECK23 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23 gates stayed green) + Check 23 red leg (raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
