@@ -1028,6 +1028,74 @@ function Translate(key as String) as String
     end for
     return key
 end function
+
+' ===========================================
+' TOKEN SUBSTITUTION (i18n {placeholder} family)
+'
+' Some catalog values carry {name} placeholders ("Logged in as: {email}").
+' Concatenating the value at the call site renders the literal braces on the
+' TV and hard-codes the token's POSITION in the English sentence - a locale
+' that moves the value inside the phrase cannot express it. The law: every
+' token-bearing catalog value is consumed through TranslateWithParams, which
+' substitutes each placeholder BY NAME (position-free), generalizing the
+' MembersCountText {count} Replace exemplar from PR #86/#87. Check 24 in
+' scripts/verify-runtime.sh enforces the law (raw-Translate rejection, dead-
+' copy detection, param-completeness against the catalog token set).
+' ===========================================
+
+' Pure token-substitution core: replace every "{name}" in TEXT with the
+' rendered value of PARAMS[name]. Total by construction:
+'   - unknown tokens (name not in TEXT) are simply no-ops
+'   - tokens whose value has no display form (invalid, arrays, objects) stay
+'     visible in the output - the same fail-loud brace rendering as a missing
+'     key, never a silently erased slot
+'   - invalid/non-associative-array params return TEXT unchanged
+' No catalog, no globals, no mutation: same inputs, same output.
+' @param text String - the (already localized) line carrying {name} tokens
+' @param params Object - roAssociativeArray of token name -> value
+' @return String - TEXT with every renderable named token substituted
+function ApplyNamedTokens(text as String, params as Object) as String
+    if params = invalid then return text
+    if type(params) <> "roAssociativeArray" then return text
+    result = text
+    for each token in params
+        rendered = TokenValueText(params[token])
+        if rendered <> invalid then
+            result = result.Replace("{" + token + "}", rendered)
+        end if
+    end for
+    return result
+end function
+
+' Render one placeholder value to display text, or return invalid when the
+' value has no sane text form (caller then leaves the token visible).
+' Strings pass through; booleans render "true"/"false"; integers and floats
+' render sign-free via the repo's str().trim() idiom; anything else is
+' rejected as invalid.
+' @param value Object - the raw parameter value
+' @return Object - String when renderable, invalid otherwise
+function TokenValueText(value as Object) as Object
+    t = type(value)
+    if t = "String" or t = "roString" then return value
+    if t = "Boolean" then
+        if value = true then return "true"
+        return "false"
+    end if
+    if t = "Integer" or t = "roInt" or t = "LongInteger" or t = "roLongInt" then return str(value).trim()
+    if t = "Float" or t = "roFloat" or t = "Double" or t = "roDouble" then return str(value).trim()
+    return invalid
+end function
+
+' Translate KEY, then substitute its {name} tokens position-free from PARAMS.
+' The single consumption path for every token-bearing catalog value (law above
+' and Check 24). Degradation is total: invalid params behave like plain
+' Translate(key), so no call site can crash on a missing dictionary.
+' @param key String - the translation key
+' @param params Object - roAssociativeArray of token name -> value
+' @return String - the localized line with every renderable token substituted
+function TranslateWithParams(key as String, params as Object) as String
+    return ApplyNamedTokens(Translate(key), params)
+end function
 ' ===========================================
 ' W5 THIN-CLIENT ERROR LOCALISATION (syncplay_error frames)
 '

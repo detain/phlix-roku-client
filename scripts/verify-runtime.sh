@@ -770,6 +770,7 @@ EXEMPT = [
     re.compile(r'ByteToHex\s*\('),       # hex utility
     re.compile(r'GenerateRandomId\s*\('), # ID generator
     re.compile(r'Translate\s*\('),       # i18n translation function (R7.12)
+    re.compile(r'TranslateWithParams\s*\('),  # i18n token-substitution fn (CHECK 24 law)
 ]
 
 found_violation = False
@@ -1464,6 +1465,217 @@ if problems:
 
 print(f"  CHECK23: all {len(local_codes)} local.* codes + {len(wire_codes)} wire "
       "codes stay in separate censuses; errors section pure; call-site law intact")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 24: token-bearing catalog values flow through TranslateWithParams ==="
+# TOKEN-DEFECT LAW (the i18n {placeholder} family). A catalog value that
+# carries a {name} placeholder ("Logged in as: {email}") MUST be consumed
+# through Utilities.brs TranslateWithParams, which substitutes each token BY
+# NAME (position-free, the MembersCountText exemplar generalized in PR #86/#87).
+# The historical defect class - `Translate("key") + value` - rendered the
+# literal braces on the TV and froze the token's position in the English
+# sentence; the double-colon shape additionally doubled the catalog's own
+# label colon. Legs:
+#   (a) token-bearing key set = union over ALL shipped locale catalogs (en_US
+#       is SSOT; Check 21 pins parity - the union refuses to trust it blindly)
+#   (b) every quoted reference to such a key in the runtime scan set must be
+#       anchored in a TranslateWithParams( call; a bare Translate("key") or
+#       any other occurrence is a violation with file:line
+#   (c) DEAD-COPY DETECTION: a token-bearing key never consumed anywhere is
+#       red too - unconsumed copy is how the raw-literal dialogs hid
+#   (d) SHAPE PIN: TranslateWithParams must still exist, still delegate to
+#       ApplyNamedTokens(Translate(key), params), and the pure core must still
+#       substitute via Replace("{" + token + "}") - the law cannot vacate by
+#       quietly gutting the helper
+#   (e) PARAM COMPLETENESS: at each literal-AA call site the provided keys must
+#       cover the catalog's token multiset - a missing param re-leaks braces.
+#       A non-literal (dynamic) params argument is unverifiable statically and
+#       is accepted, documented limitation.
+# WHITELIST HONESTY: the scan set is source/ + components/ *.brs ONLY.
+# docs/*.md quote catalog values verbatim and tests/unit/*.test.brs assert the
+# law's raw-token inputs on purpose - they are excluded BY DESIGN, not by
+# oversight; a token sample there must never be scanned as a consumption site.
+# Comment runs are masked with the Check 20/23 masker, so doc-style examples
+# inside .brs headers cannot register as call sites either.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import glob
+import json
+import os
+import re
+import sys
+
+repo = os.environ["REPO"]
+os.chdir(repo)
+problems = []
+
+TOKEN_RE = re.compile(r"\{([A-Za-z0-9_]+)\}")
+QUOTED_KEY_TPL = '"{key}"'
+AA_CALL_RE = re.compile(
+    r'TranslateWithParams\(\s*"([A-Za-z0-9_]+)"\s*,\s*\{([^{}]*)\}')
+
+
+def read(path):
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def mask_brs_comments(text):
+    # Same contract as Check 20/23: comment runs become spaces of identical
+    # length so line attribution of the remaining code stays exact.
+    masked_lines = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        masked_lines.append(line[:cut].ljust(len(line)))
+    return "\n".join(masked_lines)
+
+
+# (a) token-bearing key set across every shipped locale catalog
+tokens_by_key = {}
+locale_files = sorted(glob.glob("locale/*/strings.json"))
+if not locale_files:
+    problems.append("  locale/*/strings.json - CHECK24: no locale catalogs found")
+for path in locale_files:
+    try:
+        doc = json.loads(read(path))
+    except (OSError, ValueError) as err:
+        problems.append(f"  {path} - CHECK24: unreadable/unparsable: {err}")
+        continue
+    if not isinstance(doc, dict):
+        problems.append(f"  {path} - CHECK24: top level is not a JSON object")
+        continue
+    for section, data in doc.items():
+        if section == "_metadata" or not isinstance(data, dict):
+            continue
+        for bare, leaf in data.items():
+            if not isinstance(leaf, str):
+                continue  # string-only leaves are CHECK20/21 territory
+            found = TOKEN_RE.findall(leaf)
+            if found:
+                flat = f"{section}_{bare}"
+                tokens_by_key.setdefault(flat, set()).update(found)
+
+# (b)/(c) runtime scan set - see WHITELIST HONESTY in the header above
+masked_files = {}
+for scan_dir in ("source", "components"):
+    for root, dirs, names in os.walk(scan_dir):
+        dirs.sort()
+        for name in sorted(names):
+            if not name.endswith(".brs"):
+                continue
+            p = os.path.join(root, name)
+            try:
+                masked_files[p] = mask_brs_comments(read(p))
+            except OSError as err:
+                problems.append(f"  {p} - CHECK24: unreadable: {err}")
+
+for key in sorted(tokens_by_key):
+    occurrences = 0
+    for path in sorted(masked_files):
+        masked = masked_files[path]
+        for mo in re.finditer(re.escape(QUOTED_KEY_TPL.format(key=key)), masked):
+            occurrences += 1
+            head = masked[:mo.start()]
+            if re.search(r"TranslateWithParams\(\s*$", head):
+                continue
+            lineno = masked.count("\n", 0, mo.start()) + 1
+            if re.search(r"Translate\(\s*$", head):
+                problems.append(
+                    f"  {path}:{lineno} - CHECK24: Translate(\"{key}\") is "
+                    "concatenated raw - token-bearing values must flow through "
+                    "TranslateWithParams (position-free substitution law)")
+            else:
+                problems.append(
+                    f"  {path}:{lineno} - CHECK24: token-bearing key "
+                    f"\"{key}\" referenced outside a TranslateWithParams call")
+    if occurrences == 0:
+        problems.append(
+            f"  locale/*/strings.json - CHECK24: dead copy - token-bearing key "
+            f"\"{key}\" (tokens: {', '.join(sorted(tokens_by_key[key]))}) is "
+            "never consumed in source/ or components/ - unconsumed localized "
+            "copy means the call site still renders its own raw string")
+
+# (d) shape pin - the law's implementation must stay wired
+UTILITIES = os.path.join("source", "lib", "Utilities.brs")
+util = masked_files.get(UTILITIES, "")
+if not re.search(r"function TranslateWithParams\(", util):
+    problems.append(
+        f"  {UTILITIES} - CHECK24: TranslateWithParams() not found - the law "
+        "has no implementation to consume token-bearing values through")
+elif not re.search(r"ApplyNamedTokens\(Translate\(key\),\s*params\)", util):
+    problems.append(
+        f"  {UTILITIES} - CHECK24: TranslateWithParams() no longer delegates "
+        "to ApplyNamedTokens(Translate(key), params) - shape drift")
+elif 'Replace("{" + token + "}"' not in util:
+    problems.append(
+        f"  {UTILITIES} - CHECK24: ApplyNamedTokens() no longer substitutes "
+        'by name via Replace("{" + token + "}") - shape drift')
+
+# (f) resolution mirror - TranslateWithParams literal keys must exist in the
+# en_US flattened table: the conversion moved 12 catalog-bound keys out of
+# CHECK 20's Translate("...") regex field of view, so this leg keeps the
+# anti-typo guarantee total across BOTH consumption functions.
+en_flat = set()
+try:
+    en_doc = json.loads(read(os.path.join("locale", "en_US", "strings.json")))
+    for section, data in en_doc.items():
+        if section == "_metadata" or not isinstance(data, dict):
+            continue
+        for bare, leaf in data.items():
+            if isinstance(leaf, str):
+                en_flat.add(f"{section}_{bare}")
+except (OSError, ValueError) as err:
+    problems.append(f"  locale/en_US/strings.json - CHECK24: unreadable: {err}")
+
+TP_KEY_RE = re.compile(r'TranslateWithParams\(\s*"([A-Za-z0-9_]+)"')
+for path in sorted(masked_files):
+    masked = masked_files[path]
+    for mo in TP_KEY_RE.finditer(masked):
+        key = mo.group(1)
+        if key not in en_flat:
+            lineno = masked.count("\n", 0, mo.start()) + 1
+            problems.append(
+                f"  {path}:{lineno} - CHECK24: TranslateWithParams key \"{key}\" "
+                "has no flattened entry in locale/en_US/strings.json (raw-key "
+                "rendering guard, mirrors CHECK 20 for this call form)")
+
+# (e) param completeness at literal-AA call sites
+for path in sorted(masked_files):
+    masked = masked_files[path]
+    for mo in AA_CALL_RE.finditer(masked):
+        key, aa_body = mo.group(1), mo.group(2)
+        if key not in tokens_by_key:
+            continue
+        provided = set(re.findall(r"([A-Za-z0-9_]+)\s*:", aa_body))
+        missing = sorted(tokens_by_key[key] - provided)
+        if missing:
+            lineno = masked.count("\n", 0, mo.start()) + 1
+            problems.append(
+                f"  {path}:{lineno} - CHECK24: "
+                f"TranslateWithParams(\"{key}\") omits param(s) {missing} - "
+                "the literal braces would re-leak to the screen")
+
+for line in problems:
+    print(line)
+if problems:
+    print(f"  CHECK24: {len(problems)} token-substitution law problem(s)")
+    sys.exit(1)
+
+print(f"  CHECK24: all {len(tokens_by_key)} token-bearing catalog values "
+      "consumed only via TranslateWithParams; params cover every token; zero "
+      "raw-Translate concatenations, zero dead copies, helper shape intact; "
+      "all TranslateWithParams keys resolve in en_US")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

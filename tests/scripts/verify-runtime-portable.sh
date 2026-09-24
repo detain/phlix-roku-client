@@ -18,7 +18,10 @@
 #                          source/lib/Utilities.brs,
 #                          components/SettingsScene.brs + DetailScene.brs
 #                          (Check 19's fixed target list) + SyncPlayTask.brs
-#                          (Checks 22/23's wire-in), locale/<all shipped
+#                          (Checks 22/23's wire-in) + SyncPlayScene.brs
+#                          (Check 24's only syncplay_members_count consumer -
+#                          without it the dead-copy leg would false-red) +
+#                          locale/<all shipped
 #                          folders> (Check 20's catalog + Check 21's mirrors),
 #                          images/, package.json,
 #                          manifest; a git index so checks 1-13 (git grep /
@@ -30,7 +33,7 @@
 # exercised. Asserts:
 #   (1) exit code 0
 #   (2) stdout contains "Check 14", "034_media_items_type_audiobook.sql", "PASS"
-#   (3) stdout contains every "=== Check 11:" .. "=== Check 23:" header
+#   (3) stdout contains every "=== Check 11:" .. "=== Check 24:" header
 #   (4) negative: audiobook removed from the Utilities.brs ENUM comment ->
 #       exit code non-zero with a CHECK14 diagnostic
 #   (5) locale-resolution leg: a "ja-JP"-style device locale normalizes
@@ -45,6 +48,10 @@
 #   (7) negative: an EmitError call site regressed to a raw display literal in
 #       another scratch copy -> exit non-zero with a CHECK23 diagnostic, while
 #       CHECK21/CHECK22 stay green (the local family gate is independent)
+#   (8) negative: a token-concat regression (a token-bearing catalog key
+#       consumed via bare Translate + string append) in another scratch copy
+#       -> exit non-zero with a CHECK24 diagnostic naming file:line, while
+#       CHECK20/21/22/23 stay green (the token law gate is independent)
 #
 # RUN:  bash tests/scripts/verify-runtime-portable.sh
 # There is no Makefile slot: `make check` is a prerequisites probe, not a script
@@ -97,6 +104,9 @@ cp "$REAL_REPO/components/SettingsScene.brs" "$FAKE_REPO/components/SettingsScen
 cp "$REAL_REPO/components/DetailScene.brs" "$FAKE_REPO/components/DetailScene.brs"
 # Check 22 requires the syncplay_error wire-in file to exist in the checkout.
 cp "$REAL_REPO/components/SyncPlayTask.brs" "$FAKE_REPO/components/SyncPlayTask.brs"
+# Check 24's dead-copy leg needs every token-bearing key's consumer present:
+# syncplay_members_count is consumed only in SyncPlayScene.brs.
+cp "$REAL_REPO/components/SyncPlayScene.brs" "$FAKE_REPO/components/SyncPlayScene.brs"
 cp -a "$REAL_REPO/images"/. "$FAKE_REPO/images/"
 cp "$REAL_REPO/package.json" "$FAKE_REPO/package.json"
 cp "$REAL_REPO/manifest" "$FAKE_REPO/manifest"
@@ -119,12 +129,13 @@ set -e
 assert_contains "=== Check 14:" "$POSITIVE_OUT"
 assert_contains "034_media_items_type_audiobook.sql" "$POSITIVE_OUT"
 assert_contains "PASS" "$POSITIVE_OUT"
-for i in $(seq 11 23); do
+for i in $(seq 11 24); do
 	assert_contains "=== Check $i:" "$POSITIVE_OUT"
 done
 assert_contains "CHECK21: all" "$POSITIVE_OUT"
 assert_contains "CHECK22: all" "$POSITIVE_OUT"
 assert_contains "CHECK23: all" "$POSITIVE_OUT"
+assert_contains "CHECK24: all" "$POSITIVE_OUT"
 
 # --- locale resolution: simulate the device selecting a ja_JP-style locale ---
 # LoadLocaleStrings normalizes roAppInfo.GetCurrentLocale() with .Trim().
@@ -249,6 +260,10 @@ sed -n '/=== Check 22:/,$p' <<<"$RED21_OUT" | grep -q "CHECK22: all 16" ||
 	fail "Check 22 must stay PASS while Check 21 is red (gate independence)"
 sed -n '/=== Check 23:/,$p' <<<"$RED21_OUT" | grep -q "CHECK23: all" ||
 	fail "Check 23 must stay PASS while Check 21 is red (gate independence)"
+# CHECK24's token set is brace-driven; a non-token key (common.ok) removed
+# from a mirror must not entangle the token law gate either.
+sed -n '/=== Check 24:/,$p' <<<"$RED21_OUT" | grep -q "CHECK24: all" ||
+	fail "Check 24 must stay PASS while Check 21 is red (gate independence)"
 
 # --- Check 23 red proof on an independent scratch copy: a task call site
 # regressed to a raw display literal (the exact defect class the local family
@@ -280,6 +295,47 @@ sed -n '/=== Check 21:/,/=== Check 22:/p' <<<"$RED23_OUT" | grep -q "CHECK21: al
 sed -n '/=== Check 22:/,/=== Check 23:/p' <<<"$RED23_OUT" | grep -q "CHECK22: all 16" ||
 	fail "Check 22 must stay PASS while Check 23 is red (gate independence)"
 
+# --- Check 24 red proof on an independent scratch copy: a token-bearing
+# catalog key regressed to the historical raw-concat shape (the exact defect
+# class of this lane). CHECK20/21/22/23 must stay green in that run. --------
+RED24_ROOT="$TEST_ROOT/red24"
+mkdir -p "$RED24_ROOT"
+cp -a "$TEST_ROOT/repo" "$RED24_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$RED24_ROOT/phlix-server"
+python3 - "$RED24_ROOT/repo/components/SettingsScene.brs" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+needle = 'm.statusLabel.text = TranslateWithParams("settings_status_logged_in_as", { email: userEmail })'
+assert text.count(needle) == 1, "planted-red anchor missing from SettingsScene.brs"
+# Regression to the pre-fix shape: raw Translate + append renders literal
+# braces and freezes the token position.
+text = text.replace(
+    needle,
+    'm.statusLabel.text = Translate("settings_status_logged_in_as") + userEmail',
+)
+with open(path, "w", encoding="utf-8") as f:
+    f.write(text)
+PYEOF
+set +e
+RED24_OUT=$(bash "$RED24_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+RED24_RC=$?
+set -e
+[ "$RED24_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when a token key is concatenated raw (got 0)"
+assert_contains "CHECK24" "$RED24_OUT"
+assert_contains "settings_status_logged_in_as" "$RED24_OUT"
+grep -qE "SettingsScene\.brs:[0-9]+ - CHECK24" <<<"$RED24_OUT" ||
+	fail "CHECK24 red must name the offending file:line (got: $RED24_OUT)"
+sed -n '/=== Check 20:/,/=== Check 21:/p' <<<"$RED24_OUT" | grep -q "CHECK20: all" ||
+	fail "Check 20 must stay PASS while Check 24 is red (gate independence)"
+sed -n '/=== Check 21:/,/=== Check 22:/p' <<<"$RED24_OUT" | grep -q "CHECK21: all" ||
+	fail "Check 21 must stay PASS while Check 24 is red (gate independence)"
+sed -n '/=== Check 22:/,/=== Check 23:/p' <<<"$RED24_OUT" | grep -q "CHECK22: all 16" ||
+	fail "Check 22 must stay PASS while Check 24 is red (gate independence)"
+sed -n '/=== Check 23:/,/=== Check 24:/p' <<<"$RED24_OUT" | grep -q "CHECK23: all" ||
+	fail "Check 23 must stay PASS while Check 24 is red (gate independence)"
+
 # --- negative: audiobook dropped from the ENUM comment -> exit != 0 + CHECK14
 export FAKE_REPO
 python3 - <<'PYEOF'
@@ -310,4 +366,4 @@ set -e
 [ "$NEG_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the ENUM comment drops audiobook (got 0)"
 assert_contains "CHECK14" "$NEG_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-23 headers present, CHECK21 + CHECK22 + CHECK23 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23 gates stayed green) + Check 23 red leg (raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-24 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 23 red leg (raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"

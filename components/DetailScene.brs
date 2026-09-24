@@ -295,7 +295,7 @@ sub RenderItem()
         ' P2-S5: show chapter count if chapters are available on the item.
         if item.chapters <> invalid and type(item.chapters) = "roArray" and item.chapters.count() > 0 then
             if info <> "" then info = info + " • "
-            info = info + str(item.chapters.count()).trim() + " " + Translate("detail_chapters_count")
+            info = info + TranslateWithParams("detail_chapters_count", { count: item.chapters.count() })
         end if
         m.infoLabel.text = info
     end if
@@ -362,8 +362,7 @@ sub RenderRating()
     if m.ratingButton = invalid then return
 
     if m.pendingRating > 0 then
-        ratingStr = str(m.pendingRating).trim()
-        m.ratingButton.title = Translate("detail_rating_label") + ratingStr
+        m.ratingButton.title = TranslateWithParams("detail_rating_label", { rating: m.pendingRating })
     else
         m.ratingButton.title = Translate("detail_rating_not_set")
     end if
@@ -577,7 +576,7 @@ sub RenderContentRating()
     end if
 
     if contentRating <> invalid and contentRating <> "" then
-        m.contentRatingLabel.text = Translate("detail_rated_label") + contentRating
+        m.contentRatingLabel.text = TranslateWithParams("detail_rated_label", { rating: contentRating })
     else
         m.contentRatingLabel.text = ""
     end if
