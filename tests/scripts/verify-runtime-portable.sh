@@ -17,7 +17,8 @@
 #     $tmp/repo/           fake checkout — the REAL scripts/verify-runtime.sh,
 #                          source/lib/Utilities.brs,
 #                          components/SettingsScene.brs + DetailScene.brs
-#                          (Check 19's fixed target list), locale/<all shipped
+#                          (Check 19's fixed target list) + SyncPlayTask.brs
+#                          (Check 22's wire-in), locale/<all shipped
 #                          folders> (Check 20's catalog + Check 21's mirrors),
 #                          images/, package.json,
 #                          manifest; a git index so checks 1-13 (git grep /
@@ -29,7 +30,7 @@
 # exercised. Asserts:
 #   (1) exit code 0
 #   (2) stdout contains "Check 14", "034_media_items_type_audiobook.sql", "PASS"
-#   (3) stdout contains every "=== Check 11:" .. "=== Check 21:" header
+#   (3) stdout contains every "=== Check 11:" .. "=== Check 22:" header
 #   (4) negative: audiobook removed from the Utilities.brs ENUM comment ->
 #       exit code non-zero with a CHECK14 diagnostic
 #   (5) locale-resolution leg: a "ja-JP"-style device locale normalizes
@@ -88,6 +89,8 @@ cp "$REAL_REPO/scripts/verify-runtime.sh" "$FAKE_REPO/scripts/verify-runtime.sh"
 cp "$REAL_REPO/source/lib/Utilities.brs"  "$FAKE_REPO/source/lib/Utilities.brs"
 cp "$REAL_REPO/components/SettingsScene.brs" "$FAKE_REPO/components/SettingsScene.brs"
 cp "$REAL_REPO/components/DetailScene.brs"   "$FAKE_REPO/components/DetailScene.brs"
+# Check 22 requires the syncplay_error wire-in file to exist in the checkout.
+cp "$REAL_REPO/components/SyncPlayTask.brs"  "$FAKE_REPO/components/SyncPlayTask.brs"
 cp -a "$REAL_REPO/images"/. "$FAKE_REPO/images/"
 cp "$REAL_REPO/package.json" "$FAKE_REPO/package.json"
 cp "$REAL_REPO/manifest"     "$FAKE_REPO/manifest"
@@ -110,10 +113,11 @@ set -e
 assert_contains "=== Check 14:" "$POSITIVE_OUT"
 assert_contains "034_media_items_type_audiobook.sql" "$POSITIVE_OUT"
 assert_contains "PASS" "$POSITIVE_OUT"
-for i in $(seq 11 21); do
+for i in $(seq 11 22); do
   assert_contains "=== Check $i:" "$POSITIVE_OUT"
 done
 assert_contains "CHECK21: all" "$POSITIVE_OUT"
+assert_contains "CHECK22: all" "$POSITIVE_OUT"
 
 # --- locale resolution: simulate the device selecting a ja_JP-style locale ---
 # LoadLocaleStrings normalizes roAppInfo.GetCurrentLocale() with .Trim().
@@ -230,6 +234,10 @@ sed -n '/=== Check 14:/,/=== Check 15:/p' <<<"$RED21_OUT" | grep -q "  PASS" ||
   fail "Check 14 must stay PASS while Check 21 is red (gate independence)"
 sed -n '/=== Check 20:/,/=== Check 21:/p' <<<"$RED21_OUT" | grep -q "  PASS" ||
   fail "Check 20 must stay PASS while Check 21 is red (gate independence)"
+# Check 22 reads en_US + Utilities + SyncPlayTask only - a ja_JP mirror hole
+# must NOT fire it (proves the two locale gates stay independent).
+sed -n '/=== Check 22:/,$p' <<<"$RED21_OUT" | grep -q "CHECK22: all 16" ||
+  fail "Check 22 must stay PASS while Check 21 is red (gate independence)"
 
 # --- negative: audiobook dropped from the ENUM comment -> exit != 0 + CHECK14
 export FAKE_REPO
@@ -261,4 +269,4 @@ set -e
 [ "$NEG_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the ENUM comment drops audiobook (got 0)"
 assert_contains "CHECK14" "$NEG_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-21 headers present, CHECK21 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-22 headers present, CHECK21 + CHECK22 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"

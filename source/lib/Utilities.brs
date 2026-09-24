@@ -1013,7 +1013,7 @@ function Translate(key as String) as String
     end if
 
     raw = LoadLocaleStrings._raw
-    sections = ["common", "utilities", "settings", "detail"]
+    sections = ["common", "utilities", "settings", "detail", "errors"]
     for each section in sections
         if raw <> invalid and raw.doesExist(section) then
             sectionData = raw.lookup(section)
@@ -1027,4 +1027,91 @@ function Translate(key as String) as String
         end if
     end for
     return key
+end function
+' ===========================================
+' W5 THIN-CLIENT ERROR LOCALISATION (syncplay_error frames)
+'
+' Doctrine: error-code-first. The stable error_code on a server frame selects
+' the catalog string; the server's English message is only a debug fallback for
+' codes this build does not recognize. Server text NEVER overrides a resolved
+' code.
+'
+' MAPPING LAW (single source of truth, mirrored by Check 22 in
+' scripts/verify-runtime.sh):
+'   wire     = msg.error_code, else msg.code, else ""   (read in SyncPlayTask)
+'   key      = "errors_" + LCase(wire) with "." and "-" replaced by "_"
+'   invalid/non-string/empty wire -> "errors_fallback"
+' Deterministic for both code families the server emits:
+'   legacy SCREAMING: NOT_IN_GROUP            -> errors_not_in_group
+'   dotted registry:  syncplay.group_full     -> errors_syncplay_group_full
+' Unknown future codes miss the catalog, Translate echoes the key, and the
+' resolver falls through to the server message - forward compatible by design.
+' ===========================================
+
+' Canonical client-reachable syncplay error codes, verified against
+' phlix-server SyncPlayManager.php / WebSocket MessageHandler.php sendError
+' literals: the 12 legacy SCREAMING codes plus the 4 dotted registry twins.
+' Every element MUST have a matching errors_<law(key)> entry in ALL seven
+' locale catalogs - Check 22 enforces the en_US side (the guard law: silent
+' fallback must not hide a missing translation) and Check 21 pins cross-locale
+' key parity from the catalogs themselves.
+' Pure: returns a fresh array; callers must not mutate module state through it.
+' @return Object - roArray of code strings as they appear on the wire
+function SyncPlayKnownErrorCodes() as Object
+    codes = []
+    codes.push("NOT_AUTHENTICATED")
+    codes.push("NOT_IN_GROUP")
+    codes.push("NOT_HOST")
+    codes.push("UNKNOWN_MESSAGE")
+    codes.push("HANDLER_ERROR")
+    codes.push("PROTOCOL_VERSION_MISMATCH")
+    codes.push("INVALID_NEW_HOST")
+    codes.push("MEMBER_NOT_FOUND")
+    codes.push("SAME_HOST")
+    codes.push("CREATE_FAILED")
+    codes.push("JOIN_FAILED")
+    codes.push("LEAVE_FAILED")
+    codes.push("syncplay.group_limit_reached")
+    codes.push("syncplay.group_not_found")
+    codes.push("syncplay.invalid_password")
+    codes.push("syncplay.group_full")
+    return codes
+end function
+
+' Apply the MAPPING LAW above: wire error_code -> flat "errors_*" catalog key.
+' Total function: any input shape (invalid, number, empty, padded) parses into
+' exactly one of {errors_<normalized>, errors_fallback}.
+' @param code Object - raw error_code/code value from the frame
+' @return String - flat Translate() key
+function SyncPlayErrorCodeToKey(code as Object) as String
+    if code = invalid then return "errors_fallback"
+    tp = type(code)
+    if tp <> "String" and tp <> "roString" then return "errors_fallback"
+    raw = code.Trim()
+    if raw = "" then return "errors_fallback"
+    normalized = LCase(raw).Replace(".", "_").Replace("-", "_")
+    return "errors_" + normalized
+end function
+
+' Resolve the user-facing text for one syncplay_error frame.
+' Priority (first hit wins):
+'   1. recognized code -> its catalog entry in the active locale
+'   2. unrecognized/absent code + non-empty server message -> that message
+'   3. errors_fallback catalog entry (generic localized line)
+'   4. "" - catalog entirely unavailable; the caller supplies its own
+'      last-resort literal so this function never renders a raw key.
+' Pure apart from Translate()'s cached catalog load; no global mutation.
+' @param code Object - wire error_code (or legacy code) value
+' @param serverMessage String - frame "message" text, may be ""
+' @return String - localized (or debug-fallback) user-facing text
+function LocalizeSyncPlayError(code as Object, serverMessage as String) as String
+    key = SyncPlayErrorCodeToKey(code)
+    if key <> "errors_fallback"
+        text = Translate(key)
+        if text <> key then return text
+    end if
+    if serverMessage <> "" then return serverMessage
+    fallback = Translate("errors_fallback")
+    if fallback <> "errors_fallback" then return fallback
+    return ""
 end function

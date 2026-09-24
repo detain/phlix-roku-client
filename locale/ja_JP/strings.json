@@ -2,10 +2,11 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
+      "components/SyncPlayTask.brs",
       "source/lib/Utilities.brs"
     ]
   },
@@ -135,5 +136,25 @@
     "ok": "OK",
     "error": "エラー",
     "retry": "再試行"
+  },
+
+  "errors": {
+    "not_authenticated": "ウォッチパーティを使う前にサインインしてください。",
+    "not_in_group": "現在グループに参加していません。",
+    "not_host": "この操作はグループのホストだけが行えます。",
+    "unknown_message": "サーバーが認識できないリクエストを拒否しました。",
+    "handler_error": "同期サーバーで問題が発生しました。",
+    "protocol_version_mismatch": "このアプリはサーバーのバージョンと互換性がありません。",
+    "invalid_new_host": "要求された新しいホストは有効ではありません。",
+    "member_not_found": "そのメンバーはグループ内に見つかりませんでした。",
+    "same_host": "そのメンバーはすでにグループのホストです。",
+    "create_failed": "ウォッチグループを作成できませんでした。",
+    "join_failed": "ウォッチグループに参加できませんでした。",
+    "leave_failed": "ウォッチグループから退出できませんでした。",
+    "syncplay_group_limit_reached": "ホストのウォッチパーティが上限に達しました。",
+    "syncplay_group_not_found": "そのウォッチグループは存在しません。",
+    "syncplay_invalid_password": "パスワードが正しくありません。",
+    "syncplay_group_full": "そのウォッチグループは満員です。",
+    "fallback": "同期エラーが発生しました。"
   }
 }

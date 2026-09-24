@@ -2,10 +2,11 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
+      "components/SyncPlayTask.brs",
       "source/lib/Utilities.brs"
     ]
   },
@@ -135,5 +136,25 @@
     "ok": "OK",
     "error": "Fehler",
     "retry": "Wiederholen"
+  },
+
+  "errors": {
+    "not_authenticated": "Melde dich an, bevor du Watch-Parties nutzt.",
+    "not_in_group": "Du bist in keiner synchronisierten Gruppe.",
+    "not_host": "Nur der Gruppenhost kann das tun.",
+    "unknown_message": "Der Server hat eine unbekannte Anfrage abgelehnt.",
+    "handler_error": "Auf dem Sync-Server ist etwas schiefgelaufen.",
+    "protocol_version_mismatch": "Diese App ist mit der Serverversion nicht kompatibel.",
+    "invalid_new_host": "Der angeforderte neue Host ist ungültig.",
+    "member_not_found": "Dieses Mitglied wurde in der Gruppe nicht gefunden.",
+    "same_host": "Dieses Mitglied ist bereits der Gruppenhost.",
+    "create_failed": "Die synchronisierte Gruppe konnte nicht erstellt werden.",
+    "join_failed": "Der Gruppe konnte nicht beigetreten werden.",
+    "leave_failed": "Die Gruppe konnte nicht verlassen werden.",
+    "syncplay_group_limit_reached": "Der Host hat die maximale Anzahl an Watch-Parties erreicht.",
+    "syncplay_group_not_found": "Diese synchronisierte Gruppe existiert nicht mehr.",
+    "syncplay_invalid_password": "Das Passwort ist nicht korrekt.",
+    "syncplay_group_full": "Diese synchronisierte Gruppe ist voll.",
+    "fallback": "Ein Synchronisierungsfehler ist aufgetreten."
   }
 }
