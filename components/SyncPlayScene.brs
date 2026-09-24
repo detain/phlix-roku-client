@@ -119,8 +119,10 @@ end function
 ' Localized "<n> members" fragment. The {count} token is substituted BY NAME
 ' (position-free), so a locale that puts the number after the noun just ships
 ' a different value - the surrounding parentheses stay layout owned here.
+' The original in-place Replace exemplar is now the shared law: generalization
+' lives in Utilities.brs TranslateWithParams/ApplyNamedTokens (Check 24).
 function MembersCountText(n as Object) as String
-    return Translate("syncplay_members_count").Replace("{count}", str(Int(n)).Trim())
+    return TranslateWithParams("syncplay_members_count", { count: n })
 end function
 
 ' Create a new room

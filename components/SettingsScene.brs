@@ -109,11 +109,11 @@ end sub
 
 sub ShowAccount()
     userEmail = GetApiClient().user.email
-    m.statusLabel.text = Translate("settings_status_logged_in_as") + userEmail
+    m.statusLabel.text = TranslateWithParams("settings_status_logged_in_as", { email: userEmail })
 
     dialog = CreateObject("roSGNode", "Dialog")
     dialog.title = Translate("settings_dialog_account_title")
-    dialog.message = "Email: " + userEmail + Chr(10) + Chr(10) + "Do you want to log out?"
+    dialog.message = TranslateWithParams("settings_dialog_account_message", { email: userEmail })
     dialog.buttons = [Translate("settings_button_cancel"), Translate("settings_button_log_out")]
     dialog.observeField("buttonSelected", "OnLogoutConfirmed")
     m.top.dialog = dialog
@@ -131,11 +131,11 @@ end sub
 
 sub ShowServer()
     serverUrl = GetServerUrl()
-    m.statusLabel.text = Translate("settings_status_server") + serverUrl
+    m.statusLabel.text = TranslateWithParams("settings_status_server", { url: serverUrl })
 
     dialog = CreateObject("roSGNode", "Dialog")
     dialog.title = Translate("settings_dialog_server_title")
-    dialog.message = "Current server: " + serverUrl + Chr(10) + Chr(10) + "Do you want to switch servers?"
+    dialog.message = TranslateWithParams("settings_dialog_server_message", { url: serverUrl })
     dialog.buttons = [Translate("settings_button_cancel"), Translate("settings_button_switch")]
     dialog.observeField("buttonSelected", "OnSwitchServerConfirmed")
     m.top.dialog = dialog
@@ -156,12 +156,10 @@ sub ShowPlayback()
 
     if result <> invalid and result.data <> invalid and result.data.preferences <> invalid then
         prefs = result.data.preferences
-        qualityLabel = Translate("settings_quality_label")
         qualityValue = IIF(prefs.quality <> invalid, prefs.quality, "Auto")
-        prefStr = qualityLabel + qualityValue + Chr(10)
-        autoplayLabel = Translate("settings_autoplay_label")
+        prefStr = TranslateWithParams("settings_quality_label", { quality: qualityValue }) + Chr(10)
         autoplayValue = IIF(prefs.autoplay <> invalid, IIF(prefs.autoplay, Translate("settings_autoplay_on"), Translate("settings_autoplay_off")), Translate("settings_autoplay_on"))
-        prefStr = prefStr + autoplayLabel + autoplayValue
+        prefStr = prefStr + TranslateWithParams("settings_autoplay_label", { state: autoplayValue })
         m.statusLabel.text = prefStr
     else
         m.statusLabel.text = Translate("settings_status_unable_to_load_preferences")
@@ -172,11 +170,11 @@ sub ShowCaptions()
     deviceInfo = CreateObject("roDeviceInfo")
     currentMode = deviceInfo.GetCaptionsMode()
 
-    m.statusLabel.text = Translate("settings_caption_mode_label") + currentMode
+    m.statusLabel.text = TranslateWithParams("settings_caption_mode_label", { mode: currentMode })
 
     dialog = CreateObject("roSGNode", "Dialog")
     dialog.title = Translate("settings_dialog_captions_title")
-    dialog.message = "Current caption mode: " + currentMode + Chr(10) + Chr(10) + "Select a mode:"
+    dialog.message = TranslateWithParams("settings_dialog_captions_message", { mode: currentMode })
     dialog.buttons = [Translate("settings_button_caption_on"), Translate("settings_button_caption_off"), Translate("settings_button_caption_instant_replay"), Translate("settings_button_caption_when_mute")]
     dialog.observeField("buttonSelected", "OnCaptionsModeSelected")
     m.top.dialog = dialog
@@ -190,7 +188,7 @@ sub OnCaptionsModeSelected(index as Integer)
     if index >= 0 and index < modes.count() then
         deviceInfo = CreateObject("roDeviceInfo")
         deviceInfo.SetCaptionsMode(modes[index])
-        m.statusLabel.text = Translate("settings_caption_mode_set_to") + modes[index]
+        m.statusLabel.text = TranslateWithParams("settings_caption_mode_set_to", { mode: modes[index] })
     end if
 end sub
 
@@ -199,7 +197,7 @@ sub ShowWatchHistory()
 
     dialog = CreateObject("roSGNode", "Dialog")
     dialog.title = Translate("settings_dialog_watch_history_title")
-    dialog.message = "This will remove all your watch history data." + Chr(10) + Chr(10) + "Are you sure?"
+    dialog.message = Translate("settings_dialog_watch_history_message")
     dialog.buttons = [Translate("settings_button_cancel"), Translate("settings_button_clear")]
     dialog.observeField("buttonSelected", "OnClearHistoryConfirmed")
     m.top.dialog = dialog
@@ -299,9 +297,14 @@ sub ShowAbout()
     videoMode = GetDeviceVideoMode()
     totalMemoryMB = DeviceInfoData().totalMemoryMB
 
-    info = Translate("settings_about_version") + ": " + version + Chr(10)
-    info = info + Translate("settings_about_device_model") + ": " + deviceModel + Chr(10)
-    info = info + Translate("settings_about_device_id") + ": " + IIF(deviceId <> invalid, deviceId, Translate("settings_about_device_id_unknown")) + Chr(10)
+    ' The about_* catalog values already carry their label colon and the
+    ' {token} ("Version: {version}"), so the code must append NOTHING but the
+    ' line break - the old `+ ": " + value` shape rendered
+    ' "Version: {version}: 1.0.1": literal braces plus a doubled colon.
+    ' video_mode/total_memory are colon-free label keys, so they keep ": ".
+    info = TranslateWithParams("settings_about_version", { version: version }) + Chr(10)
+    info = info + TranslateWithParams("settings_about_device_model", { model: deviceModel }) + Chr(10)
+    info = info + TranslateWithParams("settings_about_device_id", { id: IIF(deviceId <> invalid, deviceId, Translate("settings_about_device_id_unknown")) }) + Chr(10)
     info = info + Translate("settings_about_video_mode") + ": " + videoMode + Chr(10)
     info = info + Translate("settings_about_total_memory") + ": " + str(totalMemoryMB).trim() + " MB"
 
