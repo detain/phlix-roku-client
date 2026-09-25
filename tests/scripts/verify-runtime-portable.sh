@@ -59,6 +59,13 @@
 #  (10) negative (twin-flip split): an orphan key squatting in the en_US
 #       errors registry -> CHECK23 section-purity red naming the key, while
 #       CHECK22 stays green (bidirectional registry honesty)
+#  (11) negative (CHECK19 exempt anchoring, review #91 LOW): a UI string whose
+#       prose contains " for " used to exempt its OWN line via the unanchored
+#       \bfor\s+ EXEMPT regex. With the exemptions split into a raw-content
+#       family and a code_view family (comments cut, string contents blanked)
+#       and the for-exemption anchored to the BrightScript loop-header
+#       grammar, the prose plant fires CHECK19 while a real `for i = 0 to 2`
+#       colon header carrying a string stays exempt, and CHECK20-24 stay green
 #
 # RUN:  bash tests/scripts/verify-runtime-portable.sh
 # There is no Makefile slot: `make check` is a prerequisites probe, not a script
@@ -433,6 +440,54 @@ sed -n '/=== Check 22:/,/=== Check 23:/p' <<<"$RED24_OUT" | grep -q "CHECK22: al
 sed -n '/=== Check 23:/,/=== Check 24:/p' <<<"$RED24_OUT" | grep -q "CHECK23: all" ||
 	fail "Check 23 must stay PASS while Check 24 is red (gate independence)"
 
+# --- Check 19 exempt-anchoring red proof on an independent scratch copy: the
+# unanchored-substring defect class (review #91 LOW). A user-facing literal
+# containing prose " for " must NOT exempt its own line any more (the old
+# \bfor\s+ EXEMPT regex let it escape silently); a genuine BrightScript
+# for-header line carrying a string must STAY exempt (grammar-anchored
+# `for <var> =` / `for each <var> in` forms survive masking). Exactly one
+# CHECK19 violation may fire, and CHECK20-24 stay green (gate independence). --
+RED19_ROOT="$TEST_ROOT/red19"
+mkdir -p "$RED19_ROOT"
+cp -a "$TEST_ROOT/repo" "$RED19_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$RED19_ROOT/phlix-server"
+python3 - "$RED19_ROOT/repo/components/SettingsScene.brs" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+plant = (
+    "\nsub Check19Plants()\n"
+    '    m.text = "Pay $5 for entry"\n'
+    '    for i = 0 to 2 : m.statusLabel.text = "row count" : next\n'
+    "end sub\n"
+)
+with open(path, "w", encoding="utf-8") as f:
+    f.write(text + plant)
+PYEOF
+set +e
+RED19_OUT=$(bash "$RED19_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+RED19_RC=$?
+set -e
+[ "$RED19_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when a UI string escapes CHECK19 via prose ' for ' (got 0)"
+sed -n '/=== Check 19:/,/=== Check 20:/p' <<<"$RED19_OUT" | grep -q 'Pay \$5 for entry' ||
+	fail "CHECK19 red must name the offending literal (got: $RED19_OUT)"
+if sed -n '/=== Check 19:/,/=== Check 20:/p' <<<"$RED19_OUT" | grep -q 'row count'; then
+	fail "a real 'for i = 0 to 2' header line must stay exempt under the anchored grammar"
+fi
+N19=$(sed -n '/=== Check 19:/,/=== Check 20:/p' <<<"$RED19_OUT" | grep -c "CHECK19:" || true)
+[ "$N19" -eq 1 ] || fail "exactly one CHECK19 violation expected (prose-'for' plant fires, loop plant stays exempt); got $N19"
+sed -n '/=== Check 20:/,/=== Check 21:/p' <<<"$RED19_OUT" | grep -q "CHECK20: all" ||
+	fail "Check 20 must stay PASS while Check 19 is red (gate independence)"
+sed -n '/=== Check 21:/,/=== Check 22:/p' <<<"$RED19_OUT" | grep -q "CHECK21: all" ||
+	fail "Check 21 must stay PASS while Check 19 is red (gate independence)"
+sed -n '/=== Check 22:/,/=== Check 23:/p' <<<"$RED19_OUT" | grep -q "CHECK22: all 19" ||
+	fail "Check 22 must stay PASS while Check 19 is red (gate independence)"
+sed -n '/=== Check 23:/,/=== Check 24:/p' <<<"$RED19_OUT" | grep -q "CHECK23: all" ||
+	fail "Check 23 must stay PASS while Check 19 is red (gate independence)"
+sed -n '/=== Check 24:/,$p' <<<"$RED19_OUT" | grep -q "CHECK24: all" ||
+	fail "Check 24 must stay PASS while Check 19 is red (gate independence)"
+
 # --- negative: audiobook dropped from the ENUM comment -> exit != 0 + CHECK14
 export FAKE_REPO
 python3 - <<'PYEOF'
@@ -463,4 +518,4 @@ set -e
 [ "$NEG_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the ENUM comment drops audiobook (got 0)"
 assert_contains "CHECK14" "$NEG_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-24 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; reserved-census drift -> CHECK22 reserved leg fired; Check 21 stayed green both runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-24 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; reserved-census drift -> CHECK22 reserved leg fired; Check 21 stayed green both runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"

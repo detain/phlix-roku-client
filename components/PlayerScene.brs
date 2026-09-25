@@ -2276,18 +2276,19 @@ sub OpenSubtitleTrackList()
 end sub
 
 ' R6.5: Build and open the caption mode selection list.
-' The four standard modes are: "On", "Off", "Instant replay", "When mute".
-' Per https://developer.roku.com/dev/docs/video (globalCaptionMode field):
-' "On" = captions always on
-' "Off" = captions always off
-' "Instant replay" = captions on only during instant replay
-' "When mute" = captions on only when volume is muted (Roku TVs only)
+' The four standard platform modes ("On", "Off", "Instant replay", "When
+' mute", per https://developer.roku.com/dev/docs/video globalCaptionMode) are
+' the WIRE vocabulary owned by source/lib/Utilities.brs
+' GetCaptionsModeWireValues() — single source of truth (this component
+' declares that script in PlayerScene.xml; review #91 removed the local copy
+' of the list). Labels deliberately render the wire bytes here, unchanged.
 sub OpenCaptionModeList()
     m.trackListType = "captionMode"
     if m.trackListTitle <> invalid then m.trackListTitle.text = "Caption Mode"
 
-    ' The four standard caption modes per Roku certification requirements.
-    captionModes = ["On", "Off", "Instant replay", "When mute"]
+    ' The four standard caption modes per Roku certification requirements:
+    ' the SSOT array, index order identical to the previous local copy.
+    captionModes = GetCaptionsModeWireValues()
 
     content = CreateObject("roSGNode", "ContentNode")
 
@@ -2542,12 +2543,15 @@ sub OnSubtitleTrackSelected(index as Integer)
 end sub
 
 ' R6.5: Handle caption mode selection from the channel-level toggle.
-' The four standard modes are indexed: 0=On, 1=Off, 2=Instant replay, 3=When mute.
-' Per https://developer.roku.com/dev/docs/video (globalCaptionMode field):
+' The selected mode is the index into the SAME SSOT array OpenCaptionModeList
+' renders (Utilities.brs GetCaptionsModeWireValues: 0=On, 1=Off,
+' 2=Instant replay, 3=When mute) — selection binds by index, never by string
+' equality, so list and handler cannot drift (review #91 dedupe).
 ' Setting globalCaptionMode on the Video node honours the device caption preference.
 sub OnCaptionModeSelected(index as Integer)
-    ' The four standard caption modes per Roku certification requirements.
-    captionModes = ["On", "Off", "Instant replay", "When mute"]
+    ' The four standard caption modes per Roku certification requirements:
+    ' the SSOT array, index order identical to the previous local copy.
+    captionModes = GetCaptionsModeWireValues()
     if index < 0 or index >= captionModes.Count() then return
 
     selectedMode = captionModes[index]
