@@ -19,6 +19,7 @@
         <!-- Header: title + three mode buttons -->
         <Rectangle height="100" width="1280" color="#1a1a2e">
             <Label height="60" width="240" translation="[40,20]"
+                   id="headerLabel"
                    text="Music"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF" />

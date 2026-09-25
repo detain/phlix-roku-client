@@ -8,9 +8,9 @@
   </interface>
   <children>
     <Rectangle width="1920" height="80" color="#1a1a2e" />
-    <Label text="For You" width="400" fontSize="36"
+    <Label id="headerLabel" text="For You" width="400" fontSize="36"
            translation="[60, 20]" color="#ffffff" />
-    <Label id="loadingLabel" text="Loading..."
+    <Label id="loadingLabel" text="Loading…"
            translation="[960, 540]"
            horizAlign="center" color="#888888" />
     <Label id="emptyLabel" text="No recommendations yet"
@@ -21,5 +21,6 @@
                 itemSize="160,260"
                 itemSpacing="20" />
   </children>
-  <script uri="pkg:/components/RecommendationsScene.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
+  <script type="text/brightscript" uri="pkg:/components/RecommendationsScene.brs" />
 </component>

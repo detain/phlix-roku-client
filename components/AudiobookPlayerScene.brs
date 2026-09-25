@@ -7,6 +7,7 @@
 ' Audio playback with chapter navigation and progress write-back.
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' Find all UI nodes
@@ -171,7 +172,7 @@ sub StartPlaybackWithUrl(streamUrl as String)
     m.isPlaying = true
 
     if m.playPauseButton <> invalid then
-        m.playPauseButton.title = "Pause"
+        m.playPauseButton.title = Translate("common_pause")
     end if
 
     ' Restore saved position if available
@@ -194,12 +195,12 @@ sub OnPlayerStateChange(event as Object)
     if state = "playing" then
         m.isPlaying = true
         if m.playPauseButton <> invalid then
-            m.playPauseButton.title = "Pause"
+            m.playPauseButton.title = Translate("common_pause")
         end if
     else if state = "paused" then
         m.isPlaying = false
         if m.playPauseButton <> invalid then
-            m.playPauseButton.title = "Play"
+            m.playPauseButton.title = Translate("common_play")
         end if
     else if state = "stopped" or state = "finished" then
         m.isPlaying = false
@@ -480,4 +481,25 @@ sub UpdateChapterLabel()
     end if
 end sub
 
-
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("backButton")
+    if n <> invalid then n.title = Translate("common_back")
+    n = m.top.findNode("prevChapterButton")
+    if n <> invalid then n.title = Translate("common_prev")
+    n = m.top.findNode("rewindButton")
+    if n <> invalid then n.title = Translate("audiobookplayer_skip_backward")
+    n = m.top.findNode("playPauseButton")
+    if n <> invalid then n.title = Translate("common_play")
+    n = m.top.findNode("forwardButton")
+    if n <> invalid then n.title = Translate("audiobookplayer_skip_forward")
+    n = m.top.findNode("nextChapterButton")
+    if n <> invalid then n.title = Translate("common_next")
+    n = m.top.findNode("loadingLabel")
+    if n <> invalid then n.text = Translate("common_loading")
+end sub

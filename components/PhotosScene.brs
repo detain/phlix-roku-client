@@ -17,6 +17,7 @@
 ' right object.
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' Album poster grid.
@@ -52,7 +53,7 @@ sub LoadLibrary(libraryId as String, libraryName as String)
     if libraryName = invalid then m.libraryName = ""
 
     if m.titleLabel <> invalid then m.titleLabel.text = m.libraryName
-    if m.statusLabel <> invalid then m.statusLabel.text = "Loading…"
+    if m.statusLabel <> invalid then m.statusLabel.text = Translate("common_loading")
 
     if m.libraryId = "" then return
 
@@ -73,7 +74,7 @@ sub OnPhotoAlbumsResponse(resp as Object)
     if not resp.ok or resp.data = invalid or resp.data.albums = invalid or type(resp.data.albums) <> "roArray" then
         m.albums = []
         if m.albumsGrid <> invalid then m.albumsGrid.content = CreateObject("roSGNode", "ContentNode")
-        if m.statusLabel <> invalid then m.statusLabel.text = "No photos"
+        if m.statusLabel <> invalid then m.statusLabel.text = Translate("common_no_photos")
         return
     end if
 
@@ -108,7 +109,7 @@ sub OnPhotoAlbumsResponse(resp as Object)
 
     if m.statusLabel <> invalid then
         if m.albums.Count() = 0 then
-            m.statusLabel.text = "No photos"
+            m.statusLabel.text = Translate("common_no_photos")
         else
             m.statusLabel.text = ""
         end if
@@ -183,3 +184,16 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles and labels that
+' ship as component markup) at scene init. CHECK25 in scripts/verify-runtime.sh
+' requires every user-facing string in components/*.xml to have a
+' programmatic Translate() override path; this sub is that path. The XML
+' keeps its English values as the en-fallback default, mirroring the
+' DetailScene action-button precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("titleLabel")
+    if n <> invalid then n.text = Translate("common_photos")
+    n = m.top.findNode("statusLabel")
+    if n <> invalid then n.text = Translate("common_loading")
+end sub

@@ -18,6 +18,7 @@
 ' ===========================================
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' UI nodes
@@ -278,3 +279,28 @@ function SyncStringifyId(v as Object) as String
     if tp = "Float" or tp = "roFloat" or tp = "Double" or tp = "roDouble" then return str(Int(v)).Trim()
     return ""
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("headerLabel")
+    if n <> invalid then n.text = Translate("syncplay_title")
+    n = m.top.findNode("backButton")
+    if n <> invalid then n.title = Translate("common_back")
+    n = m.top.findNode("roomNameLabel")
+    if n <> invalid then n.text = Translate("syncplay_label_room_name")
+    n = m.top.findNode("publicRoomLabel")
+    if n <> invalid then n.text = Translate("syncplay_label_public_room")
+    n = m.top.findNode("createButton")
+    if n <> invalid then n.title = Translate("syncplay_create_room")
+    n = m.top.findNode("publicRoomsLabel")
+    if n <> invalid then n.text = Translate("syncplay_public_rooms")
+    n = m.top.findNode("membersLabel")
+    if n <> invalid then n.text = Translate("syncplay_members_label")
+    n = m.top.findNode("leaveButton")
+    if n <> invalid then n.title = Translate("syncplay_leave_room")
+end sub

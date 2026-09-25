@@ -8,6 +8,7 @@
 '
 
 sub Init()
+    ApplyXmlChrome()
     ' Supported sort field values (must match server-side ItemRepository values).
     ' These are local to Init() but copied to m.* for access by other subs.
     m.sortName = "name"
@@ -16,14 +17,8 @@ sub Init()
     m.sortDateAdded = "date_added"
     m.sortRuntime = "runtime"
 
-    ' Sort field display labels
-    m.sortLabels = {
-        name: "Name (A-Z)",
-        year: "Year (Newest)",
-        rating: "Rating",
-        date_added: "Date Added",
-        runtime: "Runtime"
-    }
+    ' Sort field display labels live in the locale catalog (library_sortby_*);
+    ' TranslateSortLabel() resolves the localized display label for a field.
 
     m.top.SetFocus(true)
 
@@ -159,17 +154,16 @@ end sub
 
 sub UpdateSortFilterLabels()
     if m.sortLabel <> invalid then
-        ' Show current sort as "Sort: Name" or similar
-        sortDisplay = m.sortLabels[m.sortField]
-        if sortDisplay = invalid then sortDisplay = "Name"
-        m.sortLabel.text = "Sort: " + sortDisplay
+        ' Localized "Sort: <label>" via catalog token template.
+        m.sortLabel.text = TranslateWithParams("library_sort_label", { sort: TranslateSortLabel(m.sortField) })
     end if
 
     if m.filterLabel <> invalid then
         if m.selectedGenre <> "" then
-            m.filterLabel.text = "Filter: " + m.selectedGenre
+            ' Genre names are server data - pass through unmodified.
+            m.filterLabel.text = TranslateWithParams("library_filter_label", { filter: m.selectedGenre })
         else
-            m.filterLabel.text = "Filter: All"
+            m.filterLabel.text = TranslateWithParams("library_filter_label", { filter: Translate("common_all") })
         end if
     end if
 end sub
@@ -184,8 +178,7 @@ sub ShowSortOptions()
     sortList = []
     idx = 0
     for each field in [m.sortName, m.sortYear, m.sortRating, m.sortDateAdded, m.sortRuntime]
-        label = m.sortLabels[field]
-        if label = invalid then label = field
+        label = TranslateSortLabel(field)
         if field = m.sortField then
             label = label + " *"
         end if
@@ -247,9 +240,9 @@ sub RefreshItems()
     if m.loadingLabel <> invalid then
         m.loadingLabel.visible = true
         if m.offset > 0 then
-            m.loadingLabel.text = "Loading more..."
+            m.loadingLabel.text = Translate("common_loading_more")
         else
-            m.loadingLabel.text = "Loading..."
+            m.loadingLabel.text = Translate("common_loading")
         end if
     end if
 
@@ -555,4 +548,36 @@ sub Teardown()
     if m.top <> invalid
         m.top.UnObserveField("requestClose")
     end if
+end sub
+
+' TranslateSortLabel - localized display label for a library sort field.
+' Literal Translate() calls (never a dynamic key) so CHECK20 can verify every
+' sort label against the en_US catalog.
+Function TranslateSortLabel(field as String) as String
+    if field = m.sortYear then return Translate("library_sortby_year")
+    if field = m.sortRating then return Translate("library_sortby_rating")
+    if field = m.sortDateAdded then return Translate("library_sortby_date_added")
+    if field = m.sortRuntime then return Translate("library_sortby_runtime")
+    return Translate("library_sortby_name")
+End Function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("backButton")
+    if n <> invalid then n.title = Translate("common_back")
+    n = m.top.findNode("titleLabel")
+    if n <> invalid then n.text = Translate("common_library")
+    n = m.top.findNode("optionsButton")
+    if n <> invalid then n.title = Translate("common_sort")
+    n = m.top.findNode("jumpToLabel")
+    if n <> invalid then n.text = Translate("library_jump_to")
+    n = m.top.findNode("descriptionLabel")
+    if n <> invalid then n.text = Translate("common_select_item")
+    n = m.top.findNode("loadingLabel")
+    if n <> invalid then n.text = Translate("common_loading")
 end sub

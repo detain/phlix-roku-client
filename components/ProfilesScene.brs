@@ -28,6 +28,7 @@
 ' + an Integer would CRASH.
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' Text list of profiles.
@@ -63,7 +64,7 @@ sub LoadProfiles(userId as String, userName as String)
     name = userName
     if name = invalid then name = ""
     m.userName = name
-    if m.titleLabel <> invalid then m.titleLabel.text = "Profiles — " + name
+    if m.titleLabel <> invalid then m.titleLabel.text = TranslateWithParams("profiles_title_with_name", { profile: name })
 
     if m.userId = "" then return
 
@@ -250,3 +251,16 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("titleLabel")
+    if n <> invalid then n.text = Translate("common_profiles")
+    n = m.top.findNode("statusLabel")
+    if n <> invalid then n.text = Translate("common_loading")
+end sub

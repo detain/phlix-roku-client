@@ -13,6 +13,7 @@
 ' ===========================================
 
 sub Init()
+    ApplyXmlChrome()
     ' Create video player
     m.videoPlayer = m.top.FindNode("videoPlayer")
     m.videoPlayer.EnableCookies()
@@ -2201,7 +2202,7 @@ end sub
 ' Per https://sdkdocs.roku.com/display/sdkdoc/Video (audioTrack field).
 sub OpenAudioTrackList()
     m.trackListType = "audio"
-    if m.trackListTitle <> invalid then m.trackListTitle.text = "Audio Tracks"
+    if m.trackListTitle <> invalid then m.trackListTitle.text = Translate("player_audio_tracks")
 
     if m.audioTracks.Count() = 0 then
         SetTrackListStatus("No audio tracks available for this content")
@@ -2236,7 +2237,7 @@ end sub
 ' Build and open the subtitle track list. "Off" is always the first row.
 sub OpenSubtitleTrackList()
     m.trackListType = "subtitle"
-    if m.trackListTitle <> invalid then m.trackListTitle.text = "Subtitle Tracks"
+    if m.trackListTitle <> invalid then m.trackListTitle.text = Translate("player_subtitle_tracks")
 
     if m.subtitleTracks.Count() = 0 then
         SetTrackListStatus("No subtitle tracks available for this content")
@@ -2284,7 +2285,7 @@ end sub
 ' of the list). Labels deliberately render the wire bytes here, unchanged.
 sub OpenCaptionModeList()
     m.trackListType = "captionMode"
-    if m.trackListTitle <> invalid then m.trackListTitle.text = "Caption Mode"
+    if m.trackListTitle <> invalid then m.trackListTitle.text = Translate("settings_item_caption_mode")
 
     ' The four standard caption modes per Roku certification requirements:
     ' the SSOT array, index order identical to the previous local copy.
@@ -2346,7 +2347,7 @@ end sub
 ' Build and open the chapter list using the trackListPanel.
 sub OpenChapterPicker()
     m.trackListType = "chapter"
-    if m.trackListTitle <> invalid then m.trackListTitle.text = "Chapters"
+    if m.trackListTitle <> invalid then m.trackListTitle.text = Translate("common_chapters")
 
     chapters = m.playbackInfo.chapters
     if chapters.Count() = 0 then
@@ -2957,9 +2958,9 @@ sub OnUpNextResponse(event as Object)
 
     ' Set title
     if m.upNextCardTitle <> invalid and m.upNextItem <> invalid and m.upNextItem.name <> invalid then
-        m.upNextCardTitle.text = "Up Next: " + m.upNextItem.name
+        m.upNextCardTitle.text = TranslateWithParams("player_up_next_title", { title: m.upNextItem.name })
     else if m.upNextCardTitle <> invalid then
-        m.upNextCardTitle.text = "Up Next"
+        m.upNextCardTitle.text = Translate("common_up_next")
     end if
 
     ' Show the card
@@ -3012,7 +3013,7 @@ sub OnUpNextTimerFire()
 
     ' Update countdown label
     if m.upNextCardCountdown <> invalid then
-        m.upNextCardCountdown.text = "Playing in " + m.upNextCountdown.toStr() + "s"
+        m.upNextCardCountdown.text = TranslateWithParams("player_playing_in", { seconds: m.upNextCountdown.toStr() })
     end if
 
     if m.upNextCountdown <= 0 then
@@ -3163,3 +3164,48 @@ end sub
 ' ===================================================================== '
 ' End R7.2 Next episode autoplay                                   '
 ' ===================================================================== '
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("backButton")
+    if n <> invalid then n.title = Translate("common_back")
+    n = m.top.findNode("chapterButton")
+    if n <> invalid then n.title = Translate("common_chapters")
+    n = m.top.findNode("sleepButton")
+    if n <> invalid then n.title = Translate("player_sleep")
+    n = m.top.findNode("syncHeaderLabel")
+    if n <> invalid then n.text = Translate("syncplay_title")
+    n = m.top.findNode("syncCreateButton")
+    if n <> invalid then n.title = Translate("player_create_group")
+    n = m.top.findNode("syncLeaveButton")
+    if n <> invalid then n.title = Translate("player_leave")
+    n = m.top.findNode("qualityHeaderLabel")
+    if n <> invalid then n.text = Translate("player_video_quality")
+    n = m.top.findNode("settingsHeaderLabel")
+    if n <> invalid then n.text = Translate("common_settings")
+    n = m.top.findNode("trackListTitle")
+    if n <> invalid then n.text = Translate("player_select_track")
+    n = m.top.findNode("trackListBackButton")
+    if n <> invalid then n.title = Translate("common_back")
+    n = m.top.findNode("sleepTimerHeaderLabel")
+    if n <> invalid then n.text = Translate("player_sleep_timer")
+    n = m.top.findNode("sleepTimerCancelButton")
+    if n <> invalid then n.title = Translate("common_cancel")
+    n = m.top.findNode("pipExitButton")
+    if n <> invalid then n.title = Translate("common_exit")
+    n = m.top.findNode("playbackErrorHeaderLabel")
+    if n <> invalid then n.text = Translate("player_playback_error")
+    n = m.top.findNode("errorOkButton")
+    if n <> invalid then n.title = Translate("common_ok")
+    n = m.top.findNode("upNextCardCountdown")
+    if n <> invalid then n.text = Translate("player_up_next_in")
+    n = m.top.findNode("upNextPlayButton")
+    if n <> invalid then n.title = Translate("common_play")
+    n = m.top.findNode("upNextCancelButton")
+    if n <> invalid then n.title = Translate("common_cancel")
+end sub

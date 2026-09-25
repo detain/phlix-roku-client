@@ -1818,4 +1818,197 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo ""
+echo "=== Check 25: components/*.xml chrome literals are inside the translate net ==="
+# XML chrome gap law (i18n lane, 2026-09-25): user-facing strings shipped as
+# SceneGraph markup (title=/text= attrs on visible nodes) were INVISIBLE to
+# CHECKs 19-24, which only read .brs source. That invisibility was the last
+# documented i18n gap (docs/i18n.md "XML chrome"). The estate pattern is
+# pkg:/ catalog reads via Utilities.Translate() - locale:// mounting was
+# deliberately avoided - so markup keeps English defaults and gets localized
+# text programmatically at init (ApplyXmlChrome() precedent, mirroring the
+# DetailScene action-button pattern).
+# Law: every non-empty title=/text= literal in components/**/*.xml must be
+#   (1) on the per-file EXEMPT list below (brand, glyphs, never-rendered
+#       placeholders - stale exemptions are themselves a violation), or
+#   (2) byte-match (after HTML-entity decoding) some en_US catalog value, on
+#       a node carrying an id, and the paired .brs (components/<Name>.brs or
+#       source/<Name>.brs) must both address that id via findNode(...)
+#       (case-insensitive) AND call Translate() for a key whose value is that
+#       literal - i.e. an actual programmatic override path exists.
+# Element-content strings (<text>x</text>) have no attribute-override shape
+# and are rejected outright. Unknown non-exempt literals fail loud file:line.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import glob, html, json, os, re, sys
+import xml.parsers.expat as expat
+
+repo = os.environ["REPO"]
+os.chdir(repo)
+problems = []
+
+SKIP_TAGS = {"interface", "field", "event", "component", "script", "function",
+             "children", "annotation"}
+
+# Per-file allow-list of EXEMPT literals, each with its reason. If the literal
+# disappears but the entry stays, the check fails - exemptions cannot rot.
+EXEMPT = {
+    "components/HomeScene.xml": {
+        "Phlix": "brand name - intentionally never localized"},
+    "components/LoginScene.xml": {
+        "Phlix": "brand name - intentionally never localized"},
+    "components/PlayerScene.xml": {
+        "PiP": "established industry acronym for picture-in-picture"},
+    "components/RatingBadge.xml": {
+        "\u2605": "decorative glyph, not text",
+        "0.0/10": "numeric placeholder overwritten by data binding before "
+                  "the badge ever renders"},
+    "components/ToastScene.xml": {
+        "Toast text here": "never rendered - visible=false and init replaces "
+                           "the text with m.top.message"},
+}
+
+# en_US value -> set of flattened keys carrying it (entity-decoded compare)
+en_values = {}
+try:
+    doc = json.loads(open(os.path.join("locale", "en_US", "strings.json"),
+                          encoding="utf-8").read())
+    for section, data in doc.items():
+        if section == "_metadata" or not isinstance(data, dict):
+            continue
+        for bare, leaf in data.items():
+            if isinstance(leaf, str):
+                en_values.setdefault(leaf, set()).add(f"{section}_{bare}")
+except (OSError, ValueError) as err:
+    problems.append(f"  locale/en_US/strings.json - CHECK25: unreadable: {err}")
+
+
+def parse(path):
+    nodes, contents = [], []
+    holder = {"in_text": False, "line": 0, "buf": []}
+    parser = expat.ParserCreate()
+
+    def start(tag, att):
+        if tag in SKIP_TAGS:
+            return
+        title, text = att.get("title"), att.get("text")
+        if title is not None and title.strip():
+            nodes.append((parser.CurrentLineNumber, tag, att.get("id"),
+                          "title", html.unescape(title)))
+        elif text is not None and text.strip():
+            nodes.append((parser.CurrentLineNumber, tag, att.get("id"),
+                          "text", html.unescape(text)))
+        if tag == "text":
+            holder.update(in_text=True, line=parser.CurrentLineNumber, buf=[])
+
+    def chardata(s):
+        if holder["in_text"]:
+            holder["buf"].append(s)
+
+    def end(tag):
+        if tag == "text" and holder["in_text"]:
+            joined = "".join(holder["buf"])
+            if joined.strip():
+                contents.append((holder["line"], tag, joined.strip()))
+            holder["in_text"] = False
+
+    parser.StartElementHandler = start
+    parser.CharacterDataHandler = chardata
+    parser.EndElementHandler = end
+    try:
+        parser.Parse(open(path, "rb").read(), True)
+    except Exception as err:
+        problems.append(f"  {path} - CHECK25: unparsable XML: {err}")
+        return [], []
+    return nodes, contents
+
+
+brs_cache = {}
+
+
+def paired_brs(xml_path):
+    name = os.path.splitext(os.path.basename(xml_path))[0]
+    for cand in (os.path.join("components", name + ".brs"),
+                 os.path.join("source", name + ".brs")):
+        if cand in brs_cache:
+            return brs_cache[cand]
+        if os.path.exists(cand):
+            brs_cache[cand] = (cand, open(cand, encoding="utf-8").read())
+            return brs_cache[cand]
+    brs_cache[name] = None
+    return None, None
+
+
+used_exempt, total = set(), 0
+for xml_path in sorted(glob.glob(os.path.join("components", "**", "*.xml"),
+                                 recursive=True)):
+    xml_key = xml_path.replace(os.sep, "/")
+    nodes, contents = parse(xml_path)
+    total += len(nodes)
+    exemption = EXEMPT.get(xml_key, {})
+    for line, tag, nid, attr, value in nodes:
+        if value in exemption:
+            used_exempt.add((xml_key, value))
+            continue
+        keys = en_values.get(value)
+        if keys is None:
+            problems.append(
+                f"  {xml_path}:{line} - CHECK25: XML chrome literal "
+                f'"{value}" on <{tag}> has no en_US catalog entry - mint a '
+                "key, add the ApplyXmlChrome() override in the paired .brs, "
+                "and mirror all 7 locale files (docs/i18n.md)")
+            continue
+        if not nid:
+            problems.append(
+                f"  {xml_path}:{line} - CHECK25: <{tag}> literal \"{value}\" "
+                "has no id, so no programmatic override can address it - add "
+                "id= and set it from ApplyXmlChrome() in the paired .brs")
+            continue
+        brs_path, brs = paired_brs(xml_path)
+        if brs is None:
+            problems.append(
+                f"  {xml_path}:{line} - CHECK25: \"{value}\" on id=\"{nid}\" "
+                "has no paired .brs to carry the Translate() override")
+            continue
+        if not re.search(r'(?i)findnode\("' + re.escape(nid) + r'"\)', brs):
+            problems.append(
+                f"  {xml_path}:{line} - CHECK25: node id \"{nid}\" is never "
+                f"addressed via findNode() in {brs_path} - add it to "
+                "ApplyXmlChrome()")
+            continue
+        if not any(re.search(r'Translate\("' + re.escape(k) + r'"\)', brs)
+                   for k in keys):
+            problems.append(
+                f"  {xml_path}:{line} - CHECK25: \"{value}\" maps to catalog "
+                f"key(s) {sorted(keys)} but {brs_path} never calls "
+                "Translate() for any of them - wire the override")
+    for line, tag, content in contents:
+        problems.append(
+            f"  {xml_path}:{line} - CHECK25: element-content string in "
+            f"<{tag}> ({content[:40]!r}) - XML text content has no attribute "
+            "override shape; use a catalog-backed title/text attribute")
+
+for xml_key, exemption in EXEMPT.items():
+    for value, reason in exemption.items():
+        if (xml_key, value) not in used_exempt:
+            problems.append(
+                f"  {xml_key} - CHECK25: stale exemption \"{value}\" "
+                f"(\"{reason}\") no longer matches any XML literal - "
+                "remove it")
+
+for line in problems:
+    print(line)
+if problems:
+    print(f"  CHECK25: {len(problems)} XML chrome problem(s)")
+    sys.exit(1)
+
+print(f"  CHECK25: all {total} XML chrome literals exempt or catalog-backed "
+      "with a findNode+Translate override path in the paired .brs; zero "
+      "element-content strings; zero stale exemptions")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

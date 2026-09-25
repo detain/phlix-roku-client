@@ -39,7 +39,7 @@
         </PosterGrid>
 
         <!-- Loading Indicator -->
-        <Label id="loadingLabel" text="Loading..."
+        <Label id="loadingLabel" text="Loading…"
                translation="[640, 340]"
                horizAlign="center" color="#888888" />
 

@@ -26,6 +26,7 @@
 ' result.ok stays TRUE, so MessageOf() reads message-or-error explicitly.
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' Action buttons.
@@ -175,9 +176,9 @@ sub OnApiResponse(event as Object)
 
         if m.adminButton <> invalid then
             if m.currentIsAdmin then
-                m.adminButton.title = "Remove Admin"
+                m.adminButton.title = Translate("useradminactions_remove_admin")
             else
-                m.adminButton.title = "Make Admin"
+                m.adminButton.title = Translate("useradminactions_make_admin")
             end if
         end if
 
@@ -302,3 +303,28 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("titleLabel")
+    if n <> invalid then n.text = Translate("common_user")
+    n = m.top.findNode("approveButton")
+    if n <> invalid then n.title = Translate("useradminactions_approve")
+    n = m.top.findNode("disableButton")
+    if n <> invalid then n.title = Translate("useradminactions_disable")
+    n = m.top.findNode("adminButton")
+    if n <> invalid then n.title = Translate("useradminactions_set_admin")
+    n = m.top.findNode("resetPasswordButton")
+    if n <> invalid then n.title = Translate("useradminactions_reset_password")
+    n = m.top.findNode("profilesButton")
+    if n <> invalid then n.title = Translate("common_profiles")
+    n = m.top.findNode("refreshButton")
+    if n <> invalid then n.title = Translate("common_refresh")
+    n = m.top.findNode("statusLabel")
+    if n <> invalid then n.text = Translate("common_loading")
+end sub

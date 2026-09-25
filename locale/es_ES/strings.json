@@ -2,16 +2,47 @@
   "_metadata": {
     "locale": "es_ES",
     "language_name": "Español (España)",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "source_files": [
-      "components/SettingsScene.brs",
+      "components/AdminScene.brs",
+      "components/AudiobookPlayerScene.brs",
+      "components/AudiobookScene.brs",
+      "components/CollectionScene.brs",
+      "components/CollectionsScene.brs",
+      "components/ConnectScene.brs",
+      "components/DashboardScene.brs",
       "components/DetailScene.brs",
+      "components/FavoritesScene.brs",
+      "components/GuideScene.brs",
+      "components/HomeScene.brs",
+      "components/LibraryAdminActionsScene.brs",
+      "components/LibraryAdminScene.brs",
+      "components/LibraryScene.brs",
+      "components/LiveTvScene.brs",
+      "components/LoginScene.brs",
+      "components/MusicAlbumScene.brs",
+      "components/MusicScene.brs",
+      "components/ParentalControlsScene.brs",
+      "components/PhlixApp.brs",
+      "components/PhotoAlbumScene.brs",
+      "components/PhotosScene.brs",
+      "components/PlayerScene.brs",
+      "components/ProfileActionsScene.brs",
+      "components/ProfilesScene.brs",
+      "components/RecommendationsScene.brs",
+      "components/RecordingsScene.brs",
+      "components/SearchScene.brs",
+      "components/SeasonScene.brs",
+      "components/SeriesRulesScene.brs",
+      "components/SeriesScene.brs",
+      "components/ServerPickerScene.brs",
+      "components/SettingsScene.brs",
       "components/SyncPlayScene.brs",
-      "components/SyncPlayTask.brs",
+      "components/UserAdminActionsScene.brs",
+      "components/UserAdminScene.brs",
       "source/lib/Utilities.brs"
     ]
   },
-
   "settings": {
     "section_account": "Cuenta",
     "section_server": "Servidor",
@@ -20,7 +51,6 @@
     "section_watch_history": "Historial de reproducción",
     "section_notifications": "Notificaciones",
     "section_about": "Acerca de",
-
     "item_user_email": "Correo del usuario",
     "item_server_url": "URL del servidor",
     "item_playback_preferences": "Preferencias de reproducción",
@@ -31,7 +61,6 @@
     "item_push_notifications": "Notificaciones push",
     "item_email_notifications": "Notificaciones por correo",
     "item_version": "Versión",
-
     "desc_user_email": "Ver el correo de tu cuenta y cerrar sesión",
     "desc_server_url": "Ver y cambiar la dirección del servidor",
     "desc_playback_preferences": "Configurar la calidad de reproducción y la reproducción automática",
@@ -42,7 +71,6 @@
     "desc_push_notifications": "Recibir notificaciones push",
     "desc_email_notifications": "Recibir notificaciones por correo",
     "desc_version": "Versión de la aplicación e información del dispositivo",
-
     "status_logged_in_as": "Conectado como: {email}",
     "status_server": "Servidor: {url}",
     "status_loading_preferences": "Cargando preferencias de reproducción...",
@@ -56,7 +84,6 @@
     "status_pip_enabled": "Imagen en imagen activada",
     "status_pip_disabled": "Imagen en imagen desactivada",
     "status_server_switch_not_implemented": "Cambio de servidor no implementado",
-
     "dialog_account_title": "Cuenta",
     "dialog_account_message": "Correo: {email}\n\n¿Quieres cerrar sesión?",
     "dialog_server_title": "Servidor",
@@ -65,7 +92,6 @@
     "dialog_captions_message": "Modo de subtítulos actual: {mode}\n\nSelecciona un modo:",
     "dialog_watch_history_title": "Historial de reproducción",
     "dialog_watch_history_message": "Esto eliminará todos los datos de tu historial de reproducción.\n\n¿Estás seguro?",
-
     "button_cancel": "Cancelar",
     "button_log_out": "Cerrar sesión",
     "button_switch": "Cambiar",
@@ -74,14 +100,12 @@
     "button_caption_off": "Desactivados",
     "button_caption_instant_replay": "Repetición instantánea",
     "button_caption_when_mute": "Al silenciar",
-
     "about_version": "Versión: {version}",
     "about_device_model": "Modelo del dispositivo: {model}",
     "about_device_id": "ID del dispositivo: {id}",
     "about_device_id_unknown": "Desconocido",
     "about_video_mode": "Modo de vídeo",
     "about_total_memory": "Memoria total",
-
     "quality_label": "Calidad: {quality}",
     "autoplay_label": "Reproducción automática: {state}",
     "autoplay_on": "Activada",
@@ -89,21 +113,15 @@
     "caption_mode_label": "Modo de subtítulos: {mode}",
     "caption_mode_set_to": "Modo de subtítulos establecido en: {mode}"
   },
-
   "detail": {
     "favorite_add": "Añadir a favoritos",
     "favorite_remove": "Quitar de favoritos",
-
     "watched_mark": "Marcar como vista",
     "watched_unmark": "Marcar como no vista",
-
     "rating_not_set": "Valoración: sin establecer",
     "rating_label": "Valoración: {rating}/10",
-
     "rated_label": "Clasificación {rating}",
-
     "chapters_count": "{count} capítulos",
-
     "error_favorite_save": "Error",
     "error_favorite_save_message": "No se pudo guardar tu favorito. Inténtalo de nuevo.",
     "error_favorite_remove_message": "No se pudo quitar tu favorito. Inténtalo de nuevo.",
@@ -111,17 +129,17 @@
     "error_rating_clear_message": "No se pudo borrar tu valoración. Inténtalo de nuevo.",
     "error_watched_mark_message": "No se pudo marcar como vista. Inténtalo de nuevo.",
     "error_watched_unmark_message": "No se pudo marcar como no vista. Inténtalo de nuevo.",
-
     "collection_add": "Añadir a la colección",
     "collection_remove": "Quitar de la colección",
-
     "like_like": "Me gusta",
-    "like_unlike": "Ya no me gusta"
+    "like_unlike": "Ya no me gusta",
+    "row_cast": "Reparto",
+    "row_extras": "Extras",
+    "row_trailers": "Tráilers y promos",
+    "row_crew": "Equipo"
   },
-
   "utilities": {
     "photo_album_undated": "Sin fecha",
-
     "rating_g": "G",
     "rating_pg": "PG",
     "rating_pg13": "PG-13",
@@ -129,10 +147,8 @@
     "rating_nc17": "NC-17",
     "rating_x": "X",
     "rating_unrated": "SIN CLASIFICAR",
-
     "iso_prefix": "ISO "
   },
-
   "syncplay": {
     "status_loading_groups": "Cargando grupos...",
     "status_no_public_groups": "No hay grupos públicos disponibles. ¡Crea uno para empezar!",
@@ -145,15 +161,71 @@
     "visibility_public": "[público]",
     "visibility_private": "[privado]",
     "role_host": "Anfitrión",
-    "role_guest": "Invitado"
+    "role_guest": "Invitado",
+    "title": "Ver juntos",
+    "label_room_name": "Nombre de la sala",
+    "label_public_room": "Sala pública",
+    "create_room": "Crear sala",
+    "public_rooms": "Salas públicas",
+    "members_label": "Miembros",
+    "leave_room": "Salir de la sala"
   },
-
   "common": {
     "ok": "OK",
     "error": "Error",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "back": "Atrás",
+    "loading": "Cargando…",
+    "loading_more": "Cargando más…",
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "cancel": "Cancelar",
+    "refresh": "Actualizar",
+    "search": "Buscar",
+    "settings": "Ajustes",
+    "chapters": "Capítulos",
+    "next": "Siguiente",
+    "prev": "Anterior",
+    "exit": "Salir",
+    "favorites": "Favoritos",
+    "collections": "Colecciones",
+    "collection": "Colección",
+    "profiles": "Perfiles",
+    "profile": "Perfil",
+    "users": "Usuarios",
+    "user": "Usuario",
+    "library": "Biblioteca",
+    "libraries": "Bibliotecas",
+    "album": "Álbum",
+    "albums": "Álbumes",
+    "artists": "Artistas",
+    "tracks": "Pistas",
+    "photos": "Fotos",
+    "recordings": "Grabaciones",
+    "season": "Temporada",
+    "series": "Series",
+    "admin": "Admin",
+    "live_tv": "Televisión en directo",
+    "tv_guide": "Guía TV",
+    "music": "Música",
+    "dashboard": "Panel",
+    "for_you": "Para ti",
+    "select_item": "Selecciona un elemento",
+    "up_next": "A continuación",
+    "no_photos": "No hay fotos",
+    "parental_controls": "Control parental",
+    "days": "Días:",
+    "day_mon": "L",
+    "day_tue": "M",
+    "day_wed": "X",
+    "day_thu": "J",
+    "day_fri": "V",
+    "day_sat": "S",
+    "day_sun": "D",
+    "all": "Todos",
+    "audiobooks": "Audiolibros",
+    "sort": "Ordenar"
   },
-
   "errors": {
     "not_authenticated": "Inicia sesión antes de usar las salas de visionado.",
     "not_in_group": "No estás en un grupo de visionado.",
@@ -184,5 +256,123 @@
     "local_room_leave_failed": "No se pudo salir del grupo de visionado.",
     "local_invalid_room": "Esa sala de visionado no es válida.",
     "fallback": "Ocurrió un error de sincronización."
+  },
+  "player": {
+    "audio_tracks": "Pistas de audio",
+    "create_group": "Crear grupo",
+    "leave": "Salir",
+    "playback_error": "Error de reproducción",
+    "playing_in": "Se reproducirá en {seconds}s",
+    "select_track": "Seleccionar pista",
+    "sleep": "Sueño",
+    "sleep_timer": "Temporizador de sueño",
+    "subtitle_tracks": "Pistas de subtítulos",
+    "up_next_in": "A continuación en",
+    "up_next_title": "A continuación: {title}",
+    "video_quality": "Calidad de vídeo"
+  },
+  "home": {
+    "continue_watching": "Seguir viendo",
+    "select_library": "Selecciona una biblioteca"
+  },
+  "connect": {
+    "anyway": "Conectar de todos modos",
+    "button": "Conectar",
+    "server_address": "Dirección del servidor",
+    "title": "Conectar al servidor"
+  },
+  "login": {
+    "button": "Iniciar sesión",
+    "password": "Contraseña",
+    "username": "Nombre de usuario"
+  },
+  "serverpicker": {
+    "choose": "Elige un servidor"
+  },
+  "search": {
+    "hint": "Escribe para buscar…",
+    "no_results": "Sin resultados"
+  },
+  "admin": {
+    "select_section": "Selecciona una sección de administración"
+  },
+  "app": {
+    "boot_cannot_reach": "No se puede acceder al servidor",
+    "boot_unable": "No se pudo conectar tras varios intentos"
+  },
+  "favorites": {
+    "empty": "Aún no hay favoritos"
+  },
+  "collection": {
+    "empty": "Esta colección está vacía"
+  },
+  "recommendations": {
+    "empty": "Aún no hay recomendaciones"
+  },
+  "musicalbum": {
+    "no_tracks": "Sin pistas"
+  },
+  "season": {
+    "select_episode": "Selecciona un episodio"
+  },
+  "series": {
+    "select_season": "Selecciona una temporada"
+  },
+  "audiobook": {
+    "select": "Selecciona un audiolibro"
+  },
+  "audiobookplayer": {
+    "skip_backward": "-30s",
+    "skip_forward": "+30s"
+  },
+  "seriesrules": {
+    "title": "Reglas de la serie"
+  },
+  "library": {
+    "filter_label": "Filtro: {filter}",
+    "jump_to": "Ir a:",
+    "sort_label": "Orden: {sort}",
+    "sortby_date_added": "Fecha de adición",
+    "sortby_name": "Nombre (A-Z)",
+    "sortby_rating": "Valoración",
+    "sortby_runtime": "Duración",
+    "sortby_year": "Año (más reciente)"
+  },
+  "profileactions": {
+    "clear_pin": "Borrar PIN",
+    "rating_prefix": "Clasificación: {rating}"
+  },
+  "profiles": {
+    "title_with_name": "Perfiles — {profile}"
+  },
+  "parentalcontrols": {
+    "access_schedules": "Horarios de acceso",
+    "add_blocked_tag": "Añadir etiqueta bloqueada",
+    "add_schedule": "Añadir horario",
+    "blocked_tags": "Etiquetas bloqueadas",
+    "concurrent_stream_limits": "Límites de streams concurrentes",
+    "delete_selected": "Eliminar seleccionados",
+    "remove_selected": "Quitar seleccionados",
+    "tab_schedules": "Horarios",
+    "tab_stream_limits": "Límites de streams",
+    "tab_tags": "Etiquetas",
+    "title_with_profile": "Control parental — {name}",
+    "update_limit": "Actualizar límite"
+  },
+  "libraryadminactions": {
+    "loading_status": "Cargando estado…",
+    "match": "Emparejar metadatos",
+    "refresh_status": "Actualizar estado",
+    "rescan": "Volver a analizar (completo)",
+    "scan": "Analizar (incremental)",
+    "never_scanned": "Nunca analizado"
+  },
+  "useradminactions": {
+    "approve": "Aprobar",
+    "disable": "Desactivar",
+    "make_admin": "Hacer admin",
+    "remove_admin": "Quitar admin",
+    "reset_password": "Restablecer contraseña",
+    "set_admin": "Establecer como admin"
   }
 }

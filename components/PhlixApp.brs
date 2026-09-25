@@ -46,6 +46,7 @@
 ' ===========================================
 
 sub Init()
+    ApplyXmlChrome()
     print "Phlix App Init"
 
     ' Screen stack for tracking pushed scenes. Each entry is the roSGNode that
@@ -233,9 +234,9 @@ sub OnAuthTimeout()
 
     m.retryCount = m.retryCount + 1
     if m.retryCount <= 3 then
-        ShowBootError("Can't reach the server")
+        ShowBootError(Translate("app_boot_cannot_reach"))
     else
-        ShowBootError("Unable to connect after multiple attempts")
+        ShowBootError(Translate("app_boot_unable"))
     end if
 end sub
 
@@ -835,4 +836,19 @@ sub onMessage(msg as Object)
         toast.duration = content.duration
         m.top.ComponentController.Dialog = toast
     end if
+end sub
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("bootLoadingLabel")
+    if n <> invalid then n.text = Translate("common_loading")
+    n = m.top.findNode("bootErrorLabel")
+    if n <> invalid then n.text = Translate("app_boot_cannot_reach")
+    n = m.top.findNode("bootRetryButton")
+    if n <> invalid then n.text = Translate("common_retry")
 end sub

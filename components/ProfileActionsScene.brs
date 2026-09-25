@@ -28,6 +28,7 @@
 ' {profile} (admin getters do not unwrap).
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' The 7 flat rating buttons (each fires a thin handler -> QueueRating(n)).
@@ -336,3 +337,36 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("titleLabel")
+    if n <> invalid then n.text = Translate("common_profile")
+    n = m.top.findNode("ratingGButton")
+    if n <> invalid then n.title = TranslateWithParams("profileactions_rating_prefix", { rating: Translate("utilities_rating_g") })
+    n = m.top.findNode("ratingPgButton")
+    if n <> invalid then n.title = TranslateWithParams("profileactions_rating_prefix", { rating: Translate("utilities_rating_pg") })
+    n = m.top.findNode("ratingPg13Button")
+    if n <> invalid then n.title = TranslateWithParams("profileactions_rating_prefix", { rating: Translate("utilities_rating_pg13") })
+    n = m.top.findNode("ratingRButton")
+    if n <> invalid then n.title = TranslateWithParams("profileactions_rating_prefix", { rating: Translate("utilities_rating_r") })
+    n = m.top.findNode("ratingNc17Button")
+    if n <> invalid then n.title = TranslateWithParams("profileactions_rating_prefix", { rating: Translate("utilities_rating_nc17") })
+    n = m.top.findNode("ratingXButton")
+    if n <> invalid then n.title = TranslateWithParams("profileactions_rating_prefix", { rating: Translate("utilities_rating_x") })
+    n = m.top.findNode("ratingUnratedButton")
+    if n <> invalid then n.title = TranslateWithParams("profileactions_rating_prefix", { rating: Translate("utilities_rating_unrated") })
+    n = m.top.findNode("clearPinButton")
+    if n <> invalid then n.title = Translate("profileactions_clear_pin")
+    n = m.top.findNode("parentalControlsButton")
+    if n <> invalid then n.title = Translate("common_parental_controls")
+    n = m.top.findNode("refreshButton")
+    if n <> invalid then n.title = Translate("common_refresh")
+    n = m.top.findNode("statusLabel")
+    if n <> invalid then n.text = Translate("common_loading")
+end sub

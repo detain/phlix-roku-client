@@ -121,6 +121,10 @@ cp "$REAL_REPO/components/SyncPlayTask.brs" "$FAKE_REPO/components/SyncPlayTask.
 # Check 24's dead-copy leg needs every token-bearing key's consumer present:
 # syncplay_members_count is consumed only in SyncPlayScene.brs.
 cp "$REAL_REPO/components/SyncPlayScene.brs" "$FAKE_REPO/components/SyncPlayScene.brs"
+# Check 25 scans components/**/*.xml chrome literals and the paired .brs
+# override paths, so the whole components/ dir rides along. Checks 1-13 only
+# read .brs content that is green upstream, so the superset stays green.
+cp -a "$REAL_REPO/components"/. "$FAKE_REPO/components/"
 cp -a "$REAL_REPO/images"/. "$FAKE_REPO/images/"
 cp "$REAL_REPO/package.json" "$FAKE_REPO/package.json"
 cp "$REAL_REPO/manifest" "$FAKE_REPO/manifest"
@@ -143,13 +147,14 @@ set -e
 assert_contains "=== Check 14:" "$POSITIVE_OUT"
 assert_contains "034_media_items_type_audiobook.sql" "$POSITIVE_OUT"
 assert_contains "PASS" "$POSITIVE_OUT"
-for i in $(seq 11 24); do
+for i in $(seq 11 25); do
 	assert_contains "=== Check $i:" "$POSITIVE_OUT"
 done
 assert_contains "CHECK21: all" "$POSITIVE_OUT"
 assert_contains "CHECK22: all" "$POSITIVE_OUT"
 assert_contains "CHECK23: all" "$POSITIVE_OUT"
 assert_contains "CHECK24: all" "$POSITIVE_OUT"
+assert_contains "CHECK25: all" "$POSITIVE_OUT"
 
 # --- locale resolution: simulate the device selecting a ja_JP-style locale ---
 # LoadLocaleStrings normalizes roAppInfo.GetCurrentLocale() with .Trim().
@@ -488,6 +493,48 @@ sed -n '/=== Check 23:/,/=== Check 24:/p' <<<"$RED19_OUT" | grep -q "CHECK23: al
 sed -n '/=== Check 24:/,$p' <<<"$RED19_OUT" | grep -q "CHECK24: all" ||
 	fail "Check 24 must stay PASS while Check 19 is red (gate independence)"
 
+# --- Check 25 red proof on an independent scratch copy: the XML-chrome
+# invisibility defect class (i18n lane 2026-09-25). A raw literal added as a
+# text= attribute in component markup touches no .brs string, so CHECKs 19-24
+# stay silent on it - that invisibility was the gap CHECK25 closes. A planted
+# un-catalogued label must fire CHECK25 red (naming file:line + the literal)
+# while CHECKs 20-24 stay green (gate independence). --
+RED25_ROOT="$TEST_ROOT/red25"
+mkdir -p "$RED25_ROOT"
+cp -a "$TEST_ROOT/repo" "$RED25_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$RED25_ROOT/phlix-server"
+python3 - "$RED25_ROOT/repo/components/HomeScene.xml" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+marker = '    <Label id="loadingLabel"'
+assert marker in text, "loadingLabel anchor not found in HomeScene.xml"
+plant = '<Label id="plantedRawLabel" text="Planted raw chrome string" />\n    '
+text = text.replace(marker, plant + '<Label id="loadingLabel"', 1)
+with open(path, "w", encoding="utf-8") as f:
+    f.write(text)
+PYEOF
+set +e
+RED25_OUT=$(bash "$RED25_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+RED25_RC=$?
+set -e
+[ "$RED25_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when XML chrome literal escapes the translate net (got 0)"
+sed -n '/=== Check 25:/,$p' <<<"$RED25_OUT" | grep -qF 'Planted raw chrome string' ||
+	fail "CHECK25 red must name the planted literal (got: $RED25_OUT)"
+sed -n '/=== Check 25:/,$p' <<<"$RED25_OUT" | grep -qF 'components/HomeScene.xml:' ||
+	fail "CHECK25 red must name the planted file"
+sed -n '/=== Check 20:/,/=== Check 21:/p' <<<"$RED25_OUT" | grep -q "CHECK20: all" ||
+	fail "Check 20 must stay PASS while Check 25 is red (gate independence)"
+sed -n '/=== Check 21:/,/=== Check 22:/p' <<<"$RED25_OUT" | grep -q "CHECK21: all" ||
+	fail "Check 21 must stay PASS while Check 25 is red (gate independence)"
+sed -n '/=== Check 22:/,/=== Check 23:/p' <<<"$RED25_OUT" | grep -q "CHECK22: all" ||
+	fail "Check 22 must stay PASS while Check 25 is red (gate independence)"
+sed -n '/=== Check 23:/,/=== Check 24:/p' <<<"$RED25_OUT" | grep -q "CHECK23: all" ||
+	fail "Check 23 must stay PASS while Check 25 is red (gate independence)"
+sed -n '/=== Check 24:/,/=== Check 25:/p' <<<"$RED25_OUT" | grep -q "CHECK24: all" ||
+	fail "Check 24 must stay PASS while Check 25 is red (gate independence)"
+
 # --- negative: audiobook dropped from the ENUM comment -> exit != 0 + CHECK14
 export FAKE_REPO
 python3 - <<'PYEOF'
@@ -518,4 +565,4 @@ set -e
 [ "$NEG_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the ENUM comment drops audiobook (got 0)"
 assert_contains "CHECK14" "$NEG_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-24 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; reserved-census drift -> CHECK22 reserved leg fired; Check 21 stayed green both runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-25 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; reserved-census drift -> CHECK22 reserved leg fired; Check 21 stayed green both runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"

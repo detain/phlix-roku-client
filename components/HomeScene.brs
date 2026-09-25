@@ -7,6 +7,7 @@
 
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' Libraries grid (multi-row).
@@ -770,3 +771,34 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("searchButton")
+    if n <> invalid then n.title = Translate("common_search")
+    n = m.top.findNode("forYouButton")
+    if n <> invalid then n.title = Translate("common_for_you")
+    n = m.top.findNode("favoritesButton")
+    if n <> invalid then n.title = Translate("common_favorites")
+    n = m.top.findNode("collectionsButton")
+    if n <> invalid then n.title = Translate("common_collections")
+    n = m.top.findNode("settingsButton")
+    if n <> invalid then n.title = Translate("common_settings")
+    n = m.top.findNode("adminButton")
+    if n <> invalid then n.title = Translate("common_admin")
+    n = m.top.findNode("continueLabel")
+    if n <> invalid then n.text = Translate("home_continue_watching")
+    n = m.top.findNode("upNextLabel")
+    if n <> invalid then n.text = Translate("common_up_next")
+    n = m.top.findNode("libraryLabel")
+    if n <> invalid then n.text = Translate("common_libraries")
+    n = m.top.findNode("descriptionLabel")
+    if n <> invalid then n.text = Translate("home_select_library")
+    n = m.top.findNode("loadingLabel")
+    if n <> invalid then n.text = Translate("common_loading")
+end sub

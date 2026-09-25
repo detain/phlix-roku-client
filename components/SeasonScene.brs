@@ -13,6 +13,7 @@
 ' it via PlayerScene).
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' Poster grid for the episodes.
@@ -79,9 +80,9 @@ sub RefreshItems()
     if m.loadingLabel <> invalid then
         m.loadingLabel.visible = true
         if m.offset > 0 then
-            m.loadingLabel.text = "Loading more..."
+            m.loadingLabel.text = Translate("common_loading_more")
         else
-            m.loadingLabel.text = "Loading..."
+            m.loadingLabel.text = Translate("common_loading")
         end if
     end if
 
@@ -224,3 +225,20 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("backButton")
+    if n <> invalid then n.title = Translate("common_back")
+    n = m.top.findNode("titleLabel")
+    if n <> invalid then n.text = Translate("common_season")
+    n = m.top.findNode("loadingLabel")
+    if n <> invalid then n.text = Translate("common_loading")
+    n = m.top.findNode("descriptionLabel")
+    if n <> invalid then n.text = Translate("season_select_episode")
+end sub
