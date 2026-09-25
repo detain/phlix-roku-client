@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
@@ -171,6 +171,9 @@
     "syncplay_group_not_found": "That watch group no longer exists.",
     "syncplay_invalid_password": "That password is not correct.",
     "syncplay_group_full": "That watch group is full.",
+    "syncplay_create_failed": "Could not create the watch group.",
+    "syncplay_join_failed": "Could not join the watch group.",
+    "syncplay_leave_failed": "Could not leave the watch group.",
     "local_no_config": "Could not set up the watch session.",
     "local_no_host": "The sync server address is not configured.",
     "local_socket_unavailable": "This device could not open a network connection for the watch session.",

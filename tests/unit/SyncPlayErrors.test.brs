@@ -27,6 +27,20 @@ sub TestSyncPlayErrorCodeToKeyDottedRegistry()
     print "TestSyncPlayErrorCodeToKeyDottedRegistry passed"
 end sub
 
+sub TestSyncPlayErrorCodeToKeyDottedFlipTwins()
+    ' Twin-flip prep: the reserved dotted forms ride the SAME law as the live
+    ' dotted codes - both shapes of the flip resolve before the wire changes.
+    assertEqual(SyncPlayErrorCodeToKey("syncplay.create_failed"), "errors_syncplay_create_failed")
+    assertEqual(SyncPlayErrorCodeToKey("syncplay.join_failed"), "errors_syncplay_join_failed")
+    assertEqual(SyncPlayErrorCodeToKey("syncplay.leave_failed"), "errors_syncplay_leave_failed")
+    ' The legacy SCREAMING trio the flip replaces still maps to its OWN keys:
+    ' the two families never collide (the point of keeping both in the census).
+    assertEqual(SyncPlayErrorCodeToKey("CREATE_FAILED"), "errors_create_failed")
+    assertEqual(SyncPlayErrorCodeToKey("JOIN_FAILED"), "errors_join_failed")
+    assertEqual(SyncPlayErrorCodeToKey("LEAVE_FAILED"), "errors_leave_failed")
+    print "TestSyncPlayErrorCodeToKeyDottedFlipTwins passed"
+end sub
+
 sub TestSyncPlayErrorCodeToKeyNormalizesNoise()
     ' Case-insensitive, trims padding, dash maps like dot
     assertEqual(SyncPlayErrorCodeToKey("  Not_Host\t"), "errors_not_host")
@@ -47,7 +61,8 @@ end sub
 
 sub TestSyncPlayKnownErrorCodesSet()
     codes = SyncPlayKnownErrorCodes()
-    assertEqual(codes.count(), 16)
+    ' Wire-honesty split: 16 emitted-verified + 3 declared-reserved = 19.
+    assertEqual(codes.count(), 19)
     ' Law output must be collision-free across the two code families
     seen = {}
     for each code in codes
@@ -55,7 +70,60 @@ sub TestSyncPlayKnownErrorCodesSet()
         assertEqual(seen.doesExist(key), false)
         seen[key] = true
     end for
+    ' Family census: 12 legacy SCREAMING, 7 dotted registry (4 live + 3
+    ' reserved) - the split Check 22 content-pins in CI.
+    screaming = 0
+    dotted = 0
+    for each code in codes
+        if code.Instr(".") > 0
+            dotted++
+        else
+            screaming++
+        end if
+    end for
+    assertEqual(screaming, 12)
+    assertEqual(dotted, 7)
     print "TestSyncPlayKnownErrorCodesSet passed"
+end sub
+
+sub TestSyncPlayReservedErrorCodesSet()
+    ' The flip-pending trio is DECLARED, not silently census-pushed: exactly
+    ' these 3 dotted names, every one a wire census member, none a local code.
+    reserved = SyncPlayReservedErrorCodes()
+    assertEqual(reserved.count(), 3)
+    wireSeen = {}
+    for each code in SyncPlayKnownErrorCodes()
+        wireSeen[code] = true
+    end for
+    localSeen = {}
+    for each code in SyncPlayLocalErrorCodes()
+        localSeen[code] = true
+    end for
+    for each code in reserved
+        assertTrue(LCase(code).Left(9) = "syncplay.")
+        assertEqual(wireSeen.doesExist(code), true)
+        assertEqual(localSeen.doesExist(code), false)
+    end for
+    print "TestSyncPlayReservedErrorCodesSet passed"
+end sub
+
+sub TestSyncPlayFlipTwinsInWireCensus()
+    ' Both shapes of the pending twin flip are census members today, so the
+    ' day the server switches create/join/leave to dotted, localized
+    ' rendering already covers it - and old servers keep resolving too.
+    trio = ["syncplay.create_failed", "syncplay.join_failed", "syncplay.leave_failed"]
+    legacy = ["CREATE_FAILED", "JOIN_FAILED", "LEAVE_FAILED"]
+    wireSeen = {}
+    for each code in SyncPlayKnownErrorCodes()
+        wireSeen[code] = true
+    end for
+    for each code in trio
+        assertEqual(wireSeen.doesExist(code), true)
+    end for
+    for each code in legacy
+        assertEqual(wireSeen.doesExist(code), true)
+    end for
+    print "TestSyncPlayFlipTwinsInWireCensus passed"
 end sub
 
 ' ---- LocalizeSyncPlayError: priority chain ----
@@ -87,8 +155,8 @@ end sub
 ' ---- CLIENT-GENERATED local.* FAMILY (Check 23's runtime mirror) ----
 
 sub TestSyncPlayLocalErrorCodesCensus()
-    ' The local census is non-empty and pinned - same discipline as the 16-strong
-    ' wire list. Every member carries the reserved "local." mint prefix.
+    ' The local census is non-empty and pinned - same discipline as the
+    ' wire census. Every member carries the reserved "local." mint prefix.
     codes = SyncPlayLocalErrorCodes()
     assertEqual(codes.count(), 9)
     for each code in codes

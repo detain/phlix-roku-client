@@ -14,9 +14,9 @@ VIOLATIONS=0
 
 echo "=== Check 1: Storage.factory misuse (R0.2 regression) ==="
 while IFS=: read -r file line; do
-  echo "  $file:$line — CHECK1: Storage.factory used directly (use GetStorage())"
-  FOUND=1
-  VIOLATIONS=1
+	echo "  $file:$line — CHECK1: Storage.factory used directly (use GetStorage())"
+	FOUND=1
+	VIOLATIONS=1
 done < <(git grep -rn 'Storage\.\(get\|set\|delete\|clear\)' -- '*.brs' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -24,9 +24,9 @@ FOUND=0
 echo ""
 echo "=== Check 2: m.top.Close() calls (R0.4 regression) ==="
 while IFS=: read -r file line; do
-  echo "  $file:$line — CHECK2: m.top.Close() called (use m.top.requestClose = true)"
-  FOUND=1
-  VIOLATIONS=1
+	echo "  $file:$line — CHECK2: m.top.Close() called (use m.top.requestClose = true)"
+	FOUND=1
+	VIOLATIONS=1
 done < <(git grep -rn 'm\.top\.Close()' -- '*.brs' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -34,9 +34,9 @@ FOUND=0
 echo ""
 echo "=== Check 3: ContentEmitter stub XML (R0.5 regression) ==="
 while IFS=: read -r file line; do
-  echo "  $file:$line — CHECK3: ContentEmitter is not a real SceneGraph node"
-  FOUND=1
-  VIOLATIONS=1
+	echo "  $file:$line — CHECK3: ContentEmitter is not a real SceneGraph node"
+	FOUND=1
+	VIOLATIONS=1
 done < <(git grep -rn '<ContentEmitter' -- '*.xml' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -44,9 +44,9 @@ FOUND=0
 echo ""
 echo "=== Check 4: caption1Icon / handle:// invalid fields (R0.5 regression) ==="
 while IFS=: read -r file line; do
-  echo "  $file:$line — CHECK4: caption1Icon/handle:// is not a real PosterGrid field or valid URI"
-  FOUND=1
-  VIOLATIONS=1
+	echo "  $file:$line — CHECK4: caption1Icon/handle:// is not a real PosterGrid field or valid URI"
+	FOUND=1
+	VIOLATIONS=1
 done < <(git grep -rn -E 'caption1Icon|handle://' -- '*.xml' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -54,9 +54,9 @@ FOUND=0
 echo ""
 echo "=== Check 5: halign= XML attribute (R0.6 regression — should be horizAlign=) ==="
 while IFS=: read -r file line; do
-  echo "  $file:$line — CHECK5: halign= is not a Label field (use horizAlign=)"
-  FOUND=1
-  VIOLATIONS=1
+	echo "  $file:$line — CHECK5: halign= is not a Label field (use horizAlign=)"
+	FOUND=1
+	VIOLATIONS=1
 done < <(git grep -rn 'halign=' -- '*.xml' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -64,17 +64,17 @@ FOUND=0
 echo ""
 echo "=== Check 6: ObserveField callback defined (maps to §5.5) ==="
 for brs in $(git ls-files -- '*.brs'); do
-  callbacks=$(grep -oP 'ObserveField\s*\(\s*"[^"]+"\s*,\s*"\K[^"]+' "$brs" 2>/dev/null || true)
-  for cb in $callbacks; do
-    # Check for regular sub/function OR colon-method syntax (OnCallback: sub() or OnCallback: function())
-    if ! grep -qP "^(sub|function)\s+$cb\b" "$brs" 2>/dev/null && \
-       ! grep -qP "^\s+$cb:\s+(sub|function)\b" "$brs" 2>/dev/null; then
-      line=$(grep -n "ObserveField.*\"$cb\"" "$brs" | head -1 | cut -d: -f1)
-      echo "  $brs:$line — CHECK6: ObserveField target '$cb' has no matching sub/function"
-      FOUND=1
-      VIOLATIONS=1
-    fi
-  done
+	callbacks=$(grep -oP 'ObserveField\s*\(\s*"[^"]+"\s*,\s*"\K[^"]+' "$brs" 2>/dev/null || true)
+	for cb in $callbacks; do
+		# Check for regular sub/function OR colon-method syntax (OnCallback: sub() or OnCallback: function())
+		if ! grep -qP "^(sub|function)\s+$cb\b" "$brs" 2>/dev/null &&
+			! grep -qP "^\s+$cb:\s+(sub|function)\b" "$brs" 2>/dev/null; then
+			line=$(grep -n "ObserveField.*\"$cb\"" "$brs" | head -1 | cut -d: -f1)
+			echo "  $brs:$line — CHECK6: ObserveField target '$cb' has no matching sub/function"
+			FOUND=1
+			VIOLATIONS=1
+		fi
+	done
 done
 [[ $FOUND -eq 0 ]] && echo "  PASS"
 
@@ -82,23 +82,23 @@ FOUND=0
 echo ""
 echo "=== Check 7: FindNode target exists in XML (maps to §5.5) ==="
 for brs in $(git ls-files -- '*.brs'); do
-  if [[ "$brs" == tests/* ]]; then continue; fi
-  base="${brs%.brs}"
-  xml="${base}.xml"
-  if [[ ! -f "$xml" ]]; then continue; fi
-  while IFS=: read -r line content; do
-    ids=$(echo "$content" | grep -oP 'FindNode\s*\(\s*"\K[^"]+' 2>/dev/null || true)
-    for id in $ids; do
-      if [[ "$id" == *'$'* ]] || [[ "$id" == *'{'* ]]; then continue; fi
-      # Extract all content between <children> and </children> and search for id=
-      children_content=$(awk '/^[[:space:]]*<\/children>/{found=0} found{print} /^[[:space:]]*<children>/{found=1; next} END{if(found)print}' "$xml" 2>/dev/null || true)
-      if ! echo "$children_content" | grep -q "id=\"$id\"" 2>/dev/null; then
-        echo "  $brs:$line — CHECK7: FindNode(\"$id\") but no id=\"$id\" in $xml <children>"
-        FOUND=1
-        VIOLATIONS=1
-      fi
-    done
-  done < <(grep -n 'FindNode' "$brs" 2>/dev/null || true)
+	if [[ "$brs" == tests/* ]]; then continue; fi
+	base="${brs%.brs}"
+	xml="${base}.xml"
+	if [[ ! -f "$xml" ]]; then continue; fi
+	while IFS=: read -r line content; do
+		ids=$(echo "$content" | grep -oP 'FindNode\s*\(\s*"\K[^"]+' 2>/dev/null || true)
+		for id in $ids; do
+			if [[ "$id" == *'$'* ]] || [[ "$id" == *'{'* ]]; then continue; fi
+			# Extract all content between <children> and </children> and search for id=
+			children_content=$(awk '/^[[:space:]]*<\/children>/{found=0} found{print} /^[[:space:]]*<children>/{found=1; next} END{if(found)print}' "$xml" 2>/dev/null || true)
+			if ! echo "$children_content" | grep -q "id=\"$id\"" 2>/dev/null; then
+				echo "  $brs:$line — CHECK7: FindNode(\"$id\") but no id=\"$id\" in $xml <children>"
+				FOUND=1
+				VIOLATIONS=1
+			fi
+		done
+	done < <(grep -n 'FindNode' "$brs" 2>/dev/null || true)
 done
 [[ $FOUND -eq 0 ]] && echo "  PASS"
 
@@ -109,11 +109,11 @@ echo "=== Check 8: m.videoPlayer invalid fields (maps to §5.6) ==="
 ALLOW_LIST="command content control currentTime duration endpoint errorMsg focusRing isFullscreen isPhoto loggingUrl manifestHDRType maxHeight maxWidth position rate retargetHeight retargetWidth secureChainingUrl securityKey stream streamFormat streamInfo subtitleStream textTrackTrack track transferType videoLocation videoNode wasPlaying wideAsync EnableCookies SetCertificatesFile ObserveField UnObserveField SetFocus globalCaptionMode seek audioTrack availableAudioTracks subtitleTracks currentSubtitleTrack errorCode width height translation volume isUnderlyingStreamPlaying notificationPeriod positionAsOfNow bifDisplay"
 VIOLATIONS=0
 while IFS=: read -r file line; do
-  field=$(echo "$line" | sed 's/.*m\.videoPlayer\.\([a-zA-Z_][a-zA-Z0-9_]*\).*/\1/' | grep -oP '[a-zA-Z_][a-zA-Z0-9_]*' | head -1)
-  if [[ -n "$field" ]] && ! echo "$ALLOW_LIST" | grep -qw "$field"; then
-    echo "  $file — CHECK8: m.videoPlayer.$field is not a real Video node field"
-    VIOLATIONS=1
-  fi
+	field=$(echo "$line" | sed 's/.*m\.videoPlayer\.\([a-zA-Z_][a-zA-Z0-9_]*\).*/\1/' | grep -oP '[a-zA-Z_][a-zA-Z0-9_]*' | head -1)
+	if [[ -n "$field" ]] && ! echo "$ALLOW_LIST" | grep -qw "$field"; then
+		echo "  $file — CHECK8: m.videoPlayer.$field is not a real Video node field"
+		VIOLATIONS=1
+	fi
 done < <(git grep -n 'm\.videoPlayer\.' -- '*.brs' 2>/dev/null || true)
 [[ $VIOLATIONS -eq 0 ]] && echo "  PASS"
 
@@ -123,17 +123,17 @@ echo "=== Check 9: OnKeyEvent invalid Roku remote keys (maps to §3.6) ==="
 ALLOW_KEYS="back up down left right OK replay play rewind fastforward options info"
 VIOLATIONS=0
 for brs in $(git ls-files -- '*.brs'); do
-  if [[ "$brs" == tests/* ]]; then continue; fi
-  if grep -q 'sub OnKeyEvent' "$brs"; then
-    keys=$(grep -oP 'key\s*[=!]=\s*"\K[^"]+' "$brs" 2>/dev/null || true)
-    for key in $keys; do
-      if ! echo "$ALLOW_KEYS" | grep -qw "$key"; then
-        line_num=$(grep -n "[\"']$key[\"']" "$brs" | head -1 | cut -d: -f1)
-        echo "  $brs:$line_num — CHECK9: OnKeyEvent compares key '$key' which is not a valid Roku remote key"
-        VIOLATIONS=1
-      fi
-    done
-  fi
+	if [[ "$brs" == tests/* ]]; then continue; fi
+	if grep -q 'sub OnKeyEvent' "$brs"; then
+		keys=$(grep -oP 'key\s*[=!]=\s*"\K[^"]+' "$brs" 2>/dev/null || true)
+		for key in $keys; do
+			if ! echo "$ALLOW_KEYS" | grep -qw "$key"; then
+				line_num=$(grep -n "[\"']$key[\"']" "$brs" | head -1 | cut -d: -f1)
+				echo "  $brs:$line_num — CHECK9: OnKeyEvent compares key '$key' which is not a valid Roku remote key"
+				VIOLATIONS=1
+			fi
+		done
+	fi
 done
 [[ $VIOLATIONS -eq 0 ]] && echo "  PASS"
 
@@ -141,10 +141,10 @@ echo ""
 echo "=== Check 10: blocking network outside ApiTask (maps to §5.3) ==="
 VIOLATIONS=0
 while IFS=: read -r file line; do
-  if [[ "$file" != components/ApiTask* ]]; then
-    echo "  $file:$line — CHECK10: blocking network call (ApiClient.wait/sync) on render thread"
-    VIOLATIONS=1
-  fi
+	if [[ "$file" != components/ApiTask* ]]; then
+		echo "  $file:$line — CHECK10: blocking network call (ApiClient.wait/sync) on render thread"
+		VIOLATIONS=1
+	fi
 done < <(git grep -rn 'ApiClient\.\(wait\|sync\)' -- '*.brs' 2>/dev/null || true)
 [[ $VIOLATIONS -eq 0 ]] && echo "  PASS"
 
@@ -158,7 +158,8 @@ VIOLATIONS=0
 # containing "two control" + "never" + "outstanding" or "un guarded"), are
 # allowed.  All others are flagged.
 PYRET=0
-PYOUT=$(python3 - <<'PYEOF'
+PYOUT=$(
+	python3 - <<'PYEOF'
 import subprocess, re, sys, os
 
 os.chdir(os.environ['REPO'])
@@ -261,9 +262,9 @@ FOUND=0
 echo ""
 echo "=== Check 12: syncplay/rooms instead of /groups (R4.1) ==="
 while IFS=: read -r file line; do
-  echo "  $file:$line — CHECK12: syncplay uses /groups endpoint, not /rooms"
-  FOUND=1
-  VIOLATIONS=1
+	echo "  $file:$line — CHECK12: syncplay uses /groups endpoint, not /rooms"
+	FOUND=1
+	VIOLATIONS=1
 done < <(git grep -rn 'syncplay/rooms' -- '*.brs' 2>/dev/null || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
@@ -271,16 +272,17 @@ FOUND=0
 echo ""
 echo "=== Check 13: DELETE verb on syncplay endpoint (R4.1 — leave is POST) ==="
 while IFS=: read -r file line; do
-  echo "  $file:$line — CHECK13: syncplay leave uses POST, not DELETE"
-  FOUND=1
-  VIOLATIONS=1
+	echo "  $file:$line — CHECK13: syncplay leave uses POST, not DELETE"
+	FOUND=1
+	VIOLATIONS=1
 done < <(git grep -rn 'syncplay' -- '*.brs' 2>/dev/null | grep 'DELETE' || true)
 if [[ $FOUND -eq 0 ]]; then echo "  PASS"; fi
 
 echo ""
 echo "=== Check 14: media_items.type ENUM drift vs server (S115) ==="
 PYRET=0
-PYOUT=$(python3 - <<'PYEOF'
+PYOUT=$(
+	python3 - <<'PYEOF'
 import re, os, sys
 
 # ── 1. Find the authoritative ENUM from server migrations ──────────────────────
@@ -409,7 +411,8 @@ echo "$PYOUT"
 echo ""
 echo "=== Check 15: hardcoded localhost URL (R4.10) ==="
 PYRET=0
-PYOUT=$(python3 - <<'PYEOF'
+PYOUT=$(
+	python3 - <<'PYEOF'
 import re, os, sys
 
 os.chdir(os.environ['REPO'])
@@ -483,7 +486,8 @@ echo "=== Check 16: placeholder channel art file size (R6.2) ==="
 # of bytes per pixel after DEFLATE; 1-bit placeholder palettes compress to nothing).
 # Fail if: bytes < width * height * 0.5
 PYRET=0
-PYOUT=$(python3 - <<'PYEOF'
+PYOUT=$(
+	python3 - <<'PYEOF'
 import os, sys, struct, zlib
 
 repo = os.environ['REPO']
@@ -541,7 +545,8 @@ echo "=== Check 17: echo ERROR paired with exit/state (self-audit) ==="
 # Every echo command with ERROR in its output should set FOUND=1, VIOLATIONS=1,
 # or exit 1 to ensure the script properly fails when errors are detected.
 PYRET=0
-PYOUT=$(python3 - <<'PYEOF'
+PYOUT=$(
+	python3 - <<'PYEOF'
 import re, sys, os
 
 script_path = os.path.join(os.environ['REPO'], 'scripts/verify-runtime.sh')
@@ -591,7 +596,8 @@ echo "$PYOUT"
 echo ""
 echo "=== Check 18: version drift between package.json and manifest (R8.8) ==="
 PYRET=0
-PYOUT=$(python3 - <<'PYEOF'
+PYOUT=$(
+	python3 - <<'PYEOF'
 import re, os, sys, json
 
 repo = os.environ['REPO']
@@ -660,7 +666,8 @@ echo "$PYOUT"
 echo ""
 echo "=== Check 19: hardcoded i18n strings in target files (R7.12) ==="
 PYRET=0
-PYOUT=$(python3 - <<'PYEOF'
+PYOUT=$(
+	python3 - <<'PYEOF'
 import re, os, sys
 
 repo = os.environ['REPO']
@@ -845,7 +852,8 @@ echo "=== Check 20: Translate() keys resolve against the locale catalog ==="
 # have a matching flattened entry in locale/en_US/strings.json, or the UI
 # silently renders the raw key. This check closes that gap for CI.
 PYRET=0
-PYOUT=$(python3 - <<'PYEOF'
+PYOUT=$(
+	python3 - <<'PYEOF'
 import json, os, re, sys
 
 repo = os.environ['REPO']
@@ -1142,19 +1150,40 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
-echo "=== Check 22: syncplay error codes resolve in the en_US errors catalog ==="
-# W5 guard law: the thin client localizes syncplay_error frames through the
-# MAPPING LAW in Utilities.brs (SyncPlayErrorCodeToKey: trim, lowercase, "."
-# and "-" -> "_", prefix "errors_"; empty/non-string -> errors_fallback).
-# Silent key-echo fallback must NOT hide a missing translation, so this check
-# re-derives the law in CI and requires:
+echo "=== Check 22: syncplay wire census is content-pinned and resolves in en_US ==="
+# W5 guard law, wire-honesty split redesign (2026-09-25): the client localizes
+# syncplay_error frames through the MAPPING LAW in Utilities.brs
+# (SyncPlayErrorCodeToKey: trim, lowercase, "." and "-" -> "_", prefix
+# "errors_"; empty/non-string -> errors_fallback). The census used to be a
+# bare count pin ("exactly 16"), honest only while every member was
+# server-emitted at verification time. The syncplay twin flip adds
+# syncplay.create_failed / join_failed / leave_failed (contracts-registered,
+# reserved, NOT yet emitted) BEFORE the server starts sending them, so
+# "known" is now a SUPERSET law: census ⊇ emitted, and the law is machine-
+# enforced by CONTENT equality against an explicit split instead of a count:
+#   EMITTED_VERIFIED (16): 12 legacy SCREAMING + 4 dotted twins, read off
+#     phlix-server origin/master e0e010b07c7f4cc21baf10d9a945bac24edab45c
+#     sendError literals (src/Session/SyncPlay/SyncPlayManager.php +
+#     src/Server/WebSocket/MessageHandler.php; re-verify READ-ONLY at each
+#     flip step - a code may only LEAVE this set when its server family
+#     retires).
+#   RESERVED (3): dotted twins in the phlix-contracts error registry
+#     (dist/error-codes.json) awaiting the flip; promoted to emitted on flip,
+#     census and catalogs unchanged.
+# Legs:
 #   (a) every literal in SyncPlayKnownErrorCodes() flattens to an existing
 #       en_US errors_<key> entry, with no two codes colliding on one key
-#   (b) errors_fallback exists (the generic localized line)
+#   (b) errors_fallback exists (the generic localized last-resolve line)
 #   (c) the normalizer keeps its shape (LCase + "."/"-" -> "_") and
 #       Translate()'s nested-probe sections list still includes "errors"
 #   (d) SyncPlayTask.brs still routes syncplay_error text through
 #       LocalizeSyncPlayError() (wire-in present)
+#   (e) CENSUS CONTENT: set(census) == EMITTED_VERIFIED | RESERVED exactly -
+#       a planted 20th code, a renamed member or a silently re-admitted
+#       retired code all fire, which a count pin could not see
+#   (f) DECLARED RESERVED: SyncPlayReservedErrorCodes() exists, names exactly
+#       the RESERVED set, every member is in the census, and no reserved
+#       member is SCREAMING or "local." shape
 # Cross-locale parity of the errors section is covered by Check 21, which
 # compares ALL sections of every locale folder against en_US.
 PYRET=0
@@ -1170,6 +1199,23 @@ UTILITIES = "source/lib/Utilities.brs"
 TASK = "components/SyncPlayTask.brs"
 BASE = "locale/en_US/strings.json"
 
+# Wire truth - see the header above. Evidence: phlix-server origin/master
+# e0e010b07c7f4cc21baf10d9a945bac24edab45c (2026-09-25, read-only grep of
+# sendError / 'error_code' => literals; docblock-only GROUP_FULL /
+# INVALID_PASSWORD examples in Messages.php are NOT wire codes).
+EMITTED_VERIFIED = {
+    "NOT_AUTHENTICATED", "NOT_IN_GROUP", "NOT_HOST", "UNKNOWN_MESSAGE",
+    "HANDLER_ERROR", "PROTOCOL_VERSION_MISMATCH", "INVALID_NEW_HOST",
+    "MEMBER_NOT_FOUND", "SAME_HOST", "CREATE_FAILED", "JOIN_FAILED",
+    "LEAVE_FAILED",
+    "syncplay.group_limit_reached", "syncplay.group_not_found",
+    "syncplay.invalid_password", "syncplay.group_full",
+}
+RESERVED = {
+    "syncplay.create_failed", "syncplay.join_failed", "syncplay.leave_failed",
+}
+EXPECTED_CENSUS = EMITTED_VERIFIED | RESERVED
+
 
 def read(path):
     with open(path, encoding="utf-8") as f:
@@ -1183,16 +1229,53 @@ except OSError as err:
     problems.append(f"  {UTILITIES} - CHECK22: unreadable: {err}")
 
 codes = []
+reserved = []
 if util is not None:
     m = re.search(r"function SyncPlayKnownErrorCodes\(\).*?end function", util, re.S)
     if not m:
         problems.append(f"  {UTILITIES} - CHECK22: SyncPlayKnownErrorCodes() not found")
     else:
         codes = re.findall(r'"([^"]+)"', m.group(0))
-        if len(codes) != 16:
+    # (e) census content equality - the wire-honesty split
+    census = set(codes)
+    if len(codes) != len(census):
+        dupes = sorted({c for c in codes if codes.count(c) > 1})
+        problems.append(
+            f"  {UTILITIES} - CHECK22: wire census contains duplicates {dupes}")
+    missing = sorted(EXPECTED_CENSUS - census)
+    extra = sorted(census - EXPECTED_CENSUS)
+    if missing or extra:
+        problems.append(
+            f"  {UTILITIES} - CHECK22: wire census drifted from the pinned "
+            f"emitted+reserved split (expected {len(EXPECTED_CENSUS)} codes: "
+            f"{len(EMITTED_VERIFIED)} emitted-verified + {len(RESERVED)} "
+            f"reserved)"
+            + (f"; missing {missing}" if missing else "")
+            + (f"; undeclared/unknown {extra}" if extra else "")
+            + " - promote reserved codes only with server evidence, and mint "
+            "client strings in SyncPlayLocalErrorCodes() instead")
+    # (f) declared-reserved registry
+    mr = re.search(r"function SyncPlayReservedErrorCodes\(\).*?end function", util, re.S)
+    if not mr:
+        problems.append(
+            f"  {UTILITIES} - CHECK22: SyncPlayReservedErrorCodes() not found - "
+            "flip-pending codes must be DECLARED, never silently census-pushed")
+    else:
+        reserved = re.findall(r'"([^"]+)"', mr.group(0))
+        rset = set(reserved)
+        if rset != RESERVED:
             problems.append(
-                f"  {UTILITIES} - CHECK22: expected 16 known syncplay error codes, "
-                f"found {len(codes)}: {codes}")
+                f"  {UTILITIES} - CHECK22: reserved census drifted from the "
+                f"declared flip-pending set {sorted(RESERVED)}: found {sorted(rset)}")
+        for code in sorted(rset):
+            if code not in census:
+                problems.append(
+                    f"  {UTILITIES} - CHECK22: reserved code '{code}' is not a "
+                    "wire census member")
+            if not re.fullmatch(r"syncplay\.[a-z0-9_]+", code):
+                problems.append(
+                    f"  {UTILITIES} - CHECK22: reserved code '{code}' is not a "
+                    'dotted registry name - SCREAMING members are emitted, not reserved')
     if not re.search(
             r'LCase\(raw\)\.Replace\("\.", "_"\)\.Replace\("-", "_"\)', util):
         problems.append(
@@ -1249,8 +1332,9 @@ if problems:
     print(f"  CHECK22: {len(problems)} syncplay error-catalog problem(s)")
     sys.exit(1)
 
-print(f"  CHECK22: all {len(codes)} known syncplay error codes + errors_fallback "
-      "resolve in en_US; mapping law and task wire-in intact")
+print(f"  CHECK22: all 19 wire codes (16 emitted-verified + 3 declared "
+      "reserved) + errors_fallback resolve in en_US; census content-pinned; "
+      "mapping law and task wire-in intact")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
@@ -1267,8 +1351,9 @@ echo "=== Check 23: client local.* error family stays separate from the wire cen
 #   (a) SyncPlayLocalErrorCodes() exists; every entry matches local.<snake>
 #   (b) each local code flattens (via the Check 22 normalizer) to an existing
 #       en_US errors_local_* entry, collision-free within the family
-#   (c) WIRE-CENSUS HONESTY: SyncPlayKnownErrorCodes() still lists exactly 16
-#       server-verified codes, none starts with "local.", and no wire code
+#   (c) WIRE-CENSUS HONESTY: SyncPlayKnownErrorCodes() still lists exactly 19
+#       wire codes (16 emitted-verified + 3 declared-reserved per Check 22's
+#       content pin), none starts with "local.", and no wire code
 #       normalizes onto a local key (the families cannot impersonate each other)
 #   (d) SECTION PURITY: every key in the en_US errors section belongs to
 #       wire - {fallback} - local - nothing unaccounted may squat in the error
@@ -1349,11 +1434,13 @@ if util:
         problems.append(f"  {UTILITIES} - CHECK23: SyncPlayKnownErrorCodes() not found")
     else:
         wire_codes = re.findall(r'"([^"]+)"', mw.group(0))
-    # (c) wire-census honesty
-    if len(wire_codes) != 16:
+    # (c) wire-census honesty (content authority is Check 22's pin (e); the
+    # count here re-derives it independently so the two gates stay redundant)
+    if len(wire_codes) != 19:
         problems.append(
-            f"  {UTILITIES} - CHECK23: wire census must stay the 16 "
-            f"server-verified codes, found {len(wire_codes)} - client-minted "
+            f"  {UTILITIES} - CHECK23: wire census must stay the 19 "
+            "wire-honest codes (16 emitted-verified + 3 declared-reserved), "
+            f"found {len(wire_codes)} - client-minted "
             "strings belong in SyncPlayLocalErrorCodes(), never here")
     for code in wire_codes:
         if code.strip().lower().startswith("local."):

@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
@@ -171,6 +171,9 @@
     "syncplay_group_not_found": "そのウォッチグループは存在しません。",
     "syncplay_invalid_password": "パスワードが正しくありません。",
     "syncplay_group_full": "そのウォッチグループは満員です。",
+    "syncplay_create_failed": "ウォッチグループを作成できませんでした。",
+    "syncplay_join_failed": "ウォッチグループに参加できませんでした。",
+    "syncplay_leave_failed": "ウォッチグループから退出できませんでした。",
     "local_no_config": "同期セッションを準備できませんでした。",
     "local_no_host": "同期サーバーのアドレスが設定されていません。",
     "local_socket_unavailable": "このデバイスで同期セッション用のネットワーク接続を開けませんでした。",
