@@ -19,6 +19,7 @@
 ' (routes 404, or a non-admin 403/JSON {error} body).
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' Text list of recordings.
@@ -163,3 +164,16 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("headerLabel")
+    if n <> invalid then n.text = Translate("common_recordings")
+    n = m.top.findNode("statusLabel")
+    if n <> invalid then n.text = Translate("common_loading")
+end sub

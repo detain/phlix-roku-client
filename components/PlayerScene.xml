@@ -122,6 +122,7 @@
         <Rectangle height="720" width="1280" color="#000000" transparency="0.4" visible="false" id="syncPanel">
             <Rectangle height="640" width="600" translation="[40,40]" color="#0d0d1a">
                 <Label height="50" width="540" translation="[30,20]"
+                       id="syncHeaderLabel"
                        text="Watch Together"
                        font="font:LargeBoldSystemFont"
                        color="#FFFFFF" />
@@ -149,6 +150,7 @@
         <Rectangle height="720" width="1280" color="#000000" transparency="0.4" visible="false" id="qualityPanel">
             <Rectangle height="560" width="520" translation="[720,80]" color="#0d0d1a">
                 <Label height="50" width="460" translation="[30,20]"
+                       id="qualityHeaderLabel"
                        text="Video Quality"
                        font="font:LargeBoldSystemFont"
                        color="#FFFFFF" />
@@ -173,6 +175,7 @@
         <Rectangle height="720" width="1280" color="#000000" transparency="0.4" visible="false" id="settingsPanel">
             <Rectangle height="480" width="520" translation="[720,120]" color="#0d0d1a">
                 <Label height="50" width="460" translation="[30,20]"
+                       id="settingsHeaderLabel"
                        text="Settings"
                        font="font:LargeBoldSystemFont"
                        color="#FFFFFF" />
@@ -218,6 +221,7 @@
         <Rectangle height="720" width="1280" color="#000000" transparency="0.4" visible="false" id="sleepTimerPanel">
             <Rectangle height="480" width="520" translation="[40,120]" color="#0d0d1a">
                 <Label height="50" width="460" translation="[30,20]"
+                       id="sleepTimerHeaderLabel"
                        text="Sleep Timer"
                        font="font:LargeBoldSystemFont"
                        color="#FFFFFF" />
@@ -261,6 +265,7 @@
         <Rectangle height="720" width="1280" color="#000000" transparency="0.6" visible="false" id="errorOverlay">
             <Rectangle height="320" width="520" translation="[380,200]" color="#1a1a2e">
                 <Label height="60" width="460" translation="[30,30]"
+                       id="playbackErrorHeaderLabel"
                        text="Playback Error"
                        font="font:LargeBoldSystemFont"
                        color="#ff6b6b" />

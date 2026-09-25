@@ -22,6 +22,7 @@
 '                                        is no `image` member)
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' Favorites grid.
@@ -53,7 +54,7 @@ sub Init()
     m.prefetchThreshold = 15 ' one screen (5 cols x 3 rows = 15 visible)
 
     if m.statusLabel <> invalid then
-        m.statusLabel.text = "Loading…"
+        m.statusLabel.text = Translate("common_loading")
     end if
 
     ' One-shot load on Init (no keyboard, no debounce).
@@ -73,7 +74,7 @@ sub LoadMoreItems()
     m.loadingPage = true
 
     if m.statusLabel <> invalid then
-        m.statusLabel.text = "Loading…"
+        m.statusLabel.text = Translate("common_loading")
     end if
 
     m.apiTask.request = {
@@ -99,7 +100,7 @@ sub OnApiResponse(event as Object)
                 m.favoritesGrid.content = CreateObject("roSGNode", "ContentNode")
             end if
             if m.statusLabel <> invalid and not m.loadingPage then
-                m.statusLabel.text = "No favorites yet"
+                m.statusLabel.text = Translate("favorites_empty")
             end if
             m.loadingPage = false
             m.hasMore = false
@@ -148,7 +149,7 @@ sub OnApiResponse(event as Object)
 
         if m.statusLabel <> invalid then
             if m.results.Count() = 0 then
-                m.statusLabel.text = "No favorites yet"
+                m.statusLabel.text = Translate("favorites_empty")
             else
                 m.statusLabel.text = ""
             end if
@@ -272,7 +273,7 @@ sub RefetchFavorites()
     end if
 
     if m.statusLabel <> invalid then
-        m.statusLabel.text = "Loading…"
+        m.statusLabel.text = Translate("common_loading")
     end if
 
     m.apiTask.request = {
@@ -300,3 +301,16 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("headerLabel")
+    if n <> invalid then n.text = Translate("common_favorites")
+    n = m.top.findNode("statusLabel")
+    if n <> invalid then n.text = Translate("common_loading")
+end sub

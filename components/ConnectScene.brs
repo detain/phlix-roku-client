@@ -20,6 +20,7 @@
 ' loginSucceeded). ONE ApiTask + m.pendingOp serializes the single probe.
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' UI nodes.
@@ -168,3 +169,20 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("headerLabel")
+    if n <> invalid then n.text = Translate("connect_title")
+    n = m.top.findNode("serverAddressLabel")
+    if n <> invalid then n.text = Translate("connect_server_address")
+    n = m.top.findNode("connectButton")
+    if n <> invalid then n.title = Translate("connect_button")
+    n = m.top.findNode("connectAnywayButton")
+    if n <> invalid then n.title = Translate("connect_anyway")
+end sub

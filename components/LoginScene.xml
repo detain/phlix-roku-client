@@ -33,6 +33,7 @@
 
             <!-- Username -->
             <Label height="30" width="460" translation="[20,90]"
+                   id="usernameLabel"
                    text="Username"
                    font="font:SmallSystemFont"
                    color="#AAAAAA" />
@@ -42,6 +43,7 @@
 
             <!-- Password -->
             <Label height="30" width="460" translation="[20,180]"
+                   id="passwordLabel"
                    text="Password"
                    font="font:SmallSystemFont"
                    color="#AAAAAA" />

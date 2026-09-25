@@ -2,16 +2,47 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "source_files": [
-      "components/SettingsScene.brs",
+      "components/AdminScene.brs",
+      "components/AudiobookPlayerScene.brs",
+      "components/AudiobookScene.brs",
+      "components/CollectionScene.brs",
+      "components/CollectionsScene.brs",
+      "components/ConnectScene.brs",
+      "components/DashboardScene.brs",
       "components/DetailScene.brs",
+      "components/FavoritesScene.brs",
+      "components/GuideScene.brs",
+      "components/HomeScene.brs",
+      "components/LibraryAdminActionsScene.brs",
+      "components/LibraryAdminScene.brs",
+      "components/LibraryScene.brs",
+      "components/LiveTvScene.brs",
+      "components/LoginScene.brs",
+      "components/MusicAlbumScene.brs",
+      "components/MusicScene.brs",
+      "components/ParentalControlsScene.brs",
+      "components/PhlixApp.brs",
+      "components/PhotoAlbumScene.brs",
+      "components/PhotosScene.brs",
+      "components/PlayerScene.brs",
+      "components/ProfileActionsScene.brs",
+      "components/ProfilesScene.brs",
+      "components/RecommendationsScene.brs",
+      "components/RecordingsScene.brs",
+      "components/SearchScene.brs",
+      "components/SeasonScene.brs",
+      "components/SeriesRulesScene.brs",
+      "components/SeriesScene.brs",
+      "components/ServerPickerScene.brs",
+      "components/SettingsScene.brs",
       "components/SyncPlayScene.brs",
-      "components/SyncPlayTask.brs",
+      "components/UserAdminActionsScene.brs",
+      "components/UserAdminScene.brs",
       "source/lib/Utilities.brs"
     ]
   },
-
   "settings": {
     "section_account": "アカウント",
     "section_server": "サーバー",
@@ -20,7 +51,6 @@
     "section_watch_history": "視聴履歴",
     "section_notifications": "通知",
     "section_about": "情報",
-
     "item_user_email": "ユーザーメール",
     "item_server_url": "サーバーURL",
     "item_playback_preferences": "再生設定",
@@ -31,7 +61,6 @@
     "item_push_notifications": "プッシュ通知",
     "item_email_notifications": "メール通知",
     "item_version": "バージョン",
-
     "desc_user_email": "アカウントのメールを表示し、ログアウトします",
     "desc_server_url": "サーバーアドレスを表示し、切り替えます",
     "desc_playback_preferences": "再生品質と自動再生を設定します",
@@ -42,7 +71,6 @@
     "desc_push_notifications": "プッシュ通知を受け取ります",
     "desc_email_notifications": "メール通知を受け取ります",
     "desc_version": "アプリのバージョンと端末情報",
-
     "status_logged_in_as": "ログイン中: {email}",
     "status_server": "サーバー: {url}",
     "status_loading_preferences": "再生設定を読み込んでいます...",
@@ -56,7 +84,6 @@
     "status_pip_enabled": "ピクチャーインピクチャーを有効にしました",
     "status_pip_disabled": "ピクチャーインピクチャーを無効にしました",
     "status_server_switch_not_implemented": "サーバーの切り替えは未実装です",
-
     "dialog_account_title": "アカウント",
     "dialog_account_message": "メール: {email}\n\nログアウトしますか？",
     "dialog_server_title": "サーバー",
@@ -65,7 +92,6 @@
     "dialog_captions_message": "現在の字幕モード: {mode}\n\nモードを選択してください:",
     "dialog_watch_history_title": "視聴履歴",
     "dialog_watch_history_message": "視聴履歴データがすべて削除されます。\n\nよろしいですか？",
-
     "button_cancel": "キャンセル",
     "button_log_out": "ログアウト",
     "button_switch": "切り替え",
@@ -74,14 +100,12 @@
     "button_caption_off": "オフ",
     "button_caption_instant_replay": "インスタントリプレイ",
     "button_caption_when_mute": "ミュート時",
-
     "about_version": "バージョン: {version}",
     "about_device_model": "端末モデル: {model}",
     "about_device_id": "端末ID: {id}",
     "about_device_id_unknown": "不明",
     "about_video_mode": "映像モード",
     "about_total_memory": "合計メモリ",
-
     "quality_label": "画質: {quality}",
     "autoplay_label": "自動再生: {state}",
     "autoplay_on": "オン",
@@ -89,21 +113,15 @@
     "caption_mode_label": "字幕モード: {mode}",
     "caption_mode_set_to": "字幕モードを {mode} に設定しました"
   },
-
   "detail": {
     "favorite_add": "お気に入りに追加",
     "favorite_remove": "お気に入りから削除",
-
     "watched_mark": "視聴済みとしてマーク",
     "watched_unmark": "未視聴としてマーク",
-
     "rating_not_set": "評価: 未設定",
     "rating_label": "評価: {rating}/10",
-
     "rated_label": "{rating} レーティング",
-
     "chapters_count": "{count} 章",
-
     "error_favorite_save": "エラー",
     "error_favorite_save_message": "お気に入りを保存できませんでした。もう一度お試しください。",
     "error_favorite_remove_message": "お気に入りを削除できませんでした。もう一度お試しください。",
@@ -111,17 +129,17 @@
     "error_rating_clear_message": "評価を削除できませんでした。もう一度お試しください。",
     "error_watched_mark_message": "視聴済みとしてマークできませんでした。もう一度お試しください。",
     "error_watched_unmark_message": "未視聴としてマークできませんでした。もう一度お試しください。",
-
     "collection_add": "コレクションに追加",
     "collection_remove": "コレクションから削除",
-
     "like_like": "いいね",
-    "like_unlike": "いいねを取り消す"
+    "like_unlike": "いいねを取り消す",
+    "row_cast": "キャスト",
+    "row_extras": "エクストラ",
+    "row_trailers": "予告編＆プロモ",
+    "row_crew": "スタッフ"
   },
-
   "utilities": {
     "photo_album_undated": "日付なし",
-
     "rating_g": "G",
     "rating_pg": "PG",
     "rating_pg13": "PG-13",
@@ -129,10 +147,8 @@
     "rating_nc17": "NC-17",
     "rating_x": "X",
     "rating_unrated": "未評価",
-
     "iso_prefix": "ISO "
   },
-
   "syncplay": {
     "status_loading_groups": "グループを読み込んでいます...",
     "status_no_public_groups": "公開中のグループがありません。作成して始めましょう！",
@@ -145,15 +161,71 @@
     "visibility_public": "[公開]",
     "visibility_private": "[非公開]",
     "role_host": "ホスト",
-    "role_guest": "ゲスト"
+    "role_guest": "ゲスト",
+    "title": "いっしょに視聴",
+    "label_room_name": "ルーム名",
+    "label_public_room": "公開ルーム",
+    "create_room": "ルームを作成",
+    "public_rooms": "公開ルーム一覧",
+    "members_label": "メンバー",
+    "leave_room": "ルームを退出"
   },
-
   "common": {
     "ok": "OK",
     "error": "エラー",
-    "retry": "再試行"
+    "retry": "再試行",
+    "back": "戻る",
+    "loading": "読み込み中…",
+    "loading_more": "もっと読み込み中…",
+    "play": "再生",
+    "pause": "一時停止",
+    "cancel": "キャンセル",
+    "refresh": "更新",
+    "search": "検索",
+    "settings": "設定",
+    "chapters": "チャプター",
+    "next": "次へ",
+    "prev": "前へ",
+    "exit": "終了",
+    "favorites": "お気に入り",
+    "collections": "コレクション",
+    "collection": "コレクション",
+    "profiles": "プロフィール",
+    "profile": "プロフィール",
+    "users": "ユーザー",
+    "user": "ユーザー",
+    "library": "ライブラリ",
+    "libraries": "ライブラリ一覧",
+    "album": "アルバム",
+    "albums": "アルバム",
+    "artists": "アーティスト",
+    "tracks": "トラック",
+    "photos": "写真",
+    "recordings": "録画",
+    "season": "シーズン",
+    "series": "シリーズ",
+    "admin": "管理者",
+    "live_tv": "ライブTV",
+    "tv_guide": "TVガイド",
+    "music": "音楽",
+    "dashboard": "ダッシュボード",
+    "for_you": "おすすめ",
+    "select_item": "アイテムを選択してください",
+    "up_next": "次に再生",
+    "no_photos": "写真がありません",
+    "parental_controls": "ペアレンタルコントロール",
+    "days": "曜日:",
+    "day_mon": "月",
+    "day_tue": "火",
+    "day_wed": "水",
+    "day_thu": "木",
+    "day_fri": "金",
+    "day_sat": "土",
+    "day_sun": "日",
+    "all": "すべて",
+    "audiobooks": "オーディオブック",
+    "sort": "並べ替え"
   },
-
   "errors": {
     "not_authenticated": "ウォッチパーティを使う前にサインインしてください。",
     "not_in_group": "現在グループに参加していません。",
@@ -184,5 +256,123 @@
     "local_room_leave_failed": "ウォッチグループから退出できませんでした。",
     "local_invalid_room": "そのルームは有効ではありません。",
     "fallback": "同期エラーが発生しました。"
+  },
+  "player": {
+    "audio_tracks": "音声トラック",
+    "create_group": "グループを作成",
+    "leave": "退出",
+    "playback_error": "再生エラー",
+    "playing_in": "{seconds}秒後に再生開始",
+    "select_track": "トラックを選択",
+    "sleep": "スリープ",
+    "sleep_timer": "スリープタイマー",
+    "subtitle_tracks": "字幕トラック",
+    "up_next_in": "次回まで",
+    "up_next_title": "次の動画: {title}",
+    "video_quality": "画質"
+  },
+  "home": {
+    "continue_watching": "続きを見る",
+    "select_library": "ライブラリを選択してください"
+  },
+  "connect": {
+    "anyway": "とにかく接続",
+    "button": "接続",
+    "server_address": "サーバーアドレス",
+    "title": "サーバーに接続"
+  },
+  "login": {
+    "button": "ログイン",
+    "password": "パスワード",
+    "username": "ユーザー名"
+  },
+  "serverpicker": {
+    "choose": "サーバーを選択してください"
+  },
+  "search": {
+    "hint": "入力して検索…",
+    "no_results": "結果がありません"
+  },
+  "admin": {
+    "select_section": "管理者セクションを選択してください"
+  },
+  "app": {
+    "boot_cannot_reach": "サーバーに接続できません",
+    "boot_unable": "複数の試行後に接続できませんでした"
+  },
+  "favorites": {
+    "empty": "お気に入りがまだありません"
+  },
+  "collection": {
+    "empty": "このコレクションは空です"
+  },
+  "recommendations": {
+    "empty": "おすすめがまだありません"
+  },
+  "musicalbum": {
+    "no_tracks": "トラックがありません"
+  },
+  "season": {
+    "select_episode": "エピソードを選択してください"
+  },
+  "series": {
+    "select_season": "シーズンを選択してください"
+  },
+  "audiobook": {
+    "select": "オーディオブックを選択してください"
+  },
+  "audiobookplayer": {
+    "skip_backward": "-30秒",
+    "skip_forward": "+30秒"
+  },
+  "seriesrules": {
+    "title": "シールール"
+  },
+  "library": {
+    "filter_label": "フィルター: {filter}",
+    "jump_to": "ジャンプ:",
+    "sort_label": "並び替え: {sort}",
+    "sortby_date_added": "追加日",
+    "sortby_name": "名前 (A-Z)",
+    "sortby_rating": "評価",
+    "sortby_runtime": "再生時間",
+    "sortby_year": "年 (新しい順)"
+  },
+  "profileactions": {
+    "clear_pin": "PINを消去",
+    "rating_prefix": "評価: {rating}"
+  },
+  "profiles": {
+    "title_with_name": "プロフィール — {profile}"
+  },
+  "parentalcontrols": {
+    "access_schedules": "アクセス可能スケジュール",
+    "add_blocked_tag": "ブロックタグを追加",
+    "add_schedule": "スケジュールを追加",
+    "blocked_tags": "ブロックされたタグ",
+    "concurrent_stream_limits": "同時ストリーム制限",
+    "delete_selected": "選択したものを削除",
+    "remove_selected": "選択したものを外す",
+    "tab_schedules": "スケジュール",
+    "tab_stream_limits": "ストリーム制限",
+    "tab_tags": "タグ",
+    "title_with_profile": "ペアレンタルコントロール — {name}",
+    "update_limit": "制限を更新"
+  },
+  "libraryadminactions": {
+    "loading_status": "ステータス読み込み中…",
+    "match": "メタデータを照合",
+    "refresh_status": "ステータスを更新",
+    "rescan": "再スキャン（フル）",
+    "scan": "スキャン（増分）",
+    "never_scanned": "未スキャン"
+  },
+  "useradminactions": {
+    "approve": "承認",
+    "disable": "無効化",
+    "make_admin": "管理者にする",
+    "remove_admin": "管理者解除",
+    "reset_password": "パスワードをリセット",
+    "set_admin": "管理者に設定"
   }
 }

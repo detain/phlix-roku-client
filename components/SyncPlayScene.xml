@@ -34,6 +34,7 @@ Launched from PlayerScene via SyncPlay button (Options key).
         <!-- Header -->
         <Rectangle height="100" width="1280" color="#1a1a2e">
             <Label height="60" width="900" translation="[40,20]"
+                   id="headerLabel"
                    text="Watch Together"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF" />
@@ -47,6 +48,7 @@ Launched from PlayerScene via SyncPlay button (Options key).
             <!-- Room name input -->
             <Rectangle height="80" width="600" translation="[40,20]" color="#1a1a2e">
                 <Label height="30" width="580" translation="[10,5]"
+                       id="roomNameLabel"
                        text="Room Name"
                        font="font:SmallSystemFont"
                        color="#AAAAAA" />
@@ -64,6 +66,7 @@ Launched from PlayerScene via SyncPlay button (Options key).
             <!-- Public/Private toggle -->
             <Rectangle height="60" width="300" translation="[40,110]" color="#1a1a2e">
                 <Label height="40" width="150" translation="[10,10]"
+                       id="publicRoomLabel"
                        text="Public Room"
                        font="font:MediumSystemFont"
                        color="#FFFFFF" />
@@ -81,6 +84,7 @@ Launched from PlayerScene via SyncPlay button (Options key).
 
             <!-- Room list -->
             <Label height="30" width="1200" translation="[40,190]"
+                   id="publicRoomsLabel"
                    text="Public Rooms"
                    font="font:MediumBoldSystemFont"
                    color="#FFFFFF" />
@@ -109,6 +113,7 @@ Launched from PlayerScene via SyncPlay button (Options key).
 
             <!-- Members list -->
             <Label height="30" width="1200" translation="[40,110]"
+                   id="membersLabel"
                    text="Members"
                    font="font:MediumBoldSystemFont"
                    color="#FFFFFF" />

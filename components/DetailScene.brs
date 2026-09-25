@@ -7,6 +7,7 @@
 
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' UI nodes
@@ -929,4 +930,27 @@ sub DisplayExtras(extras as Object)
 
     m.extrasRow.content = content
     m.extrasRow.visible = (extrasArray.Count() > 0)
+end sub
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("backButton")
+    if n <> invalid then n.title = Translate("common_back")
+    n = m.top.findNode("playButton")
+    if n <> invalid then n.title = Translate("common_play")
+    n = m.top.findNode("castRow")
+    if n <> invalid then n.title = Translate("detail_row_cast")
+    n = m.top.findNode("extrasRow")
+    if n <> invalid then n.title = Translate("detail_row_extras")
+    n = m.top.findNode("trailersRow")
+    if n <> invalid then n.title = Translate("detail_row_trailers")
+    n = m.top.findNode("crewRow")
+    if n <> invalid then n.title = Translate("detail_row_crew")
+    n = m.top.findNode("loadingLabel")
+    if n <> invalid then n.text = Translate("common_loading")
 end sub

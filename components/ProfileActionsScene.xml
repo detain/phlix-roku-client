@@ -31,13 +31,13 @@
              Refresh (flat single-action buttons mirror F11c exactly - no focus
              sub-modes, lowest-risk). -->
         <LayoutGroup translation="[40,160]" itemSpacings="[14]">
-            <Button width="420" height="64" title="Rating: G" id="ratingGButton" />
-            <Button width="420" height="64" title="Rating: PG" id="ratingPgButton" />
-            <Button width="420" height="64" title="Rating: PG-13" id="ratingPg13Button" />
-            <Button width="420" height="64" title="Rating: R" id="ratingRButton" />
-            <Button width="420" height="64" title="Rating: NC-17" id="ratingNc17Button" />
-            <Button width="420" height="64" title="Rating: X" id="ratingXButton" />
-            <Button width="420" height="64" title="Rating: UNRATED" id="ratingUnratedButton" />
+            <Button width="420" height="64" title="G" id="ratingGButton" />
+            <Button width="420" height="64" title="PG" id="ratingPgButton" />
+            <Button width="420" height="64" title="PG-13" id="ratingPg13Button" />
+            <Button width="420" height="64" title="R" id="ratingRButton" />
+            <Button width="420" height="64" title="NC-17" id="ratingNc17Button" />
+            <Button width="420" height="64" title="X" id="ratingXButton" />
+            <Button width="420" height="64" title="UNRATED" id="ratingUnratedButton" />
             <Button width="420" height="64" title="Clear PIN" id="clearPinButton" />
             <Button width="420" height="64" title="Parental Controls" id="parentalControlsButton" />
             <Button width="420" height="64" title="Refresh" id="refreshButton" />

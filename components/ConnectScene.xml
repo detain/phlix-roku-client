@@ -27,6 +27,7 @@
         <Rectangle height="420" width="560" translation="[360,150]" color="#1a1a2e">
             <!-- Title -->
             <Label height="60" width="520" translation="[20,20]"
+                   id="headerLabel"
                    text="Connect to server"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF"
@@ -34,6 +35,7 @@
 
             <!-- Server URL -->
             <Label height="30" width="520" translation="[20,100]"
+                   id="serverAddressLabel"
                    text="Server address"
                    font="font:SmallSystemFont"
                    color="#AAAAAA" />

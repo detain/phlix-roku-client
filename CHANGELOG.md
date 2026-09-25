@@ -2,6 +2,51 @@
 
 ## [Unreleased]
 
+### Added — i18n XML-chrome lane: markup strings inside the translate net + CHECK25 — 2026-09-25
+
+- **The last documented i18n gap closed.** User-facing literals shipped as
+  SceneGraph markup (`title=`/`text=` attributes in `components/**/*.xml`) were
+  invisible to Checks 19-24, which read only `.brs` source. All 182 markup
+  literals are now covered: 6 reasoned exemptions (brand "Phlix" ×2, the "PiP"
+  acronym, RatingBadge glyph/numeric placeholders, the never-rendered Toast
+  placeholder) and 176 catalog-backed strings whose localized value is set at
+  scene init by a new per-component `ApplyXmlChrome()` pass (findNode +
+  `Translate()`/`TranslateWithParams()` guard per node), following the
+  DetailScene action-button precedent. ~20 previously id-less header labels
+  gained ids so the override can address them.
+- **Catalog v1.3.0 → v1.4.0, 140 → 273 keys per locale** (×7). New
+  `common_*` chrome vocabulary (buttons/sections), scene sections
+  (`player_*`, `connect_*`, `login_*`, `search_*`, `parentalcontrols_*`,
+  `library*`, `libraryadminactions_*`, `useradminactions_*`, `syncplay_*`
+  labels, `detail_row_*`, empty/select states); reuse where the value already
+  existed (`common_ok/retry`, `detail_favorite_add` etc., `settings_item_
+  caption_mode`, `utilities_rating_*`). `'Loading...'`/`'Loading…'` unified on
+  `common_loading`. Registers follow house law: informal tú/vous/du/tu/você,
+  ja desu-masu labels. `_metadata.source_files` now enumerates every `.brs`
+  calling Translate.
+- **Token templates replace concatenated chrome:** ProfileActions rating
+  buttons carry bare `G…UNRATED` defaults composed via
+  `profileactions_rating_prefix {rating}`; Library `Sort:`/`Filter:` labels
+  became `library_sort_label {sort}` / `library_filter_label {filter}` with a
+  literal-Translate `TranslateSortLabel` resolver (replaces the English value
+  map); ParentalControls/Profiles profile-interpolated titles became
+  `*_title_with_*` templates; PlayerScene up-next countdown/title became
+  `player_playing_in {seconds}` / `player_up_next_title {title}`; boot-error
+  and playback-panel strings became `app_boot_*` / `player_*` keys.
+- **Check 25 (guard law, append-only):** parses every `components/**/*.xml`
+  (entity-decoded), requires each non-empty markup literal to be exempt
+  (stale exemptions red), catalog-byte-matched, id-addressable, and proven to
+  have a real override path (`findNode("<id>")` + `Translate("<value's key>")`
+  in the paired `.brs`); `<text>` content nodes rejected outright; fail-loud
+  `file:line`. The portable harness now ships the full `components/` tree,
+  asserts Check 11-25 headers, and gains the red-25 leg: a planted raw label
+  fires CHECK25 while Checks 20-24 stay green.
+- **Gates:** `make lint` · `make bslint` · `bash scripts/verify-runtime.sh`
+  (25/25, exit 0) · `bash tests/scripts/verify-runtime-portable.sh` (all
+  legs, exit 0) · `make package` green. No `Translate()` call-site key was
+  changed on existing screens; device-run posture unchanged (no ROKU_HOST in
+  this venue — rooibos suites skip by precedent).
+
 ### Changed — W111 (cs47b): route-manifest CONTENT re-vendor (404→410 tuples) — 2026-09-17
 
 - **cs#47 currency re-vendor (lane cs47b) — CONTENT regen, roku is NOT pure this

@@ -22,6 +22,7 @@
 ' and only fires the search when the trimmed query length is >= 2.
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' Keyboard (left). Start focus here; observe its text for live queries.
@@ -66,7 +67,7 @@ sub Init()
     m.prefetchThreshold = 15 ' one screen (5 cols x 3 rows = 15 visible)
 
     if m.statusLabel <> invalid then
-        m.statusLabel.text = "Type to search…"
+        m.statusLabel.text = Translate("search_hint")
     end if
 
     ' R5.2: Generation counter to discard stale (out-of-order) responses.
@@ -90,7 +91,7 @@ sub OnQueryChanged(event as Object)
             m.resultsGrid.content = CreateObject("roSGNode", "ContentNode")
         end if
         if m.statusLabel <> invalid then
-            m.statusLabel.text = "Type to search…"
+            m.statusLabel.text = Translate("search_hint")
         end if
         return
     end if
@@ -177,7 +178,7 @@ sub OnApiResponse(event as Object)
                 m.resultsGrid.content = CreateObject("roSGNode", "ContentNode")
             end if
             if m.statusLabel <> invalid and not m.loadingPage then
-                m.statusLabel.text = "No results"
+                m.statusLabel.text = Translate("search_no_results")
             end if
             m.loadingPage = false
             m.hasMore = false
@@ -226,7 +227,7 @@ sub OnApiResponse(event as Object)
 
         if m.statusLabel <> invalid then
             if m.results.Count() = 0 then
-                m.statusLabel.text = "No results"
+                m.statusLabel.text = Translate("search_no_results")
             else
                 m.statusLabel.text = ""
             end if
@@ -370,3 +371,16 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("headerLabel")
+    if n <> invalid then n.text = Translate("common_search")
+    n = m.top.findNode("statusLabel")
+    if n <> invalid then n.text = Translate("search_hint")
+end sub

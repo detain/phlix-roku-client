@@ -34,12 +34,12 @@
         <!-- Sort/Filter Labels Row -->
         <Rectangle height="40" width="1280" translation="[0,100]" color="#16213e">
             <Label height="40" width="300" translation="[20,8]"
-                   text="Sort: Name"
+                   text=""
                    font="font:SmallSystemFont"
                    color="#AAAAAA"
                    id="sortLabel" />
             <Label height="40" width="300" translation="[340,8]"
-                   text="Filter: All"
+                   text=""
                    font="font:SmallSystemFont"
                    color="#AAAAAA"
                    id="filterLabel" />
@@ -56,6 +56,7 @@
         <!-- A-Z Jump Bar -->
         <Rectangle height="50" width="1280" translation="[0,600]" color="#0d0d1a">
             <Label height="30" width="100" translation="[20,10]"
+                   id="jumpToLabel"
                    text="Jump to:"
                    font="font:SmallSystemFont"
                    color="#888888" />
@@ -74,7 +75,7 @@
                    id="descriptionLabel" />
         </Rectangle>
         <!-- Loading Indicator -->
-        <Label id="loadingLabel" text="Loading..."
+        <Label id="loadingLabel" text="Loading…"
                translation="[640, 340]"
                horizAlign="center" color="#888888" visible="false" />
     </children>

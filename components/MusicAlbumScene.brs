@@ -18,6 +18,7 @@
 ' against double-select by m.pendingPlay (mirrors MusicScene / HomeScene).
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     m.titleLabel = m.top.FindNode("titleLabel")
@@ -48,7 +49,7 @@ sub LoadAlbum(albumName as String)
     if albumName = invalid then m.albumName = ""
 
     if m.titleLabel <> invalid then m.titleLabel.text = m.albumName
-    if m.statusLabel <> invalid then m.statusLabel.text = "Loading…"
+    if m.statusLabel <> invalid then m.statusLabel.text = Translate("common_loading")
 
     if m.albumName = "" then return
 
@@ -73,7 +74,7 @@ sub OnAlbumResponse(resp as Object)
     if not resp.ok or resp.data = invalid or resp.data.album = invalid then
         m.tracks = []
         if m.trackList <> invalid then m.trackList.content = CreateObject("roSGNode", "ContentNode")
-        if m.statusLabel <> invalid then m.statusLabel.text = "No tracks"
+        if m.statusLabel <> invalid then m.statusLabel.text = Translate("musicalbum_no_tracks")
         return
     end if
 
@@ -99,7 +100,7 @@ sub OnAlbumResponse(resp as Object)
 
     if m.statusLabel <> invalid then
         if m.tracks.Count() = 0 then
-            m.statusLabel.text = "No tracks"
+            m.statusLabel.text = Translate("musicalbum_no_tracks")
         else
             m.statusLabel.text = ""
         end if
@@ -199,3 +200,16 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("titleLabel")
+    if n <> invalid then n.text = Translate("common_album")
+    n = m.top.findNode("statusLabel")
+    if n <> invalid then n.text = Translate("common_loading")
+end sub

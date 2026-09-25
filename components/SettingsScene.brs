@@ -5,6 +5,7 @@
 ' R7.1: Settings scene with 6 sections (Account, Server, Playback, Captions, Watch History, About)
 
 sub Init()
+    ApplyXmlChrome()
     m.top.isSubcomponent = false
 
     ' Define settings items with section headers and menu entries
@@ -354,3 +355,14 @@ function IIF(condition as Boolean, trueValue as String, falseValue as String) as
         return falseValue
     end if
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("headerLabel")
+    if n <> invalid then n.text = Translate("common_settings")
+end sub

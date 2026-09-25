@@ -24,6 +24,7 @@
 ' - m.pendingOp guards so a button press while a request is outstanding is ignored
 
 sub Init()
+    ApplyXmlChrome()
     m.top.SetFocus(true)
 
     ' Section tabs
@@ -117,7 +118,7 @@ sub LoadProfile(profileId as String, profileName as String)
     name = profileName
     if name = invalid then name = ""
     m.profileName = name
-    if m.titleLabel <> invalid then m.titleLabel.text = "Parental Controls — " + name
+    if m.titleLabel <> invalid then m.titleLabel.text = TranslateWithParams("parentalcontrols_title_with_profile", { name: name })
 
     if m.profileId = "" then return
 
@@ -663,3 +664,54 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     return handled
 end function
+
+' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
+' ship as component markup) at scene init. CHECK25 in
+' scripts/verify-runtime.sh requires every user-facing components/*.xml
+' string to have a programmatic Translate() override path; this sub is
+' that path. The XML keeps English values as the en-fallback default,
+' mirroring the DetailScene precedent.
+sub ApplyXmlChrome()
+    n = m.top.findNode("titleLabel")
+    if n <> invalid then n.text = Translate("common_parental_controls")
+    n = m.top.findNode("tabSchedulesButton")
+    if n <> invalid then n.title = Translate("parentalcontrols_tab_schedules")
+    n = m.top.findNode("tabTagsButton")
+    if n <> invalid then n.title = Translate("parentalcontrols_tab_tags")
+    n = m.top.findNode("tabStreamLimitsButton")
+    if n <> invalid then n.title = Translate("parentalcontrols_tab_stream_limits")
+    n = m.top.findNode("accessSchedulesLabel")
+    if n <> invalid then n.text = Translate("parentalcontrols_access_schedules")
+    n = m.top.findNode("daysLabel")
+    if n <> invalid then n.text = Translate("common_days")
+    n = m.top.findNode("dayMonButton")
+    if n <> invalid then n.title = Translate("common_day_mon")
+    n = m.top.findNode("dayTueButton")
+    if n <> invalid then n.title = Translate("common_day_tue")
+    n = m.top.findNode("dayWedButton")
+    if n <> invalid then n.title = Translate("common_day_wed")
+    n = m.top.findNode("dayThuButton")
+    if n <> invalid then n.title = Translate("common_day_thu")
+    n = m.top.findNode("dayFriButton")
+    if n <> invalid then n.title = Translate("common_day_fri")
+    n = m.top.findNode("daySatButton")
+    if n <> invalid then n.title = Translate("common_day_sat")
+    n = m.top.findNode("daySunButton")
+    if n <> invalid then n.title = Translate("common_day_sun")
+    n = m.top.findNode("addScheduleButton")
+    if n <> invalid then n.title = Translate("parentalcontrols_add_schedule")
+    n = m.top.findNode("deleteScheduleButton")
+    if n <> invalid then n.title = Translate("parentalcontrols_delete_selected")
+    n = m.top.findNode("blockedTagsLabel")
+    if n <> invalid then n.text = Translate("parentalcontrols_blocked_tags")
+    n = m.top.findNode("addTagButton")
+    if n <> invalid then n.title = Translate("parentalcontrols_add_blocked_tag")
+    n = m.top.findNode("removeTagButton")
+    if n <> invalid then n.title = Translate("parentalcontrols_remove_selected")
+    n = m.top.findNode("streamLimitsLabel")
+    if n <> invalid then n.text = Translate("parentalcontrols_concurrent_stream_limits")
+    n = m.top.findNode("updateStreamLimitButton")
+    if n <> invalid then n.title = Translate("parentalcontrols_update_limit")
+    n = m.top.findNode("statusLabel")
+    if n <> invalid then n.text = Translate("common_loading")
+end sub
