@@ -679,19 +679,59 @@ TARGETS = [
     'source/lib/Utilities.brs',
 ]
 
-# Allow-list: patterns that are NOT user-facing hardcoded i18n strings
-EXEMPT = [
+# Allow-list: patterns that are NOT user-facing hardcoded i18n strings.
+# TWO FAMILIES (the anchoring law — an exemption is a statement about CODE,
+# never about prose inside a user-facing literal):
+#   EXEMPT_CONTENT  — tested against the RAW line, because these patterns
+#                     live INSIDE string literals by design (URLs, IPs,
+#                     bare numbers, locale paths) or anchor a line's raw
+#                     comment shape.
+#   EXEMPT_STATEMENT — tested against code_view(line): trailing comment cut
+#                     at the first ' outside a double-quoted string, then
+#                     every double-quoted string's CONTENT blanked. A
+#                     keyword like for/next/else/then/print/exit or a
+#                     function name only exempts when it is actual code;
+#                     'm.text = "Pay $5 for entry"' can no longer exempt
+#                     itself with the word "for" inside the literal (the
+#                     unanchored-substring defect class, review #91 LOW).
+EXEMPT_CONTENT = [
     re.compile(r'^[\'"]HTTP/'),            # HTTP protocol strings
     re.compile(r'^[\'"]https?://'),         # URL scheme literals
     re.compile(r'^[\'"]ws[s]?://'),         # WebSocket scheme literals
     re.compile(r'^[\'"][a-z]+://'),         # any scheme://
     re.compile(r'localhost'),               # localhost hostnames
-    re.compile(r'192\.168\.'),             # private IP patterns
-    re.compile(r'10\.'),                    # private IP patterns
-    re.compile(r'172\.(1[6-9]|2[0-9]|3[0-1])\.'),  # private IP patterns
-    re.compile(r'127\.'),                   # loopback
+    # Private IPs, pinned to full dotted-quad shape: a bare '10.' substring
+    # would exempt any line whose literal merely contains a decimal ('10.99').
+    re.compile(r'192\.168\.\d{1,3}\.\d'),  # private IP patterns
+    re.compile(r'\b10\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'),  # private IP patterns
+    re.compile(r'172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d'),  # private IP patterns
+    re.compile(r'\b127\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'),  # loopback
     re.compile(r'^[\'"][0-9]+[\'"]$'),     # bare numeric strings
     re.compile(r'^[\'"][0-9]+\.[0-9]+[\'"]$'),  # version strings in quotes
+    re.compile(r'locale/en_US'),           # references to locale path
+    re.compile(r'^[\s]*\'\'\''),         # doc comment lines
+    re.compile(r'^\s*\'\s@'),            # at-tag doc comment lines
+]
+
+def code_view(line):
+    # Statement-view of a BrightScript line for the EXEMPT_STATEMENT tests:
+    # cut the trailing comment (a ' outside a double-quoted string comments
+    # to end-of-line; BrightScript strings are double-quoted only, same
+    # masking contract as Checks 20/23/24), then blank every string's CONTENT
+    # so only code shape — never literal prose — can satisfy an exemption.
+    kept = []
+    in_string = False
+    for ch in line:
+        if ch == '"':
+            in_string = not in_string
+            kept.append(ch)
+        elif ch == "'" and not in_string:
+            break
+        else:
+            kept.append(ch)
+    return re.sub(r'"[^"]*"', '"STRING"', "".join(kept))
+
+EXEMPT_STATEMENT = [
     re.compile(r'\bstr\s*\('),             # str() runtime formatting calls
     re.compile(r'\bFormatTime\b'),         # time formatting functions
     re.compile(r'\bFormatUnixTime\b'),
@@ -706,7 +746,6 @@ EXEMPT = [
     re.compile(r'\.uri\s*='),              # Poster.uri — data, not UI
     re.compile(r'\.id\s*='),               # node id field
     re.compile(r'\.content\s*='),          # ContentNode content field
-    re.compile(r'locale/en_US'),           # references to locale path
     re.compile(r'GetApiClient\b'),         # function call
     re.compile(r'GetServerUrl\b'),         # function call
     re.compile(r'GetDeviceModel\b'),       # function call
@@ -718,23 +757,26 @@ EXEMPT = [
     re.compile(r'\.UnObserveField\('),     # observer unregistration
     re.compile(r'return\s+["\']'),         # return statements with string literals
     re.compile(r'print\s+'),               # print statements
-    re.compile(r'exit\s+'),                # exit statements
+    re.compile(r'exit\s+'),                # exit statements (exit for/while/function)
     re.compile(r'\.DoesExist\('),          # DoesExist method calls
     re.compile(r'\.Split\('),             # string split calls
-    re.compile(r'\.Split\("_\"\)'),       # underscore split for prefs
     re.compile(r'\.Lower\(\)'),           # case conversion calls
     re.compile(r'\.Trim\(\)'),            # trim calls
     re.compile(r'if\s+.*\s*=\s*["\']'),   # if condition comparisons
     re.compile(r'\btrue\b|\bfalse\b'),     # boolean literals
     re.compile(r'\bthen\b'),              # if/then/end if keywords
     re.compile(r'\belse\b'),              # else keyword
-    re.compile(r'\bfor\s+'),              # for loop keyword
-    re.compile(r'\bnext\b'),              # next keyword
-    re.compile(r'\bto\b'),                # to keyword in for loops
+    # for loop headers, anchored to the BrightScript grammar (dialect-verified
+    # against this repo + the Roku spec): `for <var> = <start> to <limit>
+    # [step <inc>]` and `for each <var> in <collection>`. A user literal
+    # containing ' for ' cannot satisfy either branch.
+    re.compile(r'\bfor\s+(?:each\s+\w+\s+in\s+|\w+\s*=)'),
+    re.compile(r'\bnext\b'),              # next keyword (statement; 'to' needs
+                                          # no own entry — it only survives
+                                          # masking inside a for header, which
+                                          # the grammar anchor above exempts)
     re.compile(r'^[\s]*function\s+\w+'),   # function declarations
     re.compile(r'^[\s]*sub\s+\w+'),       # sub declarations
-    re.compile(r'^[\s]*\'\'\''),         # doc comment lines
-    re.compile(r'^\s*\'\s@'),            # at-tag doc comment lines
     re.compile(r'chr\s*\(\s*10\s*\)'),   # Chr(10) line feeds — structural
     re.compile(r'chr\s*\(\s*13\s*\)'),   # Chr(13) — structural
     re.compile(r'chr\s*\(\s*9\s*\)'),    # Chr(9) — tab characters
@@ -759,7 +801,6 @@ EXEMPT = [
     re.compile(r'\.Mid\('),               # string Mid calls
     re.compile(r'\.Instr\('),             # string Instr calls
     re.compile(r'\.Len\('),               # string Len calls
-    re.compile(r'\.Replace\('),            # string Replace calls
     re.compile(r'Repl\s*\('),             # string Repl calls
     re.compile(r'CreateObject\s*\('),     # CreateObject calls
     re.compile(r'type\s*\('),             # type() calls
@@ -801,8 +842,12 @@ for tpath in TARGETS:
         if not string_literals:
             continue
 
-        # Skip if line matches any exempt pattern
-        if any(p.search(line) for p in EXEMPT):
+        # Skip if line matches any exempt pattern (anchoring law at the top
+        # of this check): content shapes see the raw line, statement shapes
+        # only the code_view with string contents and comments blanked.
+        if any(p.search(line) for p in EXEMPT_CONTENT):
+            continue
+        if any(p.search(code_view(line)) for p in EXEMPT_STATEMENT):
             continue
 
         # This line has a string literal that is not exempt.
@@ -1581,6 +1626,11 @@ echo "=== Check 24: token-bearing catalog values flow through TranslateWithParam
 #       cover the catalog's token multiset - a missing param re-leaks braces.
 #       A non-literal (dynamic) params argument is unverifiable statically and
 #       is accepted, documented limitation.
+#   (f) RESOLUTION MIRROR: every literal TranslateWithParams("key") must name a
+#       flattened (section_key) entry in locale/en_US/strings.json - the
+#       token-law conversion moved such keys out of Check 20's Translate()
+#       regex field of view, so this leg keeps the anti-typo / raw-key-echo
+#       guarantee TOTAL across both consumption functions.
 # WHITELIST HONESTY: the scan set is source/ + components/ *.brs ONLY.
 # docs/*.md quote catalog values verbatim and tests/unit/*.test.brs assert the
 # law's raw-token inputs on purpose - they are excluded BY DESIGN, not by

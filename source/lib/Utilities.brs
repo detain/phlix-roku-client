@@ -1104,7 +1104,8 @@ end function
 ' feeding them translated button labels silently mis-sets captions on every
 ' non-English locale (the defect this family closes). WIRE values go to the OS,
 ' DISPLAY labels go to the eye - bound by index, never by string equality.
-' PlayerScene's caption-mode list uses the same vocabulary and order.
+' PlayerScene renders its caption list FROM this function (review #91 retired
+' its local copies of the array), so the wire bytes have exactly one source.
 ' ===========================================
 
 ' The four platform captions modes per

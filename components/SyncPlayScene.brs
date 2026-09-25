@@ -121,8 +121,13 @@ end function
 ' a different value - the surrounding parentheses stay layout owned here.
 ' The original in-place Replace exemplar is now the shared law: generalization
 ' lives in Utilities.brs TranslateWithParams/ApplyNamedTokens (Check 24).
+' Integer-safe (review #91 INFO): a head-count is a whole thing, and JSON
+' envelopes can deliver it as a float - Int() here restores the truncation
+' the pre-token body (str(Int(n)).Trim()) always had, so 3.0 renders "3" and
+' never "3.0". The general TokenValueText law is untouched on purpose: other
+' tokens (ratings, prices) may legitimately carry decimals.
 function MembersCountText(n as Object) as String
-    return TranslateWithParams("syncplay_members_count", { count: n })
+    return TranslateWithParams("syncplay_members_count", { count: Int(n) })
 end function
 
 ' Create a new room
