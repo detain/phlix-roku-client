@@ -39,7 +39,7 @@ Running a single test: there is no host runner — `rooibos --group unit` / `--g
 These commands are run in CI and must pass before merging:
 
 - `npx bsc --project bsconfig.json` — brighterscript type-check (zero diagnostics required)
-- `make verify-runtime` — 21 runtime-defect checks (scripts/verify-runtime.sh); hard CI gate in lint.yml and package.yml
+- `make verify-runtime` — 25 runtime-defect checks (`scripts/verify-runtime.sh`); hard CI gate in lint.yml and package.yml
 - `make validate-routes` — S280 route gate: every issued URL is tuple-exact against `tests/fixtures/server-route-manifest.json`; hard CI gate in test.yml
 - `make validate-manifest` — manifest has required fields
 - `make validate-xml` — all XML files are valid SceneGraph documents
@@ -218,6 +218,9 @@ These are conventions enforced informally (sometimes by `make lint`'s greps); fo
   - **Skip-if-busy** (`OnTranscodePollFire`): if `m.state = "run"`, silently return — use
     `if m.state = "run" then return else m.state = "run" : m.top.control = "run" : end if`.
   Unguarded `control = "run"` is caught by CHECK 11 in `make verify-runtime`.
+- **XML chrome strings** — any non-empty `title=`/`text=` literal in `components/*.xml` must be an
+  `en_US` catalog value on a node with an `id`, overridden in the paired `.brs`'s `ApplyXmlChrome()`
+  (called from `Init`) via `findNode("<id>")` + `Translate("<key>")` — CHECK 25 fails anything else.
 
 ## Reference docs already in the repo
 
@@ -225,8 +228,8 @@ These are conventions enforced informally (sometimes by `make lint`'s greps); fo
 - `DEVELOPER.md` — extensive coding conventions, scene-graph patterns, mocking patterns for tests. Consult before writing new patterns from scratch.
 - `docs/debugging.md` — telnet debugging guide with the full error dictionary (`&hEC`, `&hF4`, silent no-ops, etc.) and ECP endpoints.
 - `docs/architecture-apitask.md` — ApiTask op-dispatch threading model, response envelope, and scaling notes.
-- `docs/static-checks.md` — the 21 `make verify-runtime` checks, their CI wiring, and the `tests/scripts/verify-runtime-portable.sh` regression test.
-- `docs/i18n.md` — the `locale/en_US/strings.json` catalog, the flattened-key convention, and how CHECK 19/CHECK 20 enforce it.
+- `docs/static-checks.md` — the 25 `make verify-runtime` checks, their CI wiring, and the `tests/scripts/verify-runtime-portable.sh` regression test.
+- `docs/i18n.md` — the `locale/en_US/strings.json` catalog, the flattened-key convention, and how CHECK 19–CHECK 25 enforce it (incl. the `ApplyXmlChrome()` markup pass).
 - `docs/publishing.md` — `make package-signed` and the store-submission steps.
 
 <!-- caliber:managed:pre-commit -->

@@ -52,10 +52,14 @@
 #       consumed via bare Translate + string append) in another scratch copy
 #       -> exit non-zero with a CHECK24 diagnostic naming file:line, while
 #       CHECK20/21/22/23 stay green (the token law gate is independent)
-#   (9) negative (twin-flip split): a rogue 20th code pushed into the wire
-#       census -> exit non-zero with a CHECK22 content-pin diagnostic naming
-#       the code, while CHECK21 stays green; and a drift of the DECLARED
-#       reserved census -> CHECK22 reserved-leg red, CHECK21 green
+#   (9) negative (twin-flip split, post-flip 2026-09-25): a rogue 20th code
+#       pushed into the wire census -> exit non-zero with a CHECK22
+#       content-pin diagnostic naming the code, while CHECK21 stays green;
+#       a rogue declaration in the now-EMPTY reserved function -> CHECK22
+#       reserved-leg red ("reserved census drifted"), CHECK21 green; and
+#       collapsing SyncPlayReservedErrorCodes() away -> CHECK22 existence-leg
+#       red, proving the declaration gate stays armed even with an empty
+#       reserved set
 #  (10) negative (twin-flip split): an orphan key squatting in the en_US
 #       errors registry -> CHECK23 section-purity red naming the key, while
 #       CHECK22 stays green (bidirectional registry honesty)
@@ -317,9 +321,10 @@ assert_contains "syncplay.rogue_unreserved_code" "$RED22_OUT"
 sed -n '/=== Check 21:/,/=== Check 22:/p' <<<"$RED22_OUT" | grep -q "CHECK21: all" ||
 	fail "Check 21 must stay PASS while Check 22 is red (gate independence)"
 
-# --- Check 22 red proof (twin-flip split, leg 2): the DECLARED-reserved set
-# drifts (a flip-pending code renamed) - reservation is pinned by content, not
-# by census inclusion alone. CHECK21 stays green. ----------------------------
+# --- Check 22 red proof (twin-flip split, leg 2, post-flip): the DECLARED-
+# reserved ledger is EMPTY since the 9b2394ee flip promoted its trio. A rogue
+# declaration must still fire the content pin - the arm guards the NEXT
+# flip-pending code, not just the last one. CHECK21 stays green. -------------
 RED22B_ROOT="$TEST_ROOT/red22b"
 mkdir -p "$RED22B_ROOT"
 cp -a "$TEST_ROOT/repo" "$RED22B_ROOT/repo"
@@ -329,9 +334,14 @@ import sys
 path = sys.argv[1]
 with open(path, encoding="utf-8") as f:
     text = f.read()
-needle = 'function SyncPlayReservedErrorCodes() as Object\n    codes = []\n    codes.push("syncplay.create_failed")'
-assert text.count(needle) == 1, "planted-red anchor missing from SyncPlayReservedErrorCodes()"
-text = text.replace(needle, needle.replace("create_failed", "create_failed_v2"))
+needle = ('function SyncPlayReservedErrorCodes() as Object\n'
+          '    codes = []\n    return codes')
+assert text.count(needle) == 1, "planted-red anchor missing from empty SyncPlayReservedErrorCodes()"
+text = text.replace(
+    needle,
+    needle.replace('    return codes',
+                   '    codes.push("syncplay.rogue_pending_twin")\n    return codes'),
+)
 with open(path, "w", encoding="utf-8") as f:
     f.write(text)
 PYEOF
@@ -344,6 +354,36 @@ assert_contains "CHECK22" "$RED22B_OUT"
 assert_contains "reserved census drifted" "$RED22B_OUT"
 sed -n '/=== Check 21:/,/=== Check 22:/p' <<<"$RED22B_OUT" | grep -q "CHECK21: all" ||
 	fail "Check 21 must stay PASS while the reserved-census leg of Check 22 is red"
+
+# --- Check 22 red proof (twin-flip split, leg 3, post-flip): collapsing the
+# now-empty SyncPlayReservedErrorCodes() away must fire the existence leg -
+# the declaration-before-census-entry gate is only alive while the function
+# is required. CHECK21 stays green. ------------------------------------------
+RED22C_ROOT="$TEST_ROOT/red22c"
+mkdir -p "$RED22C_ROOT"
+cp -a "$TEST_ROOT/repo" "$RED22C_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$RED22C_ROOT/phlix-server"
+python3 - "$RED22C_ROOT/repo/source/lib/Utilities.brs" <<'PYEOF'
+import re, sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+new, n = re.subn(
+    r"function SyncPlayReservedErrorCodes\(\) as Object.*?end function\n",
+    "", text, count=1, flags=re.S)
+assert n == 1, "planted-red anchor missing: SyncPlayReservedErrorCodes() block"
+with open(path, "w", encoding="utf-8") as f:
+    f.write(new)
+PYEOF
+set +e
+RED22C_OUT=$(bash "$RED22C_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+RED22C_RC=$?
+set -e
+[ "$RED22C_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the reserved-declaration function is removed (got 0)"
+assert_contains "CHECK22" "$RED22C_OUT"
+assert_contains "SyncPlayReservedErrorCodes() not found" "$RED22C_OUT"
+sed -n '/=== Check 21:/,/=== Check 22:/p' <<<"$RED22C_OUT" | grep -q "CHECK21: all" ||
+	fail "Check 21 must stay PASS while the reserved-existence leg of Check 22 is red"
 
 # --- Check 23 red proof (twin-flip split, orphan leg): an unaccounted key
 # squats in the en_US errors registry. Section purity (CHECK23(d)) fires while
@@ -565,4 +605,4 @@ set -e
 [ "$NEG_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the ENUM comment drops audiobook (got 0)"
 assert_contains "CHECK14" "$NEG_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-25 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; reserved-census drift -> CHECK22 reserved leg fired; Check 21 stayed green both runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-25 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
