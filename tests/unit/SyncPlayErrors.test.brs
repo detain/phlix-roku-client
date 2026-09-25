@@ -28,12 +28,13 @@ sub TestSyncPlayErrorCodeToKeyDottedRegistry()
 end sub
 
 sub TestSyncPlayErrorCodeToKeyDottedFlipTwins()
-    ' Twin-flip prep: the reserved dotted forms ride the SAME law as the live
-    ' dotted codes - both shapes of the flip resolve before the wire changes.
+    ' Twin-flip law (prep #90, flip landed 9b2394ee): the dotted forms ride
+    ' the SAME law as the live dotted codes - both shapes of the flip resolve,
+    ' current servers speak dotted, pre-flip servers speak SCREAMING.
     assertEqual(SyncPlayErrorCodeToKey("syncplay.create_failed"), "errors_syncplay_create_failed")
     assertEqual(SyncPlayErrorCodeToKey("syncplay.join_failed"), "errors_syncplay_join_failed")
     assertEqual(SyncPlayErrorCodeToKey("syncplay.leave_failed"), "errors_syncplay_leave_failed")
-    ' The legacy SCREAMING trio the flip replaces still maps to its OWN keys:
+    ' The legacy SCREAMING trio the flip retired (current emits) still maps to its OWN keys:
     ' the two families never collide (the point of keeping both in the census).
     assertEqual(SyncPlayErrorCodeToKey("CREATE_FAILED"), "errors_create_failed")
     assertEqual(SyncPlayErrorCodeToKey("JOIN_FAILED"), "errors_join_failed")
@@ -61,7 +62,9 @@ end sub
 
 sub TestSyncPlayKnownErrorCodesSet()
     codes = SyncPlayKnownErrorCodes()
-    ' Wire-honesty split: 16 emitted-verified + 3 declared-reserved = 19.
+    ' Wire-honesty split: 19 emitted-verified + 0 declared-reserved = 19.
+    ' The 2026-09-25 twin flip (phlix-server 9b2394ee) promoted the reserved
+    ' trio; the reserved arm stays armed for the next flip-pending code.
     assertEqual(codes.count(), 19)
     ' Law output must be collision-free across the two code families
     seen = {}
@@ -70,8 +73,9 @@ sub TestSyncPlayKnownErrorCodesSet()
         assertEqual(seen.doesExist(key), false)
         seen[key] = true
     end for
-    ' Family census: 12 legacy SCREAMING, 7 dotted registry (4 live + 3
-    ' reserved) - the split Check 22 content-pins in CI.
+    ' Family census: 12 legacy SCREAMING (9 current + 3 pre-flip-only, kept
+    ' for old-server resolution), 7 dotted registry (all emitted-verified
+    ' since the flip) - the split Check 22 content-pins in CI.
     screaming = 0
     dotted = 0
     for each code in codes
@@ -87,10 +91,16 @@ sub TestSyncPlayKnownErrorCodesSet()
 end sub
 
 sub TestSyncPlayReservedErrorCodesSet()
-    ' The flip-pending trio is DECLARED, not silently census-pushed: exactly
-    ' these 3 dotted names, every one a wire census member, none a local code.
+    ' The reservation ledger is EMPTY since the 2026-09-25 twin flip: its
+    ' only entry (the dotted create/join/leave trio) was promoted to
+    ' emitted-verified with server evidence at phlix-server 9b2394ee
+    ' (SyncPlayManager.php:1588/1627/1659). The function is KEPT as the
+    ' declaration-before-census-entry gate - Check 22's reserved legs stay
+    ' armed. The shape/membership invariants below are vacuous on the empty
+    ' set today and bite the moment a flip-pending code is declared: dotted
+    ' registry name, wire-census member, never a local code.
     reserved = SyncPlayReservedErrorCodes()
-    assertEqual(reserved.count(), 3)
+    assertEqual(reserved.count(), 0)
     wireSeen = {}
     for each code in SyncPlayKnownErrorCodes()
         wireSeen[code] = true
@@ -108,9 +118,10 @@ sub TestSyncPlayReservedErrorCodesSet()
 end sub
 
 sub TestSyncPlayFlipTwinsInWireCensus()
-    ' Both shapes of the pending twin flip are census members today, so the
-    ' day the server switches create/join/leave to dotted, localized
-    ' rendering already covers it - and old servers keep resolving too.
+    ' The twin flip LANDED (phlix-server PR #798 @ 9b2394ee, 2026-09-25):
+    ' current servers send the dotted trio, pre-flip servers still send the
+    ' SCREAMING trio. Both shapes stay census members - the dual map retires
+    ' a family only when its servers do.
     trio = ["syncplay.create_failed", "syncplay.join_failed", "syncplay.leave_failed"]
     legacy = ["CREATE_FAILED", "JOIN_FAILED", "LEAVE_FAILED"]
     wireSeen = {}

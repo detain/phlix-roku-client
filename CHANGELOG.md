@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### Changed — syncplay twin-flip evidence promotion: reserved trio → emitted-verified — 2026-09-25
+
+- **The flip landed upstream.** phlix-server PR #798 @ `9b2394ee` switched the
+  group create/join/leave failure wraps to the dotted registry forms —
+  `syncplay.create_failed`/`join_failed`/`leave_failed` are LIVE on the wire
+  (`SyncPlayManager.php:1588/1627/1659`, re-verified read-only at origin).
+  Per the #90 promotion law, the trio moved from declared-reserved to
+  emitted-verified in Check 22's evidence split and the `Utilities.brs`
+  docblock. Census (19) and all seven catalogs are **byte-stable** — only the
+  split moved.
+- **Reserved ledger is now empty; the gate stays armed.**
+  `SyncPlayReservedErrorCodes()` is kept with a documented empty state:
+  declaration-before-census-entry ("declaration, not discovery") is a
+  structural law, and collapsing it would silently disarm the next flip.
+  Check 22's reserved legs now pin the empty set; the portable harness gained
+  red proofs for a rogue declaration in the empty function AND for removing
+  the function outright.
+- **SCREAMING trio stays resolved.** `CREATE_FAILED`/`JOIN_FAILED`/`LEAVE_FAILED`
+  remain in the 19-census and catalogs — they are emitted only by pre-flip
+  servers, and a family retires only when its servers do (the dual map's whole
+  point). Evidence annotations in the checker now name both server SHAs.
+
 ### Added — i18n XML-chrome lane: markup strings inside the translate net + CHECK25 — 2026-09-25
 
 - **The last documented i18n gap closed.** User-facing literals shipped as

@@ -1166,40 +1166,53 @@ end function
 ' resolver falls through to the server message - forward compatible by design.
 '
 ' CENSUS SPLIT (wire-honesty redesign, 2026-09-25):
-' The wire census SyncPlayKnownErrorCodes() is a SUPERSET of what the server
-' emits today: census ⊇ emitted, and every census member that is NOT (yet)
-' emitted must be DECLARED in SyncPlayReservedErrorCodes(). Check 22 pins the
-' census by content equality against {emitted-verified ∪ declared-reserved},
-' so an undeclared future code cannot ride in on a count bump.
-'   emitted-verified: 12 legacy SCREAMING + 4 dotted registry codes, read off
-'     phlix-server origin/master e0e010b07c7f4cc21baf10d9a945bac24edab45c
-'     (src/Session/SyncPlay/SyncPlayManager.php + src/Server/WebSocket/
-'     MessageHandler.php sendError literals).
-'   declared-reserved: 3 dotted twins syncplay.create_failed / join_failed /
-'     leave_failed - registered in the phlix-contracts error registry
-'     (dist/error-codes.json) but NOT yet emitted by any server build.
-' TWIN-FLIP TIMELINE: the server will switch its group create/join/leave
-' failure wraps from SCREAMING (SyncPlayManager.php:1586/1623/1652
-' 'CREATE_FAILED'/'JOIN_FAILED'/'LEAVE_FAILED') to the dotted registry forms.
-' This client is already prepared: both shapes normalize (law) onto distinct,
-' fully-populated catalog keys, so no client change is needed at flip time.
-' After the flip, the 3 members are PROMOTED (reserved -> emitted-verified in
-' Check 22 + this docblock); the SCREAMING trio stays in the census to keep
-' old servers resolving - a family retires only when its servers do.
+' The wire census SyncPlayKnownErrorCodes() is a SUPERSET of what the CURRENT
+' server build emits: census ⊇ emitted, and every census member that is NOT
+' (yet) emitted must be DECLARED in SyncPlayReservedErrorCodes(). Check 22
+' pins the census by content equality against {emitted-verified ∪
+' declared-reserved}, so an undeclared future code cannot ride in on a count
+' bump. Post-flip split (promoted per the #90 law: reserved -> emitted only
+' with fresh server evidence at a pinned origin):
+'   emitted-verified: 19 codes, read off phlix-server origin/master
+'     9b2394eea631739dff8f6e039d50f910c4304d97 (PR #798 twin flip) plus the
+'     pre-flip record e0e010b07c7f4cc21baf10d9a945bac24edab45c:
+'       9 legacy SCREAMING still emitted at 9b2394ee (src/Session/SyncPlay/
+'         SyncPlayManager.php sendError / 'error_code' literals +
+'         src/Server/WebSocket/MessageHandler.php :156/:189/:213)
+'       4 dotted registry twins (:621/:702/:741/:745, sent via the
+'         $result['error_code'] ?? wraps at :1588/:1627)
+'       3 dotted twins PROMOTED by the flip: syncplay.create_failed /
+'         join_failed / leave_failed (sendError literals at :1588/:1627/:1659)
+'       3 legacy SCREAMING emitted ONLY by pre-flip servers: CREATE_FAILED /
+'         JOIN_FAILED / LEAVE_FAILED (live at e0e010b0; retired from current
+'         emits at 9b2394ee - comment-only there). They STAY in the census and
+'         catalogs so old servers keep resolving - the dual map's whole
+'         point; a family retires only when its servers do.
+'   declared-reserved: EMPTY. The flip consumed the only reservation
+'     (phlix-contracts error registry, dist/error-codes.json). The function
+'     and Check 22's reserved legs stay ARMED: the next flip-pending code
+'     must be declared there BEFORE it may enter the census - declaration,
+'     not discovery.
+' TWIN-FLIP RECORD: 2026-09-25, phlix-server PR #798 @ 9b2394ee switched the
+' group create/join/leave failure wraps from SCREAMING to the dotted registry
+' forms. Both shapes normalize (law) onto distinct, fully-populated catalog
+' keys, so the census and the seven catalogs are byte-stable across the flip
+' - only this split moved.
 ' ===========================================
 
-' Canonical client-reachable syncplay wire codes: the 16 emitted-verified
-' codes (12 legacy SCREAMING + 4 dotted registry twins, read off phlix-server
-' origin/master e0e010b0 sendError literals) UNION the 3 codes declared in
-' SyncPlayReservedErrorCodes() (contracts-registered, flip-pending) = 19.
+' Canonical client-reachable syncplay wire codes: the 19 emitted-verified
+' codes (9 current + 3 pre-flip-only legacy SCREAMING + 7 dotted registry
+' twins, read off phlix-server origin/master 9b2394ee sendError literals,
+' pre-flip record e0e010b0) UNION the codes declared in
+' SyncPlayReservedErrorCodes() (none since the 2026-09-25 twin flip) = 19.
 ' Every element MUST have a matching errors_<law(key)> entry in ALL seven
 ' locale catalogs - Check 22 enforces the en_US side by CONTENT equality
 ' against that split (the guard law: silent fallback must not hide a missing
 ' translation, and an undeclared future code must not ride in on a count
 ' bump) and Check 21 pins cross-locale key parity from the catalogs themselves.
 ' Pure: returns a fresh array; callers must not mutate module state through it.
-' @return Object - roArray of 19 code strings as they appear (or will appear)
-'         on the wire
+' @return Object - roArray of 19 code strings as they appear on the wire
+'         (current servers or pre-flip servers)
 function SyncPlayKnownErrorCodes() as Object
     codes = []
     codes.push("NOT_AUTHENTICATED")
@@ -1211,6 +1224,8 @@ function SyncPlayKnownErrorCodes() as Object
     codes.push("INVALID_NEW_HOST")
     codes.push("MEMBER_NOT_FOUND")
     codes.push("SAME_HOST")
+    ' Pre-flip-only legacy trio: emitted ONLY by pre-9b2394ee servers, kept so
+    ' old servers resolve (their dotted twins below carry current servers).
     codes.push("CREATE_FAILED")
     codes.push("JOIN_FAILED")
     codes.push("LEAVE_FAILED")
@@ -1218,31 +1233,34 @@ function SyncPlayKnownErrorCodes() as Object
     codes.push("syncplay.group_not_found")
     codes.push("syncplay.invalid_password")
     codes.push("syncplay.group_full")
-    ' Declared-reserved dotted twins (SyncPlayReservedErrorCodes) - the
-    ' server's create/join/leave flip target; resolvable BEFORE the flip so
-    ' localized rendering covers both shapes the day the wire changes.
+    ' Flip-promoted dotted twins - emitted-verified since phlix-server
+    ' 9b2394ee (PR #798, 2026-09-25). Paired with the SCREAMING trio above,
+    ' which pre-flip servers still speak: the dual map retires only when
+    ' that server family does.
     codes.push("syncplay.create_failed")
     codes.push("syncplay.join_failed")
     codes.push("syncplay.leave_failed")
     return codes
 end function
 
-' The census members the CURRENT server build does not emit: the 3 dotted
-' twins registered in the phlix-contracts error registry (v0.5.1,
-' dist/error-codes.json) awaiting the server-side twin flip. Declaration,
-' not discovery - Check 22 pins this set to exactly these 3 names, requires
-' each to live in the wire census, and forbids the two sets from drifting:
-' census == emitted-verified ∪ reserved. When the flip lands, a member is
-' promoted (removed here, recorded as emitted in Check 22's evidence set and
-' the docblock above); the census and catalogs stay byte-stable.
+' The census members a future server flip is expected to introduce, declared
+' in advance of the wire change. EMPTY since 2026-09-25: the only reservation
+' this client ever held - the dotted create/join/leave twins registered in the
+' phlix-contracts error registry (v0.5.1, dist/error-codes.json) - was
+' promoted to emitted-verified when phlix-server PR #798 @ 9b2394ee landed the
+' twin flip (sendError literals at SyncPlayManager.php:1588/1627/1659).
+' Kept - deliberately NOT collapsed - because the law it carries is
+' structural: declaration, not discovery. Check 22 still pins this set by
+' content (exactly the empty set today), requires every member to live in the
+' wire census, and forbids SCREAMING/"local." shapes - so the NEXT
+' flip-pending code must be DECLARED here before it may enter the census, and
+' the two sets still cannot drift: census == emitted-verified ∪ reserved.
+' Collapsing the split would disarm that gate until someone re-minted it.
 ' Pure: returns a fresh array; callers must not mutate module state through it.
-' @return Object - roArray of 3 dotted registry codes (never SCREAMING,
-'         never "local.")
+' @return Object - roArray of dotted registry codes, empty today (when
+'         non-empty: never SCREAMING, never "local.")
 function SyncPlayReservedErrorCodes() as Object
     codes = []
-    codes.push("syncplay.create_failed")
-    codes.push("syncplay.join_failed")
-    codes.push("syncplay.leave_failed")
     return codes
 end function
 
@@ -1292,8 +1310,9 @@ end function
 ' (create/join/leave/invalid) are produced ON THIS DEVICE and ride no frame.
 ' They are not "unrecognized server codes", so they must not squat in the
 ' wire census SyncPlayKnownErrorCodes() (Check 22 pins that list by content
-' to exactly the 16 emitted-verified + 3 declared-reserved wire codes, and
-' that honesty is the point).
+' to exactly the 19 emitted-verified wire codes - 16 current + 3
+' pre-flip-only legacy - plus any declared-reserved flip-pending codes
+' (none today), and that honesty is the point).
 '
 ' They DO reuse the W5 MAPPING LAW verbatim (SyncPlayErrorCodeToKey) under a
 ' reserved "local." mint prefix: law("local.connect_failed") =

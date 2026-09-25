@@ -1201,20 +1201,28 @@ echo "=== Check 22: syncplay wire census is content-pinned and resolves in en_US
 # (SyncPlayErrorCodeToKey: trim, lowercase, "." and "-" -> "_", prefix
 # "errors_"; empty/non-string -> errors_fallback). The census used to be a
 # bare count pin ("exactly 16"), honest only while every member was
-# server-emitted at verification time. The syncplay twin flip adds
+# server-emitted at verification time. The syncplay twin flip (landed
+# 2026-09-25, PR #798 @ 9b2394ee) had added
 # syncplay.create_failed / join_failed / leave_failed (contracts-registered,
-# reserved, NOT yet emitted) BEFORE the server starts sending them, so
+# reserved at #90) BEFORE the server started sending them, so
 # "known" is now a SUPERSET law: census ⊇ emitted, and the law is machine-
 # enforced by CONTENT equality against an explicit split instead of a count:
-#   EMITTED_VERIFIED (16): 12 legacy SCREAMING + 4 dotted twins, read off
-#     phlix-server origin/master e0e010b07c7f4cc21baf10d9a945bac24edab45c
-#     sendError literals (src/Session/SyncPlay/SyncPlayManager.php +
+#   EMITTED_VERIFIED (19, post-flip): read off phlix-server origin/master
+#     9b2394eea631739dff8f6e039d50f910c4304d97 (PR #798 twin flip) plus the
+#     pre-flip record e0e010b07c7f4cc21baf10d9a945bac24edab45c, sendError
+#     literals (src/Session/SyncPlay/SyncPlayManager.php +
 #     src/Server/WebSocket/MessageHandler.php; re-verify READ-ONLY at each
 #     flip step - a code may only LEAVE this set when its server family
-#     retires).
-#   RESERVED (3): dotted twins in the phlix-contracts error registry
-#     (dist/error-codes.json) awaiting the flip; promoted to emitted on flip,
-#     census and catalogs unchanged.
+#     retires). Split: 9 legacy SCREAMING current at 9b2394ee + 3 legacy
+#     SCREAMING emitted ONLY by pre-flip servers (CREATE/JOIN/LEAVE_FAILED -
+#     retired from current emits at 9b2394ee, kept until that server family
+#     retires so old servers resolve) + 4 dotted twins live since before the
+#     flip + 3 dotted twins PROMOTED by the flip (the ex-RESERVED trio).
+#   RESERVED (0): EMPTY. The 2026-09-25 flip promoted the only reserved codes
+#     (syncplay.create_failed/join_failed/leave_failed - phlix-contracts
+#     error registry, dist/error-codes.json) to emitted-verified. The
+#     function and leg (f) stay ARMED: the next flip-pending code must be
+#     declared before census entry - declaration, not discovery.
 # Legs:
 #   (a) every literal in SyncPlayKnownErrorCodes() flattens to an existing
 #       en_US errors_<key> entry, with no two codes colliding on one key
@@ -1244,21 +1252,39 @@ UTILITIES = "source/lib/Utilities.brs"
 TASK = "components/SyncPlayTask.brs"
 BASE = "locale/en_US/strings.json"
 
-# Wire truth - see the header above. Evidence: phlix-server origin/master
-# e0e010b07c7f4cc21baf10d9a945bac24edab45c (2026-09-25, read-only grep of
-# sendError / 'error_code' => literals; docblock-only GROUP_FULL /
-# INVALID_PASSWORD examples in Messages.php are NOT wire codes).
+# Wire truth - see the header above. Evidence (read-only greps of sendError /
+# 'error_code' => literals; docblock-only GROUP_FULL / INVALID_PASSWORD
+# examples in Messages.php are NOT wire codes):
+#   9b2394eea631739dff8f6e039d50f910c4304d97 (2026-09-25, PR #798 twin flip):
+#     9 SCREAMING still live (SyncPlayManager.php + MessageHandler.php
+#     :156/:189/:213), the 4 inner-path dotted twins (:621/:702/:741/:745,
+#     sent via the ?? wraps at :1588/:1627), and the PROMOTED trio
+#     syncplay.create_failed/join_failed/leave_failed (sendError literals at
+#     SyncPlayManager.php:1588/1627/1659). The SCREAMING trio appears ONLY in
+#     flip comments there - retired from current emits.
+#   e0e010b07c7f4cc21baf10d9a945bac24edab45c (pre-flip): the SCREAMING trio
+#     CREATE_FAILED/JOIN_FAILED/LEAVE_FAILED were emitted; pre-flip servers
+#     still speak them, so they stay resolved until that family retires.
 EMITTED_VERIFIED = {
+    # legacy SCREAMING - current at 9b2394ee
     "NOT_AUTHENTICATED", "NOT_IN_GROUP", "NOT_HOST", "UNKNOWN_MESSAGE",
     "HANDLER_ERROR", "PROTOCOL_VERSION_MISMATCH", "INVALID_NEW_HOST",
-    "MEMBER_NOT_FOUND", "SAME_HOST", "CREATE_FAILED", "JOIN_FAILED",
-    "LEAVE_FAILED",
+    "MEMBER_NOT_FOUND", "SAME_HOST",
+    # dotted registry - inner-path twins (pre-flip twins, still live)
     "syncplay.group_limit_reached", "syncplay.group_not_found",
     "syncplay.invalid_password", "syncplay.group_full",
+    # dotted registry - promoted by the 9b2394ee twin flip (ex-RESERVED)
+    "syncplay.create_failed", "syncplay.join_failed",
+    "syncplay.leave_failed",
+    # legacy SCREAMING - emitted ONLY by pre-flip servers (e0e010b0
+    # evidence; retired from current emits at 9b2394ee, kept for old-server
+    # resolution - a family retires only when its servers do)
+    "CREATE_FAILED", "JOIN_FAILED", "LEAVE_FAILED",
 }
-RESERVED = {
-    "syncplay.create_failed", "syncplay.join_failed", "syncplay.leave_failed",
-}
+# EMPTY since the 2026-09-25 flip consumed the only reservation. Arm stays
+# live: a future flip-pending code must be DECLARED here (and in the client's
+# SyncPlayReservedErrorCodes()) before census entry - leg (f) proves it.
+RESERVED = set()
 EXPECTED_CENSUS = EMITTED_VERIFIED | RESERVED
 
 
@@ -1377,7 +1403,8 @@ if problems:
     print(f"  CHECK22: {len(problems)} syncplay error-catalog problem(s)")
     sys.exit(1)
 
-print(f"  CHECK22: all 19 wire codes (16 emitted-verified + 3 declared "
+print(f"  CHECK22: all {len(EXPECTED_CENSUS)} wire codes "
+      f"({len(EMITTED_VERIFIED)} emitted-verified + {len(RESERVED)} declared "
       "reserved) + errors_fallback resolve in en_US; census content-pinned; "
       "mapping law and task wire-in intact")
 PYEOF
@@ -1397,7 +1424,7 @@ echo "=== Check 23: client local.* error family stays separate from the wire cen
 #   (b) each local code flattens (via the Check 22 normalizer) to an existing
 #       en_US errors_local_* entry, collision-free within the family
 #   (c) WIRE-CENSUS HONESTY: SyncPlayKnownErrorCodes() still lists exactly 19
-#       wire codes (16 emitted-verified + 3 declared-reserved per Check 22's
+#       wire codes (19 emitted-verified + 0 declared-reserved post-flip per Check 22's
 #       content pin), none starts with "local.", and no wire code
 #       normalizes onto a local key (the families cannot impersonate each other)
 #   (d) SECTION PURITY: every key in the en_US errors section belongs to
@@ -1484,7 +1511,7 @@ if util:
     if len(wire_codes) != 19:
         problems.append(
             f"  {UTILITIES} - CHECK23: wire census must stay the 19 "
-            "wire-honest codes (16 emitted-verified + 3 declared-reserved), "
+            "wire-honest codes (19 emitted-verified + 0 declared-reserved), "
             f"found {len(wire_codes)} - client-minted "
             "strings belong in SyncPlayLocalErrorCodes(), never here")
     for code in wire_codes:
