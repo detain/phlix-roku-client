@@ -1,0 +1,29 @@
+# =============================================================================
+# EOL shield — normalise all text to LF in the working tree (windows #46 class)
+# =============================================================================
+# Rationale (estate hygiene campaign, 2026-09-25; mirrors the phlix-windows-client
+# PR #46 precedent and the tizen/ui/contracts/hub shields):
+#
+# If any windows-latest CI job ever lands on this repo, git's autocrlf line
+# endings (or a machine-level core.autocrlf=true) can silently convert
+# working-tree text files to CRLF at checkout. Two laws are exposed:
+#
+#  1. tests/fixtures/server-route-manifest.json is vendored BYTE-FOR-BYTE from
+#     @phlix/contracts dist/server-route-manifest.json ("Clients vendor this
+#     file verbatim" — its own $comment) and audited by
+#     tests/scripts/verify-route-manifest.mjs.
+#  2. That same verifier scans client .brs sources with
+#     readFileSync(...).split('\n') and pins per-file CHECK_COUNTS — a CRLF
+#     checkout corrupts the scanner's line semantics and the pinned coverage
+#     census around it.
+#
+# `* text=auto eol=lf` forces LF working-tree bytes on every text file on
+# every platform regardless of core.autocrlf; git detects text vs binary by
+# content (NUL heuristic), so binary files never convert. Committed blobs are
+# already pure LF (2026-09-25 census: 180 tracked blobs, CR only in png
+# assets), so renormalisation is a guaranteed no-op and this file only FROZE
+# the invariant against future checkouts.
+# =============================================================================
+* text=auto eol=lf
+# Raster assets: byte-pinned in render/branding audits, never EOL-converted.
+*.png binary
