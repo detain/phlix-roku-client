@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
@@ -171,6 +171,9 @@
     "syncplay_group_not_found": "Quel gruppo di visione non esiste più.",
     "syncplay_invalid_password": "La password non è corretta.",
     "syncplay_group_full": "Quel gruppo di visione è pieno.",
+    "syncplay_create_failed": "Impossibile creare il gruppo di visione.",
+    "syncplay_join_failed": "Impossibile unirsi al gruppo di visione.",
+    "syncplay_leave_failed": "Impossibile uscire dal gruppo di visione.",
     "local_no_config": "Impossibile preparare la sessione di sincronizzazione.",
     "local_no_host": "L’indirizzo del server di sincronizzazione non è configurato.",
     "local_socket_unavailable": "Questo dispositivo non ha potuto aprire una connessione di rete per la sessione.",

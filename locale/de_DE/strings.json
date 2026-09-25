@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "source_files": [
       "components/SettingsScene.brs",
       "components/DetailScene.brs",
@@ -171,6 +171,9 @@
     "syncplay_group_not_found": "Diese synchronisierte Gruppe existiert nicht mehr.",
     "syncplay_invalid_password": "Das Passwort ist nicht korrekt.",
     "syncplay_group_full": "Diese synchronisierte Gruppe ist voll.",
+    "syncplay_create_failed": "Die synchronisierte Gruppe konnte nicht erstellt werden.",
+    "syncplay_join_failed": "Der Gruppe konnte nicht beigetreten werden.",
+    "syncplay_leave_failed": "Die Gruppe konnte nicht verlassen werden.",
     "local_no_config": "Die Synchronsitzung konnte nicht eingerichtet werden.",
     "local_no_host": "Die Adresse des Sync-Servers ist nicht konfiguriert.",
     "local_socket_unavailable": "Dieses Gerät konnte keine Netzwerkverbindung für die Synchronsitzung aufbauen.",
