@@ -470,7 +470,7 @@ RED19_OUT=$(bash "$RED19_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
 RED19_RC=$?
 set -e
 [ "$RED19_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when a UI string escapes CHECK19 via prose ' for ' (got 0)"
-sed -n '/=== Check 19:/,/=== Check 20:/p' <<<"$RED19_OUT" | grep -q 'Pay \$5 for entry' ||
+sed -n '/=== Check 19:/,/=== Check 20:/p' <<<"$RED19_OUT" | grep -qF 'Pay $5 for entry' ||
 	fail "CHECK19 red must name the offending literal (got: $RED19_OUT)"
 if sed -n '/=== Check 19:/,/=== Check 20:/p' <<<"$RED19_OUT" | grep -q 'row count'; then
 	fail "a real 'for i = 0 to 2' header line must stay exempt under the anchored grammar"
