@@ -151,7 +151,7 @@ set -e
 assert_contains "=== Check 14:" "$POSITIVE_OUT"
 assert_contains "034_media_items_type_audiobook.sql" "$POSITIVE_OUT"
 assert_contains "PASS" "$POSITIVE_OUT"
-for i in $(seq 11 25); do
+for i in $(seq 11 26); do
 	assert_contains "=== Check $i:" "$POSITIVE_OUT"
 done
 assert_contains "CHECK21: all" "$POSITIVE_OUT"
@@ -159,6 +159,7 @@ assert_contains "CHECK22: all" "$POSITIVE_OUT"
 assert_contains "CHECK23: all" "$POSITIVE_OUT"
 assert_contains "CHECK24: all" "$POSITIVE_OUT"
 assert_contains "CHECK25: all" "$POSITIVE_OUT"
+assert_contains "CHECK26: all" "$POSITIVE_OUT"
 
 # --- locale resolution: simulate the device selecting a ja_JP-style locale ---
 # LoadLocaleStrings normalizes roAppInfo.GetCurrentLocale() with .Trim().
@@ -575,6 +576,46 @@ sed -n '/=== Check 23:/,/=== Check 24:/p' <<<"$RED25_OUT" | grep -q "CHECK23: al
 sed -n '/=== Check 24:/,/=== Check 25:/p' <<<"$RED25_OUT" | grep -q "CHECK24: all" ||
 	fail "Check 24 must stay PASS while Check 25 is red (gate independence)"
 
+# --- Check 26 red proof on an independent scratch copy: the envelope-leak
+# defect class (2c119f9 follow-through, 2026-09-29). The systemic bug was code
+# reading server payload keys directly off the {status,ok,data,error} transport
+# envelope (resp.libraries-style) - invisible to every pre-existing gate. A
+# planted leak line must fire CHECK26 red naming file:line while CHECKs 20-25
+# stay green (gate independence). --
+RED26_ROOT="$TEST_ROOT/red26"
+mkdir -p "$RED26_ROOT"
+cp -a "$TEST_ROOT/repo" "$RED26_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$RED26_ROOT/phlix-server"
+python3 - "$RED26_ROOT/repo/components/DetailScene.brs" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+plant = (
+    "\nsub Check26PlantedLeak()\n"
+    "    planted = resp.libraries\n"
+    "end sub\n"
+)
+text = text + plant
+with open(path, "w", encoding="utf-8") as f:
+    f.write(text)
+PYEOF
+set +e
+RED26_OUT=$(bash "$RED26_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+RED26_RC=$?
+set -e
+[ "$RED26_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when a server payload key is read off an envelope-level variable (got 0)"
+sed -n '/=== Check 26:/,$p' <<<"$RED26_OUT" | grep -qF 'components/DetailScene.brs' ||
+	fail "CHECK26 red must name the planted file (got: $RED26_OUT)"
+sed -n '/=== Check 26:/,$p' <<<"$RED26_OUT" | grep -qF 'resp.libraries' ||
+	fail "CHECK26 red must name the planted read (got: $RED26_OUT)"
+sed -n '/=== Check 20:/,/=== Check 21:/p' <<<"$RED26_OUT" | grep -q "CHECK20: all" ||
+	fail "Check 20 must stay PASS while Check 26 is red (gate independence)"
+sed -n '/=== Check 24:/,/=== Check 25:/p' <<<"$RED26_OUT" | grep -q "CHECK24: all" ||
+	fail "Check 24 must stay PASS while Check 26 is red (gate independence)"
+sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED26_OUT" | grep -q "CHECK25: all" ||
+	fail "Check 25 must stay PASS while Check 26 is red (gate independence)"
+
 # --- negative: audiobook dropped from the ENUM comment -> exit != 0 + CHECK14
 export FAKE_REPO
 python3 - <<'PYEOF'
@@ -605,4 +646,4 @@ set -e
 [ "$NEG_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the ENUM comment drops audiobook (got 0)"
 assert_contains "CHECK14" "$NEG_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-25 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"

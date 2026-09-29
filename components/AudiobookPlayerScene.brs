@@ -123,22 +123,6 @@ sub OnApiResponse(event as Object)
             m.chaptersLoaded = true
             BuildChapterListContent()
         end if
-    else if resp.op = "getAudiobookPlaybackInfo" then
-        if resp.ok and resp.data <> invalid then
-            ' Playback info received - handle stream URL
-            streamUrl = invalid
-
-            ' Handle both {url: "..."} and {stream: {url: "..."}} shapes
-            if resp.data.url <> invalid then
-                streamUrl = resp.data.url
-            else if resp.data.stream <> invalid and resp.data.stream.url <> invalid then
-                streamUrl = resp.data.stream.url
-            end if
-
-            if streamUrl <> invalid and streamUrl <> "" then
-                StartPlaybackWithUrl(streamUrl)
-            end if
-        end if
     end if
 
     ' Start playback when both chapters and progress are loaded
@@ -147,11 +131,33 @@ sub OnApiResponse(event as Object)
     end if
 end sub
 
+' Start/resume playback from the signed stream URL the server mints inside the
+' GET /audiobooks/{id} PAYLOAD (phlix-server AudiobookController attaches
+' stream_url + read_url from the URL signer to the audiobook detail response;
+' AudiobookScene handed that payload to LoadAudiobook as m.pendingAudiobook).
+' The previous dispatch of op "getAudiobookPlaybackInfo" targeted a route the
+' server does not register and an ApiTask branch that never existed, so the
+' response was always ok=false, the handler fell through, and the scene hung on
+' its loading label forever - the silent-failure class the envelope law
+' (source/lib/ApiClient.brs) exists to kill. A missing/blank URL now fails
+' loudly instead.
 sub StartPlayback()
-    ' Request playback info from API
-    m.apiTask.request = { op: "getAudiobookPlaybackInfo", itemId: m.itemId }
-    if m.apiTask.state = "run" then return
-    m.apiTask.control = "run"
+    streamUrl = ""
+    if m.pendingAudiobook <> invalid and type(m.pendingAudiobook) = "roAssociativeArray" then
+        if m.pendingAudiobook.DoesExist("stream_url") and m.pendingAudiobook.stream_url <> invalid then
+            streamUrl = m.pendingAudiobook.stream_url
+        end if
+    end if
+
+    if streamUrl = "" then
+        if m.loadingLabel <> invalid then
+            m.loadingLabel.visible = false
+        end if
+        ShowErrorDialog(m.top, Translate("player.playback_error"), Translate("audiobookplayer.error_no_stream"))
+        return
+    end if
+
+    StartPlaybackWithUrl(streamUrl)
 end sub
 
 sub StartPlaybackWithUrl(streamUrl as String)

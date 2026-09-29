@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.4.1",
+    "version": "1.4.2",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -324,6 +324,7 @@
     "select": "オーディオブックを選択してください"
   },
   "audiobookplayer": {
+    "error_no_stream": "このオーディオブックには再生可能なストリームがありません。",
     "skip_backward": "-30秒",
     "skip_forward": "+30秒"
   },

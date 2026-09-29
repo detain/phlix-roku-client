@@ -56,7 +56,9 @@ sub OnApiResponse(event as Object)
     if resp = invalid then return
 
     if resp.op = "getMyServers" then
-        ' getMyServers() returns the WHOLE envelope {servers:[...]}.
+        ' ENVELOPE LAW (docs/api-envelope.md): the ApiTask getMyServers
+        ' branch unwrapped the transport envelope - resp.data is the server
+        ' payload {servers:[...]} here.
         if not resp.ok then
             ' Request failed - show error dialog
             errorMsg = "Unable to load servers"

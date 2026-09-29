@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.4.1",
+    "version": "1.4.2",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -324,6 +324,7 @@
     "select": "Sélectionnez un livre audio"
   },
   "audiobookplayer": {
+    "error_no_stream": "Ce livre audio ne dispose d'aucune source lisible.",
     "skip_backward": "-30 s",
     "skip_forward": "+30 s"
   },

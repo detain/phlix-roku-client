@@ -53,8 +53,18 @@ sub LoadList()
 
     ' Fetch children via getLibraryItems (direct-children mode via parentId).
     ' offset and limit support paging — limit=50 per page to manage memory on 512 MB Roku Express.
-    data = api.getLibraryItems(libraryId, { parentId: parentId, offset: offset, limit: limit })
-    if data = invalid or data.items = invalid then
+    ' Envelope law: getLibraryItems returns the transport envelope; unwrap once
+    ' here and fail loudly on !ok (see the law block in source/lib/ApiClient.brs).
+    env = api.getLibraryItems(libraryId, { parentId: parentId, offset: offset, limit: limit })
+    if env = invalid or not env.ok then
+        m.top.content = invalid
+        m.top.items = []
+        m.top.ok = false
+        return
+    end if
+
+    payload = UnwrapApiEnvelope(env)
+    if payload = invalid or payload.items = invalid then
         m.top.content = invalid
         m.top.items = []
         m.top.ok = false
@@ -62,7 +72,7 @@ sub LoadList()
     end if
 
     ' Sort by season then episode order (same logic as SeriesScene/SeasonScene).
-    sortedItems = SortByEpisodeOrder(data.items)
+    sortedItems = SortByEpisodeOrder(payload.items)
 
     ' Build the ContentNode tree off the render thread.
     content = CreateObject("roSGNode", "ContentNode")

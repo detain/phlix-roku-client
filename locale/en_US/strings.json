@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.4.1",
+    "version": "1.4.2",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -324,6 +324,7 @@
     "select": "Select an audiobook"
   },
   "audiobookplayer": {
+    "error_no_stream": "This audiobook has no playable stream.",
     "skip_backward": "-30s",
     "skip_forward": "+30s"
   },

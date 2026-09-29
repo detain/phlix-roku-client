@@ -63,13 +63,15 @@ function SyncPlayManager(api as Object) as Object
         getGroups: function() as Object
             if m.api = invalid then return []
 
-            result = m.api.getSyncPlayGroups()
-            if result = invalid then return []
+            ' Envelope law (see the law block in source/lib/ApiClient.brs):
+            ' getSyncPlayGroups returns the transport envelope; unwrap once here.
+            env = m.api.getSyncPlayGroups()
+            if env = invalid or not env.ok then return []
 
-            ' The response is {groups: [...]} per ApiClient convention
-            if type(result) <> "roAssociativeArray" then return []
-            if not result.DoesExist("groups") then return []
-            groups = result.groups
+            payload = UnwrapApiEnvelope(env)
+            if type(payload) <> "roAssociativeArray" then return []
+            if not payload.DoesExist("groups") then return []
+            groups = payload.groups
             if type(groups) <> "roArray" then return []
 
             return groups
@@ -86,19 +88,22 @@ function SyncPlayManager(api as Object) as Object
         createGroup: function(name as String, isPublic as Boolean) as Object
             if m.api = invalid then return invalid
 
-            result = m.api.createSyncPlayGroup(name, isPublic)
-            if result = invalid then return invalid
+            ' Envelope law: unwrap once at this boundary; !ok (server 4xx/5xx or
+            ' transport failure) returns invalid so callers surface the failure.
+            env = m.api.createSyncPlayGroup(name, isPublic)
+            if env = invalid or not env.ok then return invalid
 
-            ' Parse response: {success, group:{group_id,group_name,member_count,...}}
+            ' Parsed payload: {success, group:{group_id,group_name,member_count,...}}
             ' Source: SyncPlayController.php (controller) + SyncPlayManager.php createGroup (manager)
             '   - group.group_id  -> roomId
             '   - group.group_name -> roomName
             '   - group.members   -> members (associative array, keyed by memberId)
             '   - sessionId/serverUrl are NOT returned by the server; sessionId will be
             '     set to the host's memberId once the WS event confirms our yourId.
-            if type(result) <> "roAssociativeArray" then return invalid
-            if not result.DoesExist("group") then return invalid
-            g = result.group
+            payload = UnwrapApiEnvelope(env)
+            if type(payload) <> "roAssociativeArray" then return invalid
+            if not payload.DoesExist("group") then return invalid
+            g = payload.group
             if type(g) <> "roAssociativeArray" then return invalid
             if not g.DoesExist("group_id") then return invalid
 
@@ -145,19 +150,20 @@ function SyncPlayManager(api as Object) as Object
         joinGroup: function(roomId as String) as Object
             if m.api = invalid then return invalid
 
-            result = m.api.joinSyncPlayGroup(roomId)
-            if result = invalid then return invalid
+            env = m.api.joinSyncPlayGroup(roomId)
+            if env = invalid or not env.ok then return invalid
 
-            ' Parse response: {success, group:{group_id,group_name,members:{...},...}}
+            ' Parsed payload: {success, group:{group_id,group_name,members:{...},...}}
             ' Source: SyncPlayController.php joinGroup + SyncPlayManager.php joinGroup
-            '   - roomId comes from the path parameter (not result.group.group_id)
+            '   - roomId comes from the path parameter (not the group's own id field)
             '   - group.group_name -> roomName
             '   - group.members    -> members (associative array keyed by memberId)
             '   - currentState fields (playback_position, playback_state) are at group level
             '   - sessionId is NOT returned at top level; we use our own memberId as sessionId
-            if type(result) <> "roAssociativeArray" then return invalid
-            if not result.DoesExist("group") then return invalid
-            g = result.group
+            payload = UnwrapApiEnvelope(env)
+            if type(payload) <> "roAssociativeArray" then return invalid
+            if not payload.DoesExist("group") then return invalid
+            g = payload.group
             if type(g) <> "roAssociativeArray" then return invalid
 
             ' Extract members from the group object (associative array keyed by memberId)
@@ -223,10 +229,13 @@ function SyncPlayManager(api as Object) as Object
             if m.api = invalid or m._session = invalid then return invalid
 
             roomId = m._session.roomId
-            result = m.api.leaveSyncPlayGroup(roomId)
-
+            ' Envelope law: return invalid on !ok so the caller's failure branch
+            ' (SyncPlayScene leave error) actually fires instead of silently
+            ' reporting a successful leave.
+            env = m.api.leaveSyncPlayGroup(roomId)
             m._session = invalid
-            return result
+            if env = invalid or not env.ok then return invalid
+            return UnwrapApiEnvelope(env)
         end function
 
         ' ============================================================= '

@@ -30,16 +30,31 @@ function AuthManager(api as Object) as Object
         end function
 
         ' Perform login
+        ' ApiClient.login returns the transport envelope (ENVELOPE LAW,
+        ' docs/api-envelope.md): ok is the HTTP verdict; the payload
+        ' {access_token, refresh_token, user, ...} rides at .data. Neither
+        ' server nor hub emits a "success" key, so the pre-2c119f9-era
+        ' raw-field read is replaced with the unwrap + ok discipline.
         login: function(username as String, password as String) as Object
             if m.api = invalid then
                 return { success: false, error: "API not initialized" }
             end if
 
-            result = m.api.login(username, password)
-            if result <> invalid and result.access_token <> invalid then
+            env = m.api.login(username, password)
+            if env = invalid then
+                return { success: false, error: "Login failed" }
+            end if
+            if not env.ok then
+                errMsg = "Login failed"
+                if env.error <> invalid and env.error <> "" then errMsg = env.error
+                return { success: false, error: errMsg }
+            end if
+
+            payload = UnwrapApiEnvelope(env)
+            if payload <> invalid and payload.access_token <> invalid then
                 m.isAuthenticated = true
-                m.currentUser = result.user
-                return { success: true, user: result.user }
+                m.currentUser = payload.user
+                return { success: true, user: payload.user }
             end if
 
             return { success: false, error: "Login failed" }

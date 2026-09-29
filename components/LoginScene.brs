@@ -78,7 +78,8 @@ sub OnLoginPressed()
     ShowStatus("Signing in...")
 
     ' Fire login on ApiTask (off render thread) and return immediately.
-    ' The task will call GetHubApiClient() + AuthManager.login() internally.
+    ' The task will call GetHubApiClient() + ApiClient.login() internally
+    ' (transport envelope in, unwrapped payload out at result.data).
     m.apiTask.request = { op: "login", username: username, password: password }
     m.apiTask.control = "run"
 end sub
@@ -94,6 +95,13 @@ end sub
 '   4. Login ok but getMyServers fails -> "Unable to load servers. Try again."
 sub OnLoginResponse(event as Object)
     result = event.GetData()
+    ' Fail fast on a malformed task frame before any member access.
+    if result = invalid then
+        ReEnableButton()
+        HideStatus()
+        ShowError("Cannot connect to server. Check your network.")
+        return
+    end if
 
     ' Stop any stale task state
     if m.apiTask <> invalid then
@@ -102,24 +110,37 @@ sub OnLoginResponse(event as Object)
 
     if result.op = "login" then
         ' ---- LOGIN RESPONSE ----
-        ' Case 1 & 2 & 3: login failed
-        if result = invalid or result.ok <> true or result.data = invalid or result.data.success <> true then
+        ' ENVELOPE LAW: ApiTask answered with {op, ok, data = SERVER PAYLOAD,
+        ' error}. The server/hub /auth/login body carries NO "success" key -
+        ' the HTTP status behind ok is the verdict. The pre-fix
+        ' `data.success = true` compare was therefore false on EVERY
+        ' response and no login could ever succeed.
+        ' Cases 1 & 2 & 3: login failed
+        if result.ok <> true then
             ReEnableButton()
             HideStatus()
 
-            ' Distinguish the failure cases by examining result.data.error
-            if result = invalid or result.data = invalid then
+            ' Distinguish the failure cases: transport errors carry no
+            ' payload; 4xx/5xx carry the server's {error} detail at
+            ' result.data (with the same message lifted to result.error).
+            transportError = result.error = "connect" or result.error = "timeout"
+            detail = ""
+            if result.data <> invalid and type(result.data) = "roAssociativeArray" then
+                if result.data.DoesExist("error") and result.data.error <> invalid then
+                    detail = result.data.error
+                end if
+            end if
+            if detail = "" and result.error <> invalid then detail = result.error
+
+            if transportError then
                 ' Case 2: server unreachable / network error
                 ShowError("Cannot connect to server. Check your network.")
-            else if result.data.error <> invalid and result.data.error <> "" then
-                errMsg = result.data.error
+            else if instr(1, lcase(detail), "invalid") > 0 or instr(1, lcase(detail), "credential") > 0 or instr(1, lcase(detail), "unauthorized") > 0 or instr(1, lcase(detail), "401") > 0 then
                 ' Case 1: wrong credentials (common error strings from server)
-                if instr(1, lcase(errMsg), "invalid") > 0 or instr(1, lcase(errMsg), "credential") > 0 or instr(1, lcase(errMsg), "unauthorized") > 0 or instr(1, lcase(errMsg), "401") > 0 then
-                    ShowError("Invalid username or password.")
-                else
-                    ' Case 3: server error with detail
-                    ShowError("Server error: " + errMsg)
-                end if
+                ShowError("Invalid username or password.")
+            else if detail <> "" then
+                ' Case 3: server error with detail
+                ShowError("Server error: " + detail)
             else
                 ' Generic fallback
                 ShowError("Login failed. Please check your credentials.")
@@ -145,8 +166,11 @@ sub OnLoginResponse(event as Object)
             return
         end if
 
-        ' Hub detection: a hub exposes GET /me/servers ({servers:[...]});
-        ' a direct server does not (404 -> no .servers array).
+        ' Hub detection (docs/api-envelope.md): the ApiTask getMyServers
+        ' branch answers with the UNWRAPPED payload - {servers:[...]} on a
+        ' hub, {} for a DIRECT server (its 404 is the expected "no such
+        ' route" signal, translated to ok=true + empty payload at the choke),
+        ' and ok=false only on genuine failures (handled as Case 4 above).
         serversResp = result.data
         if serversResp <> invalid and serversResp.DoesExist("servers") and type(serversResp.servers) = "roArray" and serversResp.servers.count() > 0 then
             ' It's a hub -> let PhlixApp show the server picker.

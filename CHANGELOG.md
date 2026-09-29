@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+### Fixed — API envelope follow-through: every 2c119f9 consumer wired, + CHECK26 — 2026-09-29
+
+- **The systemic break, completed.** `2c119f9` wrapped `ApiClient.request()`
+  in the transport envelope `{status, ok, data, error}` and updated ZERO
+  consumers — every reader of a former server field silently read `invalid`
+  off the envelope. Dead and quiet: Home rails (`libraries`), item/detail
+  loads (`item`), episode & library grids via `EpisodeListTask` (`items`),
+  the whole Live TV list layer (`programs`/`recordings`/`channels`), hub
+  detection + server picker (`servers` — plus a 404-vs-direct server that
+  now maps to an honest empty list instead of a fake network error), SyncPlay
+  group lists/create/join (`groups`/`group`), session creation
+  (`session_id`), favorites/search/recommendations/admin/music/photos/
+  collections/livetv op branches, and — separately pinned — **login**:
+  the task derived `ok` from a `success` key the server AND hub never return
+  (verified against `AuthManager::createAuthResponse` and the hub
+  `AuthController`), so every credential entry died at "Login failed".
+- **One unwrap, one choke.** New global `UnwrapApiEnvelope(env)`
+  (`source/lib/ApiClient.brs`, ENVELOPE LAW docblock shipped in-channel) +
+  `ApplyEnvelope(result, env)` in `components/ApiTask.brs`: every op branch
+  now publishes the SERVER PAYLOAD at `response.data` with `response.ok` as
+  the HTTP verdict — the shape the ~30 scene handlers were already written
+  against. Scene fixes where the contract demanded more: `ListTask`,
+  `EpisodeListTask`, `SyncPlayManager` (direct-call readers), `LoginScene`
+  (ok-based verdict + honest four-case error taxonomy), `AuthManager.login`
+  (envelope-aware), `AudiobookPlayerScene` (phantom `getAudiobookPlaybackInfo`
+  op deleted — the route never existed server-side and the dispatch hung the
+  player on its loading label; playback now starts from the signer-minted
+  `stream_url` carried by the audiobook payload, or fails loudly with a new
+  `audiobookplayer.error_no_stream` catalog string — locale v1.4.2 ×7).
+- **CHECK 26 (make verify-runtime, 25 → 26).** Fails loud on the exact
+  fingerprint of the old bug class: server payload keys read off
+  envelope-level variables (`resp.libraries`, `data.items`, …), raw
+  `api.X()` leaks into ApiTask `result.data`, and missing law artifacts.
+  Regression leg in `tests/scripts/verify-runtime-portable.sh` plants a
+  `resp.libraries` read in scratch `DetailScene.brs`, proves CHECK 26 goes red
+  naming file and read while Checks 20/24/25 stay green.
+  `tests/unit/ApiEnvelope.test.brs` pins the helper semantics (six pure
+  cases incl. the login-shape pin). Law documented at `docs/api-envelope.md`.
+
 ### Changed — syncplay twin-flip evidence promotion: reserved trio → emitted-verified — 2026-09-25
 
 - **The flip landed upstream.** phlix-server PR #798 @ `9b2394ee` switched the

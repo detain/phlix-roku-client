@@ -35,6 +35,54 @@
 ' Phlix API Client for Roku
 ' Canonical /api/v1 contract (snake_case envelopes, Bearer + refresh tokens)
 ' ===========================================
+'
+' =============================================================
+' THE API ENVELOPE LAW (since 2c119f9; consumers wired 2026-09)
+' -------------------------------------------------------------
+' ApiClient.request() — and every ApiClient method that returns
+' it — yields a TRANSPORT envelope:
+'
+'     { status: Integer, ok: Boolean, data: Object, error: String }
+'
+' The SERVER payload (the parsed JSON body, e.g. {libraries:[...]},
+' {item:{...}}, {servers:[...]}) rides at .data. Reading a server
+' key off the envelope itself is ALWAYS wrong and fails SILENTLY
+' (invalid member -> empty render). Consumers MUST:
+'
+'   1. check .ok (HTTP 2xx; transport failures set error text), then
+'   2. read server fields off the UNWRAPPED payload via
+'      UnwrapApiEnvelope(env) below - never off the envelope.
+'
+' Unwrap happens EXACTLY ONCE per flow, at the choke that converts
+' transport -> scene-visible state (ApiTask's branches). Downstream
+' of that choke the contract is: task response {op, ok, data, error}
+' with data = the SERVER payload itself (scenes read
+' resp.data.<serverKey>). Full law + worked examples:
+' docs/api-envelope.md. Enforced by CHECK 26 (make verify-runtime):
+' server-payload keys read directly off variables named env/resp/
+' result/data/raw are red outside the documented .data chain form.
+' =============================================================
+
+' Extracts the server payload from a transport envelope produced by
+' ApiClient.request() / ApiClient.login() - see THE API ENVELOPE LAW
+' above and docs/api-envelope.md. PURE, never crashes:
+'   - invalid            -> invalid (caller guards, fail loud upstream)
+'   - a transport envelope (roAA carrying BOTH "status" and "ok")
+'                        -> env.data (the parsed server JSON body; may
+'                           itself be invalid when the response had no
+'                           body - 204/transport error)
+'   - anything else      -> returned unchanged (pass-through for the
+'                           few helpers that already unwrapped at the
+'                           source, e.g. getMe() -> user object, so
+'                           call sites can use one uniform idiom).
+' Checking .ok is the CALLER's job: unwrap answers "where is the
+' payload", not "did the request succeed".
+function UnwrapApiEnvelope(env as Object) as Object
+    if env = invalid then return invalid
+    if type(env) <> "roAssociativeArray" then return env
+    if env.DoesExist("status") and env.DoesExist("ok") then return env.data
+    return env
+end function
 
 function ApiClient(baseUrl as String) as Object
     obj = {
@@ -88,13 +136,16 @@ function ApiClient(baseUrl as String) as Object
                 if refreshToken <> invalid and refreshToken <> "" then m.refreshToken = refreshToken
                 if sessionId <> invalid and sessionId <> "" then m.sessionId = sessionId
 
-                ' Validate token with server (canonical /auth/me returns {user},
-                ' and request() wraps the server json in {status,ok,data,error}
-                ' since 2c119f9 - the payload lives under .data).
-                result = m.request("GET", "/auth/me", invalid)
-                if result <> invalid and result.data <> invalid and result.data.user <> invalid then
-                    m.user = result.data.user
-                    return true
+                ' Validate token with server. ENVELOPE LAW: canonical
+                ' /auth/me payload is {user}, riding at .data of the
+                ' transport envelope returned by request() (since 2c119f9).
+                env = m.request("GET", "/auth/me", invalid)
+                if env <> invalid and env.ok then
+                    payload = UnwrapApiEnvelope(env)
+                    if payload <> invalid and payload.user <> invalid then
+                        m.user = payload.user
+                        return true
+                    end if
                 end if
             end if
 
@@ -207,6 +258,9 @@ function ApiClient(baseUrl as String) as Object
         ' { status: Integer, ok: Boolean, data: Object, error: String }
         ' ok is true when status is 200-299. Transport failures produce
         ' ok=false, status=0, and a non-empty error string.
+        ' ENVELOPE LAW (top of this file + docs/api-envelope.md): the server
+        ' payload is at .data - unwrap with UnwrapApiEnvelope() and check .ok;
+        ' NEVER read server keys (libraries/item/servers/...) off this result.
         request: function(method as String, path as String, body as Object) as Object
             raw = m.sendRaw(method, path, body)
 
@@ -257,7 +311,16 @@ function ApiClient(baseUrl as String) as Object
         ' Authentication
         ' ---------------------------------------------------------------------
 
-        ' POST /auth/login -> {access_token, refresh_token, user, ...}
+        ' POST /auth/login -> TRANSPORT ENVELOPE {status,ok,data,error}, the
+        ' same contract as request() (enforced because login must ride
+        ' sendRawWithDeviceId for the X-Device-Id header and that raw helper
+        ' returns bare {code,json} - wrapped into the envelope here).
+        ' .data on success = {access_token, refresh_token, token_type,
+        ' expires_in, user} (server AuthManager::createAuthResponse and the
+        ' hub's AuthController - note: NO "success" key exists; the HTTP
+        ' status is the verdict). .data on failure = {error[,code]}; the
+        ' message is also lifted to envelope .error. Tokens + m.user are
+        ' persisted internally on success.
         login: function(username as String, password as String) as Object
             body = {
                 username: username
@@ -269,17 +332,33 @@ function ApiClient(baseUrl as String) as Object
 
             ' Bind the token to this device (optional server-side).
             raw = m.sendRawWithDeviceId("POST", "/auth/login", body)
-            result = raw.json
+            status = raw.code
+            ok = (status >= 200 and status <= 299)
+            payload = raw.json
+            error = ""
 
-            if result <> invalid and result.access_token <> invalid then
-                m.setToken(result.access_token)
-                if result.refresh_token <> invalid then
-                    m.setRefreshToken(result.refresh_token)
+            ' sendRawWithDeviceId reports no `started` flag; every status=0
+            ' (refused, DNS, or the bounded wait expiring) is labelled
+            ' "connect" - the honest coarse verdict for this transport.
+            if status = 0 then
+                error = "connect"
+            else if status >= 400 then
+                if payload <> invalid and payload.DoesExist("error") then
+                    error = payload.error
+                else
+                    error = "http_" + str(status).trim()
                 end if
-                m.user = result.user
             end if
 
-            return result
+            if ok and payload <> invalid and payload.access_token <> invalid then
+                m.setToken(payload.access_token)
+                if payload.refresh_token <> invalid then
+                    m.setRefreshToken(payload.refresh_token)
+                end if
+                m.user = payload.user
+            end if
+
+            return { status: status, ok: ok, data: payload, error: error }
         end function
 
         ' Variant of sendRaw that also sends X-Device-Id (used on login so the
@@ -346,8 +425,9 @@ function ApiClient(baseUrl as String) as Object
         ' Session management
         ' ---------------------------------------------------------------------
 
-        ' DELETE /sessions/{id} -> {message} ; ends the session WITHOUT clearing
+        ' DELETE /sessions/{id} ; ends the session WITHOUT clearing
         ' auth credentials (distinct from logout). Clears the local session id.
+        ' Returns the TRANSPORT envelope (server payload {message} at .data).
         endSession: function() as Object
             if m.sessionId = "" then return invalid
             result = m.request("DELETE", "/sessions/" + m.sessionId, invalid)
@@ -365,34 +445,46 @@ function ApiClient(baseUrl as String) as Object
                 return invalid
             end if
 
-            result = m.request("POST", "/sessions", {
+            env = m.request("POST", "/sessions", {
                 device_id: m.deviceId
                 device_name: m.deviceName
                 device_type: m.deviceType
             })
 
-            if result <> invalid and result.session_id <> invalid then
-                m.setSession(result.session_id)
+            ' ENVELOPE LAW: the server payload {session_id,...} rides at
+            ' .data - the pre-unwrap read left every session unset (and
+            ' progress reporting silently died with it).
+            payload = UnwrapApiEnvelope(env)
+            if env <> invalid and env.ok and payload <> invalid and payload.session_id <> invalid then
+                m.setSession(payload.session_id)
             end if
 
-            return result
+            return env
         end function
 
         ' ---------------------------------------------------------------------
         ' Library browsing
         ' ---------------------------------------------------------------------
 
-        ' GET /libraries -> {libraries:[...]} ; returns the libraries array.
+        ' GET /libraries -> server payload {libraries:[...]} ; returns the
+        ' libraries ARRAY. ENVELOPE LAW: the payload rides at .data - the
+        ' pre-unwrap direct read was permanently invalid (home rails empty).
+        ' Unwrap failures render as [] exactly as before, but now honestly:
+        ' callers wanting the error state use ApiTask's getLibraries op, which
+        ' surfaces {ok:false,error} instead of swallowing.
         getLibraries: function() as Object
-            result = m.request("GET", "/libraries", invalid)
-            if result <> invalid and result.libraries <> invalid then
-                return result.libraries
+            env = m.request("GET", "/libraries", invalid)
+            if env = invalid or not env.ok then return []
+            payload = UnwrapApiEnvelope(env)
+            if payload <> invalid and payload.libraries <> invalid then
+                return payload.libraries
             end if
             return []
         end function
 
-        ' GET /media with query params. Returns the whole {items,total,limit,
-        ' offset} envelope (managers read .items).
+        ' GET /media with query params. Returns the TRANSPORT envelope; the
+        ' server payload {items,total,limit,offset} rides at .data (the scene
+        ' reads resp.data.items after ApiTask unwraps - ENVELOPE LAW).
         getLibraryItems: function(libraryId as String, options = {} as Object) as Object
             limit = 50
             offset = 0
@@ -434,8 +526,9 @@ function ApiClient(baseUrl as String) as Object
         ' GET /media?search=<q> with query params. Global search across ALL
         ' libraries: deliberately omits libraryId/parentId/topLevel (the server
         ' ignores topLevel when search is set, so results can include
-        ' season/episode rows too). Returns the whole {items,total,limit,offset}
-        ' envelope (the scene reads .items).
+        ' season/episode rows too). Returns the TRANSPORT envelope; the server
+        ' payload {items,total,limit,offset} rides at .data (the scene reads
+        ' resp.data.items after ApiTask unwraps - ENVELOPE LAW).
         search: function(query as String, options = {} as Object) as Object
             limit = 50
             offset = 0
@@ -461,11 +554,17 @@ function ApiClient(baseUrl as String) as Object
             return m.request("GET", "/media" + query2, invalid)
         end function
 
-        ' GET /media/{id} -> {item:{...}} ; returns the unwrapped item.
+        ' GET /media/{id} -> server payload {item:{...}} ; returns the
+        ' UNWRAPPED item. ENVELOPE LAW: reading the key off the transport
+        ' envelope (pre-2c119f9 shape) yielded invalid forever - every detail
+        ' page opened blank. Non-OK responses also return invalid, but via an
+        ' honest ok-check rather than a member miss.
         getItem: function(itemId as String) as Object
-            result = m.request("GET", "/media/" + itemId, invalid)
-            if result <> invalid and result.item <> invalid then
-                return result.item
+            env = m.request("GET", "/media/" + itemId, invalid)
+            if env = invalid or not env.ok then return invalid
+            payload = UnwrapApiEnvelope(env)
+            if payload <> invalid and payload.item <> invalid then
+                return payload.item
             end if
             return invalid
         end function
@@ -797,26 +896,28 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
-        ' Current user (F11). GET /auth/me -> server {user}; returns the unwrapped
-        ' user (or invalid). HomeScene uses user.is_admin to gate the admin entry.
-        ' NOTE: request() wraps the server json in {status,ok,data,error} (2c119f9),
-        ' so the payload is read at .data.user - reading .user off the envelope is
-        ' the pre-2c119f9 shape and silently yielded invalid (admin never shown).
+        ' Current user (F11). GET /auth/me -> server payload {user}; returns the
+        ' UNWRAPPED user (or invalid). HomeScene uses user.is_admin to gate the
+        ' admin entry. ENVELOPE LAW applied via UnwrapApiEnvelope + env.ok.
         ' ---------------------------------------------------------------------
         getMe: function() as Object
-            result = m.request("GET", "/auth/me", invalid)
-            if result <> invalid and result.data <> invalid and result.data.user <> invalid then
-                return result.data.user
+            env = m.request("GET", "/auth/me", invalid)
+            if env = invalid or not env.ok then return invalid
+            payload = UnwrapApiEnvelope(env)
+            if payload <> invalid and payload.user <> invalid then
+                return payload.user
             end if
             return invalid
         end function
 
         ' ---------------------------------------------------------------------
-        ' Hub mode (F12b). GET /me/servers -> {servers:[ {serverId, serverName,
-        ' status, relayActive, libraryCount, hostnameCandidates, ...} ]} (CAMEL
-        ' case). Exists ONLY on a hub; a DIRECT server has no such route (404),
-        ' so the caller treats a missing/non-array .servers as "direct". Returns
-        ' the WHOLE envelope (the caller reads .servers); invalid on failure.
+        ' Hub mode (F12b). GET /me/servers -> server payload {servers:[
+        ' {serverId, serverName, status, relayActive, libraryCount,
+        ' hostnameCandidates, ...} ]} (CAMEL case). Exists ONLY on a hub; a
+        ' DIRECT server has no such route (404) - that 404 IS the "direct"
+        ' signal, which the ApiTask getMyServers branch translates into
+        ' ok=true + empty payload so login never errors on a plain server.
+        ' Returns the TRANSPORT ENVELOPE (payload at .data - ENVELOPE LAW).
         ' ---------------------------------------------------------------------
         getMyServers: function() as Object
             return m.request("GET", "/me/servers", invalid)
@@ -1022,8 +1123,9 @@ function ApiClient(baseUrl as String) as Object
             return ParseJSON(responseString)
         end function
 
-        ' Live TV read-only lists (F9b). All return the WHOLE envelope; scenes read
-        ' resp.data.programs / .recordings / .rules.
+        ' Live TV read-only lists (F9b). All return the TRANSPORT envelope;
+        ' scenes read the unwrapped payload's programs / recordings / rules
+        ' (resp.data.<key> after the ApiTask choke - ENVELOPE LAW).
         getGuide: function() as Object
             return m.request("GET", "/admin/livetv/guide", invalid)
         end function
@@ -1271,11 +1373,16 @@ function ApiClient(baseUrl as String) as Object
             return m.request("GET", "/audiobooks" + query, invalid)
         end function
 
-        ' GET /audiobooks/{id} -> {audiobook:{...}} ; returns the unwrapped audiobook.
+        ' GET /audiobooks/{id} -> server payload {audiobook:{...}} ; returns the
+        ' UNWRAPPED audiobook (invalid on failure). ENVELOPE LAW: the payload
+        ' rides at .data. The payload also carries signer-minted stream_url /
+        ' read_url (AudiobookController) that the player scene consumes.
         getAudiobook: function(audiobookId as String) as Object
-            result = m.request("GET", "/audiobooks/" + audiobookId, invalid)
-            if result <> invalid and result.audiobook <> invalid then
-                return result.audiobook
+            env = m.request("GET", "/audiobooks/" + audiobookId, invalid)
+            if env = invalid or not env.ok then return invalid
+            payload = UnwrapApiEnvelope(env)
+            if payload <> invalid and payload.audiobook <> invalid then
+                return payload.audiobook
             end if
             return invalid
         end function

@@ -2038,4 +2038,120 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo ""
+echo "=== Check 26: API-envelope reads stay behind the unwrap choke ==="
+# Envelope law (2c119f9 follow-through, 2026-09-29): ApiClient.request() returns
+# the TRANSPORT envelope {status,ok,data,error}; the server payload rides at
+# .data. Commit 2c119f9 shipped that wrapper and updated ZERO consumers, so
+# every reader of a former server field died silently (Home rails, hub detection,
+# login, episodes, guide, syncplay groups - see docs/api-envelope.md). The law
+# is one unwrap at one choke: UnwrapApiEnvelope() (source/lib/ApiClient.brs),
+# applied by components/ApiTask.brs ApplyEnvelope() before any scene sees a
+# response. This check fails loud on the fingerprints of the old bug class:
+#   R1  code (not comments/strings) reading a server payload key directly off an
+#       envelope-shaped variable name (env./resp./result./raw./data. + a known
+#       server key) anywhere in source/ or components/ - chain reads like
+#       resp.data.items stay legal because the dotted prefix rejects them.
+#   R2  components/ApiTask.brs result.data assignments must come from an
+#       unwrapped source: ApplyEnvelope/UnwrapApiEnvelope, the documented
+#       payload-level exceptions (api.user, api2.probeHealth()), drills
+#       (result.data.libraries/.item), or literals - never a bare api.X() call.
+#   R3  the choke artifacts must exist: ApiTask defines ApplyEnvelope, and
+#       ApiClient.brs (when present) carries the ENVELOPE LAW marker plus the
+#       UnwrapApiEnvelope function (docs/ is not part of the channel zip, so
+#       the docblock is the packaging-safe law citation).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import glob, os, re, sys
+
+repo = os.environ["REPO"]
+
+VARS = r"env|envelope|resp|response|result|raw|data"
+KEYS = (r"libraries|servers|groups|session_id|programs|recordings|channels|"
+        r"audiobook|audiobooks|item|items|recommendations|artists|albums|tracks|"
+        r"photos|collections|users|profiles|schedules|tags|chapters|letters|"
+        r"genres|scan_status|new_password|access_token|refresh_token|read_url")
+FORBIDDEN = re.compile(rf"(?<![.\w])(?:{VARS})\.(?:{KEYS})\b")
+ASSIGN = re.compile(r"result\.data\s*=")
+ASSIGN_ALLOWED = re.compile(
+    r"UnwrapApiEnvelope\(|ApplyEnvelope\(|\bapi\.user\b|\bhubApi\.user\b|"
+    r"api2\.probeHealth\(\)|result\.data\.(libraries|item)\b|=\s*\{|=\s*\[\]|=\s*invalid"
+)
+
+problems = []
+scanned = 0
+
+def code_only(line):
+    """Strip double-quoted strings; drop full-line and inline ' comments."""
+    code = re.sub(r'"[^"]*"', '""', line)
+    if code.lstrip().startswith("'"):
+        return ""
+    cut = code.find("'")
+    if cut >= 0:
+        code = code[:cut]
+    return code
+
+# R1 - forbidden envelope-level server key reads across the shipped sources.
+paths = sorted(
+    glob.glob(os.path.join(repo, "source", "**", "*.brs"), recursive=True)
+    + glob.glob(os.path.join(repo, "components", "**", "*.brs"), recursive=True)
+)
+for path in paths:
+    rel = os.path.relpath(path, repo)
+    scanned += 1
+    with open(path, encoding="utf-8") as f:
+        for num, line in enumerate(f, 1):
+            for m in FORBIDDEN.finditer(code_only(line)):
+                problems.append(
+                    f"  {rel}:{num} - CHECK26: envelope-law leak: {m.group(0)} "
+                    "reads a server payload key off an envelope-level variable; "
+                    "unwrap with UnwrapApiEnvelope() behind an ok guard "
+                    "(see docs/api-envelope.md)")
+
+# R2/R3 - the ApiTask choke.
+apitask = os.path.join(repo, "components", "ApiTask.brs")
+if os.path.exists(apitask):
+    with open(apitask, encoding="utf-8") as f:
+        lines = f.readlines()
+    if not any(re.match(r"\s*sub\s+ApplyEnvelope\b", l) for l in lines):
+        problems.append("  components/ApiTask.brs - CHECK26: ApplyEnvelope() "
+                        "choke helper is missing")
+    for num, line in enumerate(lines, 1):
+        code = code_only(line)
+        if ASSIGN.search(code) and not ASSIGN_ALLOWED.search(code):
+            problems.append(
+                f"  components/ApiTask.brs:{num} - CHECK26: result.data assigned "
+                f"from a raw helper result ({line.strip()[:80]}); route it through "
+                "ApplyEnvelope()/UnwrapApiEnvelope() so scenes only ever see the "
+                "server payload")
+
+# R3 - ApiClient law markers (file is absent in the minimal scratch checkouts
+# the portable regression test builds; the rule is conditional by design).
+apiclient = os.path.join(repo, "source", "lib", "ApiClient.brs")
+if os.path.exists(apiclient):
+    with open(apiclient, encoding="utf-8") as f:
+        client_src = f.read()
+    if "ENVELOPE LAW" not in client_src:
+        problems.append("  source/lib/ApiClient.brs - CHECK26: ENVELOPE LAW "
+                        "docblock marker missing (the law citation travels in "
+                        "the file because docs/ is not shipped in the zip)")
+    if not re.search(r"function\s+UnwrapApiEnvelope\b", client_src):
+        problems.append("  source/lib/ApiClient.brs - CHECK26: "
+                        "UnwrapApiEnvelope() helper missing")
+
+if problems:
+    for p in problems:
+        print(p)
+    print(f"  CHECK26: {len(problems)} envelope-law problem(s)")
+    sys.exit(1)
+
+print(f"  CHECK26: all {scanned} shipped .brs files keep server payload reads "
+      "behind the unwrap choke; ApiTask result.data assignments are all "
+      "unwrap-derived or documented exceptions; law markers present")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

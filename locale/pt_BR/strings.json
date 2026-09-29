@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "pt_BR",
     "language_name": "Português (Brasil)",
-    "version": "1.4.1",
+    "version": "1.4.2",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -324,6 +324,7 @@
     "select": "Selecione um audiobook"
   },
   "audiobookplayer": {
+    "error_no_stream": "Este audiobook não tem uma fonte de áudio reproduzível.",
     "skip_backward": "-30s",
     "skip_forward": "+30s"
   },

@@ -16,6 +16,16 @@
 ' m.top.request and write m.top.response. It must NOT touch UI/parent nodes.
 ' Only assocarray/string/number data crosses the thread boundary (ApiClient
 ' returns parsed-JSON assocarrays - safe).
+'
+' ENVELOPE LAW (docs/api-envelope.md): this task is THE single choke where a
+' transport envelope {status,ok,data,error} from ApiClient.request()/login()
+' is unwrapped - exactly once, via ApplyEnvelope below - before crossing to
+' the render thread. Every branch answers with
+'     { op, ok, data = SERVER PAYLOAD (or the documented key inside it),
+'       error, requestId? }
+' so scenes consume `resp.ok` + `resp.data.<serverKey>` and never touch
+' transport framing. A branch that leaks the raw envelope re-introduces the
+' silent-empty-render bug class 2c119f9 created; CHECK 26 reddens it.
 ' ===========================================
 
 ' R5.9: Response cache constants (Bounded LRU cache scoped to Task's m.api).
@@ -177,8 +187,10 @@ sub CacheInvalidateScan(client as Object)
 end sub
 
 ' Derives the ok flag from an ApiClient response.
-' - Wrapped helpers return the full {status,ok,data,error} envelope from request().
-'   In this case data.ok is the HTTP-level ok (true for 200-299).
+' ENVELOPE LAW (see header): the canonical inputs are transport envelopes.
+' - Wrapped helpers return the full {status,ok,data,error} envelope from
+'   request()/login(). In this case data.ok is the HTTP-level ok (true for
+'   200-299).
 ' - Unwrapped helpers return just the extracted data (array or object). We infer
 '   ok from whether data is present and, for objects, whether data.success is false.
 ' - Arrays are always "ok" (a valid empty [] means success).
@@ -238,6 +250,21 @@ function DeriveResponseError(data as Object) as String
     return ""
 end function
 
+' ENVELOPE LAW choke (docs/api-envelope.md): record one transport envelope
+' onto the scene-facing task response, unwrapping the server payload
+' EXACTLY ONCE. Every op branch that receives the full
+' {status,ok,data,error} envelope from ApiClient MUST go through here
+' instead of assigning result.data/ok/error by hand.
+' Unwrapped-helper pass-through (getMe-style: the method already returned
+' the payload or invalid) keeps working: UnwrapApiEnvelope hands non-
+' envelopes through untouched and DeriveResponseOk infers ok from
+' presence, as before.
+sub ApplyEnvelope(result as Object, env as Object)
+    result.data = UnwrapApiEnvelope(env)
+    result.ok = DeriveResponseOk(env)
+    result.error = DeriveResponseError(env)
+end sub
+
 sub ExecRequest()
     ' R1.6: Invalidate the Storage read cache so we re-read the freshest values
     ' from the registry. This is the ONLY ResetCachedStorage call per Task run —
@@ -272,27 +299,25 @@ sub ExecRequest()
         end if
 
         if req.op = "getLibraries" then
-            ' R5.9: Cache at request level (full envelope, extract on both hit and miss).
+            ' R5.9: Cache at request level (full envelope, unwrap on both hit
+            ' and miss). ENVELOPE LAW + scene contract: HomeScene/LibraryAdmin
+            ' Scene consume result.data AS the libraries ARRAY, so after the
+            ' single transport unwrap this branch drills one further level
+            ' into the server payload {libraries:[...]} (documented op shape
+            ' in docs/api-envelope.md).
             cachedResp = CacheTryGet(api, "GET", "/libraries")
-            if cachedResp <> invalid then
-                if cachedResp.libraries <> invalid then
-                    result.data = cachedResp.libraries
+            if cachedResp = invalid then
+                cachedResp = api.request("GET", "/libraries", invalid)
+                if DeriveResponseOk(cachedResp) then
+                    CacheStore(api, "GET", "/libraries", cachedResp)
+                end if
+            end if
+            ApplyEnvelope(result, cachedResp)
+            if result.ok then
+                if result.data <> invalid and result.data.libraries <> invalid then
+                    result.data = result.data.libraries
                 else
                     result.data = []
-                end if
-                result.ok = DeriveResponseOk(cachedResp)
-                result.error = DeriveResponseError(cachedResp)
-            else
-                resp = api.request("GET", "/libraries", invalid)
-                if resp <> invalid and resp.libraries <> invalid then
-                    result.data = resp.libraries
-                else
-                    result.data = []
-                end if
-                result.ok = DeriveResponseOk(resp)
-                result.error = DeriveResponseError(resp)
-                if result.ok then
-                    CacheStore(api, "GET", "/libraries", resp)
                 end if
             end if
         else if req.op = "getLibraryItems" then
@@ -343,98 +368,66 @@ sub ExecRequest()
             cachePath = "/media?" + JoinStrings(params, "&")
             cachedResp = CacheTryGet(api, "GET", cachePath)
             if cachedResp <> invalid then
-                ' Unwrap: cachedResp is the {status,ok,data,error} transport
-                ' envelope; scenes read the server payload at result.data level
-                ' (resp.data.items) - same convention as the getLibraries branch.
-                result.data = cachedResp.data
-                result.ok = DeriveResponseOk(cachedResp)
-                result.error = DeriveResponseError(cachedResp)
+                ' ENVELOPE LAW: cachedResp is the {status,ok,data,error}
+                ' transport envelope; ApplyEnvelope unwraps it once so scenes
+                ' read the server payload at result.data level (resp.data.items).
+                ApplyEnvelope(result, cachedResp)
             else
                 resp = api.request("GET", cachePath, invalid)
-                result.data = resp.data
-                result.ok = DeriveResponseOk(resp)
-                result.error = DeriveResponseError(resp)
+                ApplyEnvelope(result, resp)
                 if result.ok then
                     CacheStore(api, "GET", cachePath, resp)
                 end if
             end if
         else if req.op = "getItem" then
-            ' R5.9: Cache at request level.
+            ' R5.9: Cache at request level. Scene contract (Home/Detail/Player/
+            ' PhlixApp deep link): result.data IS the item OBJECT, so after the
+            ' single transport unwrap this branch drills one further level into
+            ' the server payload {item:{...}} (documented in docs/api-envelope.md).
             cachePath = "/media/" + req.itemId
             cachedResp = CacheTryGet(api, "GET", cachePath)
-            if cachedResp <> invalid then
-                if cachedResp.item <> invalid then
-                    result.data = cachedResp.item
+            if cachedResp = invalid then
+                cachedResp = api.request("GET", cachePath, invalid)
+                if DeriveResponseOk(cachedResp) then
+                    CacheStore(api, "GET", cachePath, cachedResp)
+                end if
+            end if
+            ApplyEnvelope(result, cachedResp)
+            if result.ok then
+                if result.data <> invalid and result.data.item <> invalid then
+                    result.data = result.data.item
                 else
                     result.data = invalid
-                end if
-                result.ok = DeriveResponseOk(cachedResp)
-                result.error = DeriveResponseError(cachedResp)
-            else
-                resp = api.request("GET", cachePath, invalid)
-                if resp <> invalid and resp.item <> invalid then
-                    result.data = resp.item
-                else
-                    result.data = invalid
-                end if
-                result.ok = DeriveResponseOk(resp)
-                result.error = DeriveResponseError(resp)
-                if result.ok then
-                    CacheStore(api, "GET", cachePath, resp)
                 end if
             end if
         else if req.op = "getItemPlaybackInfo" then
-            result.data = api.getItemPlaybackInfo(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getItemPlaybackInfo(req.itemId))
         else if req.op = "getItemSimilar" then
-            result.data = api.getItemSimilar(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getItemSimilar(req.itemId))
         else if req.op = "getItemRatings" then
-            result.data = api.getItemRatings(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getItemRatings(req.itemId))
         else if req.op = "getItemTrailers" then
-            result.data = api.getItemTrailers(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getItemTrailers(req.itemId))
         else if req.op = "getItemExtras" then
-            result.data = api.getItemExtras(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getItemExtras(req.itemId))
         else if req.op = "startTranscode" then
-            result.data = api.startTranscode(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.startTranscode(req.itemId))
         else if req.op = "getTranscodeStatus" then
-            result.data = api.getTranscodeStatus(req.jobId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getTranscodeStatus(req.jobId))
         else if req.op = "createSession" then
-            result.data = api.createSession()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.createSession())
         else if req.op = "reportProgress" then
-            result.data = api.reportProgress(req.mediaItemId, req.positionTicks, req.durationTicks, req.isPaused)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.reportProgress(req.mediaItemId, req.positionTicks, req.durationTicks, req.isPaused))
         else if req.op = "completeSession" then
-            result.data = api.completeSession()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.completeSession())
         else if req.op = "getContinueWatching" then
             ' R5.9: Cache at request level.
             cachedResp = CacheTryGet(api, "GET", "/me/continue-watching")
             if cachedResp <> invalid then
-                result.data = cachedResp
-                result.ok = DeriveResponseOk(cachedResp)
-                result.error = DeriveResponseError(cachedResp)
+                ApplyEnvelope(result, cachedResp)
             else
                 resp = api.request("GET", "/me/continue-watching", invalid)
-                result.data = resp
-                result.ok = DeriveResponseOk(resp)
-                result.error = DeriveResponseError(resp)
+                ApplyEnvelope(result, resp)
                 if result.ok then
                     CacheStore(api, "GET", "/me/continue-watching", resp)
                 end if
@@ -445,14 +438,10 @@ sub ExecRequest()
             ' Response: direct item object (or null if nothing up next)
             cachedResp = CacheTryGet(api, "GET", "/users/me/next-up")
             if cachedResp <> invalid then
-                result.data = cachedResp
-                result.ok = DeriveResponseOk(cachedResp)
-                result.error = DeriveResponseError(cachedResp)
+                ApplyEnvelope(result, cachedResp)
             else
                 resp = api.request("GET", "/users/me/next-up", invalid)
-                result.data = resp
-                result.ok = DeriveResponseOk(resp)
-                result.error = DeriveResponseError(resp)
+                ApplyEnvelope(result, resp)
                 if result.ok then
                     CacheStore(api, "GET", "/users/me/next-up", resp)
                 end if
@@ -466,14 +455,10 @@ sub ExecRequest()
             cachePath = "/me/recommendations?limit=" + str(limit).trim()
             cachedResp = CacheTryGet(api, "GET", cachePath)
             if cachedResp <> invalid then
-                result.data = cachedResp
-                result.ok = DeriveResponseOk(cachedResp)
-                result.error = DeriveResponseError(cachedResp)
+                ApplyEnvelope(result, cachedResp)
             else
                 resp = api.request("GET", cachePath, invalid)
-                result.data = resp
-                result.ok = DeriveResponseOk(resp)
-                result.error = DeriveResponseError(resp)
+                ApplyEnvelope(result, resp)
                 if result.ok then
                     CacheStore(api, "GET", cachePath, resp)
                 end if
@@ -481,61 +466,45 @@ sub ExecRequest()
         else if req.op = "search" then
             opts = req.options
             if opts = invalid then opts = {}
-            result.data = api.search(req.query, opts)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.search(req.query, opts))
         else if req.op = "favorite" then
-            result.data = api.addFavorite(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.addFavorite(req.itemId))
             ' R5.9: Invalidate cache after favorite mutation (affects media items + lists).
             if result.ok then
                 CacheInvalidateItem(api, req.itemId)
             end if
         else if req.op = "unfavorite" then
-            result.data = api.removeFavorite(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.removeFavorite(req.itemId))
             ' R5.9: Invalidate cache after unfavorite mutation.
             if result.ok then
                 CacheInvalidateItem(api, req.itemId)
             end if
         else if req.op = "setRating" then
-            result.data = api.setRating(req.itemId, req.rating)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.setRating(req.itemId, req.rating))
             ' R5.9: Invalidate cache after rating mutation.
             if result.ok then
                 CacheInvalidateItem(api, req.itemId)
             end if
         else if req.op = "clearRating" then
-            result.data = api.clearRating(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.clearRating(req.itemId))
             ' R5.9: Invalidate cache after clear-rating mutation.
             if result.ok then
                 CacheInvalidateItem(api, req.itemId)
             end if
         else if req.op = "markWatched" then
-            result.data = api.markWatched(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.markWatched(req.itemId))
             ' R7.5: Invalidate cache after watched mutation.
             if result.ok then
                 CacheInvalidateItem(api, req.itemId)
             end if
         else if req.op = "markUnwatched" then
-            result.data = api.markUnwatched(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.markUnwatched(req.itemId))
             ' R7.5: Invalidate cache after unwatched mutation.
             if result.ok then
                 CacheInvalidateItem(api, req.itemId)
             end if
         else if req.op = "like" then
-            result.data = api.like(req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.like(req.itemId))
             ' R7.5: Invalidate cache after like mutation.
             if result.ok then
                 CacheInvalidateItem(api, req.itemId)
@@ -551,86 +520,50 @@ sub ExecRequest()
             cachePath = "/users/me/favorites?limit=" + str(limit).trim() + "&offset=" + str(offset).trim()
             cachedResp = CacheTryGet(api, "GET", cachePath)
             if cachedResp <> invalid then
-                result.data = cachedResp
-                result.ok = DeriveResponseOk(cachedResp)
-                result.error = DeriveResponseError(cachedResp)
+                ApplyEnvelope(result, cachedResp)
             else
                 resp = api.request("GET", cachePath, invalid)
-                result.data = resp
-                result.ok = DeriveResponseOk(resp)
-                result.error = DeriveResponseError(resp)
+                ApplyEnvelope(result, resp)
                 if result.ok then
                     CacheStore(api, "GET", cachePath, resp)
                 end if
             end if
         else if req.op = "getArtists" then
-            result.data = api.getArtists()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getArtists())
         else if req.op = "getAudiobooks" then
             opts = req.options
             if opts = invalid then opts = {}
-            result.data = api.getAudiobooks(opts)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getAudiobooks(opts))
         else if req.op = "getAudiobook" then
-            result.data = api.getAudiobook(req.audiobookId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getAudiobook(req.audiobookId))
         else if req.op = "getAudiobookChapters" then
-            result.data = api.getAudiobookChapters(req.audiobookId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getAudiobookChapters(req.audiobookId))
         else if req.op = "getAudiobookProgress" then
-            result.data = api.getAudiobookProgress(req.audiobookId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getAudiobookProgress(req.audiobookId))
         else if req.op = "saveAudiobookProgress" then
-            result.data = api.saveAudiobookProgress(req.audiobookId, req.positionMs, req.currentChapterIndex)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.saveAudiobookProgress(req.audiobookId, req.positionMs, req.currentChapterIndex))
         else if req.op = "getAlbums" then
-            result.data = api.getAlbums()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getAlbums())
         else if req.op = "getAlbum" then
-            result.data = api.getAlbum(req.albumName)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getAlbum(req.albumName))
         else if req.op = "getTracks" then
             opts = req.options
             if opts = invalid then opts = {}
-            result.data = api.getTracks(opts)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getTracks(opts))
         else if req.op = "getPhotoAlbums" then
-            result.data = api.getPhotoAlbums(req.libraryId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getPhotoAlbums(req.libraryId))
         else if req.op = "getPhotoAlbum" then
-            result.data = api.getPhotoAlbum(req.albumId, req.libraryId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getPhotoAlbum(req.albumId, req.libraryId))
         else if req.op = "getCollections" then
-            result.data = api.getCollections()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getCollections())
         else if req.op = "getCollection" then
-            result.data = api.getCollection(req.collectionId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getCollection(req.collectionId))
         else if req.op = "addToCollection" then
-            result.data = api.addToCollection(req.collectionId, req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.addToCollection(req.collectionId, req.itemId))
         else if req.op = "removeFromCollection" then
-            result.data = api.removeFromCollection(req.collectionId, req.itemId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.removeFromCollection(req.collectionId, req.itemId))
         else if req.op = "getMe" then
-            result.data = api.getMe()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getMe())
         else if req.op = "checkAuth" then
             ' Session restore + /auth/me validation on the task thread (not render).
             ' Runs on GetApiClient (relay base in hub mode, direct base in direct mode).
@@ -647,135 +580,101 @@ sub ExecRequest()
             ' Login on the task thread so the render thread never blocks.
             ' Uses GetHubApiClient (bare hub url) so login hits the hub directly,
             ' matching the original LoginScene login target.
+            ' ApiClient.login returns the TRANSPORT ENVELOPE now: neither the
+            ' server nor the hub /auth/login body carries a "success" key
+            ' (verified: AuthManager::createAuthResponse / hub AuthController),
+            ' so the HTTP status via env.ok is the verdict. Tokens + api.user
+            ' are persisted inside login() itself on success. The scene gets
+            ' {access_token, refresh_token, token_type, expires_in, user} at
+            ' result.data on success and {error} (with the message also lifted
+            ' to result.error) on failure.
             hubApi = GetHubApiClient()
-            result.data = hubApi.login(req.username, req.password)
-            result.ok = (result.data <> invalid and result.data.success = true)
+            ApplyEnvelope(result, hubApi.login(req.username, req.password))
         else if req.op = "getMyServers" then
             ' Hub detection / server list. At pick-time active_server_id is empty,
             ' so GetApiClient binds to the bare hub url -> this hits the hub.
-            result.data = api.getMyServers()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ' A DIRECT server has no /me/servers route: its 404 IS the expected
+            ' "direct" signal, not a failure, so it answers ok=true with an empty
+            ' payload (the scenes' .servers checks then route to direct). Only a
+            ' transport error or a non-404 failure fails the response - Login
+            ' must never dead-end on a perfectly healthy plain server.
+            env = api.getMyServers()
+            if env <> invalid and not env.ok and env.status = 404 then
+                result.ok = true
+                result.data = {}
+            else
+                ApplyEnvelope(result, env)
+            end if
         else if req.op = "getAdminNowPlaying" then
-            result.data = api.getAdminNowPlaying()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getAdminNowPlaying())
         else if req.op = "getAdminStorage" then
-            result.data = api.getAdminStorage()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getAdminStorage())
         else if req.op = "getAdminActivity" then
             limit = 20
             if req.DoesExist("limit") and req.limit <> invalid then limit = req.limit
-            result.data = api.getAdminActivity(limit)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getAdminActivity(limit))
         else if req.op = "scanLibrary" then
-            result.data = api.scanLibrary(req.libraryId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.scanLibrary(req.libraryId))
             ' R5.9: Invalidate cache after scan (library content may change).
             if result.ok then
                 CacheInvalidateScan(api)
             end if
         else if req.op = "rescanLibrary" then
-            result.data = api.rescanLibrary(req.libraryId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.rescanLibrary(req.libraryId))
             ' R5.9: Invalidate cache after rescan.
             if result.ok then
                 CacheInvalidateScan(api)
             end if
         else if req.op = "matchLibraryMetadata" then
-            result.data = api.matchLibraryMetadata(req.libraryId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.matchLibraryMetadata(req.libraryId))
             ' R5.9: Invalidate cache after metadata match (item metadata may change).
             if result.ok then
                 CacheInvalidateScan(api)
             end if
         else if req.op = "getLibraryScanStatus" then
-            result.data = api.getLibraryScanStatus(req.libraryId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getLibraryScanStatus(req.libraryId))
         else if req.op = "getAdminUsers" then
             status = ""
             if req.DoesExist("status") and req.status <> invalid then status = req.status
-            result.data = api.getAdminUsers(status)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getAdminUsers(status))
         else if req.op = "getAdminUser" then
-            result.data = api.getAdminUser(req.userId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getAdminUser(req.userId))
         else if req.op = "approveUser" then
-            result.data = api.approveUser(req.userId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.approveUser(req.userId))
         else if req.op = "disableUser" then
-            result.data = api.disableUser(req.userId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.disableUser(req.userId))
         else if req.op = "setUserAdmin" then
-            result.data = api.setUserAdmin(req.userId, req.isAdmin)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.setUserAdmin(req.userId, req.isAdmin))
         else if req.op = "resetUserPassword" then
-            result.data = api.resetUserPassword(req.userId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.resetUserPassword(req.userId))
         else if req.op = "getUserProfiles" then
-            result.data = api.getUserProfiles(req.userId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getUserProfiles(req.userId))
         else if req.op = "getProfile" then
-            result.data = api.getProfile(req.profileId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getProfile(req.profileId))
         else if req.op = "setProfileRating" then
-            result.data = api.setProfileRating(req.profileId, req.rating)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.setProfileRating(req.profileId, req.rating))
         else if req.op = "clearProfilePin" then
-            result.data = api.clearProfilePin(req.profileId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.clearProfilePin(req.profileId))
         else if req.op = "getChannels" then
-            result.data = api.getChannels()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getChannels())
         else if req.op = "getChannelStreamUrl" then
             streamUrl = api.getChannelStreamUrl(req.channelId)
             result.data = { stream_url: streamUrl }
             result.ok = (streamUrl <> invalid and streamUrl <> "")
         else if req.op = "getGuide" then
-            result.data = api.getGuide()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getGuide())
         else if req.op = "getRecordings" then
-            result.data = api.getRecordings()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getRecordings())
         else if req.op = "getSeriesRules" then
-            result.data = api.getSeriesRules()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getSeriesRules())
         else if req.op = "getSyncPlayGroups" then
-            result.data = api.getSyncPlayGroups()
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getSyncPlayGroups())
         else if req.op = "createSyncPlayGroup" then
-            result.data = api.createSyncPlayGroup(req.name, req.isPublic)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.createSyncPlayGroup(req.name, req.isPublic))
         else if req.op = "joinSyncPlayGroup" then
-            result.data = api.joinSyncPlayGroup(req.roomId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.joinSyncPlayGroup(req.roomId))
         else if req.op = "leaveSyncPlayGroup" then
-            result.data = api.leaveSyncPlayGroup(req.roomId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.leaveSyncPlayGroup(req.roomId))
         else if req.op = "probeHealth" then
             ' Probe the CANDIDATE url, not the shared GetApiClient (which is bound
             ' to the old/absent server_url at first run). Build a fresh client.
@@ -783,37 +682,21 @@ sub ExecRequest()
             result.data = api2.probeHealth()
             result.ok = (result.data <> invalid and HealthOk(result.data))
         else if req.op = "getProfileSchedules" then
-            result.data = api.getProfileSchedules(req.profileId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getProfileSchedules(req.profileId))
         else if req.op = "createProfileSchedule" then
-            result.data = api.createProfileSchedule(req.profileId, req.schedule)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.createProfileSchedule(req.profileId, req.schedule))
         else if req.op = "deleteProfileSchedule" then
-            result.data = api.deleteProfileSchedule(req.profileId, req.scheduleId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.deleteProfileSchedule(req.profileId, req.scheduleId))
         else if req.op = "getProfileTags" then
-            result.data = api.getProfileTags(req.profileId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getProfileTags(req.profileId))
         else if req.op = "createProfileTag" then
-            result.data = api.createProfileTag(req.profileId, req.tag)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.createProfileTag(req.profileId, req.tag))
         else if req.op = "deleteProfileTag" then
-            result.data = api.deleteProfileTag(req.profileId, req.tagId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.deleteProfileTag(req.profileId, req.tagId))
         else if req.op = "getProfileStreamLimits" then
-            result.data = api.getProfileStreamLimits(req.profileId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.getProfileStreamLimits(req.profileId))
         else if req.op = "updateProfileStreamLimits" then
-            result.data = api.updateProfileStreamLimits(req.profileId, req.limits)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            ApplyEnvelope(result, api.updateProfileStreamLimits(req.profileId, req.limits))
         else if req.op = "getMediaFacets" then
             libraryId = ""
             if req.DoesExist("libraryId") and req.libraryId <> invalid then
@@ -822,9 +705,7 @@ sub ExecRequest()
             env = api.getMediaFacets(libraryId)
             ' Unwrap the transport envelope (see getLibraryItems above): the
             ' server returns {genres:[...]} at .data; scenes read resp.data.genres.
-            result.data = env.data
-            result.ok = DeriveResponseOk(env)
-            result.error = DeriveResponseError(env)
+            ApplyEnvelope(result, env)
         else if req.op = "getLetterIndex" then
             ' GET /media/letter-index - phlix-server WebPortalRouter route
             ' 'GET /api/v1/media/letter-index' (registerRoutes) -> getLetterIndex():
@@ -842,24 +723,18 @@ sub ExecRequest()
                 genres = req.genres
             end if
             env = api.getLetterIndex(libraryId, genres)
-            result.data = env.data
-            result.ok = DeriveResponseOk(env)
-            result.error = DeriveResponseError(env)
+            ApplyEnvelope(result, env)
         else if req.op = "getPlaybackPreferences" then
             ' GET /me/playback/preferences - server payload {preferences:{...}}
             ' at .data (unwrapped here so the scene reads resp.data.preferences).
             env = api.getPlaybackPreferences()
-            result.data = env.data
-            result.ok = DeriveResponseOk(env)
-            result.error = DeriveResponseError(env)
+            ApplyEnvelope(result, env)
         else if req.op = "clearWatchHistory" then
             ' DELETE /users/me/history - server payload {message} at .data.
             ' Mutation: dispatched here (task thread) so the 35s-blocking
             ' transport never runs on the render thread.
             env = api.clearWatchHistory()
-            result.data = env.data
-            result.ok = DeriveResponseOk(env)
-            result.error = DeriveResponseError(env)
+            ApplyEnvelope(result, env)
         else if req.op = "logout" then
             ' Fire-and-forget server-side session teardown.
             ' Local credentials have already been cleared by OnLogout before this

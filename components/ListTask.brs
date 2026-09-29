@@ -59,15 +59,25 @@ end sub
 ' getGuide — fetches program guide and builds a ContentNode with captions.
 ' -----------------------------------------------------------------------
 sub LoadGuide(api as Object)
-    data = api.getGuide()
-    if data = invalid or data.programs = invalid or type(data.programs) <> "roArray" then
+    ' Envelope law: api.getGuide() returns the transport envelope; unwrap once
+    ' here and fail loudly on !ok (see the law block in source/lib/ApiClient.brs).
+    env = api.getGuide()
+    if env = invalid or not env.ok then
         m.top.content = invalid
         m.top.items = []
         m.top.ok = false
         return
     end if
 
-    programs = data.programs
+    payload = UnwrapApiEnvelope(env)
+    if payload = invalid or payload.programs = invalid or type(payload.programs) <> "roArray" then
+        m.top.content = invalid
+        m.top.items = []
+        m.top.ok = false
+        return
+    end if
+
+    programs = payload.programs
 
     ' Build ContentNode off the render thread.
     content = CreateObject("roSGNode", "ContentNode")
@@ -86,15 +96,24 @@ end sub
 ' getRecordings — fetches recordings and builds a ContentNode with captions.
 ' -----------------------------------------------------------------------
 sub LoadRecordings(api as Object)
-    data = api.getRecordings()
-    if data = invalid or data.recordings = invalid or type(data.recordings) <> "roArray" then
+    ' Envelope law: unwrap once at this boundary, fail loudly on !ok.
+    env = api.getRecordings()
+    if env = invalid or not env.ok then
         m.top.content = invalid
         m.top.items = []
         m.top.ok = false
         return
     end if
 
-    recordings = data.recordings
+    payload = UnwrapApiEnvelope(env)
+    if payload = invalid or payload.recordings = invalid or type(payload.recordings) <> "roArray" then
+        m.top.content = invalid
+        m.top.items = []
+        m.top.ok = false
+        return
+    end if
+
+    recordings = payload.recordings
 
     ' Build ContentNode off the render thread.
     content = CreateObject("roSGNode", "ContentNode")
@@ -113,15 +132,24 @@ end sub
 ' getChannels — fetches channel list and builds a ContentNode with captions.
 ' -----------------------------------------------------------------------
 sub LoadChannels(api as Object)
-    data = api.getChannels()
-    if data = invalid or data.channels = invalid or type(data.channels) <> "roArray" then
+    ' Envelope law: unwrap once at this boundary, fail loudly on !ok.
+    env = api.getChannels()
+    if env = invalid or not env.ok then
         m.top.content = invalid
         m.top.items = []
         m.top.ok = false
         return
     end if
 
-    channels = data.channels
+    payload = UnwrapApiEnvelope(env)
+    if payload = invalid or payload.channels = invalid or type(payload.channels) <> "roArray" then
+        m.top.content = invalid
+        m.top.items = []
+        m.top.ok = false
+        return
+    end if
+
+    channels = payload.channels
 
     ' Build ContentNode off the render thread.
     content = CreateObject("roSGNode", "ContentNode")
