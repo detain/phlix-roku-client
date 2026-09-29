@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "pt_BR",
     "language_name": "Português (Brasil)",
-    "version": "1.4.2",
+    "version": "1.4.3",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",

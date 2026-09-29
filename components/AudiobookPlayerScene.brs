@@ -153,7 +153,7 @@ sub StartPlayback()
         if m.loadingLabel <> invalid then
             m.loadingLabel.visible = false
         end if
-        ShowErrorDialog(m.top, Translate("player.playback_error"), Translate("audiobookplayer.error_no_stream"))
+        ShowErrorDialog(m.top, Translate("player_playback_error"), Translate("audiobookplayer_error_no_stream"))
         return
     end if
 

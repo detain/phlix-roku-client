@@ -70,6 +70,14 @@
 #       and the for-exemption anchored to the BrightScript loop-header
 #       grammar, the prose plant fires CHECK19 while a real `for i = 0 to 2`
 #       colon header carrying a string stays exempt, and CHECK20-24 stay green
+#  (12) negative+restore (CHECK20 dotted-key blind spot, df4e7a2 follow-up):
+#       CHECK 20's key regex was the dotless class [A-Za-z0-9_], so a dotted
+#       Translate("section.key") literal was INVISIBLE — it can never resolve
+#       against the flat "section_bareKey" table yet shipped rendering raw keys
+#       (AudiobookPlayerScene.brs). The regex now includes '.'; planting a
+#       dotted Translate in a scratch copy must fire CHECK20 red naming the
+#       file and both the dotted key and its underscore suggestion, and
+#       removing the plant must return the run to exit 0 (falsifiability).
 #
 # RUN:  bash tests/scripts/verify-runtime-portable.sh
 # There is no Makefile slot: `make check` is a prerequisites probe, not a script
@@ -616,6 +624,71 @@ sed -n '/=== Check 24:/,/=== Check 25:/p' <<<"$RED26_OUT" | grep -q "CHECK24: al
 sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED26_OUT" | grep -q "CHECK25: all" ||
 	fail "Check 25 must stay PASS while Check 26 is red (gate independence)"
 
+# --- Check 20 red proof + restore (dotted-key blind spot, df4e7a2 review
+# follow-up): the dotless key class let Translate("player.playback_error") ship
+# invisible — dotted literals can never resolve against the flat underscore
+# table and render raw keys on device. The tightened regex must catch the plant,
+# name file + dotted key + underscore suggestion, keep CHECKs 21-26 green, and
+# the run must return to exit 0 once the plant is removed (falsifiability). ----
+RED20_ROOT="$TEST_ROOT/red20"
+mkdir -p "$RED20_ROOT"
+cp -a "$TEST_ROOT/repo" "$RED20_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$RED20_ROOT/phlix-server"
+python3 - "$RED20_ROOT/repo/components/DetailScene.brs" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+plant = (
+    "\nsub Check20PlantedDottedKey()\n"
+    '    planted = Translate("player.playback_error")\n'
+    "end sub\n"
+)
+with open(path, "w", encoding="utf-8") as f:
+    f.write(text + plant)
+PYEOF
+set +e
+RED20_OUT=$(bash "$RED20_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+RED20_RC=$?
+set -e
+[ "$RED20_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when a dotted Translate literal is planted (got 0)"
+sed -n '/=== Check 20:/,/=== Check 21:/p' <<<"$RED20_OUT" | grep -qF 'components/DetailScene.brs' ||
+	fail "CHECK20 red must name the planted file (got: $RED20_OUT)"
+sed -n '/=== Check 20:/,/=== Check 21:/p' <<<"$RED20_OUT" | grep -qF "'player.playback_error'" ||
+	fail "CHECK20 red must name the planted dotted key (got: $RED20_OUT)"
+sed -n '/=== Check 20:/,/=== Check 21:/p' <<<"$RED20_OUT" | grep -qF 'player_playback_error' ||
+	fail "CHECK20 dotted-key red must suggest the underscore form (got: $RED20_OUT)"
+sed -n '/=== Check 21:/,/=== Check 22:/p' <<<"$RED20_OUT" | grep -q "CHECK21: all" ||
+	fail "Check 21 must stay PASS while Check 20 is red (gate independence)"
+sed -n '/=== Check 22:/,/=== Check 23:/p' <<<"$RED20_OUT" | grep -q "CHECK22: all 19" ||
+	fail "Check 22 must stay PASS while Check 20 is red (gate independence)"
+sed -n '/=== Check 23:/,/=== Check 24:/p' <<<"$RED20_OUT" | grep -q "CHECK23: all" ||
+	fail "Check 23 must stay PASS while Check 20 is red (gate independence)"
+sed -n '/=== Check 24:/,/=== Check 25:/p' <<<"$RED20_OUT" | grep -q "CHECK24: all" ||
+	fail "Check 24 must stay PASS while Check 20 is red (gate independence)"
+sed -n '/=== Check 25:/,$p' <<<"$RED20_OUT" | grep -q "CHECK25: all" ||
+	fail "Check 25 must stay PASS while Check 20 is red (gate independence)"
+sed -n '/=== Check 26:/,$p' <<<"$RED20_OUT" | grep -q "CHECK26: all" ||
+	fail "Check 26 must stay PASS while Check 20 is red (gate independence)"
+# Remove → green: same scratch tree, plant stripped, full run exits 0.
+python3 - "$RED20_ROOT/repo/components/DetailScene.brs" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+marker = "\nsub Check20PlantedDottedKey()"
+assert marker in text, "restore anchor missing — plant not written as expected"
+text = text[:text.index(marker)]
+with open(path, "w", encoding="utf-8") as f:
+    f.write(text)
+PYEOF
+set +e
+GREEN20_OUT=$(bash "$RED20_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+GREEN20_RC=$?
+set -e
+[ "$GREEN20_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after the dotted-key plant is removed (got $GREEN20_RC)"
+assert_contains "CHECK20: all" "$GREEN20_OUT"
+
 # --- negative: audiobook dropped from the ENUM comment -> exit != 0 + CHECK14
 export FAKE_REPO
 python3 - <<'PYEOF'
@@ -646,4 +719,4 @@ set -e
 [ "$NEG_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the ENUM comment drops audiobook (got 0)"
 assert_contains "CHECK14" "$NEG_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + Check 20 dotted-key red leg (planted Translate(\"player.playback_error\") -> CHECK20 fired naming file, dotted key and underscore suggestion with CHECKs 21-26 green; plant removed -> exit 0, falsifiability proven) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"

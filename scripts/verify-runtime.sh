@@ -939,7 +939,11 @@ for section, data in catalog.items():
 # line numbers stay exact. BrightScript strings are double-quoted only, so a
 # single quote outside a string literal opens a comment that runs to the end
 # of its line — whole-line AND trailing inline comments are both masked out.
-TRANSLATE_RE = re.compile(r'Translate\(\s*"([A-Za-z0-9_]+)"')
+# The key class INCLUDES '.' deliberately: a dotted literal ("section.key")
+# can never resolve against the flat underscore table, so it must be VISIBLE
+# here and reported red — the historical blind spot was the dotless class
+# letting dotted literals slip through unchecked and render raw keys.
+TRANSLATE_RE = re.compile(r'Translate\(\s*"([A-Za-z0-9_.]+)"')
 
 
 def mask_brs_comments(text):
@@ -1013,7 +1017,12 @@ for key in label_keys:
 report = []
 for path, lineno, key in misses:
     where = path if lineno == 0 else f"{path}:{lineno}"
-    report.append(f"  {where} — CHECK20: Translate key '{key}' has no flattened entry in {CATALOG}")
+    if '.' in key:
+        report.append(f"  {where} — CHECK20: dotted Translate key '{key}' can never "
+                      f"resolve — the flattened catalog uses the underscore form "
+                      f"'{key.replace('.', '_')}' (see source/lib/Utilities.brs)")
+    else:
+        report.append(f"  {where} — CHECK20: Translate key '{key}' has no flattened entry in {CATALOG}")
 for line in sorted(set(report)):
     print(line)
 for leaf in sorted(set(bad_leaves)):
@@ -1802,7 +1811,7 @@ try:
 except (OSError, ValueError) as err:
     problems.append(f"  locale/en_US/strings.json - CHECK24: unreadable: {err}")
 
-TP_KEY_RE = re.compile(r'TranslateWithParams\(\s*"([A-Za-z0-9_]+)"')
+TP_KEY_RE = re.compile(r'TranslateWithParams\(\s*"([A-Za-z0-9_.]+)"')
 for path in sorted(masked_files):
     masked = masked_files[path]
     for mo in TP_KEY_RE.finditer(masked):

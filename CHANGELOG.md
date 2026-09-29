@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Fixed — dotted Translate keys render raw keys; CHECK 20 blind spot closed — 2026-09-29
+
+- **The defect.** `components/AudiobookPlayerScene.brs` called
+  `Translate("player.playback_error")` / `Translate("audiobookplayer.error_no_stream")`
+  — dotted forms can never resolve: the loader flattens the catalog to
+  `"<section>_<bareKey>"` underscore keys and `Translate()`'s nested-probe
+  fallback only walks a fixed section list. The dialog would have rendered the
+  raw keys. Fixed to `player_playback_error` / `audiobookplayer_error_no_stream`
+  (both exist in all 7 catalogs); no other dotted call site exists in the tree.
+- **The shield.** CHECK 20's key regex was the dotless class `[A-Za-z0-9_]`,
+  so dotted literals were invisible to the scanner — that is how the defect
+  shipped. The class now includes `.` (CHECK 20 and, for mirror-parity, CHECK
+  24's `TP_KEY_RE`), and dotted misses report an explicit
+  "dotted Translate key can never resolve" diagnostic naming the underscore
+  form. `tests/scripts/verify-runtime-portable.sh` gained a CHECK 20 red leg:
+  a planted dotted `Translate` fires red naming file + key + suggestion with
+  Checks 21–26 green, and removing the plant returns the run to exit 0.
+- **Catalog version** bumped 1.4.2 → 1.4.3 across all 7 locales (call-site
+  fix + shield; catalog payloads byte-stable).
+
 ### Fixed — API envelope follow-through: every 2c119f9 consumer wired, + CHECK26 — 2026-09-29
 
 - **The systemic break, completed.** `2c119f9` wrapped `ApiClient.request()`
