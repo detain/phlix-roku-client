@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -77,6 +77,7 @@
     "status_unable_to_load_preferences": "再生設定を読み込めません",
     "status_clearing_history": "視聴履歴を消去しています...",
     "status_history_cleared": "視聴履歴を消去しました",
+    "status_history_clear_failed": "視聴履歴を削除できませんでした",
     "status_watch_history_options": "視聴履歴のオプション",
     "status_notification_prefs_local": "通知設定（ローカルのみ）",
     "status_notification_prefs_not_set": "通知設定が定義されていません",
@@ -294,7 +295,8 @@
     "no_results": "結果がありません"
   },
   "admin": {
-    "select_section": "管理者セクションを選択してください"
+    "select_section": "管理者セクションを選択してください",
+    "access_required": "管理者権限が必要です"
   },
   "app": {
     "boot_cannot_reach": "サーバーに接続できません",

@@ -33,6 +33,13 @@ sub Init()
     m.detailLabel = m.top.findNode("detailLabel")
     m.statusLabel = m.top.findNode("statusLabel")
 
+    ' R1 (render-thread unblock): all server I/O for this scene runs on a
+    ' dedicated ApiTask node, never on the render thread (ApiClient.sendRaw ends
+    ' in a bounded wait(35000)). One reusable task, HomeScene semantics: set
+    ' `request` then control="run" behind a busy guard.
+    m.apiTask = CreateObject("roSGNode", "ApiTask")
+    m.apiTask.ObserveField("response", "OnApiResponse")
+
     m.settingsList.observeField("itemSelected", "OnItemSelected")
     m.settingsList.observeField("itemFocused", "OnItemFocused")
 
@@ -152,18 +159,46 @@ sub OnSwitchServerConfirmed(index as Integer)
 end sub
 
 sub ShowPlayback()
-    result = GetApiClient().getPlaybackPreferences()
-    m.statusLabel.text = Translate("settings_status_loading_preferences")
+    ' R1 (render-thread unblock): dispatch the preferences read onto the scene's
+    ' ApiTask (created once in Init). The status label already promises
+    ' "loading" - now that state is actually observable because the render loop
+    ' is free to draw it instead of blocking in sendRaw's wait(35000).
+        m.statusLabel.text = Translate("settings_status_loading_preferences")
 
-    if result <> invalid and result.data <> invalid and result.data.preferences <> invalid then
-        prefs = result.data.preferences
-        qualityValue = IIF(prefs.quality <> invalid, prefs.quality, "Auto")
-        prefStr = TranslateWithParams("settings_quality_label", { quality: qualityValue }) + Chr(10)
-        autoplayValue = IIF(prefs.autoplay <> invalid, IIF(prefs.autoplay, Translate("settings_autoplay_on"), Translate("settings_autoplay_off")), Translate("settings_autoplay_on"))
-        prefStr = prefStr + TranslateWithParams("settings_autoplay_label", { state: autoplayValue })
-        m.statusLabel.text = prefStr
-    else
-        m.statusLabel.text = Translate("settings_status_unable_to_load_preferences")
+        if m.apiTask.state = "run" then return
+        m.apiTask.request = { op: "getPlaybackPreferences" }
+        m.apiTask.state = "run"
+        m.apiTask.control = "run"
+end sub
+
+' Task-thread responses for this scene (getPlaybackPreferences,
+' clearWatchHistory). Envelope: {op, ok, data, error} with data unwrapped to
+' the server payload by the ApiTask branch.
+sub OnApiResponse(event as Object)
+    resp = event.getData()
+    if resp = invalid then return
+
+    if resp.op = "getPlaybackPreferences" then
+        ' Server GET /api/v1/me/playback/preferences -> {preferences:{...}}
+        ' (phlix-server WebPortalRouter::getPlaybackPreferences).
+        if resp.ok and resp.data <> invalid and resp.data.preferences <> invalid then
+            prefs = resp.data.preferences
+            qualityValue = IIF(prefs.quality <> invalid, prefs.quality, "Auto")
+            prefStr = TranslateWithParams("settings_quality_label", { quality: qualityValue }) + Chr(10)
+            autoplayValue = IIF(prefs.autoplay <> invalid, IIF(prefs.autoplay, Translate("settings_autoplay_on"), Translate("settings_autoplay_off")), Translate("settings_autoplay_on"))
+            prefStr = prefStr + TranslateWithParams("settings_autoplay_label", { state: autoplayValue })
+            m.statusLabel.text = prefStr
+        else
+            m.statusLabel.text = Translate("settings_status_unable_to_load_preferences")
+        end if
+    else if resp.op = "clearWatchHistory" then
+        ' Server DELETE /api/v1/users/me/history -> {message} on success,
+        ' {error} / 401 / 503 otherwise (WebPortalRouter::clearHistory).
+        if resp.ok then
+            m.statusLabel.text = Translate("settings_status_history_cleared")
+        else
+            m.statusLabel.text = Translate("settings_status_history_clear_failed")
+        end if
     end if
 end sub
 
@@ -216,9 +251,16 @@ sub OnClearHistoryConfirmed(index as Integer)
     m.top.dialog = invalid
 
     if index = 1 then
+        ' R1 (render-thread unblock): the DELETE rides the scene's ApiTask so
+        ' the 35s-bounded transport wait never runs on the render thread. The
+        ' 'clearing' -> 'cleared' label transition is now two real UI states
+        ' (it used to flash by only after the UI froze mid-request).
         m.statusLabel.text = Translate("settings_status_clearing_history")
-        GetApiClient().clearWatchHistory()
-        m.statusLabel.text = Translate("settings_status_history_cleared")
+
+        if m.apiTask.state = "run" then return
+        m.apiTask.request = { op: "clearWatchHistory" }
+        m.apiTask.state = "run"
+        m.apiTask.control = "run"
     end if
 end sub
 
@@ -340,6 +382,11 @@ sub Teardown()
     if m.settingsList <> invalid then
         m.settingsList.unobserveField("itemSelected")
         m.settingsList.unobserveField("itemFocused")
+    end if
+    ' Paired unobserve for the one-shot ApiTask dispatches (house rule: every
+    ' ObserveField gets an UnObserveField so callbacks cannot outlive the scene).
+    if m.apiTask <> invalid then
+        m.apiTask.UnObserveField("response")
     end if
 end sub
 

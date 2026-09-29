@@ -88,10 +88,12 @@ function ApiClient(baseUrl as String) as Object
                 if refreshToken <> invalid and refreshToken <> "" then m.refreshToken = refreshToken
                 if sessionId <> invalid and sessionId <> "" then m.sessionId = sessionId
 
-                ' Validate token with server (canonical /auth/me returns {user})
+                ' Validate token with server (canonical /auth/me returns {user},
+                ' and request() wraps the server json in {status,ok,data,error}
+                ' since 2c119f9 - the payload lives under .data).
                 result = m.request("GET", "/auth/me", invalid)
-                if result <> invalid and result.user <> invalid then
-                    m.user = result.user
+                if result <> invalid and result.data <> invalid and result.data.user <> invalid then
+                    m.user = result.data.user
                     return true
                 end if
             end if
@@ -483,14 +485,39 @@ function ApiClient(baseUrl as String) as Object
             return m.request("GET", path, invalid)
         end function
 
-        ' GET /media/letter-index?libraryId=<id>&letter=<A-Z> -> {letters: [...]} of
-        ' {letter, offset, count} buckets for A-Z + #, scoped to libraryId. The
-        ' offset values are cumulative and can be used directly as pagination
-        ' offsets to jump to a specific letter's page in the grid.
-        getLetterIndex: function(libraryId as String, letter as String) as Object
-            path = "/media/letter-index?letter=" + UrlEncode(letter)
+        ' GET /media/letter-index?libraryId=<id> -> {letters: [...]} of
+        ' {letter, offset, count} buckets for '#' + A-Z, scoped to libraryId and
+        ' the same optional filters as GET /media (here: genres%5B%5D=...).
+        ' CONTRACT (phlix-server WebPortalRouter::getLetterIndex - 'GET
+        ' /api/v1/media/letter-index' in registerRoutes, filters parsed by the
+        ' shared extractMediaQueryParams): the endpoint takes NO `letter`
+        ' parameter; offsets are CUMULATIVE against a name-asc sorted /media
+        ' query, so the UI pre-sizes the grid and jumps by passing the bucket's
+        ' `offset` to GET /media (see LibraryScene.OnLetterSelected).
+        ' @param libraryId String - library scope ('' = all libraries)
+        ' @param genres Object - optional String or roArray of genre filters
+        getLetterIndex: function(libraryId as String, genres = invalid as Object) as Object
+            params = []
             if libraryId <> "" then
-                path = path + "&libraryId=" + UrlEncode(libraryId)
+                params.push("libraryId=" + UrlEncode(libraryId))
+            end if
+            ' Array filters go out in the PHP bracket form the server parses with
+            ' is_array() (extractMediaQueryParams): one `genres%5B%5D=<value>`
+            ' entry per element - a scalar `genres=` is silently dropped.
+            if genres <> invalid
+                if type(genres) = "roArray" then
+                    for each g in genres
+                        if g <> invalid and g <> "" then
+                            params.push("genres%5B%5D=" + UrlEncode(g))
+                        end if
+                    end for
+                else
+                    params.push("genres%5B%5D=" + UrlEncode(genres))
+                end if
+            end if
+            path = "/media/letter-index"
+            if params.count() > 0 then
+                path = path + "?" + JoinStrings(params, "&")
             end if
             return m.request("GET", path, invalid)
         end function
@@ -770,13 +797,16 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
-        ' Current user (F11). GET /auth/me -> {user} ; returns the unwrapped user
-        ' (or invalid). HomeScene uses user.is_admin to gate the admin entry.
+        ' Current user (F11). GET /auth/me -> server {user}; returns the unwrapped
+        ' user (or invalid). HomeScene uses user.is_admin to gate the admin entry.
+        ' NOTE: request() wraps the server json in {status,ok,data,error} (2c119f9),
+        ' so the payload is read at .data.user - reading .user off the envelope is
+        ' the pre-2c119f9 shape and silently yielded invalid (admin never shown).
         ' ---------------------------------------------------------------------
         getMe: function() as Object
             result = m.request("GET", "/auth/me", invalid)
-            if result <> invalid and result.user <> invalid then
-                return result.user
+            if result <> invalid and result.data <> invalid and result.data.user <> invalid then
+                return result.data.user
             end if
             return invalid
         end function
@@ -1054,6 +1084,14 @@ function ApiClient(baseUrl as String) as Object
         '
         ' WebSocket: ws://{host}:8097/syncplay/{roomId}?token={jwt}
         '   (serverUrl is derived client-side from ApiClient baseUrl, not returned by server)
+        '   TODO(security, estate policy WEBSOCKET_URL_QUERY_REFUSED): the query
+        '   carrier for the bearer JWT is a known contracts-policy deviation. It is
+        '   CURRENT SERVER LAW (:8097 worker authenticates only ?token=) and stays;
+        '   once phlix-server adopts the hub relay's TWO-ENTRY bearer subprotocol
+        '   (Sec-WebSocket-Protocol: ['bearer', token] - scheme entry + separate
+        '   token entry, not dotted 'bearer.<jwt>'), strip the token from this URL.
+        '   Canonical wording + switch plan: PlayerScene.BuildSyncPlayWsParts and
+        '   phlix-ui src/api/syncplay.ts buildWsUrl.
         '
         ' Contract disagreements to report for phlix-contracts:
         '   1. is_public is NOT tracked by server — not returned in listGroups, not stored
@@ -1132,7 +1170,11 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
-        ' Playback preferences (R7.1). GET /me/playback/preferences -> {prefs}.
+        ' Playback preferences (R7.1). GET /me/playback/preferences ->
+        ' {preferences:{...}} (server: WebPortalRouter::getPlaybackPreferences,
+        ' route 'GET /api/v1/me/playback/preferences'; @requires Authentication).
+        ' Returns the transport envelope; the ApiTask getPlaybackPreferences op
+        ' unwraps .data so the scene reads resp.data.preferences.
         ' ---------------------------------------------------------------------
         getPlaybackPreferences: function() as Object
             return m.request("GET", "/me/playback/preferences", invalid)
@@ -1157,6 +1199,11 @@ function ApiClient(baseUrl as String) as Object
 
         ' ---------------------------------------------------------------------
         ' Watch history (R7.1). DELETE /api/v1/users/me/history -> {message}.
+        ' Server: WebPortalRouter::clearHistory (route
+        ' 'DELETE /api/v1/users/me/history'; @requires Authentication; 401
+        ' without a session, 503 when history/profile manager is unconfigured).
+        ' Mutation - callers MUST run it on the ApiTask thread (op
+        ' 'clearWatchHistory'), never on the render thread.
         ' ---------------------------------------------------------------------
         clearWatchHistory: function() as Object
             return m.request("DELETE", "/users/me/history", invalid)

@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -77,6 +77,7 @@
     "status_unable_to_load_preferences": "Impossible de charger les préférences de lecture",
     "status_clearing_history": "Effacement de l'historique de lecture...",
     "status_history_cleared": "Historique de lecture effacé",
+    "status_history_clear_failed": "Impossible d'effacer l'historique de lecture",
     "status_watch_history_options": "Options de l'historique de lecture",
     "status_notification_prefs_local": "Préférences de notifications (local uniquement)",
     "status_notification_prefs_not_set": "Préférences de notifications non définies",
@@ -294,7 +295,8 @@
     "no_results": "Aucun résultat"
   },
   "admin": {
-    "select_section": "Sélectionnez une section d'administration"
+    "select_section": "Sélectionnez une section d'administration",
+    "access_required": "Accès administrateur requis"
   },
   "app": {
     "boot_cannot_reach": "Impossible de joindre le serveur",

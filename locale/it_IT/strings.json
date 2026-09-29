@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -77,6 +77,7 @@
     "status_unable_to_load_preferences": "Impossibile caricare le preferenze di riproduzione",
     "status_clearing_history": "Cancellazione della cronologia di visualizzazione...",
     "status_history_cleared": "Cronologia di visualizzazione cancellata",
+    "status_history_clear_failed": "Impossibile cancellare la cronologia di riproduzione",
     "status_watch_history_options": "Opzioni cronologia di visualizzazione",
     "status_notification_prefs_local": "Preferenze notifiche (solo locale)",
     "status_notification_prefs_not_set": "Preferenze notifiche non impostate",
@@ -294,7 +295,8 @@
     "no_results": "Nessun risultato"
   },
   "admin": {
-    "select_section": "Seleziona una sezione di amministrazione"
+    "select_section": "Seleziona una sezione di amministrazione",
+    "access_required": "Accesso amministratore necessario"
   },
   "app": {
     "boot_cannot_reach": "Impossibile raggiungere il server",

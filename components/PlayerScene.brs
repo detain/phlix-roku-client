@@ -1652,6 +1652,23 @@ end sub
 ' Derive { host, port:8097, path:"/syncplay?token=..." } from GetServerUrl().
 ' Forces ws scheme implicitly (we only return host/port/path; the Task opens a
 ' plaintext socket). Returns invalid when no token / host can be derived.
+'
+' TODO(security, estate policy WEBSOCKET_URL_QUERY_REFUSED): carrying the bearer
+' JWT in the query string deviates from the contracts policy - the hub relay
+' (:8804) correctly sends the token via the Sec-WebSocket-Protocol header using
+' the TWO-ENTRY form `new WebSocket(url, ['bearer', token])` (a scheme entry
+' plus a separate token entry, serialized as `Sec-WebSocket-Protocol: bearer,
+' <jwt>`; NOT the single dotted `['bearer.<jwt>']` shape). This client cannot
+' switch yet because the SERVER is the blocker: phlix-server
+' src/Server/WebSocket/WebSocketServer.php onWebSocketConnect() authenticates
+' ONLY $request->get('token') (query) and SyncPlayAuthMiddleware never reads
+' Sec-WebSocket-Protocol. Flipping the carrier before the :8097 worker adopts
+' the bearer subprotocol would break the wire - ?token= IS current server law.
+' Dependency: server mirrors the relay's two-entry subprotocol acceptance on
+' :8097; then strip the token here and put ['bearer', token] on the handshake
+' (roStreamSocket hand-rolls the upgrade, see SyncPlayProtocol
+' BuildHandshakeRequest extraHeaders). Estate wording: phlix-ui
+' src/api/syncplay.ts buildWsUrl.
 function BuildSyncPlayWsParts() as Object
     serverUrl = GetServerUrl()
     if serverUrl = invalid or serverUrl = "" then return invalid

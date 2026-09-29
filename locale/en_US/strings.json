@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -77,6 +77,7 @@
     "status_unable_to_load_preferences": "Unable to load playback preferences",
     "status_clearing_history": "Clearing watch history...",
     "status_history_cleared": "Watch history cleared",
+    "status_history_clear_failed": "Unable to clear watch history",
     "status_watch_history_options": "Watch history options",
     "status_notification_prefs_local": "Notification preferences (local only)",
     "status_notification_prefs_not_set": "Notification preferences not set",
@@ -294,7 +295,8 @@
     "no_results": "No results"
   },
   "admin": {
-    "select_section": "Select an admin section"
+    "select_section": "Select an admin section",
+    "access_required": "Admin access required"
   },
   "app": {
     "boot_cannot_reach": "Can't reach the server",

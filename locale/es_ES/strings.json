@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "es_ES",
     "language_name": "Español (España)",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -77,6 +77,7 @@
     "status_unable_to_load_preferences": "No se pudieron cargar las preferencias de reproducción",
     "status_clearing_history": "Borrando historial de reproducción...",
     "status_history_cleared": "Historial de reproducción borrado",
+    "status_history_clear_failed": "No se pudo borrar el historial de reproducción",
     "status_watch_history_options": "Opciones del historial de reproducción",
     "status_notification_prefs_local": "Preferencias de notificaciones (solo local)",
     "status_notification_prefs_not_set": "Preferencias de notificaciones no configuradas",
@@ -294,7 +295,8 @@
     "no_results": "Sin resultados"
   },
   "admin": {
-    "select_section": "Selecciona una sección de administración"
+    "select_section": "Selecciona una sección de administración",
+    "access_required": "Se requiere acceso de administrador"
   },
   "app": {
     "boot_cannot_reach": "No se puede acceder al servidor",

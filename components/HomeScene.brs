@@ -204,6 +204,13 @@ sub OnMeResponse(resp as Object)
         ' R7.9: Persist admin state for AdminScene menu filtering
         SetIsAdmin(m.isAdmin)
         if m.isAdmin and m.adminButton <> invalid then m.adminButton.visible = true
+    else
+        ' R4 (fail closed): a failed/!ok getMe must NOT leave a previous
+        ' SetIsAdmin(true) standing - without proof of is_admin the profile is
+        ' treated as non-admin and the entry point stays hidden.
+        m.isAdmin = false
+        SetIsAdmin(false)
+        if m.adminButton <> invalid then m.adminButton.visible = false
     end if
 
     ' getMe is done - launch BOTH row loads in parallel (not chained anymore).

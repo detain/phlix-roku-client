@@ -38,6 +38,10 @@
 ' proto = SyncPlayProtocol()
 ' key = proto.NewWebSocketKey()
 ' req = proto.BuildHandshakeRequest("192.168.1.5", 8097, "/syncplay?token=x", key)
+'   (the ?token= query carrier shown here is CURRENT :8097 server law; estate
+'    policy WEBSOCKET_URL_QUERY_REFUSED tracks the switch to the two-entry
+'    bearer subprotocol ['bearer', token] once the server adopts it - see
+'    PlayerScene.brs BuildSyncPlayWsParts for the full plan)
 ' frame = proto.BuildTextFrame(proto.Encode("syncplay_time_ping", { client_time: NowMs() }))
 ' ```
 

@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -77,6 +77,7 @@
     "status_unable_to_load_preferences": "Wiedergabeeinstellungen konnten nicht geladen werden",
     "status_clearing_history": "Wiedergabeverlauf wird gelöscht...",
     "status_history_cleared": "Wiedergabeverlauf gelöscht",
+    "status_history_clear_failed": "Wiedergabeverlauf konnte nicht gelöscht werden",
     "status_watch_history_options": "Optionen zum Wiedergabeverlauf",
     "status_notification_prefs_local": "Benachrichtigungseinstellungen (nur lokal)",
     "status_notification_prefs_not_set": "Benachrichtigungseinstellungen nicht festgelegt",
@@ -294,7 +295,8 @@
     "no_results": "Keine Ergebnisse"
   },
   "admin": {
-    "select_section": "Verwaltungsbereich auswählen"
+    "select_section": "Verwaltungsbereich auswählen",
+    "access_required": "Admin-Zugriff erforderlich"
   },
   "app": {
     "boot_cannot_reach": "Server nicht erreichbar",

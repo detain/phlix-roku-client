@@ -46,9 +46,15 @@ sub Init()
         m.optionsButton.ObserveField("buttonSelected", "OnOptionsPressed")
     end if
 
-    ' Route all data access through the ApiTask node (off the render thread).
-    m.apiTask = CreateObject("roSGNode", "ApiTask")
-    m.apiTask.ObserveField("response", "OnApiResponse")
+    ' Route all data access through one-shot ApiTask nodes (off the render
+    ' thread). A SINGLE task node cannot accept a new request while its old run
+    ' is in flight (control="run" is ignored mid-run, HomeScene comment R1.4),
+    ' and facets + letter-index + items fire near-simultaneously on entry - so
+    ' every call gets its own task, and getLibraryItems responses are matched
+    ' by requestId to drop stale pages. (Precedent: HomeScene
+    ' LoadLibrariesAsync.)
+    m.requestSeq = 0
+    m.activeItemsReqId = 0
 
     m.libraryId = ""
     m.items = []
@@ -69,6 +75,14 @@ sub Init()
     m.selectedLetter = ""
     m.availableGenres = []
     m.letterIndex = []
+    ' True when the next getLibraryItems response REPLACES the grid (fresh
+    ' load / filter change / letter jump) instead of appending a page. The
+    ' old 'offset = 0' test could not express a letter jump (offset > 0 but
+    ' still a fresh window), so the replace decision is tracked explicitly.
+    m.replaceOnResponse = true
+    ' Cumulative /media offset of the selected A-Z bucket (see OnLetterSelected);
+    ' 0 = plain pagination from the start.
+    m.jumpOffset = 0
 
     ' Observe our own requestClose so a child can ask us to close.
     m.top.ObserveField("requestClose", "OnChildRequestClose")
@@ -80,13 +94,17 @@ sub LoadLibrary(libraryId as String, libraryName as String)
     ' Load persisted sort preference for this library
     LoadSortPreference(libraryId)
 
-    ' Reset paging state for fresh library load
+    ' Reset paging + filter state for fresh library load (a stale genre or
+    ' letter-jump from the previous library must not leak into this one).
     m.offset = 0
     m.hasMore = true
     m.loadingPage = false
     m.items = []
     m.contentNode = invalid
+    m.selectedGenre = ""
     m.selectedLetter = ""
+    m.jumpOffset = 0
+    m.replaceOnResponse = true
 
     if m.titleLabel <> invalid then
         m.titleLabel.text = libraryName
@@ -95,9 +113,12 @@ sub LoadLibrary(libraryId as String, libraryName as String)
     ' Update sort/filter labels
     UpdateSortFilterLabels()
 
-    ' Fetch facets and letter index, then load items
+    ' Fetch facets and letter index, then load the first window. The grid's
+    ' own visibleRect prefetch (-> LoadMoreItems) only APPENDS; the initial
+    ' page must be requested here so entry does not depend on layout timing.
     FetchFacets()
     FetchLetterIndex()
+    RefreshItems()
 end sub
 
 sub LoadSortPreference(libraryId as String)
@@ -133,23 +154,41 @@ sub SaveSortPreference(libraryId as String)
     GetStorage().set(key, FormatJson(json))
 end sub
 
+' Fire one API operation on a dedicated task node (never blocks the render
+' thread; response lands in OnApiResponse). Follows HomeScene LoadLibrariesAsync:
+' fresh node per call, `state = "run"` busy marker set before control="run".
+sub FireApiRequest(request as Object)
+    task = CreateObject("roSGNode", "ApiTask")
+    task.ObserveField("response", "OnApiResponse")
+    task.request = request
+    if task.state = "run" then return
+    task.state = "run"
+    task.control = "run"
+end sub
+
 sub FetchFacets()
     ' Fetch available genres from server
-    m.apiTask.request = {
+    FireApiRequest({
         op: "getMediaFacets"
         libraryId: m.libraryId
-    }
-    m.apiTask.control = "run"
+    })
 end sub
 
 sub FetchLetterIndex()
-    ' Fetch A-Z index from server
-    m.apiTask.request = {
+    ' Fetch the A-Z index from server. GET /media/letter-index takes the SAME
+    ' filters as GET /media (phlix-server WebPortalRouter::getLetterIndex) - so
+    ' when a genre filter is active the index is re-fetched scoped to it and
+    ' the cumulative offsets stay valid for the filtered window. There is no
+    ' `letter` parameter: the response's per-bucket `offset` values ARE the
+    ' jump targets (see OnLetterSelected).
+    request = {
         op: "getLetterIndex"
         libraryId: m.libraryId
-        letter: "A"
     }
-    m.apiTask.control = "run"
+    if m.selectedGenre <> "" then
+        request.genres = [m.selectedGenre]
+    end if
+    FireApiRequest(request)
 end sub
 
 sub UpdateSortFilterLabels()
@@ -201,7 +240,12 @@ sub ApplySort(sortField as String, sortOrder as String)
         m.sortOrder = sortOrder
         SaveSortPreference(m.libraryId)
         UpdateSortFilterLabels()
-        ' Reset to first page and clear loaded items
+        ' A new sort invalidates any A-Z jump: the letter-index offsets are
+        ' computed for a name-ascending ordering only (server contract), so the
+        ' letter selection (and its jump window) resets with the sort change.
+        m.selectedLetter = ""
+        m.jumpOffset = 0
+        ' Reset window and reload from its start
         ResetAndRefresh()
     end if
 end sub
@@ -210,26 +254,60 @@ sub OnGenreSelected(genre as String)
     if genre <> m.selectedGenre then
         m.selectedGenre = genre
         UpdateSortFilterLabels()
-        ' Reset to first page and clear loaded items
+        ' The A-Z jump window is scoped to the active genre too - re-fetch the
+        ' letter index (offsets change with the filter) and drop any stale
+        ' letter selection before resetting the grid.
+        m.selectedLetter = ""
+        m.jumpOffset = 0
+        FetchLetterIndex()
+        ' Reset window and reload from its start
         ResetAndRefresh()
     end if
 end sub
 
+' Resolve the cumulative /media offset for a letter bucket from the
+' {letter,offset,count} rows returned by GET /media/letter-index. Unknown or
+' empty buckets answer -1 so callers can ignore the press.
+function LetterBucketOffset(letter as String) as Integer
+    for each bucket in m.letterIndex
+        if bucket <> invalid and bucket.letter <> invalid and bucket.letter = letter then
+            if bucket.count = invalid or bucket.count <= 0 then return -1
+            if bucket.offset = invalid then return 0
+            return CInt(bucket.offset)
+        end if
+    end for
+    return -1
+end function
+
 sub OnLetterSelected(letter as String)
-    if letter <> m.selectedLetter then
-        m.selectedLetter = letter
-        ' Reset to first page and clear loaded items
-        ResetAndRefresh()
+    if letter = m.selectedLetter then return
+
+    ' GET /media has NO letter filter (WebPortalRouter::extractMediaQueryParams);
+    ' the contract-correct A-Z jump reads /media at the bucket's cumulative
+    ' OFFSET. Offsets are computed for a name-ascending sort, so the jump
+    ' forces that sort for the window (persisted user preference untouched).
+    jump = LetterBucketOffset(letter)
+    if jump < 0 then return
+
+    m.selectedLetter = letter
+    m.jumpOffset = jump
+    if m.sortField <> m.sortName or m.sortOrder <> "asc" then
+        m.sortField = m.sortName
+        m.sortOrder = "asc"
+        UpdateSortFilterLabels()
     end if
+    ' Replace the grid with the bucket window.
+    ResetAndRefresh()
 end sub
 
 sub ResetAndRefresh()
-    ' Reset offset to 0 and clear loaded items
-    m.offset = 0
+    ' Restart the window at the active jump offset (0 unless a letter is selected)
+    m.offset = m.jumpOffset
     m.hasMore = true
     m.loadingPage = false
     m.items = []
     m.contentNode = invalid
+    m.replaceOnResponse = true
     RefreshItems()
 end sub
 
@@ -246,7 +324,9 @@ sub RefreshItems()
         end if
     end if
 
-    ' Build options with sort, filter, and letter params
+    ' Build options with sort + filter. NOTE: no `letter` param - GET /media
+    ' does not accept one (WebPortalRouter::extractMediaQueryParams); the A-Z
+    ' jump is already encoded in the offset below (m.jumpOffset seeds m.offset).
     options = {
         topLevel: 1
         offset: m.offset
@@ -255,24 +335,20 @@ sub RefreshItems()
         order: m.sortOrder
     }
 
-    ' Add genre filter if selected
+    ' Add genre filter if selected - serialized as repeated genres[]= entries
+    ' by the getLibraryItems op (server law: is_array($query['genres'])).
     if m.selectedGenre <> "" then
         options.genres = [m.selectedGenre]
     end if
 
-    ' Add letter filter if selected (for A-Z jump)
-    if m.selectedLetter <> "" then
-        ' The letter filter tells server to filter by first letter of name
-        ' Server uses letter index offset directly
-        options.letter = m.selectedLetter
-    end if
-
-    m.apiTask.request = {
+    m.requestSeq = m.requestSeq + 1
+    m.activeItemsReqId = m.requestSeq
+    FireApiRequest({
         op: "getLibraryItems"
         libraryId: m.libraryId
         options: options
-    }
-    m.apiTask.control = "run"
+        requestId: m.activeItemsReqId
+    })
 end sub
 
 ' Load next page of items. Guard prevents concurrent page requests (R1.4 Task pattern).
@@ -290,6 +366,9 @@ sub OnApiResponse(event as Object)
     if resp = invalid then return
 
     if resp.op = "getLibraryItems" then
+        ' Drop stale windows: if a sort/genre/letter change (or a newer page)
+        ' was issued after this request, its rows belong to another window.
+        if resp.requestId <> m.activeItemsReqId then return
         ' Hide loading indicator.
         if m.loadingLabel <> invalid then
             m.loadingLabel.visible = false
@@ -303,9 +382,11 @@ sub OnApiResponse(event as Object)
         newItems = resp.data.items
         itemCount = newItems.count()
 
-        ' First page: create ContentNode; subsequent pages: append to existing
-        if m.offset = 0 then
+        ' Fresh window (first load, filter/sort change, letter jump): create the
+        ' ContentNode. Later pages of the same window: append to the existing one.
+        if m.replaceOnResponse then
             m.items = newItems
+            m.replaceOnResponse = false
             m.contentNode = CreateObject("roSGNode", "ContentNode")
             m.posterGrid.content = m.contentNode
         else
@@ -372,7 +453,12 @@ sub BuildAzBar()
             button.height = 35
             button.width = 40
             button.font = "font:SmallSystemFont"
-            button.setField("buttonSelected", "OnAzButtonPressed")
+            ' buttonSelected is an integer event field - the old
+            ' setField("buttonSelected", "OnAzButtonPressed") assigned a STRING
+            ' into it instead of wiring the callback, so rail presses were dead.
+            ' ObserveField is the correct hook (fires OnAzButtonPressed with the
+            ' selected index).
+            button.ObserveField("buttonSelected", "OnAzButtonPressed")
             letterButtons.push(button)
         end if
     end for

@@ -20,35 +20,43 @@ sub Init()
     ApplyXmlChrome()
     m.top.SetFocus(true)
 
-    ' R7.9: Base admin menu (always shown to admins).
-    ' TV Guide, Recordings, and Series Rules are also admin-only on the server
-    ' (403 for non-admins) but are kept visible since this scene is only
-    ' reachable by admins (HomeScene hides the admin button for non-admins).
-    ' Live TV is hidden for non-admins as an extra client-side guard.
+    m.adminMenu = m.top.FindNode("adminMenu")
+    m.statusLabel = m.top.FindNode("statusLabel")
+
+    ' R4 (admin gate): every row this scene renders targets an ADMIN-ONLY
+    ' server surface - Dashboard/Storage/Activity are /admin/dashboard/*,
+    ' Users is /admin/users*, Profiles is /admin/profiles*, Live TV/Guide/
+    ' Recordings/Series Rules are /admin/livetv/*, and the library actions
+    ' (scan/rescan/match-metadata) are requireAdmin-gated bare /libraries/*
+    ' routes (phlix-server registers /admin/* behind AdminMiddleware:
+    ' 401 unauthenticated, 403 for a non-admin profile). Gate the WHOLE menu
+    ' on GetIsAdmin() instead of only some rows, and say so honestly when a
+    ' non-admin somehow lands here (back-pressure against the previous
+    ' fail-open where the base rows rendered for everyone and 403'd).
+    if not GetIsAdmin() then
+        if m.adminMenu <> invalid then m.adminMenu.content = CreateObject("roSGNode", "ContentNode")
+        SetStatus(Translate("admin_access_required"))
+        return
+    end if
+
+    ' R7.9: Admin menu (all rows are admin-only; the Live TV family kept its
+    ' own guard historically - now the whole scene shares the one gate above).
     m.menuItems = [
         { label: "Dashboard", scene: "DashboardScene" }
         { label: "Libraries", scene: "LibraryAdminScene" }
         { label: "Users", scene: "UserAdminScene" }
+        { label: "Live TV", scene: "LiveTvScene" }
+        { label: "TV Guide", scene: "GuideScene" }
+        { label: "Recordings", scene: "RecordingsScene" }
+        { label: "Series Rules", scene: "SeriesRulesScene" }
     ]
 
-    ' R7.9: Live TV, Guide, Recordings, Series Rules are admin-only.
-    ' Hide these entries when GetIsAdmin() is false (belt-and-suspenders guard).
-    if GetIsAdmin() then
-        m.menuItems.Push({ label: "Live TV", scene: "LiveTvScene" })
-        m.menuItems.Push({ label: "TV Guide", scene: "GuideScene" })
-        m.menuItems.Push({ label: "Recordings", scene: "RecordingsScene" })
-        m.menuItems.Push({ label: "Series Rules", scene: "SeriesRulesScene" })
-    end if
-
     ' Text list (admin sections have no artwork).
-    m.adminMenu = m.top.FindNode("adminMenu")
     if m.adminMenu <> invalid then
         m.adminMenu.ObserveField("itemSelected", "OnMenuSelected")
         m.adminMenu.ObserveField("itemFocused", "OnMenuFocused")
         m.adminMenu.SetFocus(true)
     end if
-
-    m.statusLabel = m.top.FindNode("statusLabel")
 
     ' Build the LabelList content from the static backing array.
     content = CreateObject("roSGNode", "ContentNode")

@@ -47,6 +47,11 @@ function CacheShouldSkip(op as String) as Boolean
     if op = "login" return true
     if op = "logout" return true
     if op = "saveAudiobookProgress" return true
+    ' Settings mutations must never be cached: the preferences read must reflect
+    ' the freshest server state after a PUT, and clearWatchHistory is a mutation
+    ' whose success the user must see confirmed on every press.
+    if op = "getPlaybackPreferences" return true
+    if op = "clearWatchHistory" return true
     return false
 end function
 
@@ -258,6 +263,13 @@ sub ExecRequest()
 
     if req <> invalid and req.op <> invalid then
         result.op = req.op
+        ' Echo an optional caller-supplied request id so scenes that run
+        ' one-shot task nodes in parallel (HomeScene/LibraryScene pattern) can
+        ' discard stale responses that finish after a newer request replaced
+        ' them. Pure data pass-through - no behavior change when absent.
+        if req.DoesExist("requestId") and req.requestId <> invalid then
+            result.requestId = req.requestId
+        end if
 
         if req.op = "getLibraries" then
             ' R5.9: Cache at request level (full envelope, extract on both hit and miss).
@@ -303,18 +315,43 @@ sub ExecRequest()
             params.push("offset=" + str(offset).trim())
             if opts.DoesExist("sort") then params.push("sort=" + UrlEncode(opts.sort))
             if opts.DoesExist("order") then params.push("order=" + UrlEncode(opts.order))
-            if opts.DoesExist("genres") then params.push("genres=" + UrlEncode(opts.genres))
-            if opts.DoesExist("letter") then params.push("letter=" + UrlEncode(opts.letter))
+            ' genres[]: the server reads this filter with is_array($query['genres'])
+            ' (phlix-server src/Server/WebPortal/WebPortalRouter.php
+            ' extractMediaQueryParams - a SCALAR `genres=` is silently dropped).
+            ' Emit the PHP bracket-array form `genres%5B%5D=<value>` once per
+            ' element - byte-identical to what phlix-ui's URLSearchParams sends -
+            ' so $_GET/parse_str hydrate a real array on both HTTP stacks.
+            if opts.DoesExist("genres") and opts.genres <> invalid
+                genreList = opts.genres
+                if type(genreList) = "roArray" then
+                    for each g in genreList
+                        if g <> invalid and g <> "" then
+                            params.push("genres%5B%5D=" + UrlEncode(g))
+                        end if
+                    end for
+                else
+                    params.push("genres%5B%5D=" + UrlEncode(genreList))
+                end if
+            end if
+            ' NOTE: there is deliberately NO `letter=` param here. GET /media
+            ' accepts no letter filter (WebPortalRouter::extractMediaQueryParams);
+            ' the old scalar `letter=` was ignored server-side, so A-Z jumps
+            ' silently re-showed page 1. Letter navigation routes through the
+            ' cumulative offsets of GET /media/letter-index (see getLetterIndex
+            ' op + LibraryScene.OnLetterSelected).
             if opts.DoesExist("search") then params.push("search=" + UrlEncode(opts.search))
             cachePath = "/media?" + JoinStrings(params, "&")
             cachedResp = CacheTryGet(api, "GET", cachePath)
             if cachedResp <> invalid then
-                result.data = cachedResp
+                ' Unwrap: cachedResp is the {status,ok,data,error} transport
+                ' envelope; scenes read the server payload at result.data level
+                ' (resp.data.items) - same convention as the getLibraries branch.
+                result.data = cachedResp.data
                 result.ok = DeriveResponseOk(cachedResp)
                 result.error = DeriveResponseError(cachedResp)
             else
                 resp = api.request("GET", cachePath, invalid)
-                result.data = resp
+                result.data = resp.data
                 result.ok = DeriveResponseOk(resp)
                 result.error = DeriveResponseError(resp)
                 if result.ok then
@@ -782,21 +819,47 @@ sub ExecRequest()
             if req.DoesExist("libraryId") and req.libraryId <> invalid then
                 libraryId = req.libraryId
             end if
-            result.data = api.getMediaFacets(libraryId)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            env = api.getMediaFacets(libraryId)
+            ' Unwrap the transport envelope (see getLibraryItems above): the
+            ' server returns {genres:[...]} at .data; scenes read resp.data.genres.
+            result.data = env.data
+            result.ok = DeriveResponseOk(env)
+            result.error = DeriveResponseError(env)
         else if req.op = "getLetterIndex" then
+            ' GET /media/letter-index - phlix-server WebPortalRouter route
+            ' 'GET /api/v1/media/letter-index' (registerRoutes) -> getLetterIndex():
+            ' accepts the SAME filters as /media (genres%5B%5D etc.) + libraryId,
+            ' has NO `letter` parameter, and returns
+            ' {letters:[{letter,offset,count}], total} with CUMULATIVE offsets
+            ' ('#' first, then A-Z) valid for a name-asc sorted /media query.
+            ' The caller jumps the grid by requesting /media at the bucket offset.
             libraryId = ""
-            letter = "A"
             if req.DoesExist("libraryId") and req.libraryId <> invalid then
                 libraryId = req.libraryId
             end if
-            if req.DoesExist("letter") and req.letter <> invalid then
-                letter = req.letter
+            genres = invalid
+            if req.DoesExist("genres") and req.genres <> invalid then
+                genres = req.genres
             end if
-            result.data = api.getLetterIndex(libraryId, letter)
-            result.ok = DeriveResponseOk(result.data)
-            result.error = DeriveResponseError(result.data)
+            env = api.getLetterIndex(libraryId, genres)
+            result.data = env.data
+            result.ok = DeriveResponseOk(env)
+            result.error = DeriveResponseError(env)
+        else if req.op = "getPlaybackPreferences" then
+            ' GET /me/playback/preferences - server payload {preferences:{...}}
+            ' at .data (unwrapped here so the scene reads resp.data.preferences).
+            env = api.getPlaybackPreferences()
+            result.data = env.data
+            result.ok = DeriveResponseOk(env)
+            result.error = DeriveResponseError(env)
+        else if req.op = "clearWatchHistory" then
+            ' DELETE /users/me/history - server payload {message} at .data.
+            ' Mutation: dispatched here (task thread) so the 35s-blocking
+            ' transport never runs on the render thread.
+            env = api.clearWatchHistory()
+            result.data = env.data
+            result.ok = DeriveResponseOk(env)
+            result.error = DeriveResponseError(env)
         else if req.op = "logout" then
             ' Fire-and-forget server-side session teardown.
             ' Local credentials have already been cleared by OnLogout before this

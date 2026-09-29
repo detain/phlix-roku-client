@@ -601,6 +601,14 @@ sub OnLogout()
     ' instead of 6 separate delete+flush cycles) and invalidates the read cache.
     ResetCachedStorage(true)
 
+    ' R4 (fail closed): the admin flag is a PROFILE fact, not a device fact.
+    ' It lives in the SetIsAdmin function-property store which survives scene
+    ' teardown - without this reset an admin logout followed by a non-admin
+    ' login in the same channel run could leave GetIsAdmin() true until the
+    ' next getMe answers, exposing the AdminScene menu (403s on every row -
+    ' phlix-server AdminMiddleware on /admin/*).
+    SetIsAdmin(false)
+
     ' S298: the hub relay consumer holds a live token-scoped socket — stop it
     ' before credentials are cleared.
     StopHubCommandConsumer()
