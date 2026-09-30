@@ -141,9 +141,12 @@ The connect URL may be a **direct Phlix server** or a **Phlix Hub** — both exp
 
 ### SyncPlay / Watch Together (F13)
 
-SyncPlay is a hand-rolled RFC6455 WebSocket client built **to a not-yet-deployed phlix-server target
-contract** (the post-`SP*` SyncPlay worker; the server's `:8097` WS worker is still a `(Future)`
-stub), and it is **device-unverifiable** (bsc + review only). Two new files plus an additive overlay:
+SyncPlay is a hand-rolled RFC6455 WebSocket client built **to the shipped phlix-server `:8097`
+SyncPlay worker contract** (server `src/Server/WebSocket/Workers/SyncPlayWorker.php`, live on
+`origin/master`; the two-entry `bearer, <jwt>` dual-carrier law landed in phlix-server `424c14d0`
+and this client flipped to it in `07eef68` via `BearerSubprotocolOffer` at
+`source/lib/SyncPlayProtocol.brs:309` — see the two hard facts below), and it is
+**device-unverifiable** (bsc + review only). Two new files plus an additive overlay:
 
 - `source/lib/SyncPlayProtocol.brs` — a **pure** factory (no I/O, no UI): RFC6455 framing
   (`BuildClientFrame`/`BuildTextFrame`/`ParseFrames` with masked client frames + buffered decode;
