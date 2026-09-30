@@ -23,8 +23,11 @@
 '
 ' Roku platform: roStreamSocket is PLAINTEXT TCP - no TLS - so this speaks ws://
 ' only (never wss://). See worklog §2 + README. Built to the canonical FLAT
-' syncplay_* wire (worklog §1); the server WS worker is unmerged so this is
-' DEVICE-UNVERIFIABLE.
+' syncplay_* wire (worklog §1) against the MERGED + shipped :8097 SyncPlay WS
+' worker. Server law since phlix-server 424c14d0: dual-carrier handshake, the
+' two-entry ['bearer', jwt] subprotocol preferred and the legacy ?token= query
+' retiring. This task offers the bearer pair via the BearerSubprotocolOffer law
+' in source/lib/SyncPlayProtocol.brs (carrier flip landed at 07eef68).
 ' ===========================================
 
 sub Init()
