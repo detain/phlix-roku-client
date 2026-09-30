@@ -15,10 +15,12 @@
 '   SyncPlaySession: { roomId, sessionId, serverUrl, roomName, isHost, members }
 '     NOTE: sessionId is set client-side from WS yourId, not from server response.
 '           serverUrl is derived client-side from ApiClient baseUrl (ws://host:8097).
-'           TODO(security, estate policy WEBSOCKET_URL_QUERY_REFUSED): the
-'           ws URL carries the bearer JWT as ?token= - current :8097 server law,
-'           slated to become the two-entry bearer subprotocol ['bearer', token]
-'           once phlix-server adopts it (see PlayerScene.BuildSyncPlayWsParts).
+'           Carrier law (estate policy WEBSOCKET_URL_QUERY_REFUSED, retired for
+'           this client by phlix-server 424c14d0): the bearer JWT rides the
+'           two-entry bearer subprotocol `Sec-WebSocket-Protocol: bearer, <jwt>`
+'           on the upgrade handshake — never the URL query. The server still
+'           accepts the legacy ?token= carrier TRANSITIONALLY for older builds.
+'           Full plan/sites: PlayerScene.brs BuildSyncPlayWsParts.
 '   SyncPlayGroup: { id, name, member_count, has_password, current_media, is_playing }
 '     (list response — snake_case per SyncPlaySnapshotService.php:149-156)
 '   SyncPlayUser/SyncPlayMember: { id, name, is_host, joined_at }
@@ -31,11 +33,13 @@
 '                                  body: {name,is_public?} — is_public IGNORED by server
 '   POST /syncplay/groups/{id}/join -> {success,group:{group_id,group_name,members:{...},...}}
 '   POST /syncplay/groups/{id}/leave -> {success,message?:string}
-'   WS   /syncplay/{roomId}?token=JWT  -> real-time sync (ws://host:8097/syncplay/{roomId}?token=...)
-'        TODO(security, estate policy WEBSOCKET_URL_QUERY_REFUSED): ?token= is
-'        the CURRENT server law; to be replaced by the two-entry bearer
-'        subprotocol ['bearer', token] when :8097 adopts it (PlayerScene.brs
-'        BuildSyncPlayWsParts carries the full switch plan).
+'   WS   /syncplay  -> real-time sync (ws://host:8097/syncplay; the bearer JWT
+'        rides the two-entry bearer subprotocol handshake header
+'        `Sec-WebSocket-Protocol: bearer, <jwt>` — estate policy
+'        WEBSOCKET_URL_QUERY_REFUSED retired for this client by phlix-server
+'        424c14d0; the legacy ?token= query is accepted server-side only
+'        TRANSITIONALLY for older builds. See PlayerScene.brs
+'        BuildSyncPlayWsParts.)
 '
 ' Usage:
 '   syncMgr = SyncPlayManager(GetApiClient())
@@ -128,11 +132,11 @@ function SyncPlayManager(api as Object) as Object
             m._session = {
                 roomId: roomId
                 sessionId: ""  ' Will be set to our memberId from the WS group_state event
-                ' ws://host:8097 - TODO(security, estate policy
-                ' WEBSOCKET_URL_QUERY_REFUSED): the derived URL pre-bakes the
-                ' ?token= query carrier (current :8097 server law); switches to
-                ' the two-entry bearer subprotocol ['bearer', token] once the
-                ' server adopts it - full plan in PlayerScene.brs
+                ' ws://host:8097 - the bearer JWT rides the two-entry bearer
+                ' subprotocol handshake header, never the URL query (estate
+                ' policy WEBSOCKET_URL_QUERY_REFUSED, retired for this client
+                ' by phlix-server 424c14d0; legacy ?token= accepted
+                ' server-side only TRANSITIONALLY - full note in PlayerScene.brs
                 ' BuildSyncPlayWsParts.
                 serverUrl: ""  ' Derived from ApiClient baseUrl (ws://host:8097)
                 roomName: roomName

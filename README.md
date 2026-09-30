@@ -163,7 +163,8 @@ never opened the player path is byte-identical to a non-SyncPlay build.
 >   TLS**, so the hand-rolled WebSocket can speak `ws://` only. On a TLS-fronted production box
 >   (HAProxy terminating TLS) SyncPlay connects **only if the server's plaintext `:8097` is reachable
 >   from the Roku** (same LAN, or a documented plaintext exposure). The client derives a plaintext
->   `ws://<host>:8097/syncplay?token=…` URL from the connected server origin.
+>   `ws://<host>:8097/syncplay` URL from the connected server origin; the JWT rides the
+>   two-entry bearer subprotocol handshake header, not the URL query.
 > - **Hub mode: disabled.** The hub relay proxy is HTTP-only (it strips the `Upgrade` header), so
 >   there is no WebSocket path through the hub. In hub mode the overlay refuses to open with a
 >   friendly message ("Watch Together isn't available in hub mode yet").
@@ -206,11 +207,16 @@ node (socket I/O off the render thread).
   an object (`group_id`, `group_name`, `member_count`, `members:[{id,name,is_host,joined_at}]`,
   `host_id`, `current_media_id`, `playback_position` (ms), `playback_state`, …). The client learns
   its **real** member id from `group_state.your_id` (used for echo-suppression and host detection).
-- **Auth + URL:** the WS connection is authenticated on the upgrade via `?token=<access_token>` (the
-  same access token the REST client holds in Storage `auth_token`); unauthenticated sockets are
-  rejected before any frame. The canonical URL is `wss://<host>/syncplay` → server **`:8097`**, but
-  since Roku can't do TLS the client connects to the derived plaintext
-  `ws://<host>:8097/syncplay?token=…`.
+- **Auth + URL:** the WS connection is authenticated on the upgrade via the **two-entry bearer
+  subprotocol** request header `Sec-WebSocket-Protocol: bearer, <access_token>` (the same access
+  token the REST client holds in Storage `auth_token`); unauthenticated sockets are rejected before
+  any frame. The canonical URL is `wss://<host>/syncplay` → server **`:8097`**, but since Roku can't
+  do TLS the client connects to the derived plaintext `ws://<host>:8097/syncplay` — **no token in
+  the URL**. (Estate policy `WEBSOCKET_URL_QUERY_REFUSED`, flipped for this client by phlix-server
+  `424c14d0`; the server still accepts the legacy `?token=` query carrier *transitionally* for
+  older builds but refuses a handshake whose two carriers disagree, and echoes
+  `Sec-WebSocket-Protocol: bearer` on accepted offered handshakes — the client's 101 check is
+  status-line-only, so the echo is tolerated by design.)
 
 The 19 canonical message types (F13 implements the TV-friendly subset shown below; chat / typing /
 host_transfer / queue / sync are deferred):

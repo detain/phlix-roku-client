@@ -1184,15 +1184,18 @@ function ApiClient(baseUrl as String) as Object
         '   Source: SyncPlayController.php:121-136 (getGroup)
         '           SyncPlaySnapshotService.php:171-200 (getGroupState)
         '
-        ' WebSocket: ws://{host}:8097/syncplay/{roomId}?token={jwt}
-        '   (serverUrl is derived client-side from ApiClient baseUrl, not returned by server)
-        '   TODO(security, estate policy WEBSOCKET_URL_QUERY_REFUSED): the query
-        '   carrier for the bearer JWT is a known contracts-policy deviation. It is
-        '   CURRENT SERVER LAW (:8097 worker authenticates only ?token=) and stays;
-        '   once phlix-server adopts the hub relay's TWO-ENTRY bearer subprotocol
-        '   (Sec-WebSocket-Protocol: ['bearer', token] - scheme entry + separate
-        '   token entry, not dotted 'bearer.<jwt>'), strip the token from this URL.
-        '   Canonical wording + switch plan: PlayerScene.BuildSyncPlayWsParts and
+        ' WebSocket: ws://{host}:8097/syncplay
+        '   (serverUrl is derived client-side from ApiClient baseUrl, not returned by
+        '   server; the room itself is joined via wire frames, not the path)
+        '   Carrier: the bearer JWT rides the TWO-ENTRY bearer subprotocol handshake
+        '   header `Sec-WebSocket-Protocol: bearer, <jwt>` (scheme entry + separate
+        '   token entry, not dotted 'bearer.<jwt>'). Estate policy
+        '   WEBSOCKET_URL_QUERY_REFUSED is retired for this client by phlix-server
+        '   424c14d0 (:8097 now reads both carriers; the legacy ?token= query is
+        '   accepted TRANSITIONALLY only while older builds roll out, and a
+        '   handshake whose carriers disagree is refused pre-101). An accepted
+        '   offered handshake gets a `Sec-WebSocket-Protocol: bearer` echo.
+        '   Canonical wording: PlayerScene.BuildSyncPlayWsParts and
         '   phlix-ui src/api/syncplay.ts buildWsUrl.
         '
         ' Contract disagreements to report for phlix-contracts:

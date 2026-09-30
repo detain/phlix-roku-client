@@ -177,8 +177,11 @@ stub), and it is **device-unverifiable** (bsc + review only). Two new files plus
 **Two hard facts to keep in docs/code:**
 
 - **`ws://` only.** `roStreamSocket` is plaintext TCP with **no TLS** → `wss://` is impossible. The
-  scene derives `ws://<host>:8097/syncplay?token=<auth_token>` from `GetServerUrl()` (port forced to
-  `8097`). It only works against a Roku-reachable **plaintext** `:8097` (LAN / documented exposure).
+  scene derives `ws://<host>:8097/syncplay` from `GetServerUrl()` (port forced to `8097`) and the
+  JWT rides the **two-entry bearer subprotocol** handshake header
+  (`Sec-WebSocket-Protocol: bearer, <jwt>` — server law since phlix-server `424c14d0`; the legacy
+  `?token=` query is accepted server-side only transitionally for older builds). It only works
+  against a Roku-reachable **plaintext** `:8097` (LAN / documented exposure).
 - **Hub mode is disabled.** The hub relay is HTTP-only (strips `Upgrade`), so SyncPlay refuses to
   open in hub mode with a message. Direct mode (`GetConnectionKind()<>"hub"`) only.
 

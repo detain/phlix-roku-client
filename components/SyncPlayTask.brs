@@ -46,9 +46,14 @@ sub RunSocket()
     host = ""
     port = 8097
     path = "/syncplay"
+    bearerToken = ""
     if cfg.DoesExist("host") and cfg.host <> invalid then host = cfg.host
     if cfg.DoesExist("port") and cfg.port <> invalid then port = Int(cfg.port)
     if cfg.DoesExist("path") and cfg.path <> invalid then path = cfg.path
+    ' The JWT rides the handshake (two-entry bearer subprotocol), NEVER the
+    ' path query — estate policy WEBSOCKET_URL_QUERY_REFUSED, server law since
+    ' phlix-server 424c14d0 (docs/dev/WEBSOCKET_AUTH_CARRIERS.md).
+    if cfg.DoesExist("bearerToken") and cfg.bearerToken <> invalid then bearerToken = cfg.bearerToken
 
     if host = "" then
         EmitError("local.no_host")
@@ -92,7 +97,7 @@ sub RunSocket()
     end if
 
     ' Wait (bounded) for the socket to become connected, then send the handshake.
-    if not WaitForConnect(host, port, path) then
+    if not WaitForConnect(host, port, path, bearerToken) then
         EmitError("local.connect_timeout")
         Cleanup()
         return
@@ -121,7 +126,11 @@ end sub
 ' Block (bounded) until the socket reports connected, then send the WS upgrade
 ' request and read until "\r\n\r\n", validating the 101 response. Returns true on
 ' a successful upgrade. Runs ONLY at startup (before the main loop).
-function WaitForConnect(host as String, port as Integer, path as String) as Boolean
+' `bearerToken` is the JWT for the two-entry bearer subprotocol carrier
+' ("Sec-WebSocket-Protocol: bearer, <jwt>" — :8097 server law since phlix-server
+' 424c14d0); "" sends no offer (the dial then fails server-side unauthenticated,
+' exactly as an empty ?token= did under the retired query carrier).
+function WaitForConnect(host as String, port as Integer, path as String, bearerToken as String) as Boolean
     ' Up to ~10s for the TCP connect to complete.
     deadline = 0
     while deadline < 100
@@ -142,9 +151,17 @@ function WaitForConnect(host as String, port as Integer, path as String) as Bool
     ' for would-block writes; keep readable on for the handshake + frame reads.
     m.sock.NotifyWritable(false)
 
-    ' Send the upgrade request.
+    ' Send the upgrade request. The JWT rides the two-entry bearer subprotocol
+    ' offer header when present (SyncPlayProtocol.BearerSubprotocolOffer); an
+    ' empty token sends no offer (illegal empty protocol-id) and the handshake
+    ' then fails unauthenticated server-side.
     keyB64 = m.proto.NewWebSocketKey()
-    req = m.proto.BuildHandshakeRequest(host, port, path, keyB64)
+    extraHeaders = invalid
+    offer = m.proto.BearerSubprotocolOffer(bearerToken)
+    if offer <> "" then
+        extraHeaders = { "Sec-WebSocket-Protocol": offer }
+    end if
+    req = m.proto.BuildHandshakeRequest(host, port, path, keyB64, extraHeaders)
     sent = m.sock.SendStr(req)
     if sent < 0 then return false
 
@@ -178,6 +195,11 @@ function WaitForConnect(host as String, port as Integer, path as String) as Bool
 
     ' Header portion = bytes [0 .. termIdx+3] (the 4 terminator bytes inclusive);
     ' header is ASCII so ToAsciiString of just the header slice is safe.
+    ' A bearer-offering handshake is answered with a `Sec-WebSocket-Protocol:
+    ' bearer` echo line (phlix-server 424c14d0): HandshakeAccepted inspects only
+    ' the status line and the byte-scan above keys off \r\n\r\n, so the echo is
+    ' parsed and tolerated by design — never tighten this to exact-header
+    ' matching without re-proving the echo path.
     headerText = HeaderSliceToString(headerBytes, termIdx + 4)
     if not m.proto.HandshakeAccepted(headerText) then return false
 

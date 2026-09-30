@@ -37,11 +37,13 @@
 ' ```brightscript
 ' proto = SyncPlayProtocol()
 ' key = proto.NewWebSocketKey()
-' req = proto.BuildHandshakeRequest("192.168.1.5", 8097, "/syncplay?token=x", key)
-'   (the ?token= query carrier shown here is CURRENT :8097 server law; estate
-'    policy WEBSOCKET_URL_QUERY_REFUSED tracks the switch to the two-entry
-'    bearer subprotocol ['bearer', token] once the server adopts it - see
-'    PlayerScene.brs BuildSyncPlayWsParts for the full plan)
+' offer = proto.BearerSubprotocolOffer(jwt)   ' -> "bearer, <jwt>" (two entries)
+' headers = { "Sec-WebSocket-Protocol": offer }
+' req = proto.BuildHandshakeRequest("192.168.1.5", 8097, "/syncplay", key, headers)
+'   (the two-entry bearer subprotocol IS :8097 server law since phlix-server
+'    424c14d0 - see docs/dev/WEBSOCKET_AUTH_CARRIERS.md; the legacy ?token=
+'    query carrier is still accepted server-side TRANSITIONALLY for older
+'    builds but this client no longer emits it)
 ' frame = proto.BuildTextFrame(proto.Encode("syncplay_time_ping", { client_time: NowMs() }))
 ' ```
 
@@ -53,6 +55,11 @@ function SyncPlayProtocol() as Object
         OP_CLOSE: 8
         OP_PING: 9
         OP_PONG: 10
+
+        ' Bearer credential carrier law: the marker subprotocol offered FIRST in
+        ' the two-entry Sec-WebSocket-Protocol handshake (["bearer", <jwt>]).
+        ' Mirrors SyncPlayAuthMiddleware::BEARER_SUBPROTOCOL on the server.
+        BEARER_SUBPROTOCOL: "bearer"
 
         ' TimeSync tuning (see GetAdjustedPositionMs / AddPong).
         OFFSET_SAMPLE_COUNT: 5
@@ -285,16 +292,35 @@ function SyncPlayProtocol() as Object
             return ba.ToBase64String()
         end function
 
+        ' The Sec-WebSocket-Protocol OFFER value carrying the bearer JWT: the
+        ' TWO-ENTRY form "bearer, <jwt>" (marker entry first, credential entry
+        ' second — NEVER the dotted single-entry 'bearer.<jwt>' shape). This is
+        ' :8097 server law since phlix-server 424c14d0 (estate policy
+        ' WEBSOCKET_URL_QUERY_REFUSED: the token must not ride the URL query;
+        ' the server still accepts the legacy ?token= carrier TRANSITIONALLY
+        ' for older builds, and rejects a handshake whose two carriers disagree).
+        ' A JWT is base64url + dots — all RFC 7230 token chars — so it needs no
+        ' encoding here. Returns "" for an empty token: the caller then sends NO
+        ' offer header at all (an empty protocol-id entry is an illegal offer;
+        ' the unauthenticated dial fails server-side exactly as an empty
+        ' ?token= did before).
+        ' @param token String - the bearer JWT ("" when absent)
+        ' @return String - "bearer, <jwt>" or ""
+        BearerSubprotocolOffer: function(token as String) as String
+            if Len(token) = 0 then return ""
+            return m.BEARER_SUBPROTOCOL + ", " + token
+        end function
+
         ' Build the GET upgrade request string (CRLF-joined, trailing blank line).
         ' The path already carries the relay path (`/syncplay/{server_id}`, built
         ' by the caller). We send a valid random key but do NOT verify the
         ' server's Sec-WebSocket-Accept hash (see HandshakeAccepted).
         ' `extraHeaders` is an OPTIONAL assocarray of { name: value } added
-        ' verbatim before the terminating blank line — the hub relay requires the
-        ' relay token on a sanctioned carrier, and a raw handshake is the only
-        ' place a Roku client can put `Authorization: Bearer <token>` (S298). The
-        ' existing :8097 SyncPlay caller passes no extra headers, so this is
-        ' purely additive.
+        ' verbatim before the terminating blank line — the sanctioned carriers
+        ' live here: the hub relay puts `Authorization: Bearer <token>` on it
+        ' (S298), and the :8097 SyncPlay dial puts the two-entry bearer
+        ' subprotocol offer `Sec-WebSocket-Protocol: bearer, <jwt>` on it
+        ' (BearerSubprotocolOffer; server law since phlix-server 424c14d0).
         ' @param host String - the server host
         ' @param port Integer - the plaintext WS port (8097 / 8804)
         ' @param path String - the request path
@@ -323,6 +349,14 @@ function SyncPlayProtocol() as Object
         ' We accept on the "101" status line and do NOT verify the
         ' Sec-WebSocket-Accept SHA-1 hash (deferred - see worklog §3). A real MITM
         ' is out of scope for a LAN plaintext socket.
+        ' ECHO TOLERANCE: when the client OFFERED the bearer subprotocol the
+        ' server answers the 101 with exactly one `Sec-WebSocket-Protocol:
+        ' bearer` response header line (marker only, never the token — phlix-
+        ' server 424c14d0). This check inspects ONLY the status-line prefix of
+        ' the response, so any extra response headers — the echo included —
+        ' neither affect it nor desync the byte-based header terminator scan in
+        ' the caller. Do not harden this into strict header matching without
+        ' re-proving the echo path.
         ' @param responseText String - the upgrade response text
         ' @return Boolean - true when the response begins "HTTP/1.1 101"
         HandshakeAccepted: function(responseText as String) as Boolean

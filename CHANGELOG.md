@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+### Changed — SyncPlay :8097 auth carrier flipped to the two-entry bearer subprotocol — 2026-09-30
+
+- **The flip.** The hand-rolled WebSocket client (there is no `roWebSocket` on
+  Roku — `SyncPlayTask`/`HubCommandTask` write the RFC 6455 upgrade themselves
+  over `roStreamSocket`) now carries the bearer JWT on the handshake header
+  `Sec-WebSocket-Protocol: bearer, <jwt>` — the TWO-ENTRY offer (marker entry
+  first, raw JWT second, never dotted, never url-encoded) that
+  `SyncPlayAuthMiddleware::bearerSubprotocolToken()` parses. `BuildSyncPlayWsParts`
+  returns the bare `/syncplay` path + the token as a separate `bearerToken`
+  config field; `SyncPlayTask.WaitForConnect` feeds it to the pre-existing
+  `BuildHandshakeRequest` `extraHeaders` seam (the S298 header, generalized).
+  No `?token=` remains on any code path.
+- **The unblocker.** phlix-server `424c14d0` shipped the dual-carrier
+  transitional law on `:8097` (docs/dev/WEBSOCKET_AUTH_CARRIERS.md): bearer
+  header accepted, legacy query accepted TRANSITIONALLY for older builds,
+  disagreement between carriers refused pre-101. The estate debt marker
+  `WEBSOCKET_URL_QUERY_REFUSED` is retired for this client (transitional notes
+  kept at every former TODO site).
+- **101 echo tolerance.** The server answers an accepted *offered* handshake
+  with exactly one `Sec-WebSocket-Protocol: bearer` response line (marker
+  only). `HandshakeAccepted` is a status-line-only check and the header scan
+  keys off the byte `\r\n\r\n`, so the echo is parsed and tolerated by design —
+  pinned by `TestSyncPlayProtocolHandshakeAcceptedToleratesBearerEcho`
+  (offered-echo and legacy-no-echo 101s both pass); offer serialization pinned
+  by `TestSyncPlayProtocolBearerSubprotocolOffer` +
+  `TestSyncPlayProtocolBuildHandshakeRequestWithBearerOffer` (and the plain
+  handshake test now asserts NO token ever rides the query).
+- **Docs.** README / CLAUDE.md / `SyncPlayTask.xml` interface comment
+  restated to the header-carrier law. No display strings touched — locale
+  catalogs unchanged. Hub mode unchanged (still refused client-side; the
+  `:8804` `HubCommandTask` keeps its sanctioned `Authorization:` carrier).
+
 ### Fixed — dotted Translate keys render raw keys; CHECK 20 blind spot closed — 2026-09-29
 
 - **The defect.** `components/AudiobookPlayerScene.brs` called

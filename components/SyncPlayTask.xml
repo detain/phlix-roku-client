@@ -6,9 +6,11 @@
 
 <component name="SyncPlayTask" extends="Task">
     <interface>
-        <!-- Scene->task connection config: { host, port, path, memberName }.
-             `path` already carries "/syncplay?token=...". The scene splits the
-             URL (do NOT re-parse it here). -->
+        <!-- Scene->task connection config: { host, port, path, bearerToken, memberName }.
+             `path` is the bare "/syncplay" (NO query). The JWT rides `bearerToken`
+             onto the two-entry bearer subprotocol handshake header
+             (`Sec-WebSocket-Protocol: bearer, <jwt>` — server law since phlix-server
+             424c14d0), never the URL. The scene splits the URL (do NOT re-parse it here). -->
         <field id="config" type="assocarray" />
 
         <!-- Scene->task imperative commands. alwaysNotify so two identical kinds

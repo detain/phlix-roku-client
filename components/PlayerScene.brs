@@ -1640,6 +1640,8 @@ sub ConnectSyncTask()
         host: parts.host
         port: parts.port
         path: parts.path
+        ' Handshake carrier (two-entry bearer subprotocol) — NOT the URL query.
+        bearerToken: parts.token
         memberName: memberName
     }
     m.syncActive = true
@@ -1649,26 +1651,28 @@ sub ConnectSyncTask()
     SetSyncStatus("Connecting…")
 end sub
 
-' Derive { host, port:8097, path:"/syncplay?token=..." } from GetServerUrl().
+' Derive { host, port:8097, path:"/syncplay", token } from GetServerUrl().
 ' Forces ws scheme implicitly (we only return host/port/path; the Task opens a
-' plaintext socket). Returns invalid when no token / host can be derived.
+' plaintext socket). The token is returned SEPARATELY from the path so the Task
+' can put it on the handshake carrier — it must never be concatenated into the
+' path here.
 '
-' TODO(security, estate policy WEBSOCKET_URL_QUERY_REFUSED): carrying the bearer
-' JWT in the query string deviates from the contracts policy - the hub relay
-' (:8804) correctly sends the token via the Sec-WebSocket-Protocol header using
-' the TWO-ENTRY form `new WebSocket(url, ['bearer', token])` (a scheme entry
-' plus a separate token entry, serialized as `Sec-WebSocket-Protocol: bearer,
-' <jwt>`; NOT the single dotted `['bearer.<jwt>']` shape). This client cannot
-' switch yet because the SERVER is the blocker: phlix-server
-' src/Server/WebSocket/WebSocketServer.php onWebSocketConnect() authenticates
-' ONLY $request->get('token') (query) and SyncPlayAuthMiddleware never reads
-' Sec-WebSocket-Protocol. Flipping the carrier before the :8097 worker adopts
-' the bearer subprotocol would break the wire - ?token= IS current server law.
-' Dependency: server mirrors the relay's two-entry subprotocol acceptance on
-' :8097; then strip the token here and put ['bearer', token] on the handshake
-' (roStreamSocket hand-rolls the upgrade, see SyncPlayProtocol
-' BuildHandshakeRequest extraHeaders). Estate wording: phlix-ui
-' src/api/syncplay.ts buildWsUrl.
+' CARRIER LAW (flipped 2026-09-30, estate policy WEBSOCKET_URL_QUERY_REFUSED
+' retired for this client): the bearer JWT rides the TWO-ENTRY bearer
+' subprotocol `Sec-WebSocket-Protocol: bearer, <jwt>` on the upgrade handshake
+' (SyncPlayProtocol.BearerSubprotocolOffer -> BuildHandshakeRequest
+' extraHeaders), mirroring the hub relay's `new WebSocket(url, ['bearer',
+' token])` serialization (scheme entry first, separate token entry, NEVER the
+' dotted 'bearer.<jwt>' shape). The server adopted this on :8097 at
+' phlix-server 424c14d0 (src/Server/WebSocket/SyncPlayAuthMiddleware.php +
+' docs/dev/WEBSOCKET_AUTH_CARRIERS.md): the legacy ?token= query carrier is
+' still ACCEPTED server-side TRANSITIONALLY while older builds roll out, a
+' handshake offering BOTH carriers with different tokens is refused pre-101,
+' and an accepted offered handshake is echoed exactly one
+' `Sec-WebSocket-Protocol: bearer` response line (marker only — tolerated by
+' HandshakeAccepted, status-line-only check). No client in the estate may
+' reintroduce the query carrier. Estate wording: phlix-ui src/api/syncplay.ts
+' buildWsUrl.
 function BuildSyncPlayWsParts() as Object
     serverUrl = GetServerUrl()
     if serverUrl = invalid or serverUrl = "" then return invalid
@@ -1691,8 +1695,9 @@ function BuildSyncPlayWsParts() as Object
     token = GetStorage().get("auth_token")
     if token = invalid then token = ""
 
-    path = "/syncplay?token=" + UrlEncode(token)
-    return { host: host, port: 8097, path: path }
+    ' No UrlEncode: on the subprotocol carrier the JWT travels verbatim as an
+    ' RFC 7230 token (base64url + dots), and the server compares it raw.
+    return { host: host, port: 8097, path: "/syncplay", token: token }
 end function
 
 ' REST group-list snapshot response -> populate the LabelList + parallel id array.

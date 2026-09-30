@@ -107,15 +107,71 @@ sub TestSyncPlayProtocolBuildPongFrame()
 end sub
 
 sub TestSyncPlayProtocolBuildHandshakeRequest()
-    ' Test BuildHandshakeRequest generates valid HTTP request
+    ' Test BuildHandshakeRequest generates valid HTTP request.
+    ' :8097 law since phlix-server 424c14d0: the path is the BARE "/syncplay"
+    ' (no ?token= query) - the credential rides the extraHeaders carrier, pinned
+    ' in TestSyncPlayProtocolBuildHandshakeRequestWithBearerOffer below.
     proto = SyncPlayProtocol()
     key = proto.NewWebSocketKey()
-    req = proto.BuildHandshakeRequest("localhost", 8097, "/syncplay?token=test", key)
+    req = proto.BuildHandshakeRequest("localhost", 8097, "/syncplay", key)
     assertTrue(req <> invalid)
-    assertTrue(req.Instr(0, "GET /syncplay?token=test HTTP/1.1") >= 0)
+    assertTrue(req.Instr(0, "GET /syncplay HTTP/1.1") >= 0)
     assertTrue(req.Instr(0, "Upgrade: websocket") >= 0)
     assertTrue(req.Instr(0, "Connection: Upgrade") >= 0)
+    ' No credential carrier without extraHeaders, and never a URL query token.
+    assertTrue(req.Instr(0, "Sec-WebSocket-Protocol") < 0)
+    assertTrue(req.Instr(0, "token=") < 0)
     print "TestSyncPlayProtocolBuildHandshakeRequest passed"
+end sub
+
+sub TestSyncPlayProtocolBearerSubprotocolOffer()
+    ' Two-entry offer law: marker entry first, raw JWT second, comma-space
+    ' joined; "" for no credential (empty protocol-ids are an illegal offer).
+    proto = SyncPlayProtocol()
+    assertEqual(proto.BEARER_SUBPROTOCOL, "bearer")
+    assertEqual(proto.BearerSubprotocolOffer("abc.def.ghi"), "bearer, abc.def.ghi")
+    assertEqual(proto.BearerSubprotocolOffer(""), "")
+    ' JWT chars are RFC 7230 token chars - verbatim, NOT url-encoded.
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnLXRlc3Q"
+    offer = proto.BearerSubprotocolOffer(jwt)
+    assertEqual(offer, "bearer, " + jwt)
+    assertTrue(offer.Instr(0, "%") < 0)
+    print "TestSyncPlayProtocolBearerSubprotocolOffer passed"
+end sub
+
+sub TestSyncPlayProtocolBuildHandshakeRequestWithBearerOffer()
+    ' The :8097 dial puts the offer on a header line, before the terminating
+    ' blank line (SyncPlayTask.WaitForConnect passes exactly this shape).
+    proto = SyncPlayProtocol()
+    key = proto.NewWebSocketKey()
+    offer = proto.BearerSubprotocolOffer("jwt.value_here")
+    req = proto.BuildHandshakeRequest("localhost", 8097, "/syncplay", key, { "Sec-WebSocket-Protocol": offer })
+    assertTrue(req.Instr(0, "GET /syncplay HTTP/1.1") >= 0)
+    assertTrue(req.Instr(0, "Sec-WebSocket-Protocol: bearer, jwt.value_here" + Chr(13) + Chr(10)) >= 0)
+    ' The credential must never appear in the request-line query.
+    assertTrue(req.Instr(0, "?token=") < 0)
+    print "TestSyncPlayProtocolBuildHandshakeRequestWithBearerOffer passed"
+end sub
+
+sub TestSyncPlayProtocolHandshakeAcceptedToleratesBearerEcho()
+    ' phlix-server 424c14d0 answers a bearer-offering handshake with exactly
+    ' one echoed `Sec-WebSocket-Protocol: bearer` response line. The 101 check
+    ' is status-line-only, so the echo (and any other response header) must be
+    ' TOLERATED - this pins that contract so no future hardening chokes on it.
+    proto = SyncPlayProtocol()
+    crlf = Chr(13) + Chr(10)
+    echoed = "HTTP/1.1 101 Switching Protocols" + crlf
+    echoed = echoed + "Upgrade: websocket" + crlf
+    echoed = echoed + "Connection: Upgrade" + crlf
+    echoed = echoed + "Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=" + crlf
+    echoed = echoed + "Sec-WebSocket-Protocol: bearer" + crlf
+    echoed = echoed + crlf
+    assertTrue(proto.HandshakeAccepted(echoed))
+    ' The echo never carries the token - and an un-offered (legacy) 101 without
+    ' the echo must keep passing too (byte-identical old shape).
+    plain = "HTTP/1.1 101 Switching Protocols" + crlf + "Upgrade: websocket" + crlf + crlf
+    assertTrue(proto.HandshakeAccepted(plain))
+    print "TestSyncPlayProtocolHandshakeAcceptedToleratesBearerEcho passed"
 end sub
 
 sub TestSyncPlayProtocolHandshakeAccepted101()
