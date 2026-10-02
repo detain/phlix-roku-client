@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### Fixed — validate-xml vacuous-pass hole closed (zero-file guard) — 2026-10-02
+
+- **The hole.** The estate CI-gate audit (2026-10-02) found `make validate-xml`
+  was an inline Makefile glob loop whose exit code was driven solely by
+  per-file structure errors. When the glob discovered ZERO files — a renamed
+  `components/` dir, a drifted path pattern, an empty checkout — the loop body
+  never ran, nothing was validated, and the target still exited 0: a
+  permanently-green gate that checked nothing.
+- **The fix.** The check moved to `scripts/validate-xml.sh`, which parses its
+  scan root at the boundary (missing dir = immediate refusal), counts every
+  file it discovers, and fails loudly — non-zero exit + a message naming the
+  empty discovery as a path-pattern regression — when the count is zero. The
+  per-file law is unchanged (`<?xml version` + `</component>`). The default
+  root derives from the script's own location (the `verify-runtime.sh`
+  layout-independent idiom), so CI and dev sandboxes behave identically.
+- **Falsifiability.** `tests/scripts/verify-runtime-portable.sh` gains legs
+  (13a–d): real `components/` validates green with its file count echoed; an
+  empty scratch root must exit non-zero with the loud "discovered ZERO XML
+  files" message; a missing root must be refused; a planted malformed XML is
+  named in the failure and removal returns exit 0 (plant/restore proves the
+  extraction preserved the original per-file behavior).
+
 ### Changed — SyncPlay :8097 auth carrier flipped to the two-entry bearer subprotocol — 2026-09-30
 
 - **The flip.** The hand-rolled WebSocket client (there is no `roWebSocket` on

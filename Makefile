@@ -247,21 +247,13 @@ validate-manifest:
 	fi
 	@echo "Manifest validation passed."
 
-# Validate XML files
+# Validate XML files — delegated to scripts/validate-xml.sh (estate CI-gate
+# audit 2026-10-02). The old inline glob loop exited 0 VACUOUSLY whenever it
+# discovered zero files (renamed dir / drifted path pattern validated nothing
+# yet greened the gate). The script counts its discovery and fails loudly on a
+# zero-file run; red-leg: tests/scripts/verify-runtime-portable.sh leg (13).
 validate-xml:
-	@echo "Validating XML files..."
-	@FOUND=0; \
-	for xml in $(COMPONENTS_DIR)/*.xml; do \
-		if [ -f "$$xml" ]; then \
-			if grep -q '<?xml version' "$$xml" && grep -q '</component>' "$$xml"; then \
-				echo "  ✓ $$(basename $$xml)"; \
-			else \
-				echo "  ERROR: $$(basename $$xml) - invalid structure"; \
-				FOUND=1; \
-			fi; \
-		fi; \
-	done; \
-	if [ $$FOUND -eq 1 ]; then exit 1; fi
+	@bash "$(CURDIR)/scripts/validate-xml.sh" "$(abspath $(COMPONENTS_DIR))"
 
 # ===========================================
 # CI/CD helpers

@@ -20,7 +20,7 @@ All workflows go through `Makefile`. `package.json` exists only to alias these f
 | `make bslint` | Runs `npx bslint --project bsconfig.json` (brighterscript style linter). A separate hard gate from `make lint` — exits non-zero on any error or warning. |
 | `make test` / `make test-unit` / `make test-integration` | Drive `rooibos` (`npx rooibos-roku`), which **requires a device** — they only execute when `ROKU_HOST` (or `ROKU_TEST_HOST`) is set. Without one `make test` falls back to `make lint` and exits 1, and `make test-unit` lists the `tests/unit/*.test.brs` files and exits 2. |
 | `make validate-routes` | S280 route gate — `node tests/scripts/verify-route-manifest.mjs` scans every URL the client can issue and compares it **tuple-exact** against the vendored `tests/fixtures/server-route-manifest.json`, then re-runs with `--self-test` to prove it can still go red. |
-| `make validate-manifest` / `make validate-xml` | Greps `manifest` for required keys and checks XML files contain `<?xml` + `</component>`. Both `exit 1` on failure. |
+| `make validate-manifest` / `make validate-xml` | Greps `manifest` for required keys; `scripts/validate-xml.sh` checks every `components/*.xml` contains `<?xml` + `</component>` and **fails loudly if it discovers zero files** (no vacuous green). Both `exit 1` on failure. |
 
 Running a single test: there is no host runner — `rooibos --group unit` / `--group integration` still need `ROKU_HOST`. Otherwise sideload the package and invoke the test from the device (via the developer portal or telnet console on port 8080).
 
@@ -42,7 +42,7 @@ These commands are run in CI and must pass before merging:
 - `make verify-runtime` — 26 runtime-defect checks (`scripts/verify-runtime.sh`; CHECK 26 pins the API-envelope unwrap choke — see `docs/api-envelope.md`); hard CI gate in lint.yml and package.yml
 - `make validate-routes` — S280 route gate: every issued URL is tuple-exact against `tests/fixtures/server-route-manifest.json`; hard CI gate in test.yml
 - `make validate-manifest` — manifest has required fields
-- `make validate-xml` — all XML files are valid SceneGraph documents
+- `make validate-xml` — all XML files are valid SceneGraph documents (`scripts/validate-xml.sh`; a zero-file discovery is a hard fail, never a vacuous pass — red-leg in `tests/scripts/verify-runtime-portable.sh` leg 13)
 - `make lint` — runs bsc, the actual hard gate
 - `make bslint` — runs bslint, a separate hard style gate (zero errors/warnings required)
 

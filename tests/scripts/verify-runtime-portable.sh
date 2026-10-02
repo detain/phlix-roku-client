@@ -78,6 +78,18 @@
 #       dotted Translate in a scratch copy must fire CHECK20 red naming the
 #       file and both the dotted key and its underscore suggestion, and
 #       removing the plant must return the run to exit 0 (falsifiability).
+#  (13) validate-xml zero-file-guard legs (estate CI-gate audit 2026-10-02):
+#       the pre-fix `make validate-xml` was an inline Makefile glob loop that
+#       exited 0 whenever it discovered ZERO files — a renamed components dir
+#       or drifted path pattern validated nothing yet greened the gate
+#       (vacuous pass). scripts/validate-xml.sh now counts its discovery and
+#       halts loud. Legs: (a) the real repo's components/ validates green
+#       (exit 0 + "XML validation passed"); (b) an EMPTY scratch root ->
+#       non-zero + the loud "discovered ZERO XML files" message; (c) a
+#       MISSING root -> non-zero + "does not exist"; (d) a planted malformed
+#       XML in a scratch COPY of the real components -> non-zero naming the
+#       plant (extraction fidelity), and removing the plant -> exit 0
+#       (falsifiability, house planted-red tradition).
 #
 # RUN:  bash tests/scripts/verify-runtime-portable.sh
 # There is no Makefile slot: `make check` is a prerequisites probe, not a script
@@ -86,7 +98,7 @@
 
 set -euo pipefail
 
-for tool in bash git python3 cp rm mktemp; do
+for tool in bash git python3 cp rm mktemp mkdir printf; do
 	command -v "$tool" >/dev/null 2>&1 || {
 		echo "FAIL: required tool '$tool' not found" >&2
 		exit 1
@@ -719,4 +731,63 @@ set -e
 [ "$NEG_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the ENUM comment drops audiobook (got 0)"
 assert_contains "CHECK14" "$NEG_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + Check 20 dotted-key red leg (planted Translate(\"player.playback_error\") -> CHECK20 fired naming file, dotted key and underscore suggestion with CHECKs 21-26 green; plant removed -> exit 0, falsifiability proven) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+# --- (13) validate-xml zero-file-guard legs (estate CI-gate audit 2026-10-02)
+# The pre-fix `make validate-xml` glob loop exited 0 on a ZERO-file discovery —
+# a path-pattern regression silently greened the gate. scripts/validate-xml.sh
+# counts what it finds and halts loud. These legs run the REAL script directly
+# (it derives its default scan root from its own location, so no cwd dependency):
+# (a) real components/ green, (b) empty scratch root red + loud, (c) missing
+# root red, (d) planted malformed XML red naming the plant, plant removed green
+# (falsifiability + extraction fidelity). FAKE_REPO untouched by this family. --
+VALIDATE_XML="$REAL_REPO/scripts/validate-xml.sh"
+[ -f "$VALIDATE_XML" ] || fail "validate-xml: scripts/validate-xml.sh missing from $REAL_REPO — the extracted gate must exist"
+
+# (13a) positive: the real repo's components/ validates green through the script.
+set +e
+VX_OUT=$(bash "$VALIDATE_XML" 2>&1)
+VX_RC=$?
+set -e
+[ "$VX_RC" -eq 0 ] || fail "validate-xml should exit 0 on the real components/ dir (got $VX_RC): $VX_OUT"
+assert_contains "XML validation passed" "$VX_OUT"
+
+# (13b) negative: an EMPTY scratch root must fire the zero-discovery guard.
+EMPTY_XML_ROOT="$TEST_ROOT/empty-components"
+mkdir -p "$EMPTY_XML_ROOT"
+set +e
+VX_EMPTY_OUT=$(bash "$VALIDATE_XML" "$EMPTY_XML_ROOT" 2>&1)
+VX_EMPTY_RC=$?
+set -e
+[ "$VX_EMPTY_RC" -ne 0 ] || fail "validate-xml should exit non-zero when ZERO XML files are discovered (got 0) — the vacuous-pass hole is back"
+assert_contains "discovered ZERO XML files" "$VX_EMPTY_OUT"
+
+# (13c) negative: a MISSING scan root must be refused outright.
+set +e
+VX_MISSING_OUT=$(bash "$VALIDATE_XML" "$TEST_ROOT/no-such-components" 2>&1)
+VX_MISSING_RC=$?
+set -e
+[ "$VX_MISSING_RC" -ne 0 ] || fail "validate-xml should exit non-zero when the components dir is missing (got 0)"
+assert_contains "does not exist" "$VX_MISSING_OUT"
+
+# (13d) negative+restore: a planted malformed XML in a scratch COPY of the real
+# components must still fire the structure ERROR naming the plant (proves the
+# extraction preserved the original per-file behavior), and removing the plant
+# must return the run to exit 0.
+VX_PLANT_ROOT="$TEST_ROOT/vx-plant-components"
+mkdir -p "$VX_PLANT_ROOT"
+cp -a "$REAL_REPO/components"/. "$VX_PLANT_ROOT/"
+printf '<Component id="PlantedBroken">\n</Component>\n' >"$VX_PLANT_ROOT/PlantedBroken.xml"
+set +e
+VX_PLANT_OUT=$(bash "$VALIDATE_XML" "$VX_PLANT_ROOT" 2>&1)
+VX_PLANT_RC=$?
+set -e
+[ "$VX_PLANT_RC" -ne 0 ] || fail "validate-xml should exit non-zero when a malformed XML is planted (got 0)"
+assert_contains "PlantedBroken.xml - invalid structure" "$VX_PLANT_OUT"
+rm "$VX_PLANT_ROOT/PlantedBroken.xml"
+set +e
+VX_RESTORE_OUT=$(bash "$VALIDATE_XML" "$VX_PLANT_ROOT" 2>&1)
+VX_RESTORE_RC=$?
+set -e
+[ "$VX_RESTORE_RC" -eq 0 ] || fail "validate-xml must return to exit 0 after the malformed plant is removed (got $VX_RESTORE_RC): $VX_RESTORE_OUT"
+assert_contains "XML validation passed" "$VX_RESTORE_OUT"
+
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + Check 20 dotted-key red leg (planted Translate(\"player.playback_error\") -> CHECK20 fired naming file, dotted key and underscore suggestion with CHECKs 21-26 green; plant removed -> exit 0, falsifiability proven) + validate-xml zero-file-guard legs (real components/ green with count; empty scratch root -> \"discovered ZERO XML files\" red; missing root -> \"does not exist\" red; planted malformed XML -> named red, removed -> exit 0) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
