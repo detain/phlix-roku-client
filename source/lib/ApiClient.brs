@@ -856,12 +856,15 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
-        ' Collections (F8, read-only browse). The /collections* read routes are
-        ' currently UNAUTHENTICATED server-side (no AuthMiddleware — a server gap
-        ' flagged upstream); the client still sends its standard headers. These
-        ' return the WHOLE envelope (mirror getFavorites/getAlbums); the scene
-        ' reads the named key. A collection id is a UUID -> path directly (no
-        ' UrlEncode, consistent with getItem).
+        ' Collections (F8, read-only browse). All /collections* read routes are
+        ' BEARER-REQUIRED ([AuthMiddleware]) and member-scoped server-side: a
+        ' member sees rows they own plus legacy NULL-owner rows; active admins
+        ' see everything. Historical: when this block was written (F8) the
+        ' upstream reads were recorded as unauthenticated (a flagged server
+        ' gap); that claim is superseded as of server ab6d89a5 (2026-10-02).
+        ' These return the WHOLE envelope (mirror getFavorites/getAlbums); the
+        ' scene reads the named key. A collection id is a UUID -> path directly
+        ' (no UrlEncode, consistent with getItem).
         ' ---------------------------------------------------------------------
 
         ' GET /collections -> {collections:[...]} ; whole json.
@@ -878,8 +881,11 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
-        ' Collection write actions (R7.11). These are Bearer-gated (AuthMiddleware
-        ' added post-F8). A collection id and media item id are both UUIDs -> path
+        ' Collection write actions (R7.11). Bearer-gated ([AuthMiddleware]) with
+        ' OWNER-OR-ACTIVE-ADMIN authorization in-handler (server ab6d89a5): a
+        ' member may write rows they own; a foreign or invisible id answers with
+        ' the same 404 "Collection not found" shape as genuine absence (no 403
+        ' oracle). A collection id and media item id are both UUIDs -> path
         ' directly (no UrlEncode, consistent with getItem/addFavorite).
         ' ---------------------------------------------------------------------
 
