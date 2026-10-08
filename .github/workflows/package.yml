@@ -18,11 +18,11 @@ jobs:
 
   lint-bsc:
     name: brighterscript type-check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
       - name: Install dependencies
@@ -32,7 +32,7 @@ jobs:
 
   lint-validate-xml:
     name: Validate XML files
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - name: Validate XML files
@@ -40,7 +40,7 @@ jobs:
 
   lint-validate-manifest:
     name: Validate manifest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - name: Validate manifest
@@ -48,7 +48,7 @@ jobs:
 
   lint-verify-runtime:
     name: verify-runtime checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - name: Checkout phlix-server (Check 14 ENUM reference)
@@ -62,13 +62,13 @@ jobs:
 
   test-unit:
     name: Unit tests (device-dependent)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     env:
       ROKU_HOST: ${{ secrets.ROKU_HOST }}
     steps:
       - uses: actions/checkout@v6
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
       - name: Install dependencies
@@ -84,7 +84,7 @@ jobs:
   package:
     name: Build sideload package
     needs: [lint-bsc, lint-validate-xml, lint-validate-manifest, lint-verify-runtime]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout code
@@ -94,7 +94,7 @@ jobs:
         run: make package
 
       - name: Upload sideload package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: phlix-roku-sideload
           path: phlix.zip
@@ -103,7 +103,7 @@ jobs:
   package-signed:
     name: Build signed package (device-dependent)
     needs: package
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     env:
       ROKU_HOST: ${{ secrets.ROKU_HOST }}
     steps:
@@ -120,7 +120,7 @@ jobs:
     # (GitHub Actions artifacts are re-zipped on download — a Release serves the
     # bare sideload zip Roku's Dev Application Installer expects). Skipped on PRs.
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # Override the read-only default above: publishing a Release needs write.
     permissions:
       contents: write
@@ -130,7 +130,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download sideload package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: phlix-roku-sideload
           path: artifacts
