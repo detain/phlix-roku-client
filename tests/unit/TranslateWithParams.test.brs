@@ -129,6 +129,7 @@ sub TestTranslateWithParamsKnownCodeNeverEmpty()
     keys.push("detail_rating_label")
     keys.push("detail_rated_label")
     keys.push("syncplay_members_count")
+    keys.push("syncplay_members_count_one")
     for each key in keys
         assertTrue(TranslateWithParams(key, { token: "v" }) <> "")
     end for

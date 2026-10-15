@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.4.3",
+    "version": "1.4.4",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -84,7 +84,7 @@
     "status_prefs_saved_locally": "Einstellungen lokal gespeichert — Synchronisierung mit dem Server, wenn verfügbar",
     "status_pip_enabled": "Bild-im-Bild aktiviert",
     "status_pip_disabled": "Bild-im-Bild deaktiviert",
-    "status_server_switch_not_implemented": "Serverwechsel nicht implementiert",
+    "status_server_switch_not_implemented": "Serverwechsel ist auf diesem Gerät noch nicht verfügbar",
     "dialog_account_title": "Konto",
     "dialog_account_message": "E-Mail: {email}\n\nMöchten Sie sich abmelden?",
     "dialog_server_title": "Server",
@@ -159,6 +159,7 @@
     "default_group_name": "Gruppe",
     "default_room_name": "Roku-Raum",
     "members_count": "{count} Mitglieder",
+    "members_count_one": "{count} Mitglied",
     "visibility_public": "[öffentlich]",
     "visibility_private": "[privat]",
     "role_host": "Host",

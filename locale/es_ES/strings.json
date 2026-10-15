@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "es_ES",
     "language_name": "Español (España)",
-    "version": "1.4.3",
+    "version": "1.4.4",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -84,7 +84,7 @@
     "status_prefs_saved_locally": "Preferencias guardadas localmente — sincronizando con el servidor cuando esté disponible",
     "status_pip_enabled": "Imagen en imagen activada",
     "status_pip_disabled": "Imagen en imagen desactivada",
-    "status_server_switch_not_implemented": "Cambio de servidor no implementado",
+    "status_server_switch_not_implemented": "El cambio de servidor aún no está disponible en este dispositivo",
     "dialog_account_title": "Cuenta",
     "dialog_account_message": "Correo: {email}\n\n¿Quieres cerrar sesión?",
     "dialog_server_title": "Servidor",
@@ -159,6 +159,7 @@
     "default_group_name": "Grupo",
     "default_room_name": "Sala Roku",
     "members_count": "{count} miembros",
+    "members_count_one": "{count} miembro",
     "visibility_public": "[público]",
     "visibility_private": "[privado]",
     "role_host": "Anfitrión",

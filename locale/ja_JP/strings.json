@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.4.3",
+    "version": "1.4.4",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -84,7 +84,7 @@
     "status_prefs_saved_locally": "設定はローカルに保存されました — サーバーが利用可能になり次第同期します",
     "status_pip_enabled": "ピクチャーインピクチャーを有効にしました",
     "status_pip_disabled": "ピクチャーインピクチャーを無効にしました",
-    "status_server_switch_not_implemented": "サーバーの切り替えは未実装です",
+    "status_server_switch_not_implemented": "サーバーの切り替えはこのデバイスではまだ利用できません",
     "dialog_account_title": "アカウント",
     "dialog_account_message": "メール: {email}\n\nログアウトしますか？",
     "dialog_server_title": "サーバー",
@@ -159,6 +159,7 @@
     "default_group_name": "グループ",
     "default_room_name": "Rokuルーム",
     "members_count": "メンバー{count}人",
+    "members_count_one": "メンバー{count}人",
     "visibility_public": "[公開]",
     "visibility_private": "[非公開]",
     "role_host": "ホスト",

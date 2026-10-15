@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.4.3",
+    "version": "1.4.4",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -84,7 +84,7 @@
     "status_prefs_saved_locally": "Preferenze salvate localmente — sincronizzazione con il server quando disponibile",
     "status_pip_enabled": "Picture-in-Picture attivato",
     "status_pip_disabled": "Picture-in-Picture disattivato",
-    "status_server_switch_not_implemented": "Cambio server non implementato",
+    "status_server_switch_not_implemented": "Il cambio server non è ancora disponibile su questo dispositivo",
     "dialog_account_title": "Account",
     "dialog_account_message": "Email: {email}\n\nVuoi disconnetterti?",
     "dialog_server_title": "Server",
@@ -159,6 +159,7 @@
     "default_group_name": "Gruppo",
     "default_room_name": "Stanza Roku",
     "members_count": "{count} membri",
+    "members_count_one": "{count} membro",
     "visibility_public": "[pubblico]",
     "visibility_private": "[privato]",
     "role_host": "Ospite",

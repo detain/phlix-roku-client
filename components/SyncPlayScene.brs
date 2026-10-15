@@ -117,7 +117,11 @@ function GroupCaption(room as Object) as String
     return name + count + visibility
 end function
 
-' Localized "<n> members" fragment. The {count} token is substituted BY NAME
+' Localized "<n> members" fragment, singular-aware: exactly 1 renders
+' syncplay_members_count_one ("1 member"), everything else the plural key
+' (0 and 2+ are plural in English; sibling locales ship their own singular
+' forms and fall back to the shared plural elsewhere). The {count} token is
+' substituted BY NAME
 ' (position-free), so a locale that puts the number after the noun just ships
 ' a different value - the surrounding parentheses stay layout owned here.
 ' The original in-place Replace exemplar is now the shared law: generalization
@@ -128,7 +132,11 @@ end function
 ' never "3.0". The general TokenValueText law is untouched on purpose: other
 ' tokens (ratings, prices) may legitimately carry decimals.
 function MembersCountText(n as Object) as String
-    return TranslateWithParams("syncplay_members_count", { count: Int(n) })
+    count = Int(n)
+    if count = 1 then
+        return TranslateWithParams("syncplay_members_count_one", { count: count })
+    end if
+    return TranslateWithParams("syncplay_members_count", { count: count })
 end function
 
 ' Create a new room
