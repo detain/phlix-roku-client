@@ -30,5 +30,10 @@
     "@rokucommunity/bslint": "^0.8.44",
     "brighterscript": "0.72.5",
     "rooibos-roku": "^5.16.4"
+  },
+  "overrides": {
+    "brace-expansion": "^1.1.21",
+    "moment": "^2.31.0",
+    "qs": "^6.15.2"
   }
 }
