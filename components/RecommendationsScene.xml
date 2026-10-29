@@ -7,14 +7,16 @@
     <field id="focusPercent" type="float" />
   </interface>
   <children>
-    <Rectangle width="1920" height="80" color="#1a1a2e" />
+    <!-- M-ROKU-06: canvas is the 1280x720 design plane (manifest hd-only);
+         the old width="1920" bar was an FHD-plane remnant. -->
+    <Rectangle width="1280" height="80" color="#1a1a2e" />
     <Label id="headerLabel" text="For You" width="400" fontSize="36"
            translation="[60, 20]" color="#ffffff" />
     <Label id="loadingLabel" text="Loading…"
-           translation="[960, 540]"
+           translation="[640, 360]"
            horizAlign="center" color="#888888" />
     <Label id="emptyLabel" text="No recommendations yet"
-           translation="[960, 540]"
+           translation="[640, 360]"
            horizAlign="center" color="#888888" visible="false" />
     <MarkupList id="recommendationsList"
                 translation="[0, 100]"

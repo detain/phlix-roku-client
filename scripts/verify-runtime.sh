@@ -3887,4 +3887,128 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo ""
+echo "=== Check 38: ui_resolutions agrees with the hardcoded 1280x720 design plane (M-ROKU-06) ==="
+# DESIGN-PLANE LAW (M-ROKU-06, review roku__crossfe M6): with hd AND full both
+# declared, RokuOS runs the app natively at the device design resolution — on a
+# 1080p set the 1280x720 layout rendered unscaled in the top-left two-thirds,
+# because NOTHING in this repo scales coordinates (census at cce1b34: zero
+# resolutionRatio / viewBounds / GetVisibleRect / root Group scale; videoMode
+# is read only for the About screen). The channel is a fixed 720p design
+# space: 112 XML width/height/loadWidth/loadHeight attribute pins to 1280/720
+# across 37 files (cce1b34), and PlayerScene.brs:1185/:3000 size the Video
+# node 1280x720. Cure:
+# declare 'hd' alone so the OS upscales the canvas on FHD devices.
+# Rules (R1/R2 are scoped to the plane's existence — if a future resolution-
+# aware rework removes the 1280/720 hardcodes, premise P goes false and
+# declaring 'full' becomes a legitimate, conscious choice again):
+#   P   premise: at least one XML node under components/ or source/ carries a
+#       width|height|loadWidth|loadHeight of 1280 or 720 (the hardcoded plane)
+#   R1  while P holds the manifest ui_resolutions token set is EXACTLY {hd} —
+#       no 'full' (unscaled native FHD) and no 'sd' (a 1280-wide plane never
+#       fits a 640x480 screen; the app is https-only modern)
+#   R2  while P holds, FHD-plane-only literals are extinct in the markup: no
+#       width="1920"/height="1080" attribute and no translation starting "[960"
+#       (960 is the 1920-plane center x; the 720p house center convention is
+#       640 — cf. DetailScene.xml's loadingLabel [640,340]). XML comments are
+#       blanked BEFORE scanning (line counts preserved) so explanatory prose
+#       may quote the dead literals without tripping the gate
+#   R3  the contiguous run of manifest comment lines ('-prefixed) sitting
+#       directly above the ui_resolutions key must itself carry the words
+#       "design" and "720", so the next editor sees the law at the key
+#       instead of silently drifting back to hd,full
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+
+def read(path):
+    return open(path, encoding="utf-8").read()
+
+
+xml_files = []
+for root in ("components", "source"):
+    for dirpath, _dirs, files in os.walk(root):
+        for f in sorted(files):
+            if f.endswith(".xml"):
+                xml_files.append(os.path.join(dirpath, f))
+
+# P: the hardcoded 720p design plane exists in the markup. XML comments are
+# blanked line-preservingly first: prose that QUOTES a dead literal (like this
+# gate's own history notes) is documentation, not a live coordinate.
+def strip_xml_comments(text):
+    return re.sub(r'<!--.*?-->',
+                  lambda m: "\n" * m.group(0).count("\n"), text, flags=re.DOTALL)
+
+
+xml_code = {p: strip_xml_comments(read(p)) for p in xml_files}
+
+plane_nodes = 0
+for p in xml_files:
+    plane_nodes += len(re.findall(
+        r'\b(?:width|height|loadWidth|loadHeight)="(?:1280|720)"', xml_code[p]))
+
+if not os.path.exists("manifest"):
+    problems.append("  manifest - CHECK38: manifest not found; the design-plane law is unreadable")
+    print("\n".join(problems))
+    print("  CHECK38: %d design-plane problem(s)" % len(problems))
+    sys.exit(1)
+
+manifest = read("manifest")
+um = re.search(r'^\s*ui_resolutions\s*=\s*(.+?)\s*$', manifest, re.MULTILINE)
+if um is None:
+    problems.append("  manifest - CHECK38 R1: no ui_resolutions key — the RokuOS default is "
+                    "'sd,hd', which contradicts the hardcoded 1280-wide plane just as loudly")
+else:
+    tokens = {t.strip().lower() for t in um.group(1).split(",") if t.strip()}
+    if plane_nodes and tokens != {"hd"}:
+        problems.append(f"  manifest - CHECK38 R1: the app hardcodes the 1280x720 plane in "
+                        f"{plane_nodes} design-plane attribute pins yet ui_resolutions declares {sorted(tokens)} — "
+                        "'full' runs 1080p devices natively UNSCALED (two-thirds dead screen) and "
+                        "'sd' cannot show a 1280-wide layout; declare hd alone (M-ROKU-06)")
+
+# R2: FHD-plane-only literals are extinct while the plane holds.
+if plane_nodes:
+    for p in xml_files:
+        for i, line in enumerate(xml_code[p].splitlines(), 1):
+            if re.search(r'\b(?:width|height)="(?:1920|1080)"', line):
+                problems.append(f'  {p}:{i} - CHECK38 R2: FHD-plane-only size literal on a '
+                                f"{plane_nodes}-pin 720p canvas (1280x720 design space, M-ROKU-06)")
+            if re.search(r'translation="\[\s*960\b', line):
+                problems.append(f'  {p}:{i} - CHECK38 R2: translation x=960 is the 1920-plane '
+                                "center; the 720p design-plane center is x=640 (M-ROKU-06)")
+
+# R3: the manifest keeps the rationale visible AT the key — walk the
+# contiguous ' comment block directly above the ui_resolutions line.
+lines = manifest.splitlines()
+idx = next((i for i, l in enumerate(lines)
+            if re.match(r'\s*ui_resolutions\s*=', l)), None)
+if idx is not None:
+    start = idx
+    while start > 0 and lines[start - 1].lstrip().startswith("'"):
+        start -= 1
+    block = "\n".join(lines[start:idx])
+    if not ("720" in block and "design" in block.lower()):
+        problems.append("  manifest - CHECK38 R3: the ui_resolutions key lost its design-plane "
+                        "comment — state the choice where the next editor sees it (M-ROKU-06)")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK38: %d design-plane problem(s)" % len(problems))
+    sys.exit(1)
+
+print(f"  CHECK38: ui_resolutions=hd agrees with the {plane_nodes}-pin hardcoded "
+      "1280x720 design plane; FHD-only literals extinct; rationale visible in the manifest")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

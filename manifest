@@ -16,7 +16,21 @@ splash_width=1280
 splash_height=720
 splash_min_time=2000
 
-ui_resolutions=hd,full
+' M-ROKU-06 (review roku__crossfe M6): design-plane law — the WHOLE channel is
+' laid out on a hardcoded 1280x720 plane (112 XML width/height/loadWidth/
+' loadHeight attribute pins across 37 files at cce1b34; PlayerScene.brs sizes
+' the Video node
+' 1280x720 at :1185 and :3000; there is zero coordinate scaling anywhere —
+' no resolutionRatio, viewBounds, GetVisibleRect or root Group scale, and
+' videoMode is read only for the About screen). With 'full' declared beside
+' 'hd', RokuOS runs 1080p devices NATIVELY at 1920x1080 and the 720p layout
+' sits unscaled in the top-left two-thirds of the screen. Declaring 'hd'
+' alone makes the OS render the 1280x720 canvas and upscale it — the standard
+' fixed-layout posture. 'sd' is intentionally absent: the app is https-only
+' modern and a 1280-wide plane never fits a 640x480 screen. Re-declare 'full'
+' only TOGETHER with a real resolution-aware layout; CHECK38 pins the
+' declaration, the plane's FHD-only outliers and this comment's presence.
+ui_resolutions=hd
 
 rsg_version=7.0
 

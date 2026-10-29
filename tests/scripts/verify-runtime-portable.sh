@@ -196,6 +196,9 @@ done
 # M-ROKU-04 r2: Check 37's inputs (components/*.brs + source/lib/Utilities.brs)
 # are all staged in the fake layout, so the leg must also run green there.
 assert_contains "=== Check 37:" "$POSITIVE_OUT"
+# M-ROKU-06: Check 38's inputs (manifest + components/*.xml) are all staged in
+# the fake layout, so the design-plane leg must also run green there.
+assert_contains "=== Check 38:" "$POSITIVE_OUT"
 assert_contains "CHECK21: all" "$POSITIVE_OUT"
 assert_contains "CHECK22: all" "$POSITIVE_OUT"
 assert_contains "CHECK23: all" "$POSITIVE_OUT"

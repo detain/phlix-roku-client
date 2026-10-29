@@ -2,6 +2,48 @@
 
 ## [Unreleased]
 
+### Fixed — ui_resolutions declares hd-only, matching the hardcoded 1280x720 design plane (M-ROKU-06, CHECK38) — 2026-10-29
+
+- **The defect (review roku__crossfe M6).** The manifest declared
+  `ui_resolutions=hd,full` against a codebase that hardcodes the 720p design
+  space: 112 XML width/height/loadWidth/loadHeight attribute pins to 1280/720
+  across 37 files (cce1b34 census), `PlayerScene.brs` sizing the Video node
+  1280x720 at :1185 and :3000, progress computed from a bare 854 at :639.
+  With 'full' declared, RokuOS runs 1080p devices NATIVELY at 1920x1080 —
+  coordinates are never auto-scaled — so on every FHD device the UI rendered
+  unscaled in the top-left two-thirds of the screen. Repo-wide scaling census:
+  zero `resolutionRatio`, `viewBounds`, `GetVisibleRect` or root `Group scale`
+  usages; `videoMode` is read only for the About screen
+  (`SettingsScene.brs:356`). The lone FHD-space layouts — `RecommendationsScene.xml`
+  's 1920-wide bar and two `translation="[960, 540]"` center pins (the 1920x1080
+  center point) — were anomalies even inside the declared pair: every other
+  scene centers on the 720p plane (cf. `DetailScene.xml` loadingLabel
+  `[640, 340]`).
+- **The cure.** `manifest` declares `ui_resolutions=hd` alone: the OS renders
+  the 1280x720 canvas and upscales it to 1080p — the standard fixed-layout
+  posture — with a contiguous comment block at the key stating the law and the
+  re-declaration condition. 'sd' is intentionally absent (https-only modern
+  app; a 1280-wide plane never fits a 640x480 screen).
+  `components/RecommendationsScene.xml` is brought onto the design plane
+  (1920→1280 bar, `[960, 540]`→`[640, 360]` ×2), the review's own "the
+  declaration and the layouts must agree" closing law.
+- **CHECK38 (verify-runtime.sh, new leg).** While the 720p plane exists in the
+  markup (premise P, XML comments blanked line-preservingly so prose may quote
+  dead literals): R1 the ui_resolutions token set is exactly {hd}; R2 no
+  width="1920"/height="1080" attribute and no `translation="[960` survives in
+  the markup; R3 the contiguous comment block directly above the key carries
+  "design" and "720" — the rationale stays visible at the decision site.
+  Red-on-parent proof: at cce1b34 the leg fires exactly 5 problems (R1×1,
+  R2×3, R3×1) with the other 37 checks green; after the cure the full script
+  exits 0 (38/38). Header asserted green in the CI-layout positive run of
+  `tests/scripts/verify-runtime-portable.sh` (manifest + components already
+  staged there).
+- **Gates.** make lint (bsc) exit 0 — 18 pre-existing BS1013 warnings, zero in
+  lane-touched files; make validate-xml exit 0 (48 files); verify-runtime full
+  pass exit 0; portable harness full suite exit 0; make package exit 0 with
+  verify-package green (root manifest present, 135 members, packaged
+  `ui_resolutions=hd` disk-proven).
+
 ### Fixed — Discovery rebuilt on the documented socket surface; errored scans degrade like empty ones (M-ROKU-04 r2, CHECK37) — 2026-10-29
 
 - **The defect (review M-ROKU-04__r1, issue 1, blocking).** The r1 LAN scan
