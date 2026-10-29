@@ -453,6 +453,17 @@ sub OnConnected()
 end sub
 
 sub ShowLogin()
+    ' M-ROKU-03 (AppContext law: callers MUST check IsServerConnected() before
+    ' using GetServerUrl()): showing LoginScene with no server configured lets a
+    ' login attempt POST to an empty base; the transport failure surfaces as
+    ' "Cannot connect to server. Check your network" — a fake network error that
+    ' dead-ends the user. Route to ConnectScene instead, where the server URL can
+    ' actually be entered.
+    if not IsServerConnected() then
+        ShowConnect()
+        return
+    end if
+
     loginScene = CreateObject("roSGNode", "LoginScene")
     ' Observe BOTH outcomes: a direct login -> Home, OR a hub login (the
     ' /me/servers probe found a hub) -> the server picker.
@@ -597,8 +608,24 @@ end sub
 
 sub OnLogout()
     ' R1.3: Clear local state FIRST so logout works even if server unreachable.
-    ' R1.6: ResetCachedStorage(fullReset) uses DeleteAll+Flush (1 NVRAM write
-    ' instead of 6 separate delete+flush cycles) and invalidates the read cache.
+    ' M-ROKU-03: capture the teardown credentials BEFORE the wipe. The logout
+    ' ApiTask used to read session_id from the registry AFTER
+    ' ResetCachedStorage(true) deleted it, so the server-side
+    ' DELETE /sessions/{id} saw an empty id and was skipped on every logout —
+    ' the teardown was a silent no-op since the day it shipped.
+    teardownToken = GetStorage().get("auth_token")
+    teardownSessionId = GetStorage().get("session_id")
+    ' Session-teardown base: the bare server_url — the same host the login
+    ' POSTed to (direct: the server; hub mode: the hub, which issued the
+    ' session). NOT GetMediaBaseUrl(): in hub mode that is the per-server relay
+    ' proxy, a different session space with no such route. Guarded per the
+    ' AppContext law (never use server_url without checking connectivity).
+    teardownBase = ""
+    if IsServerConnected() then teardownBase = GetServerUrl()
+
+    ' M-ROKU-03: wipes exactly the six auth/session keys and invalidates the
+    ' read cache; server_url SURVIVES (README law: you return to the login
+    ' screen on the same hub/server) so the LoginScene below has a live base.
     ResetCachedStorage(true)
 
     ' R4 (fail closed): the admin flag is a PROFILE fact, not a device fact.
@@ -620,16 +647,26 @@ sub OnLogout()
         m.top.RemoveChild(m.top.GetChild(0))
     end while
 
-    ShowLogin()
-
-    ' Fire server-side session teardown off the render thread (fire-and-forget).
-    ' Uses GetServerUrl() directly so baseUrl is correct even though m.api.baseUrl
-    ' may have been cleared above. OnLogout has already cleared local credentials
-    ' so the user is safely logged out locally regardless of server reachability.
+    ' Fire server-side session teardown off the render thread (fire-and-forget)
+    ' BEFORE showing the login surface. M-ROKU-03 order law: the scene
+    ' transitions (OnConnected/OnLoginSuccess/OnHubDetected) pop the LAST child,
+    ' so a task appended after a scene hijacks that idiom — pre-fix, appending
+    ' this task after ShowLogin left the ApiTask as the last child and the next
+    ' login transition removed the task instead of LoginScene. The request
+    ' carries the pre-wipe base/token/session captured above: after
+    ' ResetCachedStorage(true) the task can no longer re-resolve them itself.
+    ' Local logout is already complete, so the user is safely signed out
+    ' regardless of server reachability.
     logoutTask = CreateObject("roSGNode", "ApiTask")
-    logoutTask.request = { op: "logout" }
+    logoutTask.request = { op: "logout", base_url: teardownBase, auth_token: teardownToken, session_id: teardownSessionId }
     m.top.Append(logoutTask)
     logoutTask.control = "run"
+
+    ' Last-child invariant restored: LoginScene is the final child. If
+    ' server_url was absent (legacy wiped install, manual registry clear),
+    ' ShowLogin routes to ConnectScene per the AppContext law instead of
+    ' dead-ending on the fake network error.
+    ShowLogin()
 end sub
 
 ' R6.3: Process a validated deep-link intent.

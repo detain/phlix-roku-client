@@ -43,15 +43,29 @@ end function
 
 ' Invalidate all cached reads and optionally wipe auth/session keys.
 ' Call this on server switch (fullReset=false) or logout (fullReset=true).
-' R1.6: fullReset=true uses DeleteAll+Flush (1 NVRAM write) instead of 6
-' separate delete+flush cycles.
+' fullReset=true deletes EXACTLY the six auth/session keys (auth_token,
+' refresh_token, session_id, connection_kind, active_server_id,
+' active_server_name). Connection identity and device convenience state —
+' server_url above all — SURVIVE: the README law is that logging out
+' "keeps server_url, so you return to the login screen on the same
+' hub/server". The R1.6 DeleteAll() over-widened the wipe to the whole
+' section, erasing server_url too; the next login then POSTed to an empty
+' base, its transport failure surfaced as "Cannot connect to server.
+' Check your network", and logout dead-ended the app on that fake network
+' error (review M-ROKU-03). registry.Delete() is buffered until Flush, so
+' the six deletes still land as ONE NVRAM write (R1.6 perf intent kept).
 ' @param fullReset Boolean - if true also deletes auth/session keys
 sub ResetCachedStorage(fullReset = false as Boolean)
     s = GetStorage()
     s._cache.Clear()
     s._dirty.Clear()
     if fullReset then
-        s.registry.DeleteAll()
+        s.registry.Delete("auth_token")
+        s.registry.Delete("refresh_token")
+        s.registry.Delete("session_id")
+        s.registry.Delete("connection_kind")
+        s.registry.Delete("active_server_id")
+        s.registry.Delete("active_server_name")
         s.registry.Flush()
     end if
 end sub

@@ -3156,4 +3156,167 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 33: logout keeps its promise - surgical wipe, real login surface, credential-carrying teardown (M-ROKU-03) ==="
+# Logout law (M-ROKU-03, 2026-10-29, review roku__casualgamer M4): the README
+# promises logging out "keeps server_url, so you return to the login screen on
+# the same hub/server". R1.6's ResetCachedStorage(true) called
+# registry.DeleteAll() - wiping server_url too - so the next login POSTed to
+# an empty base; the transport failure surfaced as "Cannot connect to server.
+# Check your network" and logout dead-ended the app on a fake network error.
+# Two collateral bugs on the same path: the logout ApiTask was appended AFTER
+# ShowLogin (breaking the last-child=scene transition idiom the
+# OnConnected/OnLoginSuccess/OnHubDetected handlers pop), and the server-side
+# DELETE /sessions/{id} re-read session_id from the already-wiped registry,
+# so teardown was a silent no-op since it shipped. Rules:
+#   R1  ResetCachedStorage(fullReset) deletes EXACTLY the six auth/session
+#       keys via registry.Delete - no DeleteAll, no server_url casualty
+#   R2  OnLogout captures auth_token/session_id/server base BEFORE the wipe
+#       and carries them on the logoutTask request
+#   R3  OnLogout appends logoutTask BEFORE ShowLogin (scene stays last child)
+#   R4  ShowLogin guards IsServerConnected and routes unconfigured states to
+#       ConnectScene (AppContext law) instead of an empty-base login
+#   R5  the ApiTask logout branch reads credentials from the REQUEST, never
+#       from the wiped registry, and keeps result.ok = true
+#   R6  the README promise sentence stays in place (if the law ever changes,
+#       the manual must be re-derived in the same commit, not silently)
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO", ".")
+problems = []
+
+
+def read(*parts):
+    return open(os.path.join(repo, *parts), encoding="utf-8").read()
+
+
+def body(src, name):
+    m = re.search(r"^(?:sub|function)\s+" + name + r"\b[^\n]*\n(.*?)^end (?:sub|function)",
+                  src, re.MULTILINE | re.DOTALL)
+    return m.group(1) if m else None
+
+
+def strip_comments(text):
+    return "\n".join(l for l in text.splitlines()
+                     if not l.lstrip().startswith("'"))
+
+
+SIX_KEYS = {"auth_token", "refresh_token", "session_id",
+            "connection_kind", "active_server_id", "active_server_name"}
+
+# R1: surgical wipe in ResetCachedStorage.
+rs = body(read("source", "lib", "Storage.brs"), "ResetCachedStorage")
+if rs is None:
+    problems.append("Storage.brs: CHECK33 R1: ResetCachedStorage() not found")
+else:
+    code = strip_comments(rs)
+    if "DeleteAll" in code:
+        problems.append("Storage.brs: CHECK33 R1: ResetCachedStorage still calls "
+                        "registry.DeleteAll() - the nuke erases server_url and "
+                        "turns logout into a dead-end login on an empty base")
+    wiped = set(re.findall(r'registry\.Delete\("([^"]+)"\)', code))
+    if wiped != SIX_KEYS:
+        problems.append("Storage.brs: CHECK33 R1: fullReset wipe set is %s; "
+                        "logout must delete exactly the six auth/session keys "
+                        "%s (server_url and device convenience state survive)"
+                        % (sorted(wiped), sorted(SIX_KEYS)))
+
+# R2 + R3: OnLogout capture-before-wipe, task-before-scene.
+app = body(read("components", "PhlixApp.brs"), "OnLogout")
+if app is None:
+    problems.append("PhlixApp.brs: CHECK33 R2: OnLogout() not found")
+else:
+    ol = strip_comments(app)
+    i_wipe = ol.find("ResetCachedStorage(true)")
+    if i_wipe == -1:
+        problems.append("PhlixApp.brs: CHECK33 R2: OnLogout no longer calls "
+                        "ResetCachedStorage(true)")
+    for needle, what in (('GetStorage().get("auth_token")', "auth_token"),
+                         ('GetStorage().get("session_id")', "session_id")):
+        i = ol.find(needle)
+        if i == -1 or (i_wipe != -1 and i > i_wipe):
+            problems.append("PhlixApp.brs: CHECK33 R2: OnLogout must capture %s "
+                            "BEFORE ResetCachedStorage(true); afterwards the "
+                            "registry is wiped and teardown runs blind" % what)
+    if "GetServerUrl()" not in ol or "IsServerConnected()" not in ol:
+        problems.append("PhlixApp.brs: CHECK33 R2: OnLogout must resolve the "
+                        "teardown base via the guarded server_url (the session "
+                        "lives on the host the login POSTed to)")
+    req = re.search(r"logoutTask\.request = \{([^\n]*)\}", ol)
+    if req is None or not all(k in req.group(1)
+                              for k in ("base_url", "auth_token", "session_id")):
+        problems.append("PhlixApp.brs: CHECK33 R2: logoutTask.request must carry "
+                        "base_url + auth_token + session_id to the task")
+    i_task = ol.find("m.top.Append(logoutTask)")
+    i_login = ol.find("ShowLogin()")
+    if i_task == -1 or i_login == -1 or i_task > i_login:
+        problems.append("PhlixApp.brs: CHECK33 R3: logoutTask must be appended "
+                        "BEFORE ShowLogin - the scene transitions pop the LAST "
+                        "child, and a task appended after the scene hijacks "
+                        "that removal")
+
+# R4: ShowLogin routes unconfigured servers to Connect, never an empty base.
+sl_raw = body(read("components", "PhlixApp.brs"), "ShowLogin")
+if sl_raw is None:
+    problems.append("PhlixApp.brs: CHECK33 R4: ShowLogin() not found")
+else:
+    sl = strip_comments(sl_raw)
+    guard = sl.find("if not IsServerConnected() then")
+    dial = sl.find('CreateObject("roSGNode", "LoginScene")')
+    if guard == -1 or dial == -1 or guard > dial:
+        problems.append("PhlixApp.brs: CHECK33 R4: ShowLogin builds LoginScene "
+                        "without an IsServerConnected guard - a login on an "
+                        "empty base misattributes as a fake network error")
+    elif "ShowConnect()" not in sl[guard:dial]:
+        problems.append("PhlixApp.brs: CHECK33 R4: ShowLogin's connectivity "
+                        "guard does not route to ShowConnect()")
+
+# R5: the ApiTask logout branch consumes the request, not the wiped registry.
+task = read("components", "ApiTask.brs")
+mb = re.search(r'else if req\.op = "logout" then(.*?)\n        end if', task, re.DOTALL)
+if mb is None:
+    problems.append("ApiTask.brs: CHECK33 R5: logout branch not found")
+else:
+    br = mb.group(1)
+    if "GetStorage().get(" in br:
+        problems.append("ApiTask.brs: CHECK33 R5: the logout branch reads the "
+                        "registry - OnLogout has already wiped it, so the "
+                        "teardown silently no-ops")
+    if not all(k in br for k in ("req.base_url", "req.session_id", "req.auth_token")):
+        problems.append("ApiTask.brs: CHECK33 R5: the logout branch must read "
+                        "base_url, session_id and auth_token from the request")
+    if "logoutApi.token =" not in br:
+        problems.append("ApiTask.brs: CHECK33 R5: the teardown request must "
+                        "ride the Bearer token (direct .token assignment, not "
+                        "setToken which re-persists into the cleared registry)")
+    if "result.ok = true" not in br:
+        problems.append("ApiTask.brs: CHECK33 R5: logout must keep returning "
+                        "ok regardless of server reachability (local logout "
+                        "is already complete)")
+
+# R6: the README promise stays pinned next to the law that keeps it true.
+readme = read("README.md")
+if "Logging out clears `connection_kind`" not in readme \
+        or re.search(r"but keeps `server_url`, so you return to the\s+login screen on the same hub/server", readme) is None:
+    problems.append("README.md: CHECK33 R6: the logout promise sentence "
+                    "(clears the three hub keys, keeps server_url) was "
+                    "reworded or dropped - re-derive it and CHECK33 together")
+
+if problems:
+    for p in problems:
+        print("  " + p)
+    print("  CHECK33: %d logout-contract problem(s)" % len(problems))
+    sys.exit(1)
+
+print("  CHECK33: the logout wipe is surgical (six keys, no DeleteAll), the "
+      "teardown captures its credentials before the wipe and rides the request, "
+      "the task precedes the scene, ShowLogin never dangles on an empty base, "
+      "and the README promise is pinned in place")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

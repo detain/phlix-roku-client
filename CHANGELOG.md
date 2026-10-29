@@ -2,6 +2,56 @@
 
 ## [Unreleased]
 
+### Fixed — Logout lands on a real login surface; fake network error and silent-no-op teardown cured (CHECK33) — 2026-10-29
+
+- **The hole.** Review `roku__casualgamer` M4 (major): logging out dead-ended
+  the app on a bogus "Cannot connect to server. Check your network" error.
+  The README law (`Connecting to your server`, step 4) promises logout
+  "keeps `server_url`, so you return to the login screen on the same
+  hub/server" — and the README was the honest side. `ResetCachedStorage(true)`
+  (R1.6) called `registry.DeleteAll()`, over-widening the historical six-key
+  auth/session wipe to the WHOLE registry section — `server_url` included.
+  With the base erased, the next login POSTed `/api/v1/auth/login` at an
+  empty URL; `roUrlTransfer.AsyncPostFromString` refuses outright,
+  `ApiClient.request()` labels the failure `error: "connect"`, and
+  `LoginScene` rendered a network-diagnostic for what was actually a
+  self-inflicted missing-server state — an unrecoverable one from that
+  screen. Two collateral bugs on the same path: the logout `ApiTask` was
+  appended AFTER `ShowLogin()`, so it — not the scene — was the last child
+  the `OnLoginSuccess`/`OnHubDetected`/`OnConnected` transitions pop (the
+  transition then removed the task and left LoginScene on screen); and the
+  server-side `DELETE /api/v1/sessions/{id}` teardown re-read
+  `session_id` from the registry AFTER the wipe deleted it, so the DELETE
+  was a silent no-op on every logout since it shipped.
+- **The fix.** Make the code tell the truth: `ResetCachedStorage(fullReset)`
+  now deletes exactly the six auth/session keys (`auth_token`,
+  `refresh_token`, `session_id`, `connection_kind`, `active_server_id`,
+  `active_server_name`) via buffered `registry.Delete` + one `Flush` — one
+  NVRAM write, the R1.6 perf intent kept — and `server_url`, `username` and
+  `device_id` survive, matching the README. `OnLogout` captures
+  token/session/base BEFORE the wipe and carries them on the logoutTask
+  request (`{op:"logout", base_url, auth_token, session_id}` — direct
+  `server_url`, the host the login POSTed to, not the hub-mode relay base);
+  the task is appended BEFORE `ShowLogin()`, restoring the
+  last-child-equals-scene transition law; and `ShowLogin` gained the
+  AppContext-law guard — with no server configured (legacy wiped installs)
+  it routes to `ConnectScene` instead of dangling a login on an empty base.
+  The `ApiTask` logout branch consumes the request (fresh
+  `ApiClient(req.base_url)` with direct `.token` assignment, which — unlike
+  `setToken` — does not re-persist credentials into the just-cleared
+  registry) and keeps `result.ok = true` regardless of reachability.
+  SettingsScene's "clear ALL 6 registry keys" comment now names the six.
+- **The gate.** CHECK33 (scripts/verify-runtime.sh): (R1) `ResetCachedStorage`
+  contains no `DeleteAll` and its wipe set EQUALS the six auth/session keys —
+  wiping `server_url` is forbidden by constant; (R2) `OnLogout` captures the
+  credentials before the wipe and the request carries all three fields;
+  (R3) the task is appended before `ShowLogin()`; (R4) `ShowLogin` guards
+  `IsServerConnected()` and routes to `ShowConnect()`; (R5) the ApiTask
+  branch reads the request, never the wiped registry, rides the Bearer, and
+  stays ok; (R6) the README promise sentence stays in place — if the law ever
+  changes, the manual must be re-derived in the same commit. Red-on-parent
+  proof: 11 problems on pre-fix files, PASS on the cure.
+
 ### Fixed — Settings restore-gate, Up Next ghost rail, and header-doc truth (CHECK32) — 2026-10-29
 
 - **The hole.** Review `roku__casualgamer` M3+M6 (major), re-audited at

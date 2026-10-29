@@ -132,7 +132,11 @@ sub OnLogoutConfirmed(index as Integer)
     m.top.dialog = invalid
 
     if index = 1 then
-        ' R1.3: Call OnLogout to clear ALL 6 registry keys, not just ApiClient.logout()
+        ' R1.3: Route through PhlixApp.OnLogout — it wipes the six
+        ' auth/session keys (auth_token, refresh_token, session_id,
+        ' connection_kind, active_server_id, active_server_name) and KEEPS
+        ' server_url, so login returns on the same hub/server (README law).
+        ' ApiClient.logout() alone (3 keys) is not enough.
         m.top.GetParent().GetParent().OnLogout()
     end if
 end sub

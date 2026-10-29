@@ -737,12 +737,24 @@ sub ExecRequest()
             ApplyEnvelope(result, env)
         else if req.op = "logout" then
             ' Fire-and-forget server-side session teardown.
-            ' Local credentials have already been cleared by OnLogout before this
-            ' task is dispatched. Uses a fresh ApiClient so the baseUrl is live even
-            ' if the calling scene has already cleared m.api.baseUrl.
-            logoutApi = ApiClient(GetServerUrl())
-            sessionId = GetStorage().get("session_id")
-            if sessionId <> "" then
+            ' M-ROKU-03: the credentials arrive ON the request. OnLogout
+            ' captures base/token/session BEFORE wiping the registry and
+            ' dispatches this task afterwards; the pre-fix branch re-read
+            ' session_id from the already-wiped storage, so the DELETE was
+            ' skipped on every logout (silent no-op since it shipped).
+            ' Direct member assignment (not setToken) because setToken writes
+            ' auth_token back into the registry we have just cleared. The
+            ' Bearer header is required: the server enforces session
+            ' ownership, so an unauthenticated teardown would 401.
+            ' result.ok stays true regardless of server reachability - local
+            ' logout is already complete; this is best-effort cleanup.
+            logoutBase = ""
+            if req.base_url <> invalid and Type(req.base_url) = "String" then logoutBase = req.base_url
+            sessionId = ""
+            if req.session_id <> invalid and Type(req.session_id) = "String" then sessionId = req.session_id
+            if logoutBase <> "" and sessionId <> "" then
+                logoutApi = ApiClient(logoutBase)
+                if req.auth_token <> invalid and Type(req.auth_token) = "String" then logoutApi.token = req.auth_token
                 logoutApi.request("DELETE", "/sessions/" + sessionId, invalid)
             end if
             result.ok = true
