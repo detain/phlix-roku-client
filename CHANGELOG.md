@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+### Fixed — Hub-mode logout teardown rides the relay base; OnLogout docblock wire-truth (CHECK33 R2) — 2026-10-29
+
+- **The residual.** Review `M-ROKU-03 r1` issue 1 (minor): the entry below
+  cured direct-mode teardown but its prose — and the OnLogout docblock it
+  copied — claimed the session "lives on the host the login POSTed to" and
+  that the hub-mode relay base is "a different session space with no such
+  route". Both sentences are false wire provenance. The hub's
+  `AuthController` login returns only `access_token`/`refresh_token`
+  (phlix-hub `src/Http/Controllers/AuthController.php:99-100,:146-147` —
+  no `session_id`) and the hub serves no user-facing `/sessions` HTTP
+  route at all; the persisted `session_id` is ALWAYS a server-side row,
+  created by PlayerScene's `createSession` through the relay base
+  (`GetApiClient()` → `GetMediaBaseUrl()`), which the hub re-anchors at
+  the picked server's `/api/v1/sessions` (phlix-hub
+  `src/Application.php:595-615` registers the DELETE proxy; phlix-server
+  `src/Server/Core/Application.php:902` `endSession`). The relay is
+  precisely the working route; the bare hub url is the one with no such
+  route — so post-fix, hub-mode logout sent
+  `DELETE {hub}/api/v1/sessions/{id}` → 404, leaving teardown a silent
+  no-op in hub mode (invisible: `result.ok` stays true, local logout is
+  complete, server rows idle-expire; direct mode was genuinely cured).
+- **The fix (reviewer option b).** `OnLogout` now resolves the teardown
+  base through the guarded `GetMediaBaseUrl()` instead of `GetServerUrl()`,
+  captured BEFORE the wipe: in hub mode the relay base depends on
+  `connection_kind` + `active_server_id`, which `ResetCachedStorage(true)`
+  deletes — resolving after the wipe would degrade to the bare hub url.
+  Direct mode is byte-unchanged in behavior (`GetMediaBaseUrl()` is
+  documented byte-identical to `GetServerUrl()` there); the DELETE now
+  rides the same base + Bearer pair that created the session in both
+  modes. The docblock states the wire truth with its cross-repo cites;
+  the historical entry above is kept verbatim, corrected forward here.
+- **The gate.** CHECK33 R2's false "host the login POSTed to"
+  parenthetical is replaced by a static ordering leg: `OnLogout` must
+  call `GetMediaBaseUrl()` BEFORE `ResetCachedStorage(true)` (and stay
+  `IsServerConnected()`-guarded) — red on the pre-fix tree (no such call
+  exists there), PASS on the cure. BrightScript has no unit runner in
+  this repo; the verify-runtime static leg IS the test.
+
 ### Fixed — Logout lands on a real login surface; fake network error and silent-no-op teardown cured (CHECK33) — 2026-10-29
 
 - **The hole.** Review `roku__casualgamer` M4 (major): logging out dead-ended

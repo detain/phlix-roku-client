@@ -3170,8 +3170,10 @@ echo "=== Check 33: logout keeps its promise - surgical wipe, real login surface
 # so teardown was a silent no-op since it shipped. Rules:
 #   R1  ResetCachedStorage(fullReset) deletes EXACTLY the six auth/session
 #       keys via registry.Delete - no DeleteAll, no server_url casualty
-#   R2  OnLogout captures auth_token/session_id/server base BEFORE the wipe
-#       and carries them on the logoutTask request
+#   R2  OnLogout captures auth_token/session_id and resolves the MEDIA
+#       teardown base (GetMediaBaseUrl) BEFORE the wipe — hub sessions are
+#       SERVER rows reached through the relay, not hub rows — and carries
+#       them on the logoutTask request
 #   R3  OnLogout appends logoutTask BEFORE ShowLogin (scene stays last child)
 #   R4  ShowLogin guards IsServerConnected and routes unconfigured states to
 #       ConnectScene (AppContext law) instead of an empty-base login
@@ -3240,10 +3242,22 @@ else:
             problems.append("PhlixApp.brs: CHECK33 R2: OnLogout must capture %s "
                             "BEFORE ResetCachedStorage(true); afterwards the "
                             "registry is wiped and teardown runs blind" % what)
-    if "GetServerUrl()" not in ol or "IsServerConnected()" not in ol:
+    i_base = ol.find("GetMediaBaseUrl()")
+    if i_base == -1 or (i_wipe != -1 and i_base > i_wipe):
         problems.append("PhlixApp.brs: CHECK33 R2: OnLogout must resolve the "
-                        "teardown base via the guarded server_url (the session "
-                        "lives on the host the login POSTed to)")
+                        "teardown base via GetMediaBaseUrl() BEFORE "
+                        "ResetCachedStorage(true) - the session is a SERVER "
+                        "row reached through the media space (direct: the "
+                        "byte-identical bare server url; hub: the per-server "
+                        "relay, which the hub re-anchors at the server's "
+                        "/api/v1/sessions - the hub itself has no such "
+                        "route and issues no session_id at login). After the "
+                        "wipe, connection_kind and active_server_id are gone "
+                        "and the resolver degrades to the bare hub url")
+    if "IsServerConnected()" not in ol:
+        problems.append("PhlixApp.brs: CHECK33 R2: the teardown base must "
+                        "stay guarded by IsServerConnected() (AppContext "
+                        "law: never resolve a url unchecked)")
     req = re.search(r"logoutTask\.request = \{([^\n]*)\}", ol)
     if req is None or not all(k in req.group(1)
                               for k in ("base_url", "auth_token", "session_id")):
@@ -3311,8 +3325,9 @@ if problems:
     sys.exit(1)
 
 print("  CHECK33: the logout wipe is surgical (six keys, no DeleteAll), the "
-      "teardown captures its credentials before the wipe and rides the request, "
-      "the task precedes the scene, ShowLogin never dangles on an empty base, "
+      "teardown captures its credentials and resolves the relay-capable "
+      "media base before the wipe and rides the request, the task precedes "
+      "the scene, ShowLogin never dangles on an empty base, "
       "and the README promise is pinned in place")
 PYEOF
 ) || PYRET=$?

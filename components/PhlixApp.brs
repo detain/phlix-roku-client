@@ -615,13 +615,27 @@ sub OnLogout()
     ' the teardown was a silent no-op since the day it shipped.
     teardownToken = GetStorage().get("auth_token")
     teardownSessionId = GetStorage().get("session_id")
-    ' Session-teardown base: the bare server_url — the same host the login
-    ' POSTed to (direct: the server; hub mode: the hub, which issued the
-    ' session). NOT GetMediaBaseUrl(): in hub mode that is the per-server relay
-    ' proxy, a different session space with no such route. Guarded per the
-    ' AppContext law (never use server_url without checking connectivity).
+    ' Session-teardown base: the MEDIA base — where the session row actually
+    ' lives. Wire truth (review M-ROKU-03 r1): the hub issues ONLY
+    ' access/refresh tokens at login (phlix-hub
+    ' src/Http/Controllers/AuthController.php:99-100,:146-147 — no
+    ' session_id) and serves no user-facing /sessions HTTP route; the
+    ' persisted session_id is ALWAYS a SERVER-side row. PlayerScene created
+    ' it through the relay base (ApiTask ExecRequest builds GetApiClient(),
+    ' i.e. GetMediaBaseUrl()), which the hub re-anchors at the picked
+    ' server's /api/v1/sessions (phlix-hub src/Application.php:595-615
+    ' registers the DELETE proxy; phlix-server
+    ' src/Server/Core/Application.php:902 endSession). Teardown must
+    ' therefore ride the SAME base + Bearer pair that created the session:
+    ' direct mode GetMediaBaseUrl() is byte-identical to GetServerUrl();
+    ' hub mode it is {hub}/api/v1/servers/{id}/proxy. MUST resolve BEFORE
+    ' the wipe below: ResetCachedStorage(true) deletes connection_kind +
+    ' active_server_id, which degrade the resolver to the bare hub url —
+    ' no /sessions route there (best-effort 404; server session rows
+    ' idle-expire via SessionManager cleanup). Guarded per the AppContext
+    ' law (never resolve a url without checking connectivity).
     teardownBase = ""
-    if IsServerConnected() then teardownBase = GetServerUrl()
+    if IsServerConnected() then teardownBase = GetMediaBaseUrl()
 
     ' M-ROKU-03: wipes exactly the six auth/session keys and invalidates the
     ' read cache; server_url SURVIVES (README law: you return to the login
