@@ -61,6 +61,12 @@ function SyncPlayProtocol() as Object
         ' Mirrors SyncPlayAuthMiddleware::BEARER_SUBPROTOCOL on the server.
         BEARER_SUBPROTOCOL: "bearer"
 
+        ' RFC6455 §1.3 magic GUID: concatenated to the offered Sec-WebSocket-Key
+        ' before the SHA-1 whose Base64 the server must echo in
+        ' Sec-WebSocket-Accept (VerifyHandshakeAccept, M-ROKU-14). Fixed by the
+        ' RFC — never a value either peer chooses.
+        WS_ACCEPT_GUID: "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
         ' TimeSync tuning (see GetAdjustedPositionMs / AddPong).
         OFFSET_SAMPLE_COUNT: 5
         MAX_RTT: 1000
@@ -313,8 +319,10 @@ function SyncPlayProtocol() as Object
 
         ' Build the GET upgrade request string (CRLF-joined, trailing blank line).
         ' The path already carries the relay path (`/syncplay/{server_id}`, built
-        ' by the caller). We send a valid random key but do NOT verify the
-        ' server's Sec-WebSocket-Accept hash (see HandshakeAccepted).
+        ' by the caller). We send a valid random key; the caller validates the
+        ' response with HandshakeAccepted (101 status line) AND
+        ' VerifyHandshakeAccept (RFC6455 accept hash) before treating the
+        ' socket as a session.
         ' `extraHeaders` is an OPTIONAL assocarray of { name: value } added
         ' verbatim before the terminating blank line — the sanctioned carriers
         ' live here: the hub relay puts `Authorization: Bearer <token>` on it
@@ -346,9 +354,10 @@ function SyncPlayProtocol() as Object
         end function
 
         ' True when the HTTP response indicates a successful upgrade (status 101).
-        ' We accept on the "101" status line and do NOT verify the
-        ' Sec-WebSocket-Accept SHA-1 hash (deferred - see worklog §3). A real MITM
-        ' is out of scope for a LAN plaintext socket.
+        ' This is the STATUS-LINE gate only. The Sec-WebSocket-Accept hash has
+        ' its own fail-closed check (VerifyHandshakeAccept below) — callers run
+        ' BOTH before consuming the stream as a session (M-ROKU-14 cured the
+        ' era that sent a key and accepted the 101 unverified).
         ' ECHO TOLERANCE: when the client OFFERED the bearer subprotocol the
         ' server answers the 101 with exactly one `Sec-WebSocket-Protocol:
         ' bearer` response header line (marker only, never the token — phlix-
@@ -367,6 +376,95 @@ function SyncPlayProtocol() as Object
             if Instr(1, upper, "HTTP/1.1 101") > 0 then return true
             if Instr(1, upper, " 101 ") > 0 then return true
             return false
+        end function
+
+        ' Extract the Sec-WebSocket-Accept response header value: first line of
+        ' the HEADER BLOCK (bytes before the first blank line — a body may never
+        ' impersonate a header), name matched case-insensitively, value Trimmed.
+        ' Returns "" when the header is absent.
+        ' @param responseText String - the raw upgrade response header block
+        ' @return String - the accept value, or "" when absent
+        SecWebSocketAcceptValue: function(responseText as String) as String
+            if responseText = invalid or responseText = "" then return ""
+            nl = Chr(10)
+            block = responseText
+            blank = Instr(1, block, nl + nl)
+            if blank > 0 then block = Left(block, blank - 1)
+            name = "sec-websocket-accept:"
+            for each line in block.Split(nl)
+                ' .Trim() removes the CR of each CRLF pair (and the padding
+                ' around the value) before comparing — Trim() is an roString
+                ' method, not a global.
+                cut = line.Trim()
+                probe = UCase(Left(cut, Len(name)))
+                if probe = UCase(name) then return Mid(cut, Len(name) + 1).Trim()
+            end for
+            return ""
+        end function
+
+        ' True when s is exactly 40 hexadecimal characters — the canonical
+        ' output shape of ifEVPDigest.Process (hex ASCII of the SHA-1 digest).
+        ' Internal helper for ExpectedSecWebSocketAccept's shape gate.
+        IsHex40: function(s as String) as Boolean
+            if s = invalid or s.Len() <> 40 then return false
+            upper = UCase(s)
+            for i = 1 to 40
+                c = Mid(upper, i, 1)
+                if not ((c >= "0" and c <= "9") or (c >= "A" and c <= "F")) then return false
+            end for
+            return true
+        end function
+
+        ' The RFC6455 §1.3 accept value an honest server must answer for the
+        ' key we offered: Base64(SHA1(secKey + WS_ACCEPT_GUID)).
+        ' The platform digest is roEVPDigest (ifEVPDigest contract, pinned
+        ' from the Roku reference): Setup("sha1") returns 0 on success, and
+        ' Process(roByteArray) returns the digest as a HEX STRING. Shape gate:
+        ' exactly 40 hex chars, decoded via fromHexString and length-checked
+        ' before ToBase64String. Any other shape — missing component, Setup
+        ' refusal, junk output — yields "" and "" FAILS the caller's check
+        ' (fail-closed): a device that cannot compute SHA-1 cannot prove the
+        ' server saw our key, so the dial is refused rather than trusted
+        ' blindly.
+        ' @param secKey String - the offered Sec-WebSocket-Key (base64, 24 chars)
+        ' @return String - the expected accept value (base64) or ""
+        ExpectedSecWebSocketAccept: function(secKey as String) as String
+            if secKey = invalid or secKey = "" then return ""
+            evp = CreateObject("roEVPDigest")
+            if evp = invalid then return ""
+            if evp.Setup("sha1") <> 0 then return ""
+            src = CreateObject("roByteArray")
+            src.fromAsciiString(secKey + m.WS_ACCEPT_GUID)
+            hexStr = evp.Process(src)
+            if hexStr = invalid then return ""
+            hexStr = hexStr.Trim()
+            if not m.IsHex40(hexStr) then return ""
+            hexba = CreateObject("roByteArray")
+            hexba.fromHexString(hexStr)
+            if hexba = invalid or hexba.Count() <> 20 then return ""
+            return hexba.ToBase64String()
+        end function
+
+        ' Fail-CLOSED RFC6455 handshake proof: the server's Sec-WebSocket-Accept
+        ' MUST equal Base64(SHA1(offered key + magic GUID)). An absent header, a
+        ' non-computable expectation (no roEVPDigest / Setup refusal / empty key)
+        ' or any mismatch returns false and the caller must tear the socket
+        ' down. A blind LAN injector that forges a `101` status line cannot
+        ' forge this hash without having seen our random key on the wire —
+        ' exactly the passive-sniff class review roku__exploiter M3 named.
+        ' base64 is case-sensitive: the comparison is verbatim.
+        ' @param responseText String - the raw upgrade response header block
+        ' @param secKey String - the Sec-WebSocket-Key offered in THIS handshake
+        ' @return Boolean - true only when the accept value matches
+        VerifyHandshakeAccept: function(responseText as String, secKey as String) as Boolean
+            if secKey = invalid then return false
+            offered = secKey.Trim()
+            if offered = "" then return false
+            got = m.SecWebSocketAcceptValue(responseText)
+            if got = "" then return false
+            expected = m.ExpectedSecWebSocketAccept(offered)
+            if expected = "" then return false
+            return got = expected
         end function
 
         ' -----------------------------------------------------------------

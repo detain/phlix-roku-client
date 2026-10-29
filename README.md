@@ -166,14 +166,22 @@ never opened the player path is byte-identical to a non-SyncPlay build.
 >   (HAProxy terminating TLS) SyncPlay connects **only if the server's plaintext `:8097` is reachable
 >   from the Roku** (same LAN, or a documented plaintext exposure). The client derives a plaintext
 >   `ws://<host>:8097/syncplay` URL from the connected server origin; the JWT rides the
->   two-entry bearer subprotocol handshake header, not the URL query.
+>   two-entry bearer subprotocol handshake header, not the URL query. **Refusal law (M-ROKU-14,
+>   review roku__exploiter M3):** when the connected server origin is `https://`, the client
+>   **refuses** the plaintext `:8097` dial outright (`SyncPlayWsRefusedForOrigin`, checked before
+>   the credential is even read) — a TLS-established account JWT is never offered on a cleartext
+>   handshake; `http://` origins keep dialling (their REST lane is already cleartext there).
 > - **Hub mode: disabled.** The hub relay proxy is HTTP-only (it strips the `Upgrade` header), so
 >   there is no WebSocket path through the hub. In hub mode the overlay refuses to open with a
 >   friendly message ("Watch Together isn't available in hub mode yet").
 > - **Deferred:** chat / typing, host transfer, playback queue, periodic `playback_sync` broadcast,
 >   group passwords (password-gated groups simply fail to join), WS reconnect/backoff (a disconnect
->   ends the session — no auto re-join), and strict `Sec-WebSocket-Accept` SHA-1 verification (the
->   client sends a valid random key and accepts the `101` without verifying the accept hash).
+>   ends the session — no auto re-join).
+> - **Handshake proof is enforced (M-ROKU-14).** The client sends a random `Sec-WebSocket-Key` and
+>   validates the server's `Sec-WebSocket-Accept` hash (Base64 SHA-1 of key + the RFC6455 magic GUID)
+>   before treating the socket as a session — fail-closed: an absent header, a mismatch, or a device
+>   without SHA-1 support all refuse the dial (`local.ws_accept_invalid`). The era that accepted the
+>   `101` unverified is over.
 
 #### Usage
 

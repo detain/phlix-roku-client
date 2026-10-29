@@ -1765,7 +1765,13 @@ end sub
 sub ConnectSyncTask()
     parts = BuildSyncPlayWsParts()
     if parts = invalid then
-        SetSyncStatus("SyncPlay unavailable")
+        ' Pick the honest reason: a TLS server origin is a REFUSAL (M-ROKU-14),
+        ' anything else is the era's missing-origin unavailability.
+        if SyncPlayWsRefusedForOrigin(GetServerUrl()) then
+            SetSyncStatus(Translate("syncplay_status_tls_refused"))
+        else
+            SetSyncStatus("SyncPlay unavailable")
+        end if
         return
     end if
 
@@ -1792,9 +1798,11 @@ end sub
 
 ' Derive { host, port:8097, path:"/syncplay", token } from GetServerUrl().
 ' Forces ws scheme implicitly (we only return host/port/path; the Task opens a
-' plaintext socket). The token is returned SEPARATELY from the path so the Task
-' can put it on the handshake carrier — it must never be concatenated into the
-' path here.
+' plaintext socket). TLS origins are REFUSED before anything is read (M-ROKU-14
+' / review roku__exploiter M3 — SyncPlayWsRefusedForOrigin): the account JWT is
+' never offered on a cleartext handshake behind an https origin. The token is
+' returned SEPARATELY from the path so the Task can put it on the handshake
+' carrier — it must never be concatenated into the path here.
 '
 ' CARRIER LAW (flipped 2026-09-30, estate policy WEBSOCKET_URL_QUERY_REFUSED
 ' retired for this client): the bearer JWT rides the TWO-ENTRY bearer
@@ -1815,6 +1823,11 @@ end sub
 function BuildSyncPlayWsParts() as Object
     serverUrl = GetServerUrl()
     if serverUrl = invalid or serverUrl = "" then return invalid
+
+    ' M-ROKU-14: an https origin established the account JWT over TLS — the
+    ' plaintext :8097 bearer handshake would hand it to any passive sniffer.
+    ' Refuse BEFORE the credential is even read from storage.
+    if SyncPlayWsRefusedForOrigin(serverUrl) then return invalid
 
     ' Strip scheme.
     rest = serverUrl

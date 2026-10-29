@@ -168,8 +168,12 @@ end sub
 sub TestSyncPlayLocalErrorCodesCensus()
     ' The local census is non-empty and pinned - same discipline as the
     ' wire census. Every member carries the reserved "local." mint prefix.
+    ' M-ROKU-14 rotated the pin 9 -> 10: local.ws_accept_invalid joined the
+    ' family when the :8097 dial gained its fail-closed Sec-WebSocket-Accept
+    ' proof (a refused handshake proof is its own client-minted class, never
+    ' a wire code - Check 22's 19-code wire census stays untouched).
     codes = SyncPlayLocalErrorCodes()
-    assertEqual(codes.count(), 9)
+    assertEqual(codes.count(), 10)
     for each code in codes
         assertTrue(code.Left(6) = "local.")
     end for

@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -163,6 +163,7 @@
     "status_creating_group": "グループを作成しています...",
     "status_joining_group": "グループに参加しています...",
     "status_connected": "グループに接続しました",
+    "status_tls_refused": "いっしょに視聴は安全な（HTTPS）サーバーアドレスには接続できません。",
     "default_group_name": "グループ",
     "default_room_name": "Rokuルーム",
     "members_count": "メンバー{count}人",
@@ -260,6 +261,7 @@
     "local_socket_unavailable": "このデバイスで同期セッション用のネットワーク接続を開けませんでした。",
     "local_connect_failed": "同期サーバーに接続できませんでした。",
     "local_connect_timeout": "同期サーバーの応答が遅すぎます。",
+    "local_ws_accept_invalid": "同期サーバーとのハンドシェイクを正常に完了できませんでした。",
     "local_room_create_failed": "ウォッチグループを作成できませんでした。",
     "local_room_join_failed": "ウォッチグループに参加できませんでした。",
     "local_room_leave_failed": "ウォッチグループから退出できませんでした。",

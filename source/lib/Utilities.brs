@@ -1565,8 +1565,9 @@ end function
 ' CLIENT-GENERATED ERROR FAMILY (local.*) - NEVER WIRE CODES
 '
 ' The setup failures in components/SyncPlayTask.brs (config/host/socket/
-' connect) and the REST-path failures in components/SyncPlayScene.brs
-' (create/join/leave/invalid) are produced ON THIS DEVICE and ride no frame.
+' connect/handshake-accept) and the REST-path failures in components/
+' SyncPlayScene.brs (create/join/leave/invalid) are produced ON THIS DEVICE
+' and ride no frame.
 ' They are not "unrecognized server codes", so they must not squat in the
 ' wire census SyncPlayKnownErrorCodes() (Check 22 pins that list by content
 ' to exactly the 19 emitted-verified wire codes - 16 current + 3
@@ -1604,6 +1605,7 @@ function SyncPlayLocalErrorCodes() as Object
     codes.push("local.socket_unavailable")
     codes.push("local.connect_failed")
     codes.push("local.connect_timeout")
+    codes.push("local.ws_accept_invalid")
     codes.push("local.room_create_failed")
     codes.push("local.room_join_failed")
     codes.push("local.room_leave_failed")
@@ -1627,4 +1629,29 @@ function LocalizeSyncPlayLocalError(code as Object) as String
     fallback = Translate("errors_fallback")
     if fallback <> "errors_fallback" then return fallback
     return key
+end function
+
+' ===========================================
+' SYNCPLAY PLAINTEXT-ORIGIN LAW (M-ROKU-14, review roku__exploiter M3)
+' ===========================================
+
+' True when the connected server origin is TLS (https://) and the plaintext
+' :8097 SyncPlay dial MUST therefore be refused. The dial rides roStreamSocket
+' — plaintext TCP, no TLS (wss:// is impossible on this transport). On an
+' https origin the account JWT was established over TLS; replaying it verbatim
+' in a cleartext bearer-subprotocol handshake lets a passive LAN sniffer
+' capture the MAIN ACCOUNT credential — the mismatch itself is the exploitable
+' class, so we refuse instead of silently downgrading. http:// origins keep
+' connecting: the REST lane is already cleartext there, so the dial adds no
+' NEW exposure class (credential custody on http lanes is a separate estate
+' concern, not this choke). Pure: string in, boolean out. "" / invalid /
+' scheme-less input returns false — the caller's existing origin guards speak
+' for those shapes.
+' @param serverUrl String - the connected server origin (GetServerUrl())
+' @return Boolean - true ONLY for an https:// origin
+function SyncPlayWsRefusedForOrigin(serverUrl as String) as Boolean
+    if serverUrl = invalid then return false
+    s = LCase(serverUrl.Trim())
+    if s = "" then return false
+    return Left(s, 8) = "https://"
 end function

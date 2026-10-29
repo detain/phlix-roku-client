@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -163,6 +163,7 @@
     "status_creating_group": "Gruppe wird erstellt...",
     "status_joining_group": "Der Gruppe wird beigetreten...",
     "status_connected": "Mit der Gruppe verbunden",
+    "status_tls_refused": "Gemeinsam schauen kann keine sichere HTTPS-Serveradresse verwenden.",
     "default_group_name": "Gruppe",
     "default_room_name": "Roku-Raum",
     "members_count": "{count} Mitglieder",
@@ -260,6 +261,7 @@
     "local_socket_unavailable": "Dieses Gerät konnte keine Netzwerkverbindung für die Synchronsitzung aufbauen.",
     "local_connect_failed": "Der Sync-Server konnte nicht erreicht werden.",
     "local_connect_timeout": "Der Sync-Server hat zu lange nicht geantwortet.",
+    "local_ws_accept_invalid": "Der Sync-Server hat den Handshake nicht korrekt abgeschlossen.",
     "local_room_create_failed": "Die synchronisierte Gruppe konnte nicht erstellt werden.",
     "local_room_join_failed": "Der Gruppe konnte nicht beigetreten werden.",
     "local_room_leave_failed": "Die Gruppe konnte nicht verlassen werden.",

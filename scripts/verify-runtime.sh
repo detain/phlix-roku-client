@@ -5280,4 +5280,210 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 46: the SyncPlay dial refuses TLS origins and proves the handshake (M-ROKU-14) ==="
+# Credential-custody law for the :8097 SyncPlay WebSocket (review
+# roku__exploiter M3, fix M-ROKU-14). PlayerScene BuildSyncPlayWsParts used to
+# read the MAIN ACCOUNT JWT and hand it to SyncPlayTask regardless of the
+# connected server origin's scheme, and SyncPlayTask accepted ANY "101"
+# status line without checking Sec-WebSocket-Accept — so on an https origin a
+# passive LAN sniffer captured a TLS-established account credential (the hub
+# relay path had already learned this lesson and mints scoped relay tokens;
+# the direct dial had not). Cure, in two halves:
+#   R1  origin refusal: SyncPlayWsRefusedForOrigin(serverUrl as String) as
+#       Boolean (source/lib/Utilities.brs — pure, LCase+Trim, https:// → true)
+#       is called INSIDE BuildSyncPlayWsParts BEFORE the credential is read
+#       (ordering pin vs GetStorage().get("auth_token")) and its refusal
+#       returns invalid (the choke); ConnectSyncTask renders the honest
+#       refusal line via Translate("syncplay_status_tls_refused").
+#   R2  handshake proof: the RFC6455 §1.3 magic GUID constant is live, the
+#       fail-closed trio (SecWebSocketAcceptValue / ExpectedSecWebSocketAccept
+#       / VerifyHandshakeAccept) exists in source/lib/SyncPlayProtocol.brs,
+#       SyncPlayTask calls VerifyHandshakeAccept AFTER the HandshakeAccepted
+#       status gate (both required), tags the failure via m.wsAcceptFailed,
+#       and RunSocket reports it as the census code local.ws_accept_invalid —
+#       emitted only under that gate, never as a bare fallback. The era's
+#       "accept the 101 unverified" claims are extinct in code AND prose.
+#   R3  census + catalogs: local.ws_accept_invalid is a SyncPlayLocalErrorCodes()
+#       member (Check 23 then enforces call-site/normalization law), and ALL
+#       seven catalogs carry errors.local_ws_accept_invalid + syncplay.
+#       status_tls_refused (Check 21 keeps the sides parity-pinned).
+#   R4  harness teeth: tests/unit/SyncPlayWsTls.test.brs pins the truth table,
+#       the header parser, and the RFC6455 §1.3 vector on-device.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+UTIL = "source/lib/Utilities.brs"
+PROTO = "source/lib/SyncPlayProtocol.brs"
+PS = "components/PlayerScene.brs"
+TASK = "components/SyncPlayTask.brs"
+README = "README.md"
+TEST = "tests/unit/SyncPlayWsTls.test.brs"
+LOCALES = ["en_US", "de_DE", "es_ES", "fr_FR", "it_IT", "ja_JP", "pt_BR"]
+GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK46: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(code):
+    out = []
+    for line in code.splitlines():
+        t = line.strip()
+        if t.startswith("'") or t.startswith("Rem") or t.startswith("rem "):
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
+def body(code, kind, name):
+    m = re.search(rf"{kind}\s+{name}\b[\s\S]*?\bend\s+{kind}\b", code)
+    return m.group(0) if m else None
+
+
+# ---- R1 origin refusal (predicate live, choke ordered) -----------------
+util = read(UTIL)
+if util is not None:
+    pred = body(util, "function", "SyncPlayWsRefusedForOrigin")
+    if pred is None:
+        problems.append(f"  {UTIL} - CHECK46 R1: SyncPlayWsRefusedForOrigin is gone")
+    else:
+        if not re.search(r"SyncPlayWsRefusedForOrigin\(\s*serverUrl\s+as\s+String\s*\)\s*as\s+Boolean", pred):
+            problems.append(f"  {UTIL} - CHECK46 R1: the predicate signature moved off (serverUrl as String) as Boolean")
+        if not (re.search(r"LCase\(", pred) and re.search(r"Trim\(", pred) and re.search(r'=\s*"https://"', pred)):
+            problems.append(f"  {UTIL} - CHECK46 R1: the predicate no longer matches a case-insensitive https:// prefix")
+ps = read(PS)
+if ps is not None:
+    code = mask(ps)
+    b = body(code, "function", "BuildSyncPlayWsParts")
+    if b is None:
+        problems.append(f"  {PS} - CHECK46 R1: BuildSyncPlayWsParts is gone")
+    else:
+        gi = b.find("SyncPlayWsRefusedForOrigin(serverUrl)")
+        ti = b.find('GetStorage().get("auth_token")')
+        if gi < 0:
+            problems.append(f"  {PS} - CHECK46 R1: BuildSyncPlayWsParts no longer consults SyncPlayWsRefusedForOrigin")
+        if not re.search(r"SyncPlayWsRefusedForOrigin\(serverUrl\)\s*then\s+return\s+invalid", b):
+            problems.append(f"  {PS} - CHECK46 R1: the refusal no longer returns invalid (the choke was softened)")
+        if ti >= 0 and gi >= ti:
+            problems.append(f"  {PS} - CHECK46 R1: the origin refusal moved AFTER the auth_token read (ordering law)")
+    b = body(code, "sub", "ConnectSyncTask")
+    if b is None or 'Translate("syncplay_status_tls_refused")' not in b:
+        problems.append(f"  {PS} - CHECK46 R1: ConnectSyncTask no longer renders the honest TLS-refusal line")
+
+# ---- R2 handshake proof (trio live, ordered, fail-closed; claims dead) --
+proto = read(PROTO)
+if proto is not None:
+    pcode = mask(proto)
+    if not re.search(rf"WS_ACCEPT_GUID:\s*\"{GUID}\"", proto):
+        problems.append(f"  {PROTO} - CHECK46 R2: the RFC6455 magic GUID constant is gone or altered")
+
+    def member(name):
+        m = re.search(rf"{name}:\s*function\b[\s\S]*?end function", pcode)
+        return m.group(0) if m else None
+
+    trio = {
+        "SecWebSocketAcceptValue": r"if responseText = invalid or responseText = \"\" then return \"\"",
+        "ExpectedSecWebSocketAccept": r"if evp\.Setup\(\"sha1\"\) <> 0 then return \"\"",
+        "VerifyHandshakeAccept": r"return got = expected",
+    }
+    for name, teeth in trio.items():
+        b = member(name)
+        if b is None:
+            problems.append(f"  {PROTO} - CHECK46 R2: {name} is gone (the proof cannot be vacuous)")
+        elif not re.search(teeth, b):
+            problems.append(f"  {PROTO} - CHECK46 R2: {name} lost its fail-closed shape ({teeth})")
+    b = member("VerifyHandshakeAccept")
+    if b is not None:
+        for guard in ('if offered = "" then return false', 'if got = "" then return false', 'if expected = "" then return false'):
+            if guard not in b:
+                problems.append(f"  {PROTO} - CHECK46 R2: VerifyHandshakeAccept missing fail-closed guard `{guard}`")
+task = read(TASK)
+if task is not None:
+    tcode = mask(task)
+    b = body(tcode, "function", "WaitForConnect")
+    if b is None:
+        problems.append(f"  {TASK} - CHECK46 R2: WaitForConnect is gone")
+    else:
+        hi = b.find("HandshakeAccepted(headerText)")
+        vi = b.find("VerifyHandshakeAccept(headerText, keyB64)")
+        if vi < 0:
+            problems.append(f"  {TASK} - CHECK46 R2: WaitForConnect never verifies Sec-WebSocket-Accept")
+        elif hi >= 0 and vi < hi:
+            problems.append(f"  {TASK} - CHECK46 R2: VerifyHandshakeAccept moved BEFORE the HandshakeAccepted status gate (ordering law)")
+        if "m.wsAcceptFailed = true" not in b:
+            problems.append(f"  {TASK} - CHECK46 R2: the accept failure is no longer tagged (m.wsAcceptFailed)")
+    b = body(tcode, "sub", "RunSocket")
+    if b is None:
+        problems.append(f"  {TASK} - CHECK46 R2: RunSocket is gone")
+    else:
+        m = re.search(r"if m\.wsAcceptFailed then[\s\S]*?EmitError\(\"local\.ws_accept_invalid\"\)", b)
+        if m is None:
+            problems.append(f"  {TASK} - CHECK46 R2: local.ws_accept_invalid is not emitted under the m.wsAcceptFailed gate")
+
+# ---- R2-prose: the era's skip claims are extinct ------------------------
+for path in (PROTO, TASK, README):
+    text = read(path)
+    if text is None:
+        continue
+    if re.search(r"do NOT verify the[\s\S]{0,80}?Sec-WebSocket-Accept", text):
+        problems.append(f"  {path} - CHECK46 R2: the era's \"do NOT verify the Sec-WebSocket-Accept\" claim is back")
+    if "deferred - see worklog" in text and "Sec-WebSocket-Accept" in text.split("deferred - see worklog")[1][:120]:
+        problems.append(f"  {path} - CHECK46 R2: accept verification is described as deferred again")
+
+# ---- R3 census membership + all seven catalogs -------------------------
+if util is not None:
+    b = body(util, "function", "SyncPlayLocalErrorCodes")
+    if b is None or '"local.ws_accept_invalid"' not in b:
+        problems.append(f"  {UTIL} - CHECK46 R3: local.ws_accept_invalid left the local.* census (Check 23 law starts here)")
+for L in LOCALES:
+    path = f"locale/{L}/strings.json"
+    try:
+        with open(path, encoding="utf-8") as f:
+            cat = json.load(f)
+    except (OSError, ValueError) as err:
+        problems.append(f"  {path} - CHECK46 R3: unreadable: {err}")
+        continue
+    if cat.get("errors", {}).get("local_ws_accept_invalid", "") == "":
+        problems.append(f"  {path} - CHECK46 R3: errors.local_ws_accept_invalid missing (the refusal must be SPEAKABLE)")
+    if cat.get("syncplay", {}).get("status_tls_refused", "") == "":
+        problems.append(f"  {path} - CHECK46 R3: syncplay.status_tls_refused missing (the refusal status must exist)")
+
+# ---- R4 the device harness pins the law ---------------------------------
+test = read(TEST)
+if test is None:
+    problems.append(f"  {TEST} - CHECK46 R4: the M-ROKU-14 unit suite vanished")
+else:
+    for name in ("TestSyncPlayWsRefusedForOriginTruthTable", "TestSecWebSocketAcceptValueParsing", "TestVerifyHandshakeAcceptFailClosed", "TestRfc6455AcceptVector"):
+        if f"sub {name}(" not in test:
+            problems.append(f"  {TEST} - CHECK46 R4: {name} is gone")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK46: %d SyncPlay origin/accept pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK46: https origins refuse the plaintext :8097 dial BEFORE the JWT is read")
+print("           (ordered choke + honest status line); the 101 is additionally proof-checked")
+print("           against the RFC6455 Sec-WebSocket-Accept hash (fail-closed trio, ordering")
+print("           pinned); local.ws_accept_invalid is census'd and speakable in all seven")
+print("           catalogs; the era's unverified-accept claims are extinct in code and prose")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "es_ES",
     "language_name": "Español (España)",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -163,6 +163,7 @@
     "status_creating_group": "Creando grupo...",
     "status_joining_group": "Uniéndote al grupo...",
     "status_connected": "Conectado al grupo",
+    "status_tls_refused": "Ver juntos no puede usar una dirección de servidor segura (HTTPS).",
     "default_group_name": "Grupo",
     "default_room_name": "Sala Roku",
     "members_count": "{count} miembros",
@@ -260,6 +261,7 @@
     "local_socket_unavailable": "Este dispositivo no pudo abrir una conexión de red para la sesión.",
     "local_connect_failed": "No se pudo contactar con el servidor de sincronización.",
     "local_connect_timeout": "El servidor de sincronización tardó demasiado en responder.",
+    "local_ws_accept_invalid": "El servidor de sincronización no completó correctamente el intercambio inicial.",
     "local_room_create_failed": "No se pudo crear el grupo de visionado.",
     "local_room_join_failed": "No se pudo unir al grupo de visionado.",
     "local_room_leave_failed": "No se pudo salir del grupo de visionado.",

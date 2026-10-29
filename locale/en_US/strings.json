@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -163,6 +163,7 @@
     "status_creating_group": "Creating group...",
     "status_joining_group": "Joining group...",
     "status_connected": "Connected to group",
+    "status_tls_refused": "Watch Together can't use a secure (HTTPS) server address.",
     "default_group_name": "Group",
     "default_room_name": "Roku Room",
     "members_count": "{count} members",
@@ -260,6 +261,7 @@
     "local_socket_unavailable": "This device could not open a network connection for the watch session.",
     "local_connect_failed": "Could not reach the sync server.",
     "local_connect_timeout": "The sync server took too long to respond.",
+    "local_ws_accept_invalid": "The sync server did not complete the handshake correctly.",
     "local_room_create_failed": "Could not create the watch group.",
     "local_room_join_failed": "Could not join the watch group.",
     "local_room_leave_failed": "Could not leave the watch group.",

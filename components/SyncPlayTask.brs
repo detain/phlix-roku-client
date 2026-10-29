@@ -22,7 +22,13 @@
 ' touch UI/parent nodes. Only assocarray/string/number cross the boundary.
 '
 ' Roku platform: roStreamSocket is PLAINTEXT TCP - no TLS - so this speaks ws://
-' only (never wss://). See worklog §2 + README. Built to the canonical FLAT
+' only (never wss://). See worklog §2 + README. That is exactly why an https
+' server origin is refused UPSTREAM (PlayerScene.SyncPlayWsRefusedForOrigin —
+' M-ROKU-14): the account JWT must never be offered on a cleartext handshake
+' behind a TLS-restored origin. Once dialled, the 101 alone proves nothing:
+' every session here additionally requires the RFC6455 Sec-WebSocket-Accept
+' hash to match our offered key (SyncPlayProtocol.VerifyHandshakeAccept,
+' fail-closed). Built to the canonical FLAT
 ' syncplay_* wire (worklog §1) against the MERGED + shipped :8097 SyncPlay WS
 ' worker. Server law since phlix-server 424c14d0: dual-carrier handshake, the
 ' two-entry ['bearer', jwt] subprotocol preferred and the legacy ?token= query
@@ -69,6 +75,9 @@ sub RunSocket()
     m.buffer = CreateObject("roByteArray")
     m.handshakeDone = false
     m.handshakeText = ""
+    ' M-ROKU-14: set only when the upgrade got its 101 but the Sec-WebSocket-
+    ' Accept proof failed — RunSocket reports that distinctly from a timeout.
+    m.wsAcceptFailed = false
 
     SetState("connecting")
 
@@ -101,7 +110,14 @@ sub RunSocket()
 
     ' Wait (bounded) for the socket to become connected, then send the handshake.
     if not WaitForConnect(host, port, path, bearerToken) then
-        EmitError("local.connect_timeout")
+        ' A failed accept proof is its own honest class: the server answered a
+        ' 101 without having (correctly) seen our key — never dress that up as
+        ' a timeout (M-ROKU-14).
+        if m.wsAcceptFailed then
+            EmitError("local.ws_accept_invalid")
+        else
+            EmitError("local.connect_timeout")
+        end if
         Cleanup()
         return
     end if
@@ -127,13 +143,17 @@ sub RunSocket()
 end sub
 
 ' Block (bounded) until the socket reports connected, then send the WS upgrade
-' request and read until "\r\n\r\n", validating the 101 response. Returns true on
-' a successful upgrade. Runs ONLY at startup (before the main loop).
+' request and read until "\r\n\r\n", validating the 101 response AND the
+' RFC6455 Sec-WebSocket-Accept proof (fail-closed; m.wsAcceptFailed tells the
+' two classes apart for the caller). Returns true on a verified upgrade.
+' Runs ONLY at startup (before the main loop).
 ' `bearerToken` is the JWT for the two-entry bearer subprotocol carrier
 ' ("Sec-WebSocket-Protocol: bearer, <jwt>" — :8097 server law since phlix-server
 ' 424c14d0); "" sends no offer (the dial then fails server-side unauthenticated,
 ' exactly as an empty ?token= did under the retired query carrier).
 function WaitForConnect(host as String, port as Integer, path as String, bearerToken as String) as Boolean
+    ' Fresh handshake attempt: the accept-proof flag speaks only for THIS dial.
+    m.wsAcceptFailed = false
     ' Up to ~10s for the TCP connect to complete.
     deadline = 0
     while deadline < 100
@@ -212,6 +232,15 @@ function WaitForConnect(host as String, port as Integer, path as String, bearerT
     ' matching without re-proving the echo path.
     headerText = HeaderSliceToString(headerBytes, termIdx + 4)
     if not m.proto.HandshakeAccepted(headerText) then return false
+
+    ' M-ROKU-14 (review roku__exploiter M3): the 101 says a server answered;
+    ' ONLY the accept hash says it saw OUR key. Fail-closed — an absent
+    ' header, a non-computable expectation, or any mismatch refuses the dial
+    ' before a single frame byte is treated as session traffic.
+    if not m.proto.VerifyHandshakeAccept(headerText, keyB64) then
+        m.wsAcceptFailed = true
+        return false
+    end if
 
     ' Byte remainder = everything AFTER the 4 terminator bytes -> the first WS
     ' frame bytes. Append raw to the frame accumulator (no String round-trip).

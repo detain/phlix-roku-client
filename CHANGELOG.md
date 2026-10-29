@@ -2,6 +2,59 @@
 
 ## [Unreleased]
 
+### Fixed — SyncPlay refuses TLS origins and proves the handshake (M-ROKU-14) — 2026-10-29
+
+- **The defect (review roku__exploiter M3).** `BuildSyncPlayWsParts`
+  (components/PlayerScene.brs) read the MAIN ACCOUNT JWT and handed it to
+  `SyncPlayTask` regardless of the connected server origin's scheme; the task
+  then offered it verbatim in the cleartext `Sec-WebSocket-Protocol: bearer,
+  <jwt>` handshake over `roStreamSocket` (plaintext TCP, no TLS — `wss://` is
+  impossible here). On an `https://` origin the credential had been
+  established over TLS, so a passive LAN sniff captured a TLS-protected
+  account token — the exact class the hub relay path had already retired by
+  minting scoped relay tokens. Additionally `HandshakeAccepted` validated
+  only the "101" status line and explicitly deferred the `Sec-WebSocket-
+  Accept` hash, so a blind injector could forge an upgrade with no handshake
+  proof at all.
+- **The cure (refuse + prove).** (1) Origin law:
+  `SyncPlayWsRefusedForOrigin(serverUrl as String) as Boolean`
+  (source/lib/Utilities.brs — pure, case-insensitive `https://` prefix) is
+  consulted INSIDE `BuildSyncPlayWsParts` BEFORE the credential is read; a
+  TLS origin returns invalid and `ConnectSyncTask` renders the honest line
+  (`syncplay_status_tls_refused`, all seven catalogs). `http://` origins keep
+  dialling: their REST lane is already cleartext, so the dial adds no new
+  exposure class. (2) Handshake proof: `SyncPlayProtocol` gains the RFC6455
+  §1.3 machinery — `WS_ACCEPT_GUID`, `SecWebSocketAcceptValue` (header-block
+  scan; a body can never impersonate a header), `ExpectedSecWebSocketAccept`
+  (roEVPDigest `Setup("sha1")`/`Process`, its documented 40-hex output
+  shape-gated before the hex→base64 conversion) and
+  `VerifyHandshakeAccept`, FAIL-CLOSED: absent header, non-computable
+  expectation or mismatch refuse the dial. `WaitForConnect` runs it AFTER the
+  101 status gate (echo tolerance untouched), tags `m.wsAcceptFailed`, and
+  `RunSocket` reports the new client-minted census code
+  `local.ws_accept_invalid` (never a wire code — Check 23 family; catalog
+  version 1.6.0 → 1.7.0 across the seven locales).
+- **Teeth.** `scripts/verify-runtime.sh` Check 46 statically pins the
+  predicate, the ordered choke (refusal before the token read), the trio's
+  fail-closed shapes, the call ordering in `WaitForConnect`, the gated
+  `EmitError`, census membership, and the seven-catalog speakability — and
+  asserts the era's "do NOT verify / deferred" claims stay extinct in code
+  and prose. `tests/unit/SyncPlayWsTls.test.brs` pins the predicate truth
+  table, header-parse vectors (incl. the body-spoof guard), the wrong-case
+  base64 mismatch, and the RFC6455 §1.3 example
+  (`dGhlIHNhbXBsZSBub25jZQ==` → `s3pPLMBiTxaQ9kYGzzhZRbK+xOo=`) on-device;
+  firmware without SHA-1 must take the fail-closed branch, which the same
+  test asserts. Red-on-parent: CHECK46 R1–R4 each fire against `6a40a8f`
+  (measured 29 problems at the era tree — R1×4 predicate/choke, R2×8 proof
+  machinery + dead-era prose, R3×15 census + seven-catalog speakability,
+  R4×2 vanished suite + its unreadable-pin guard; mutation probes soften-each
+  → red).
+- **Behavior change disclosed:** users who log in over an `https://` origin
+  but expect SyncPlay on a reachable plaintext `:8097` now see a refusal
+  status instead of a silently-downgraded connection. That silent downgrade
+  WAS the vulnerability; scoped SyncPlay WS tokens server-side (the relay's
+  design vocabulary) remain the follow-up that would re-open this lane.
+
 ### Fixed — untrusted mediaId shape-gated before play (M-ROKU-13) — 2026-10-29
 
 - **The defect (review roku__exploiter M2).** The hub relay's

@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "pt_BR",
     "language_name": "Português (Brasil)",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -163,6 +163,7 @@
     "status_creating_group": "Criando grupo...",
     "status_joining_group": "Entrando no grupo...",
     "status_connected": "Conectado ao grupo",
+    "status_tls_refused": "Assistir juntos não pode usar um endereço de servidor seguro (HTTPS).",
     "default_group_name": "Grupo",
     "default_room_name": "Sala Roku",
     "members_count": "{count} membros",
@@ -260,6 +261,7 @@
     "local_socket_unavailable": "Este dispositivo não pôde abrir uma conexão de rede para a sessão.",
     "local_connect_failed": "Não foi possível acessar o servidor de sincronização.",
     "local_connect_timeout": "O servidor de sincronização demorou demais para responder.",
+    "local_ws_accept_invalid": "O servidor de sincronização não concluiu o handshake corretamente.",
     "local_room_create_failed": "Não foi possível criar o grupo de exibição.",
     "local_room_join_failed": "Não foi possível entrar no grupo de exibição.",
     "local_room_leave_failed": "Não foi possível sair do grupo de exibição.",

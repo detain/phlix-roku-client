@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -163,6 +163,7 @@
     "status_creating_group": "Création du groupe...",
     "status_joining_group": "Connexion au groupe...",
     "status_connected": "Connecté au groupe",
+    "status_tls_refused": "Regarder ensemble ne peut pas utiliser une adresse de serveur sécurisée (HTTPS).",
     "default_group_name": "Groupe",
     "default_room_name": "Salon Roku",
     "members_count": "{count} membres",
@@ -260,6 +261,7 @@
     "local_socket_unavailable": "Cet appareil n’a pas pu ouvrir de connexion réseau pour la session.",
     "local_connect_failed": "Impossible de contacter le serveur de synchronisation.",
     "local_connect_timeout": "Le serveur de synchronisation a mis trop de temps à répondre.",
+    "local_ws_accept_invalid": "Le serveur de synchronisation n'a pas terminé correctement la poignée de main.",
     "local_room_create_failed": "Impossible de créer le groupe synchronisé.",
     "local_room_join_failed": "Impossible de rejoindre le groupe synchronisé.",
     "local_room_leave_failed": "Impossible de quitter le groupe synchronisé.",

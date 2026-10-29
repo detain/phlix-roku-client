@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -163,6 +163,7 @@
     "status_creating_group": "Creazione del gruppo...",
     "status_joining_group": "Ingresso nel gruppo...",
     "status_connected": "Connesso al gruppo",
+    "status_tls_refused": "Guarda insieme non può utilizzare un indirizzo del server sicuro (HTTPS).",
     "default_group_name": "Gruppo",
     "default_room_name": "Stanza Roku",
     "members_count": "{count} membri",
@@ -260,6 +261,7 @@
     "local_socket_unavailable": "Questo dispositivo non ha potuto aprire una connessione di rete per la sessione.",
     "local_connect_failed": "Impossibile raggiungere il server di sincronizzazione.",
     "local_connect_timeout": "Il server di sincronizzazione ha impiegato troppo tempo a rispondere.",
+    "local_ws_accept_invalid": "Il server di sincronizzazione non ha completato correttamente l'handshake.",
     "local_room_create_failed": "Impossibile creare il gruppo di visione.",
     "local_room_join_failed": "Impossibile unirsi al gruppo di visione.",
     "local_room_leave_failed": "Impossibile uscire dal gruppo di visione.",
