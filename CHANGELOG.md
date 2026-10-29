@@ -2,6 +2,46 @@
 
 ## [Unreleased]
 
+### Fixed — Settings restore-gate, Up Next ghost rail, and header-doc truth (CHECK32) — 2026-10-29
+
+- **The hole.** Review `roku__casualgamer` M3+M6 (major), re-audited at
+  70782bb. M3's headline claim (Settings unreachable for admins) was already
+  cured by c6c9009/CHECK29 — the header walk is `search↔forYou↔favorites↔
+  collections↔settings↔admin` in both directions — but two residuals stayed
+  live: the README (`:498`) still described a four-button header
+  `Search ↔ Favorites ↔ Collections ↔ Admin` (no For You, no Settings), and
+  `FocusHeaderZone()` restored focus to `adminButton` without a `.visible`
+  gate — a post-demotion getMe round hiding the button while `m.headerCol`
+  still said "admin" stranded the grid->header return on a hidden node. M6
+  was fully live: `upNextLabel` sat byte-identically on `libraryLabel`
+  ([40,448]) and `upNextGrid` ([0,488]+300) stacked inside `libraryGrid`'s
+  footprint ([0,484]+200), while the hand-rolled vertical chain consumed
+  every up/down with `handled = true` and had no upnext arm — a ghost rail
+  rendered under Libraries and unreachable by remote.
+- **The fix.** Shared-slot rail law: the 720p home screen hosts exactly one
+  rail row above Libraries (header to y=100, Libraries at y=448, description
+  bar at y=680), so Up Next moved into Continue Watching's slot
+  ([40,104]/[0,144]) and BOTH response handlers enforce the exclusion —
+  `OnUpNextResponse` bails via `ContinueRailVisible()` while the slot is
+  taken; `OnContinueWatchingResponse` retracts the upNext rail before
+  claiming it — so whichever parallel load answers first, at most one rail
+  is visible and nothing ever stacks on Libraries. The chain gained upnext
+  arms: Down from the header and Up from the library grid enter the rail
+  when it is the visible one, and Up Next leaves Down to Libraries, Up to
+  the header zone. `FocusHeaderZone`'s admin restore is gated on
+  `adminButton.visible` (a hidden button falls through to Search and
+  resyncs `m.headerCol`). README's Home Header Navigation now walks six
+  buttons with a For You and Settings bullet, matching the XML.
+- **Static legs.** `scripts/verify-runtime.sh` CHECK32 R1-R5: the
+  demotion-safe restore gate, the rail geometry (shared-slot equality AND
+  vertical non-intersection with the Libraries row — the ghost stack is
+  forbidden by constant), both loaders' exclusion guards, upnext-chain
+  reachability both directions, and README header prose DERIVED from the
+  XML button titles (count word + x-order chain line must equal what the
+  scene declares). CHECK29 R5's admin restore pattern was relaxed to accept
+  the `.visible` gate; CHECK32 R1 mandates it, so the pair is no weaker
+  than either leg alone.
+
 ### Fixed — Back at Home exits the channel; black dead-screen cured (CHECK31) — 2026-10-29
 
 - **The hole.** Review `roku__casualgamer` M2 (major): pressing Back on Home did

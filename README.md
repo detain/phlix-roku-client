@@ -495,16 +495,20 @@ Per Roku's [remote control UX guidelines](https://developer.roku.com/docs/refere
 
 ### Home Header Navigation
 
-The Home screen header has up to four buttons. Use Left/Right to cycle between them (stops at the
-ends — never wraps):
+The Home screen header has up to six buttons. Use Left/Right to walk them in visual x-order (stops
+at the ends — never wraps):
 
-`Search ↔ Favorites ↔ Collections ↔ Admin`
+`Search ↔ For You ↔ Favorites ↔ Collections ↔ Settings ↔ Admin`
 
 - **Search** — open the search screen.
+- **For You** — open the personalized Recommendations screen.
 - **Favorites** — browse your favorited items.
 - **Collections** — open the read-only Collections browse flow: `Home → Collections (list of
   collection names) → a collection's items (poster grid) → item detail`. Items are type-routed
   exactly like Library/Favorites (series → series view, season → season view, otherwise → detail).
+- **Settings** — open the settings screen: account/logout, server URL, playback preferences,
+  captions mode, clear watch history, and PiP. Every user gets it — the walk steps into Settings
+  from both sides (Collections ↔ Settings ↔ Admin), and for non-admins the chain simply ends there.
 - **Admin** — shown **only for admin users**. On Home init the app calls `GET /auth/me` and reveals
   the button when the returned user is `is_admin`; for non-admins the button stays hidden and the
   Right-nav skips it (no dead end / no focus on a hidden node). Opens the read-only admin flow:

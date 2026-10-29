@@ -2615,8 +2615,11 @@ else:
     for col in cols:
         if col == "search":
             continue  # search is the default fallback arm of the restore chain
+        # The admin arm may additionally require adminButton.visible (the
+        # post-demotion restore guard; CHECK32 R1 pins that it DOES).
+        guard = r'( and m\.adminButton\.visible)?' if col == "admin" else r''
         pat = (r'm\.headerCol = "' + col + r'" and m\.' + col +
-               r'Button <> invalid then\s*\n\s*m\.' + col + r'Button\.SetFocus\(true\)')
+               r'Button <> invalid' + guard + r' then\s*\n\s*m\.' + col + r'Button\.SetFocus\(true\)')
         if re.search(pat, fhz) is None:
             problems.append("HomeScene.brs: CHECK29 R5: FocusHeaderZone cannot "
                             "restore focus to '%s' - a grid->header return would "
@@ -2941,6 +2944,213 @@ print(
     "consumes back-at-empty-stack by raising it, main.brs observes it and ends "
     "the loop (plus isScreenClosed hygiene), and the roApp fiction primitive "
     "appears nowhere - one Back from Home exits cleanly, no black dead-screen")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 32: home rail geometry, demotion-safe restore, and header-doc truth (M-ROKU-02) ==="
+# Rail law (M-ROKU-02, 2026-10-29, review roku__casualgamer M3-recheck + M6):
+# the Up Next rail shipped as a ghost - upNextLabel sat byte-identically on
+# libraryLabel ([40,448]) and upNextGrid ([0,488]+300) stacked inside
+# libraryGrid's footprint ([0,484]+200), while the hand-rolled vertical chain
+# consumed every up/down with handled=true and had NO upnext arm - an
+# unreachable row painted under Libraries (later-siblings-win z-order hid it,
+# so users saw only clutter when a parallel load made it visible). Cure: the
+# two rails SHARE the single Continue Watching slot (720p hosts exactly one
+# row above Libraries), the exclusion is enforced by BOTH response handlers,
+# and search/library gain upnext arms so the rail is enterable. Rules:
+#   R1  FocusHeaderZone's admin restore is visibility-gated (post-demotion:
+#       OnMeResponse hides adminButton on a failed/non-admin getMe; restoring
+#       focus onto a hidden node strands the header zone in the void)
+#   R2  rail geometry: upNextLabel/upNextGrid translations EQUAL the continue
+#       pair's (shared slot by design) and neither rail's rect vertically
+#       intersects the Libraries row's rect (the ghost bug, forbidden)
+#   R3  both loaders enforce the exclusion: OnUpNextResponse bails while
+#       ContinueRailVisible() (before any visible=true), and
+#       OnContinueWatchingResponse retracts upNext before claiming the slot
+#   R4  the vertical chain enters the upnext rail from search (down) and from
+#       library (up) and leaves it (down->library, up->header) - reachability
+#       both directions, mirroring the CHECK29 header-walk law
+#   R5  README "Home Header Navigation" matches the XML header row: the
+#       button count word and the x-order chain line are derived from the
+#       Button titles the scene actually declares (the manual still described
+#       the pre-For-You four-button header and omitted Settings)
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO", ".")
+brs_path = os.path.join(repo, "components", "HomeScene.brs")
+xml_path = os.path.join(repo, "components", "HomeScene.xml")
+readme_path = os.path.join(repo, "README.md")
+problems = []
+
+
+def strip_comment_lines(text):
+    return "\n".join(l for l in text.splitlines()
+                     if not l.lstrip().startswith("'"))
+
+
+def body(src, name):
+    m = re.search(r"^(?:sub|function)\s+" + name + r"\b[^\n]*\n(.*?)^end (?:sub|function)",
+                  src, re.MULTILINE | re.DOTALL)
+    return m.group(1) if m else None
+
+
+def slice_between(src, start_pat, stop_pat):
+    m = re.search(start_pat, src)
+    if not m:
+        return None
+    stop = re.search(stop_pat, src[m.end():])
+    end = m.end() + (stop.start() if stop else len(src))
+    return src[m.end():end]
+
+
+def rect_of(nid):
+    # Rail opening tags carry height/width/translation before id (house style);
+    # scan the tag that names the id and pull the geometry out of it.
+    for m in re.finditer(r'<(Label|PosterGrid)\b[^>]*>', xml):
+        if ('id="%s"' % nid) in m.group(0):
+            tr = re.search(r'translation="\[(-?\d+),(-?\d+)\]"', m.group(0))
+            ht = re.search(r'height="(\d+)"', m.group(0))
+            if tr is None or ht is None:
+                return None
+            return (int(tr.group(1)), int(tr.group(2)), int(ht.group(1)))
+    return None
+
+
+def voverlap(a, b):
+    return a[1] < b[1] + b[2] and b[1] < a[1] + a[2]
+
+
+brs = open(brs_path, encoding="utf-8").read()
+code = strip_comment_lines(brs)
+xml = open(xml_path, encoding="utf-8").read()
+readme = open(readme_path, encoding="utf-8").read()
+
+# R1: post-demotion restore guard.
+fhz = body(code, "FocusHeaderZone")
+if fhz is None:
+    problems.append("HomeScene.brs: CHECK32 R1: FocusHeaderZone() not found")
+elif re.search(r'm\.headerCol = "admin" and m\.adminButton <> invalid and m\.adminButton\.visible then', fhz) is None:
+    problems.append("HomeScene.brs: CHECK32 R1: FocusHeaderZone restores focus to "
+                    "adminButton without a .visible gate - after a demotion hides "
+                    "the button, a grid->header return strands focus on a hidden node")
+
+# R2: rail geometry.
+want = {}
+for nid in ("continueLabel", "continueGrid", "upNextLabel", "upNextGrid",
+            "libraryLabel", "libraryGrid"):
+    r = rect_of(nid)
+    if r is None:
+        problems.append("HomeScene.xml: CHECK32 R2: %s not found or missing "
+                        "translation/height" % nid)
+    want[nid] = r
+if all(v is not None for v in want.values()):
+    if want["upNextLabel"][:2] != want["continueLabel"][:2]:
+        problems.append("HomeScene.xml: CHECK32 R2: upNextLabel at %s shares no "
+                        "slot with continueLabel %s - the one-row budget above "
+                        "Libraries is gone; re-plan, do not re-stack"
+                        % (want["upNextLabel"][:2], want["continueLabel"][:2]))
+    if want["upNextGrid"][:2] != want["continueGrid"][:2]:
+        problems.append("HomeScene.xml: CHECK32 R2: upNextGrid at %s must ride "
+                        "the continueGrid slot %s (shared top-rail slot)"
+                        % (want["upNextGrid"][:2], want["continueGrid"][:2]))
+    for g in ("upNextLabel", "upNextGrid"):
+        for l in ("libraryLabel", "libraryGrid"):
+            if voverlap(want[g], want[l]):
+                problems.append("HomeScene.xml: CHECK32 R2: %s rect %s vertically "
+                                "intersects %s rect %s - the Up Next ghost-rail "
+                                "stack is back (invisible-label-under-Libraries / "
+                                "grid-over-grid)" % (g, want[g], l, want[l]))
+
+# R3: both loaders enforce the exclusion.
+crv = body(code, "ContinueRailVisible")
+if crv is None or "m.continueGrid.visible" not in crv:
+    problems.append("HomeScene.brs: CHECK32 R3: ContinueRailVisible() missing or "
+                    "not reading continueGrid.visible")
+unr = body(code, "OnUpNextResponse")
+if unr is None:
+    problems.append("HomeScene.brs: CHECK32 R3: OnUpNextResponse not found")
+else:
+    bail = unr.find("if ContinueRailVisible() then return")
+    show = unr.find("m.upNextGrid.visible = true")
+    if bail == -1 or show == -1 or bail > show:
+        problems.append("HomeScene.brs: CHECK32 R3: OnUpNextResponse renders the "
+                        "rail without bailing while ContinueRailVisible() - a "
+                        "second visible rail cannot fit above Libraries")
+cwr = body(code, "OnContinueWatchingResponse")
+if cwr is None:
+    problems.append("HomeScene.brs: CHECK32 R3: OnContinueWatchingResponse not found")
+else:
+    retract = cwr.find("m.upNextGrid.visible = false")
+    claim = cwr.find("m.continueGrid.visible = true")
+    if retract == -1 or claim == -1 or retract > claim:
+        problems.append("HomeScene.brs: CHECK32 R3: OnContinueWatchingResponse "
+                        "claims the shared slot without retracting the upNext "
+                        "rail (parallel loads race; both orders must end with "
+                        "at most one visible)")
+
+# R4: vertical chain reaches upnext both directions.
+DOWN = slice_between(code, r'if key = "down" then', r'else if key = "up"')
+UP = slice_between(code, r'if key = "up" then', r'return handled')
+if DOWN is None or UP is None:
+    problems.append("HomeScene.brs: CHECK32 R4: OnKeyEvent down/up branches not "
+                    "found (structure drift; the rail chain can no longer be verified)")
+ENTRY = re.compile(r'else if m\.upNextGrid <> invalid and m\.upNextGrid\.visible then\s*\n\s*m\.upNextGrid\.SetFocus\(true\)\s*\n\s*m\.currentRail = "upnext"')
+if DOWN is not None:
+    if ENTRY.search(DOWN) is None:
+        problems.append("HomeScene.brs: CHECK32 R4: Down from the header never "
+                        "enters the upnext rail (ghost row: visible, unfocusable)")
+    if re.search(r'else if m\.currentRail = "upnext" then\s*\n\s*m\.libraryGrid\.SetFocus\(true\)\s*\n\s*m\.currentRail = "library"', DOWN) is None:
+        problems.append("HomeScene.brs: CHECK32 R4: no Down exit from the upnext "
+                        "rail to the library grid")
+if UP is not None:
+    if ENTRY.search(UP) is None:
+        problems.append("HomeScene.brs: CHECK32 R4: Up from the library grid never "
+                        "enters the upnext rail")
+    if re.search(r'else if m\.currentRail = "upnext" then\s*\n\s*FocusHeaderZone\(\)', UP) is None:
+        problems.append("HomeScene.brs: CHECK32 R4: no Up exit from the upnext "
+                        "rail back to the header zone")
+
+# R5: README header prose derives from the XML it documents.
+head = []
+for m in re.finditer(r'<Button[^>]*?translation="\[(\d+),20\]"[^>]*?title="([^"]*)"', xml):
+    head.append((int(m.group(1)), m.group(2)))
+head.sort()
+titles = [t for _, t in head]
+sec = re.search(r'### Home Header Navigation(.*?)(?=\n### |\Z)', readme, re.DOTALL)
+if sec is None:
+    problems.append("README.md: CHECK32 R5: 'Home Header Navigation' section not found")
+elif titles:
+    body_txt = sec.group(1)
+    expected = "`" + " ↔ ".join(titles) + "`"
+    if expected not in body_txt:
+        problems.append("README.md: CHECK32 R5: header chain line is not %s - "
+                        "the manual must walk the real x-ordered button titles "
+                        "the XML declares" % expected)
+    words = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven"}
+    word = words.get(len(titles))
+    if word is None:
+        problems.append("CHECK32 R5: header now has %d buttons - extend the "
+                        "count-word table (the prose claim cannot be verified)" % len(titles))
+    elif ("up to %s buttons" % word) not in body_txt:
+        problems.append("README.md: CHECK32 R5: the section claims a button "
+                        "count other than 'up to %s buttons' while the XML "
+                        "header row declares %d buttons" % (word, len(titles)))
+
+if problems:
+    for p in problems:
+        print("  " + p)
+    print("  CHECK32: %d rail-law problem(s)" % len(problems))
+    sys.exit(1)
+
+print("  CHECK32: admin restore is visibility-gated, Up Next shares Continue's "
+      "single slot (never Libraries), both loaders enforce the exclusion, the "
+      "vertical chain walks the upnext rail both directions, and the README "
+      "header prose equals the XML button walk")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

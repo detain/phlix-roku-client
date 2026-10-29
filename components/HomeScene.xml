@@ -52,14 +52,23 @@
                     id="continueGrid">
         </PosterGrid>
 
-        <!-- Up Next rail (R7.2 — shown after Continue Watching) -->
-        <Label height="36" width="1200" translation="[40,448]"
+        <!-- Up Next rail (R7.2) — shares the Continue Watching slot (label
+             [40,104] / grid [0,144]). The 720p home layout hosts exactly ONE
+             top rail above the Libraries row; the old [40,448]/[0,488]
+             placement stacked this rail byte-identically onto libraryLabel
+             ([40,448]) and inside libraryGrid's footprint ([0,484]+200), and
+             the vertical chain had no upnext arm — a ghost row no remote
+             could reach [review roku__casualgamer M6]. Continue Watching
+             wins the slot when it has items; Up Next only surfaces in the
+             empty slot (both loaders enforce the exclusion in
+             HomeScene.brs; scripts/verify-runtime.sh CHECK32 pins it). -->
+        <Label height="36" width="1200" translation="[40,104]"
                text="Up Next"
                font="font:MediumBoldSystemFont"
                color="#FFFFFF"
                visible="false"
                id="upNextLabel" />
-        <PosterGrid height="300" width="1280" translation="[0,488]"
+        <PosterGrid height="300" width="1280" translation="[0,144]"
                     numColumns="5" numRows="1"
                     itemSpacing="[20,15]"
                     basePosterSize="[220,280]"

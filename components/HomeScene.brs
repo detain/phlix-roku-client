@@ -250,6 +250,17 @@ sub OnLibrariesResponse(resp as Object)
     ' from OnMeResponse via LoadContinueWatchingAsync()
 end sub
 
+' Shared-slot law (review roku__casualgamer M6): the Continue Watching and
+' Up Next rails occupy the SAME screen slot — label [40,104] / grid [0,144].
+' The 720p home layout (header to y=100, Libraries at y=448, description bar
+' at y=680) has room for exactly one rail row; there is no honest placement
+' that stacks a third. Continue Watching wins whenever it is on screen;
+' Up Next only surfaces when the slot is empty. Both response handlers
+' enforce the exclusion, whichever parallel load answers first.
+function ContinueRailVisible() as Boolean
+    return m.continueGrid <> invalid and m.continueGrid.visible
+end function
+
 sub OnContinueWatchingResponse(resp as Object)
     if not resp.ok or resp.data = invalid then return
 
@@ -271,6 +282,12 @@ sub OnContinueWatchingResponse(resp as Object)
     end for
     m.continueContent = content
     m.continueGrid.content = content
+
+    ' Continue Watching claims the shared top slot - retract an Up Next rail
+    ' that answered the parallel load first (focus falls back to the scene;
+    ' the up/down chain arms still navigate from there) [review M6].
+    if m.upNextLabel <> invalid then m.upNextLabel.visible = false
+    if m.upNextGrid <> invalid then m.upNextGrid.visible = false
 
     m.continueLabel.visible = true
     m.continueGrid.visible = true
@@ -307,6 +324,10 @@ sub OnUpNextResponse(resp as Object)
     m.upNextContent = content
     if m.upNextGrid <> invalid then m.upNextGrid.content = content
 
+    ' Shared-slot law: stay loaded-but-hidden while Continue Watching owns
+    ' the rail slot - rendering here would stack on a visible rail
+    ' [review roku__casualgamer M6].
+    if ContinueRailVisible() then return
     if m.upNextLabel <> invalid then m.upNextLabel.visible = true
     if m.upNextGrid <> invalid then m.upNextGrid.visible = true
 end sub
@@ -678,7 +699,12 @@ sub FocusHeaderZone()
         m.collectionsButton.SetFocus(true)
     else if m.headerCol = "settings" and m.settingsButton <> invalid then
         m.settingsButton.SetFocus(true)
-    else if m.headerCol = "admin" and m.adminButton <> invalid then
+    ' The .visible gate on the admin arm is the post-demotion edge: if a later
+    ' getMe round flips isAdmin false while m.headerCol still says "admin"
+    ' (OnMeResponse hides the button in that branch), restoring focus to a
+    ' hidden node strands it in the void - fall through to Search and resync
+    ' m.headerCol instead [review roku__casualgamer M3 re-audit, CHECK32 R1].
+    else if m.headerCol = "admin" and m.adminButton <> invalid and m.adminButton.visible then
         m.adminButton.SetFocus(true)
     else if m.searchButton <> invalid then
         m.searchButton.SetFocus(true)
@@ -772,15 +798,20 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
                 handled = true
             end if
         else if key = "down" then
-            ' 3-zone vertical chain: search (top) <-> continue (if visible) <->
-            ' library (bottom). Focus switching relies on PosterGrid/Button key
-            ' bubbling: the header buttons never consume "down", a single-row
-            ' continueGrid never consumes "up"/"down", and a multi-row
+            ' 4-zone vertical chain: search (top) <-> the rail slot (continue,
+            ' else upnext, else none - both rails share one slot and at most
+            ' one is visible, review M6) <-> library (bottom). Focus
+            ' switching relies on PosterGrid/Button key bubbling: the header
+            ' buttons never consume "down", the single-row continueGrid and
+            ' upNextGrid never consume "up"/"down", and a multi-row
             ' libraryGrid never consumes "up" on its top row, so they bubble.
             if m.currentRail = "search" then
                 if m.continueGrid.visible then
                     m.continueGrid.SetFocus(true)
                     m.currentRail = "continue"
+                else if m.upNextGrid <> invalid and m.upNextGrid.visible then
+                    m.upNextGrid.SetFocus(true)
+                    m.currentRail = "upnext"
                 else
                     m.libraryGrid.SetFocus(true)
                     m.currentRail = "library"
@@ -790,17 +821,27 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
                 m.libraryGrid.SetFocus(true)
                 m.currentRail = "library"
                 handled = true
+            else if m.currentRail = "upnext" then
+                m.libraryGrid.SetFocus(true)
+                m.currentRail = "library"
+                handled = true
             end if
         else if key = "up" then
             if m.currentRail = "library" then
                 if m.continueGrid.visible then
                     m.continueGrid.SetFocus(true)
                     m.currentRail = "continue"
+                else if m.upNextGrid <> invalid and m.upNextGrid.visible then
+                    m.upNextGrid.SetFocus(true)
+                    m.currentRail = "upnext"
                 else
                     FocusHeaderZone()
                 end if
                 handled = true
             else if m.currentRail = "continue" then
+                FocusHeaderZone()
+                handled = true
+            else if m.currentRail = "upnext" then
                 FocusHeaderZone()
                 handled = true
             end if
