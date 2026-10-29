@@ -5967,13 +5967,33 @@ echo "=== Check 49: the toast pipeline displays via the built-in Dialog (M-ROKU-
 # show() walks GetParent to the root coordinator). Statically pinned below;
 # the pure-leaf-free joints are node-tree behavior, so the device harness
 # pins nothing new (venue: no ROKU_HOST in this lane — disclosed).
-# M-ROKU-17r2 addendum: the landing kept the single-arg onMessage arm — the
-# PostMessage dispatch door never opened (msg bound the String "showToast",
-# the assoc probe failed, the coordinator was unreachable, every rule above
-# stayed GREEN on a pipeline that could not display) — and the manager's
-# silent pre-attach drop. R7 pins the two-arg contract, the WireErrorText /
-# integer type() guards at the newly-visible boundary and the queue->drain;
-# the r2 plants live in the portable harness RED49 family.
+# M-ROKU-17 r2 (review roku__gameux M17r1 CRITICAL-1): the r1 round proved
+# the DISPLAY half reviewed-clean but convicted the DELIVERY half a third
+# phantom layer — target.PostMessage("showToast") into a node message handler
+# is no articulable RokuOS contract: bsc's vendored Roku types (the
+# component-library authority this channel lints against;
+# brighterscript/dist/roku-types/data.json) model PostMessage exactly once,
+# on roRenderThreadQueue, whose documented receive path is AddMessageHandler
+# — used nowhere here — roSGNode models no onMessage special at any arity,
+# and none of this repo's seven Task components rides one. The 689b475
+# two-arg re-arm inherits that unmodeled door; this round replaces the wire
+# outright. Cure: delivery rides the root scene's OBSERVED INTERFACE FIELDS
+# — toastMessage/toastDuration payload + the alwaysNotify toastSeq trigger —
+# wired in Init via ObserveField("toastSeq", "OnToastNotice"), the repo's
+# proven render-thread channel (every requestClose arm; ShowErrorDialog's
+# named-sub observers). R7 below pins the mechanism itself inside the
+# pinning surface — dead wire extinct repo-wide, live channel wired at BOTH
+# ends payload-before-trigger on declared interface fields — and keeps the
+# r2 round's adopted pre-attach queue/drain pins (r1 ask 3, shipped by
+# 689b475, mechanism-independent). Measured THIS round: reverting only the
+# three dispatch files fires 12 named R7 pins at the 689b475 door and 18 at the
+# r1 7942e66 fiction, R1..R6 and every other leg green in both probes — the
+# leg convicts the dispatch path specifically. Device
+# honesty: delivery rests on documented render-thread field-observer
+# semantics the shipped requestClose arms exercise live, but no ROKU_HOST
+# venue ran ToastManager end-to-end on-device this lane (statically pinned
+# only, per the CHECK47/48/49 family precedent — disclosed). The r2 plants
+# live in the portable harness RED49B family.
 PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
@@ -5987,6 +6007,7 @@ SCENE_XML = "components/ToastScene.xml"
 SCENE_BRS = "components/ToastScene.brs"
 PLAYER = "components/PlayerScene.brs"
 TMGR = "source/lib/ToastManager.brs"
+APP_XML = "components/PhlixApp.xml"
 
 problems = []
 
@@ -6098,45 +6119,56 @@ if tm is not None:
     tm = mask_brs(tm)
     if "while parent <> invalid" not in tm or "target.GetParent()" not in tm:
         problems.append(
-            f"  {TMGR} - CHECK49 R6: the GetParent root walk is gone — showToast must reach "
+            f"  {TMGR} - CHECK49 R6: the GetParent root walk is gone — the notice must reach "
             "the root coordinator, not the scope-stored (possibly nested) scene"
         )
 
-# ---- R7 dispatch contract + pre-attach drain (M-ROKU-17r2) ------------------
-# PostMessage hands the root scene the platform's
-# onMessage(messageType as String, data as Object); a single-Object arm binds
-# msg to the STRING type name and the whole coordinator rots unreachable.
-# R7 pins the contract, the type-guarded extraction inside the arm
-# (ROKU-12/CHECK43 law at the newly-visible boundary) and the manager-side
-# pre-attach queue - the silent-drop guard was the second dead door (r1
-# ask 3: zero permanent drops on the normal path, capped and loud on
-# overflow).
-if app is not None:
-    if "sub onMessage(messageType as String, data as Object)" not in app:
+# ---- R7 dispatch mechanism + pre-attach drain (M-ROKU-17 r2) -----------------
+# The r1 review convicted the PostMessage/onMessage wire outright (no
+# articulable RokuOS node contract; bsc models PostMessage only on
+# roRenderThreadQueue, receive via AddMessageHandler, shipped nowhere here).
+# R7 pins the LIVE mechanism — declared observed fields, payload-before-
+# trigger writes, root observer wiring, receiver arm — convicts the dead
+# pair extinct repo-wide, and keeps the adopted pre-attach queue/drain pins
+# (r1 ask 3: zero permanent drops on the normal path, capped loud
+# drop-oldest on overflow).
+for p in sorted(
+    glob.glob("source/**/*.brs", recursive=True)
+    + glob.glob("components/**/*.brs", recursive=True)
+):
+    code = mask_brs(open(p, encoding="utf-8", errors="replace").read())
+    if re.search(r"(?i)\.PostMessage\s*\(", code):
         problems.append(
-            f"  {APP} - CHECK49 R7: the root handler does not declare the platform "
-            'onMessage(messageType as String, data as Object) contract — a single-arg '
-            'arm binds msg to the String "showToast" and the coordinator is unreachable'
+            f"  {p} - CHECK49 R7: node.PostMessage is re-grown — roSGNode has no "
+            "documented message-receive contract (bsc's vendored Roku types model "
+            "PostMessage only on roRenderThreadQueue, whose receive path is "
+            "AddMessageHandler, shipped nowhere here; no onMessage special is modeled "
+            "at any arity); delivery rides the observed toastSeq channel"
         )
-    else:
-        m7 = re.search(r"(?m)^sub onMessage\(messageType as String, data as Object\)\n(.*?)^end sub", app, re.S)
-        if m7 is None:
-            problems.append(f"  {APP} - CHECK49 R7: the contract arm's body could not be inspected")
-        else:
-            arm = m7.group(1)
-            for needle in (
-                'if messageType <> "showToast" then return',
-                'if type(content) <> "roSGNode" then return',
-                'WireErrorText(content.title',
-                'type(raw) = "roInt"',
-                'EnqueueToast(',
-            ):
-                if needle not in arm:
-                    problems.append(
-                        f"  {APP} - CHECK49 R7: the dispatch arm lost {needle!r} — the gate/"
-                        "guard/queue path is incomplete at the newly-visible boundary"
-                    )
+    if re.search(r"(?i)sub\s+onMessage\s*\(", code):
+        problems.append(
+            f"  {p} - CHECK49 R7: the retired onMessage catch-all is re-grown — no "
+            "documented node dispatch calls it at any arity; the dispatch arm is "
+            "OnToastNotice, fed by ObserveField(\"toastSeq\")"
+        )
+
 if tm is not None:
+    for needle, why in (
+        ('target.DoesExist("toastSeq")', "the foreign-root guard on the dispatch channel"),
+        ("target.toastMessage = message", "the String payload write"),
+        ("target.toastDuration = durationMs", "the Integer duration payload write"),
+        ("target.toastSeq = target.toastSeq + 1", "the alwaysNotify trigger bump"),
+    ):
+        if needle not in tm:
+            problems.append(f"  {TMGR} - CHECK49 R7: {why} is gone ({needle!r})")
+    i_msg = tm.find("target.toastMessage")
+    i_dur = tm.find("target.toastDuration")
+    i_seq = tm.find("target.toastSeq = target.toastSeq + 1")
+    if i_msg >= 0 and i_dur >= 0 and i_seq >= 0 and not (i_msg < i_seq and i_dur < i_seq):
+        problems.append(
+            f"  {TMGR} - CHECK49 R7: the trigger must be bumped AFTER both payload writes — "
+            "the coordinator must never observe a half-written notice"
+        )
     if "if m._scene = invalid then return" in tm:
         problems.append(
             f"  {TMGR} - CHECK49 R7: the silent pre-attach drop guard is back — a notice "
@@ -6145,6 +6177,39 @@ if tm is not None:
     for needle in ("_pending", "MAX_PENDING", "m._pending.Push", "queued = m._pending", "m.deliver("):
         if needle not in tm:
             problems.append(f"  {TMGR} - CHECK49 R7: pre-attach queue/drain needle {needle!r} is gone")
+
+if app is not None:
+    if 'm.top.ObserveField("toastSeq", "OnToastNotice")' not in app:
+        problems.append(
+            f"  {APP} - CHECK49 R7: the root's observer wiring is gone — without "
+            "ObserveField(\"toastSeq\", \"OnToastNotice\") the bump delivers to nobody"
+        )
+    if "sub OnToastNotice(" not in app:
+        problems.append(
+            f"  {APP} - CHECK49 R7: the dispatch arm sub vanished — OnToastNotice is the "
+            "channel's receiver"
+        )
+    if "m.top.toastMessage" not in app or "m.top.toastDuration" not in app:
+        problems.append(
+            f"  {APP} - CHECK49 R7: the receiver stopped reading the payload fields — the "
+            "notice text/duration ride toastMessage/toastDuration"
+        )
+
+app_xml = read(APP_XML)
+if app_xml is not None:
+    app_xml = mask_xml(app_xml)
+    for rx, why in (
+        (r'<field\s+id="toastMessage"\s+type="string"', "the String payload field declaration"),
+        (r'<field\s+id="toastDuration"\s+type="integer"', "the Integer payload field declaration"),
+        (r'<field\s+id="toastSeq"\s+type="integer"[^>]*alwaysNotify="true"',
+         "the alwaysNotify trigger field declaration"),
+    ):
+        if re.search(rx, app_xml) is None:
+            problems.append(
+                f"  {APP_XML} - CHECK49 R7: {why} is gone — the dispatch channel is declared "
+                "interface fields (interface-undeclared fields are not the cross-component "
+                "channel this repo's requestClose arms prove out)"
+            )
 
 if problems:
     for prob in problems:
@@ -6156,9 +6221,10 @@ print("  CHECK49: the toast overlay is a built-in-Dialog node displayed through 
 print("           current surface's dialog field; the root coordinator queues FIFO (cap 5,")
 print("           drop-oldest with print), never tramples a scene modal (bounded 2s x 15")
 print("           retry), dismisses via the documented close/wasClosed pair on a root-")
-print("           attached timer, and every scope's ToastManager reaches it by GetParent")
-print("           the two-arg onMessage dispatch contract and the pre-attach queue drain")
-print("           stand (M-ROKU-17r2)")
+print("           attached timer; every scope's ToastManager reaches it by the GetParent")
+print("           walk plus the declared, observed toastSeq dispatch channel (R7), the")
+print("           PostMessage/onMessage fiction stays extinct repo-wide and the pre-attach queue drain")
+print("           stands (M-ROKU-17 r2)")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

@@ -19,6 +19,24 @@
         ' back handling: it closes only the FOCUSED scene, exposing the root's black
         ' boot chrome as a dead screen (review roku__casualgamer M2).
         <field id="exitChannel" type="boolean" alwaysNotify="true" />
+        ' Toast dispatch channel (M-ROKU-17 r2, review roku__gameux M17r1
+        ' CRITICAL-1): the root scene's observed interface fields are the
+        ' delivery wire. Producers (source/lib/ToastManager.brs, running in
+        ' any consumer scope) walk the GetParent chain to this root, write
+        ' the String/Integer payload, then bump the alwaysNotify toastSeq
+        ' trigger; PhlixApp Init wires ObserveField("toastSeq",
+        ' "OnToastNotice") — the repo's proven render-thread idiom
+        ' (requestClose arms, ShowErrorDialog's wasClosed observers). This
+        ' replaces the retired node.PostMessage -> onMessage fiction:
+        ' roSGNode has no documented onMessage receive contract (bsc models
+        ' PostMessage only on roRenderThreadQueue, whose receive path is
+        ' AddMessageHandler — used nowhere in this channel). Payload fields
+        ' need no alwaysNotify; only the trigger does. CHECK49 R7 pins the
+        ' trio. Zero user-facing literals (CHECK25 intact — copy reaches the
+        ' render path only as app-side static Strings, ROKU-12/CHECK43).
+        <field id="toastMessage" type="string" />
+        <field id="toastDuration" type="integer" />
+        <field id="toastSeq" type="integer" alwaysNotify="true" />
     </interface>
     <!-- Shared source dependencies (SceneGraph components must explicitly script-include
          the pkg:/source files they use; source is not auto-global to component scopes). -->

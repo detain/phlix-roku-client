@@ -2,6 +2,72 @@
 
 ## [Unreleased]
 
+### Fixed — the toast dispatch rides the proven observed-field channel; CHECK49 R7 re-pinned around the mechanism (M-ROKU-17 r2, superseding the 689b475 dispatch door) — 2026-10-29
+
+- **The defect (review roku__gameux M17r1 CRITICAL-1).** The r1 round re-based
+  the toast onto the built-in Dialog and repaired per-scope wiring — both
+  reviewed RIGHT — but preserved the R3.4 DELIVERY fiction:
+  `target.PostMessage("showToast", content)` into `sub onMessage(msg as
+  Object)`. That wire is no articulable RokuOS node contract. Adjudicated from
+  the vendored authority this channel lints against
+  (brighterscript/dist/roku-types/data.json): `PostMessage` is modeled exactly
+  once — on `roRenderThreadQueue`, whose documented receive path is
+  `AddMessageHandler`, used nowhere here — `roSGNode` is modeled without it,
+  and no `onMessage` special is modeled at ANY arity. Repo precedent concurs:
+  none of the seven shipped Task components rides an onMessage door; every
+  working child->coordinator delivery (the requestClose arms,
+  ShowErrorDialog's wasClosed observers) rides OBSERVED FIELDS. The twin
+  landing 689b475 re-signatured the receiver to
+  `onMessage(messageType as String, data as Object)` claiming a platform
+  contract, and pinned that claim into CHECK49 R7 — the same unmodeled door
+  with an inverted gate actively defending fiction against future cures; this
+  round supersedes the dispatch half of 689b475 outright (its CHECK49 R7
+  contract-arm pins rotate with it). 689b475's pre-attach queue drain (r1 ask
+  3 — silent pre-setScene drops were the second dead door) is genuinely
+  mechanism-independent and is ADOPTED verbatim into this cure; its queue
+  pins fold into the new R7.
+- **The cure (reviewer-recommended observed-field channel).** Delivery rides
+  the root scene's DECLARED, OBSERVED interface fields: `PhlixApp.xml` gains
+  `toastMessage` (string) + `toastDuration` (integer) payload and `toastSeq`
+  (integer, `alwaysNotify`) trigger; `ToastManager.show()` queues
+  pre-attach (cap 10, loud drop-oldest) and drains via `deliver()`, which
+  keeps the documented `GetParent()` root walk, then writes
+  payload-before-trigger behind a `DoesExist("toastSeq")` foreign-root guard;
+  `PhlixApp` Init wires `ObserveField("toastSeq", "OnToastNotice")`; the arm
+  reads the typed payload (duration bounded 0 < d <= 30000, adopting the
+  689b475 boundary cap) into the SAME FIFO/display/dismiss coordinator the r1
+  round built — untouched. The `onMessage` sub retires WITH its docblock.
+  Copy stays app-side static, String/Integer-typed at every hop
+  (ROKU-12/CHECK43), the XML ships zero literals (CHECK25), no custom key
+  handling exists (C21/CHECK47 posture), and the coordinator's cap-5 + 30s
+  bounded-retry policies are preserved verbatim.
+- **The gate.** CHECK49 R7 now pins the mechanism itself: comment-masked
+  repo-wide scans convict `.PostMessage(` and `sub onMessage(` extinct; the
+  sender's guard/payload/trigger writes and payload-before-trigger order, the
+  root's observer wiring + receiver arm + payload reads, all three interface
+  declarations (trigger `alwaysNotify`), and the adopted pre-attach queue
+  needles stand. Measured with the merged tree: reverting the dispatch files
+  to the 689b475 door fires 12 named R7 pins; reverting to the r1
+  7942e66 fiction fires 18 — R1..R6 and every other leg green in both
+  probes, so the leg convicts the dispatch path specifically. Portable harness
+  RED49B re-cut as one combined plant (dead wire + silent-drop + observer
+  strip + arm rename; display machinery untouched) firing CHECK49 R7
+  ten ways naming both files, with R1/R6 territory held and
+  CHECK47/CHECK48/CHECK50/CHECK51 gate independence; restore -> exit 0.
+  `docs/static-checks.md` row 49's false-as-worded "root `onMessage`
+  coordinator" clause rotates with the cure.
+- **Disclosed venue facts.** Full `scripts/verify-runtime.sh` exit 0 at 51
+  legs (M20 added Check 51 since the r1 round); `make lint` exit 0 with the
+  orphan-warning set identical to the 689b475 parent in the same venue (bsc
+  reports 22 BS1013 `.test.brs` orphans here — a superset of the two files
+  the r1 review named and of the single one the r1 report claimed; the
+  delta attributable to this lane is ZERO, set-diff proven), `make bslint`
+  green. rooibos .test.brs: NOT run (no ROKU_HOST — disclosed; the dispatch
+  hop is render-thread field semantics — the same platform behavior the
+  shipped requestClose arms exercise live, pinned statically per the
+  CHECK47/48/49 family precedent). Locale law untouched by this lane.
+
+
 ### Fixed — live playback error copy rides the locale catalog (M-ROKU-20) — 2026-10-29
 
 - **The defect (review roku__gameux M5).** The three highest-stakes messages a

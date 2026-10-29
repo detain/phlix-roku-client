@@ -324,7 +324,7 @@ assert_contains "CHECK49: the toast overlay is a built-in-Dialog node" "$POSITIV
 # M-ROKU-17r2: the two-arg onMessage contract, its guarded arm and the
 # pre-attach queue drain ride PhlixApp.brs + the staged ToastManager.brs —
 # both in the fake layout — so R7 must run green in the CI layout too.
-assert_contains "the two-arg onMessage dispatch contract and the pre-attach queue drain" "$POSITIVE_OUT"
+assert_contains "fiction stays extinct repo-wide and the pre-attach queue drain" "$POSITIVE_OUT"
 
 # M-ROKU-19: Check 50's inputs (PlayerScene.xml + PlayerScene.brs ride the
 # whole-components cp -a), so the party-attribution law must run green in the
@@ -1582,15 +1582,22 @@ set -e
 [ "$GREEN49_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after all planted toast-display defects are removed (got $GREEN49_RC)"
 assert_contains "CHECK49: the toast overlay is a built-in-Dialog node" "$GREEN49_OUT"
 
-# --- CHECK49 R7 plants (M-ROKU-17r2, review roku__gameux M2): the joints the
-# r1 landing left dead — a single-arg onMessage door (PostMessage dispatches
-# the platform contract onMessage(messageType as String, data as Object); a
-# one-arg arm binds msg to the String "showToast", the assoc probe fails and
-# the whole coordinator rots unreachable while every OTHER leg stays green)
-# and the manager's silent pre-attach drop (r1 ask 3: zero permanent drops on
-# the normal path, capped loud drop-oldest on overflow). Two plants in one
-# run; R1/R6 territory untouched (asserted); CHECK47/CHECK48 gate
-# independence; restore returns exit 0 (falsifiability).
+# --- CHECK49 R7 dispatch plant (M-ROKU-17 r2, review roku__gameux M17r1
+# CRITICAL-1): the delivery-leg class. This plant re-grows BOTH dead doors at
+# once — the retired node.PostMessage wire (bsc's vendored Roku types model
+# PostMessage only on roRenderThreadQueue, whose receive path AddMessageHandler
+# ships nowhere here; no onMessage special is modeled at any arity; the repo's
+# seven Task components ride field observers, not onMessage) plus the silent
+# pre-attach drop (r1 ask 3) — and strips the root observer wiring, renaming
+# the receiver arm back to onMessage. The r1 display machinery (Dialog base,
+# queue, timer, close/wasClosed) stays untouched: gate-class proof that R7
+# alone convicts the dispatch path. CHECK49 R7 must name source/lib/
+# ToastManager.brs (re-grown PostMessage; vanished guard/payload/trigger
+# writes; silent-drop return re-grown; vanished Push + drain-assign) and
+# components/PhlixApp.brs (re-grown onMessage; stripped ObserveField wiring;
+# vanished dispatch arm), with CHECK49 R1/R6 territory held green and
+# CHECK47/CHECK48/CHECK50/CHECK51 gate independence; restore returns exit 0
+# (falsifiability).
 RED49B_ROOT="$TEST_ROOT/red49b"
 mkdir -p "$RED49B_ROOT"
 cp -a "$TEST_ROOT/repo" "$RED49B_ROOT/repo"
@@ -1599,16 +1606,22 @@ python3 - "$RED49B_ROOT/repo" <<'PYEOF'
 import sys, os
 repo = sys.argv[1]
 
-app = os.path.join(repo, "components/PhlixApp.brs")
-text = open(app, encoding="utf-8").read()
-needle = "sub onMessage(messageType as String, data as Object)"
-assert text.count(needle) == 1, "CHECK49 R7 plant: the dispatch contract shape drifted"
-text = text.replace(needle, "sub onMessage(msg as Object)", 1)
-open(app, "w", encoding="utf-8").write(text)
-
 tm = os.path.join(repo, "source/lib/ToastManager.brs")
 text = open(tm, encoding="utf-8").read()
-needle = """                if m._scene = invalid then
+needle = (
+    '                if not target.DoesExist("toastSeq") then return\n'
+    "                target.toastMessage = message\n"
+    "                target.toastDuration = durationMs\n"
+    "                target.toastSeq = target.toastSeq + 1\n"
+)
+assert text.count(needle) == 1, "CHECK49 r2 plant: the observed-field dispatch shape drifted"
+dead = (
+    '                content = CreateObject("roSGNode", "ContentNode")\n'
+    "                content.title = message\n"
+    '                target.PostMessage("showToast", content)\n'
+)
+text = text.replace(needle, dead, 1)
+qneedle = """                if m._scene = invalid then
                     if m._pending.Count() >= m.MAX_PENDING then
                         dropped = m._pending.Shift()
                         print "Toast pre-attach queue overflow (cap " m.MAX_PENDING ") - dropped oldest notice:" dropped.text
@@ -1616,35 +1629,59 @@ needle = """                if m._scene = invalid then
                     m._pending.Push({ text: message, duration: durationMs })
                     return
                 end if"""
-assert text.count(needle) == 1, "CHECK49 R7 plant: the pre-attach queue shape drifted"
-text = text.replace(needle, "                if m._scene = invalid then return", 1)
+assert text.count(qneedle) == 1, "CHECK49 r2 plant: the pre-attach queue shape drifted"
+text = text.replace(qneedle, "                if m._scene = invalid then return", 1)
 open(tm, "w", encoding="utf-8").write(text)
+
+app = os.path.join(repo, "components/PhlixApp.brs")
+text = open(app, encoding="utf-8").read()
+needle = '    m.top.ObserveField("toastSeq", "OnToastNotice")\n'
+assert text.count(needle) == 1, "CHECK49 r2 plant: the root observer wiring shape drifted"
+text = text.replace(needle, "", 1)
+needle = "sub OnToastNotice(event as Object)\n"
+assert text.count(needle) == 1, "CHECK49 r2 plant: the dispatch arm shape drifted"
+text = text.replace(needle, "sub onMessage(msg as Object)\n", 1)
+open(app, "w", encoding="utf-8").write(text)
 PYEOF
 set +e
 RED49B_OUT=$(bash "$RED49B_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
 RED49B_RC=$?
 set -e
-[ "$RED49B_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the M-ROKU-17r2 dead door is re-planted (got 0 — CHECK49 R7 is toothless)"
-sed -n '/=== Check 49:/,$p' <<<"$RED49B_OUT" | grep -qF 'components/PhlixApp.brs - CHECK49 R7' ||
-	fail "CHECK49 R7 red must name components/PhlixApp.brs on the single-arg door re-plant (got: $RED49B_OUT)"
-sed -n '/=== Check 49:/,$p' <<<"$RED49B_OUT" | grep -qF 'source/lib/ToastManager.brs - CHECK49 R7' ||
-	fail "CHECK49 R7 red must name source/lib/ToastManager.brs on the silent-drop re-plant (got: $RED49B_OUT)"
+[ "$RED49B_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the dead dispatch and silent-drop doors are re-planted (got 0 — the CHECK49 R7 guard is toothless)"
+sed -n '/=== Check 49:/,$p' <<<"$RED49B_OUT" | grep -qF 'source/lib/ToastManager.brs - CHECK49 R7: node.PostMessage is re-grown' ||
+	fail "CHECK49 R7 must name source/lib/ToastManager.brs on the re-grown PostMessage (got: $RED49B_OUT)"
+sed -n '/=== Check 49:/,$p' <<<"$RED49B_OUT" | grep -qF "CHECK49 R7: the alwaysNotify trigger bump is gone" ||
+	fail "CHECK49 R7 must convict the vanished toastSeq trigger bump in ToastManager (got: $RED49B_OUT)"
+sed -n '/=== Check 49:/,$p' <<<"$RED49B_OUT" | grep -qF "CHECK49 R7: the silent pre-attach drop guard is back" ||
+	fail "CHECK49 R7 must convict the re-grown silent pre-attach drop (got: $RED49B_OUT)"
+sed -n '/=== Check 49:/,$p' <<<"$RED49B_OUT" | grep -qF "CHECK49 R7: pre-attach queue/drain needle 'm._pending.Push' is gone" ||
+	fail "CHECK49 R7 must convict the vanished pre-attach queue push (got: $RED49B_OUT)"
+sed -n '/=== Check 49:/,$p' <<<"$RED49B_OUT" | grep -qF 'components/PhlixApp.brs - CHECK49 R7: the root'\''s observer wiring is gone' ||
+	fail "CHECK49 R7 must name components/PhlixApp.brs on the stripped ObserveField wiring (got: $RED49B_OUT)"
+sed -n '/=== Check 49:/,$p' <<<"$RED49B_OUT" | grep -qF 'components/PhlixApp.brs - CHECK49 R7: the retired onMessage catch-all is re-grown' ||
+	fail "CHECK49 R7 must name components/PhlixApp.brs on the re-grown onMessage receiver (got: $RED49B_OUT)"
+sed -n '/=== Check 49:/,$p' <<<"$RED49B_OUT" | grep -qF "CHECK49 R7: the dispatch arm sub vanished" ||
+	fail "CHECK49 R7 must convict the vanished OnToastNotice dispatch arm (got: $RED49B_OUT)"
 ! grep -qF 'CHECK49 R1' <<<"$RED49B_OUT" ||
-	fail "the R7 plants must not touch CHECK49 R1 territory - the ComponentController extinction pins (found: $RED49B_OUT)"
-! grep -qF 'CHECK49 R6' <<<"$RED49B_OUT" ||
-	fail "the R7 plants must not touch CHECK49 R6 territory - the GetParent root walk pins (found: $RED49B_OUT)"
+	fail "the r2 plants must not touch CHECK49 R1 territory - the ComponentController extinction pins (found: $RED49B_OUT)"
+! sed -n '/=== Check 49:/,$p' <<<"$RED49B_OUT" | grep -qF 'CHECK49 R6' ||
+	fail "the r2 plants must not touch CHECK49 R6 territory - the GetParent root walk pins (found: $RED49B_OUT)"
 sed -n '/=== Check 47:/,/=== Check 48:/p' <<<"$RED49B_OUT" | grep -qF "CHECK47: bootstrap scenes never consume Back" ||
-	fail "Check 47 must stay PASS while Check 49 R7 is red (gate independence)"
+	fail "Check 47 must stay PASS while the CHECK49 r2 dispatch plant is red (gate independence)"
 sed -n '/=== Check 48:/,/=== Check 49:/p' <<<"$RED49B_OUT" | grep -qF "CHECK48: credentialed sends decide redirects" ||
-	fail "Check 48 must stay PASS while Check 49 R7 is red (gate independence)"
-cp "$FAKE_REPO/components/PhlixApp.brs" "$RED49B_ROOT/repo/components/PhlixApp.brs"
+	fail "Check 48 must stay PASS while the CHECK49 r2 dispatch plant is red (gate independence)"
+sed -n '/=== Check 50:/,/=== Check 51:/p' <<<"$RED49B_OUT" | grep -qF "CHECK50: host pause/seek/resume, joins, host elections, errors and" ||
+	fail "Check 50 must stay PASS while the CHECK49 r2 dispatch plant is red (gate independence - the r1 display machinery is untouched by this plant)"
+sed -n '/=== Check 51:/,$p' <<<"$RED49B_OUT" | grep -qF "CHECK51: session-expired, access-schedule and stream-limit overlay copy" ||
+	fail "Check 51 must run and stay green while the CHECK49 r2 dispatch plant is red (gate independence)"
 cp "$FAKE_REPO/source/lib/ToastManager.brs" "$RED49B_ROOT/repo/source/lib/ToastManager.brs"
+cp "$FAKE_REPO/components/PhlixApp.brs" "$RED49B_ROOT/repo/components/PhlixApp.brs"
 set +e
 GREEN49B_OUT=$(bash "$RED49B_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
 GREEN49B_RC=$?
 set -e
-[ "$GREEN49B_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after both M-ROKU-17r2 plants are removed (got $GREEN49B_RC)"
-assert_contains "the two-arg onMessage dispatch contract and the pre-attach queue drain" "$GREEN49B_OUT"
+[ "$GREEN49B_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after the r2 dispatch plants are restored (got $GREEN49B_RC)"
+assert_contains "fiction stays extinct repo-wide and the pre-attach queue drain" "$GREEN49B_OUT"
 # --- CHECK50 plant (M-ROKU-19, review roku__gameux M4): the watch-party
 # attribution class. The plant re-grows TWO cured defect forms: the banner
 # label node losing its id in the markup (R1 — ShowPartyNotice would write to
@@ -1831,4 +1868,4 @@ set -e
 [ "$VX_RESTORE_RC" -eq 0 ] || fail "validate-xml must return to exit 0 after the malformed plant is removed (got $VX_RESTORE_RC): $VX_RESTORE_OUT"
 assert_contains "XML validation passed" "$VX_RESTORE_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 + 37-39 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + Check 20 dotted-key red leg (planted Translate(\"player.playback_error\") -> CHECK20 fired naming file, dotted key and underscore suggestion with CHECKs 21-26 green; plant removed -> exit 0, falsifiability proven) + Check 39 rsg_version red leg+restore (planted rsg_version=7.0 + stripped rationale comment -> CHECK39 fired R2 naming the illegal value and R4, with the sibling manifest readers CHECK18/CHECK38 stayed green — gate independence; cured manifest restored -> exit 0, falsifiability proven) + M-ROKU-08 aggregation red leg+restore (planted CHECK1 violation in leg 1 -> exit non-zero with the violation printed and CHECK20/21/39 gates stayed green — single-sink accumulator, re-zeroing any cured-range leg reddens this leg; plant removed -> exit 0) + Check 40 dead-design red leg+restore (planted unreachable function + ghost documented flag -> CHECK40 fired R1 and R2 naming both plants, with CHECK18/CHECK39 gate independence; cured script restored -> exit 0 — designed-but-dead versioning machinery can no longer accumulate silently) + Check 41 signing-honesty red leg+restore (planted the phantom password-env claim, the rename-into-.pkg fallback and a hardcoded PKG_VERSION default into a scratch package-signed.sh plus an un-provisioned package-signed stub job into a scratch package.yml -> CHECK41 fired R1/R2/R3/R4 naming each plant, with CHECK18/CHECK40 gate independence; cured files restored -> exit 0 — a mislabeled 'signed' artifact or a phantom-secret claim cannot return silently) + Check 42 channel-identity/diagnostics red leg+restore (stripping one send-site X-Phlix-Client-Version header, planting the \"1.0.1\" About literal and retargeting the multi-line block onto the non-wrapping statusLabel -> CHECK42 fired R1/R2/R6 naming each plant, with CHECK41/CHECK20 gate independence; cured files restored -> exit 0 — retail-user version visibility cannot silently regress) + Check 43 wire-text type-guard red leg+restore (planted all five arms into a scratch DetailScene — raw resp.error lift, resp.data.message literal-compare, lcase(env.message), the \"Server error: \" + resp.error concat and the IsTransportReason(resp.error) typed-sink call -> CHECK43 fired all five arms naming file, rule and read, with CHECK26/CHECK41 gate independence; plant removed -> exit 0 — hostile untyped wire text cannot re-enter a render-path String operation silently, and no path stays exempt from the law) + Check 44 dial-completion red leg+restore (stripping the hub-relay mint X-Phlix-Client-Version AddHeader in a scratch copy -> CHECK44 fired R1 naming components/HubCommandTask.brs, with CHECK42 gate independence; cured file restored -> exit 0 — the WebSocket/relay version disclosure cannot silently regress) + Check 45 content-id shape-gate red leg+restore (re-planting the era invalid/empty relay guard into a scratch PhlixApp and re-fattening the scratch main.brs launch validator into the printable loop fired CHECK45 R2/R4 naming files and rules, with CHECK43/CHECK44 gate independence; cured files restored -> exit 0 — a malformed content id can never silently re-enter the authenticated path-injection class) + Check 46 SyncPlay origin/accept red leg+restore (stripping the PlayerScene origin choke, neutralising the SyncPlayTask accept verification and stripping the accept parser's blank-line stop in a scratch copy fired CHECK46 R1/R2 naming all three files — including the r1 MAJOR-1 body-spoof tooth — with CHECK44/CHECK45 gate independence; cured files restored -> exit 0 — the main account JWT can never silently re-ride a cleartext handshake behind a TLS origin, a forged 101 without accept proof can never re-enter session scope, and a body line can never silently impersonate a header again) + Check 47 bootstrap-Back/boot-retry red leg+restore (re-swallowing Back in a scratch ConnectScene and returning the boot chrome to the trap era — no SetFocus, per-error re-observe — fired CHECK47 R1 and R2 naming the scene and each defect, with CHECK46/CHECK44 gate independence; both plants restored -> exit 0 — a signed-out user can never again be trapped by a disabled Back on the first screens met, and a visible Retry can never again be unpressable) + Check 49 toast-display red leg+restore (re-extending the overlay onto Scene with phantom chrome, re-growing the ToastScene.brs mechanics script, re-planting the ComponentController display write + stripping the wasClosed drain observer, and unwiring the PlayerScene scope singleton fired CHECK49 R1/R2/R3/R4/R6 naming each plant, with CHECK47/CHECK48 gate independence; all plants restored -> exit 0 — the ambient-feedback layer can never again silently address a fabricated node, nor a scope's notices die at an unwired singleton) + Check 50 party-attribution red leg+restore (orphaning the banner label id in a scratch PlayerScene.xml and stripping the pause-arm NotifyPartyEvent call in a scratch PlayerScene.brs fired CHECK50 R1 and R3 naming each file, with CHECK46/CHECK48 gate independence; both plants restored -> exit 0 — host-driven transport changes and party events can never again run silent mid-playback, and the attribution banner can never be re-nested behind the panel) + Check 49 R7 dispatch-door/pre-attach-drain red legs+restore (re-planting the single-arg onMessage signature and the silent pre-attach drop into a scratch copy fired CHECK49 R7 naming components/PhlixApp.brs and source/lib/ToastManager.brs respectively, with CHECK49 R1/R6 territory held green and CHECK47/CHECK48 gate independence; both plants removed -> exit 0 — the queue can no longer sit behind a door the platform never calls, and a notice raised before setScene can no longer vanish silently) + Check 51 live-error i18n red leg+restore (re-growing the raw session-expired sentence over the Translate write in a scratch PlayerScene.brs fired CHECK51 R1 and R2 naming the file and the fragment, with CHECK20/CHECK50 gate independence; restore -> exit 0 — the three highest-stakes player-facing error messages can never again silently leave the locale catalog) + validate-xml zero-file-guard legs (real components/ green with count; empty scratch root -> \"discovered ZERO XML files\" red; missing root -> \"does not exist\" red; planted malformed XML -> named red, removed -> exit 0) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 + 37-39 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + Check 20 dotted-key red leg (planted Translate(\"player.playback_error\") -> CHECK20 fired naming file, dotted key and underscore suggestion with CHECKs 21-26 green; plant removed -> exit 0, falsifiability proven) + Check 39 rsg_version red leg+restore (planted rsg_version=7.0 + stripped rationale comment -> CHECK39 fired R2 naming the illegal value and R4, with the sibling manifest readers CHECK18/CHECK38 stayed green — gate independence; cured manifest restored -> exit 0, falsifiability proven) + M-ROKU-08 aggregation red leg+restore (planted CHECK1 violation in leg 1 -> exit non-zero with the violation printed and CHECK20/21/39 gates stayed green — single-sink accumulator, re-zeroing any cured-range leg reddens this leg; plant removed -> exit 0) + Check 40 dead-design red leg+restore (planted unreachable function + ghost documented flag -> CHECK40 fired R1 and R2 naming both plants, with CHECK18/CHECK39 gate independence; cured script restored -> exit 0 — designed-but-dead versioning machinery can no longer accumulate silently) + Check 41 signing-honesty red leg+restore (planted the phantom password-env claim, the rename-into-.pkg fallback and a hardcoded PKG_VERSION default into a scratch package-signed.sh plus an un-provisioned package-signed stub job into a scratch package.yml -> CHECK41 fired R1/R2/R3/R4 naming each plant, with CHECK18/CHECK40 gate independence; cured files restored -> exit 0 — a mislabeled 'signed' artifact or a phantom-secret claim cannot return silently) + Check 42 channel-identity/diagnostics red leg+restore (stripping one send-site X-Phlix-Client-Version header, planting the \"1.0.1\" About literal and retargeting the multi-line block onto the non-wrapping statusLabel -> CHECK42 fired R1/R2/R6 naming each plant, with CHECK41/CHECK20 gate independence; cured files restored -> exit 0 — retail-user version visibility cannot silently regress) + Check 43 wire-text type-guard red leg+restore (planted all five arms into a scratch DetailScene — raw resp.error lift, resp.data.message literal-compare, lcase(env.message), the \"Server error: \" + resp.error concat and the IsTransportReason(resp.error) typed-sink call -> CHECK43 fired all five arms naming file, rule and read, with CHECK26/CHECK41 gate independence; plant removed -> exit 0 — hostile untyped wire text cannot re-enter a render-path String operation silently, and no path stays exempt from the law) + Check 44 dial-completion red leg+restore (stripping the hub-relay mint X-Phlix-Client-Version AddHeader in a scratch copy -> CHECK44 fired R1 naming components/HubCommandTask.brs, with CHECK42 gate independence; cured file restored -> exit 0 — the WebSocket/relay version disclosure cannot silently regress) + Check 45 content-id shape-gate red leg+restore (re-planting the era invalid/empty relay guard into a scratch PhlixApp and re-fattening the scratch main.brs launch validator into the printable loop fired CHECK45 R2/R4 naming files and rules, with CHECK43/CHECK44 gate independence; cured files restored -> exit 0 — a malformed content id can never silently re-enter the authenticated path-injection class) + Check 46 SyncPlay origin/accept red leg+restore (stripping the PlayerScene origin choke, neutralising the SyncPlayTask accept verification and stripping the accept parser's blank-line stop in a scratch copy fired CHECK46 R1/R2 naming all three files — including the r1 MAJOR-1 body-spoof tooth — with CHECK44/CHECK45 gate independence; cured files restored -> exit 0 — the main account JWT can never silently re-ride a cleartext handshake behind a TLS origin, a forged 101 without accept proof can never re-enter session scope, and a body line can never silently impersonate a header again) + Check 47 bootstrap-Back/boot-retry red leg+restore (re-swallowing Back in a scratch ConnectScene and returning the boot chrome to the trap era — no SetFocus, per-error re-observe — fired CHECK47 R1 and R2 naming the scene and each defect, with CHECK46/CHECK44 gate independence; both plants restored -> exit 0 — a signed-out user can never again be trapped by a disabled Back on the first screens met, and a visible Retry can never again be unpressable) + Check 49 toast-display red leg+restore (re-extending the overlay onto Scene with phantom chrome, re-growing the ToastScene.brs mechanics script, re-planting the ComponentController display write + stripping the wasClosed drain observer, and unwiring the PlayerScene scope singleton fired CHECK49 R1/R2/R3/R4/R6 naming each plant, with CHECK47/CHECK48 gate independence; all plants restored -> exit 0 — the ambient-feedback layer can never again silently address a fabricated node, nor a scope's notices die at an unwired singleton) + Check 50 party-attribution red leg+restore (orphaning the banner label id in a scratch PlayerScene.xml and stripping the pause-arm NotifyPartyEvent call in a scratch PlayerScene.brs fired CHECK50 R1 and R3 naming each file, with CHECK46/CHECK48 gate independence; both plants restored -> exit 0 — host-driven transport changes and party events can never again run silent mid-playback, and the attribution banner can never be re-nested behind the panel) + Check 49 R7 dispatch plant red leg+restore (re-growing the retired node.PostMessage wire + the silent pre-attach drop and stripping the root observer wiring and receiver arm fired CHECK49 R7 naming source/lib/ToastManager.brs and components/PhlixApp.brs across ten convictions, with CHECK49 R1/R6 territory held green and CHECK47/CHECK48/CHECK50/CHECK51 gate independence; both plants removed -> exit 0 — an undocumented node-messaging door can never re-dispatch the queue, and a notice raised before setScene can never again vanish silently) + Check 51 live-error i18n red leg+restore (re-growing the raw session-expired sentence over the Translate write in a scratch PlayerScene.brs fired CHECK51 R1 and R2 naming the file and the fragment, with CHECK20/CHECK50 gate independence; restore -> exit 0 — the three highest-stakes player-facing error messages can never again silently leave the locale catalog) + validate-xml zero-file-guard legs (real components/ green with count; empty scratch root -> \"discovered ZERO XML files\" red; missing root -> \"does not exist\" red; planted malformed XML -> named red, removed -> exit 0) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"

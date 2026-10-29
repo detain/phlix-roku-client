@@ -92,7 +92,7 @@ sub Init()
     m.toastManager.setScene(m.top)
 
     ' M-ROKU-17: toast coordinator state (the coordinator subs live just
-    ' below onMessage). The
+    ' below OnToastNotice). The
     ' queue gives every ambient notice its own screen time in FIFO order;
     ' activeToast names the Dialog we currently own (invalid when none),
     ' the shared root-attached timer runs under a single purpose flag, and
@@ -105,6 +105,13 @@ sub Init()
     m.toastTimerPurpose = ""
     m.toastRetryArmed = false
     m.toastRetryTicks = 0
+    ' M-ROKU-17 r2 (review roku__gameux M17r1 CRITICAL-1): wire the dispatch
+    ' arm on the root's own observed interface fields - the self-write
+    ' idiom CollectionScene ships for requestClose
+    ' (m.top.ObserveField("requestClose", "OnChildRequestClose") fired by
+    ' m.top.requestClose = true). Producers reach these fields through the
+    ' documented GetParent chain (see source/lib/ToastManager.brs).
+    m.top.ObserveField("toastSeq", "OnToastNotice")
 
     ' R6.3: Capture cold-launch deep-link params passed from main.brs.
     ' Stored so they can be processed after the auth flow completes.
@@ -1039,49 +1046,40 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
     return handled
 end function
 
-' R3.4: Handle messages from child nodes (e.g., showToast from ToastManager)
-'
-' M-ROKU-17 cure (review roku__gameux M2): the pre-fix arm ended in
-' m.top.ComponentController.Dialog = toast - a fabricated node path (SGDEX
-' vocabulary; no ComponentController ever existed in this component set, the
-' sole repo-wide occurrence), so every ambient notice landed on invalid and
-' the channel's degraded-state feedback was invisible. The cure rides the
-' vanilla RSG dialog idiom the estate already ships (SettingsScene's
-' m.top.dialog = dialog, Utilities' ShowErrorDialog): the notice is queued to
-' the root coordinator below and displayed as a built-in-Dialog-derived node
-' through the current surface's real dialog field.
-'
-' M-ROKU-17r2: PostMessage dispatches through the PLATFORM contract
-' onMessage(messageType as String, data as Object). The kept single-arg arm
-' was still a dead door: msg bound the String "showToast", the assoc probe
-' never passed, messageType stayed "" and the coordinator below stayed
-' unreachable while every static gate stayed green. The arm now declares the
-' contract and CHECK49 R7 pins it. Boundary law (ROKU-12/CHECK43): the node's
-' title crosses through WireErrorText and its duration through an integer
-' type() probe, so the newly-visible path admits no unguarded value whatever
-' a future poster carries.
-sub onMessage(messageType as String, data as Object)
-    if messageType <> "showToast" then return
-
-    content = data
-    if type(content) <> "roSGNode" then return
-
-    text = WireErrorText(content.title, "")
-    if text = "" then return
-
+' M-ROKU-17 r2 (review roku__gameux M17r1 CRITICAL-1): the dispatch arm.
+' ToastManager.deliver() - running in any consumer scope - walks the
+' documented GetParent chain to this root node, writes toastMessage/
+' toastDuration and bumps the alwaysNotify toastSeq trigger; the render-
+' thread ObserveField wiring in Init above routes the bump here (the repo's
+' proven channel: the requestClose arms deliver child -> coordinator exactly
+' this way, and ShowErrorDialog observes wasClosed with named subs on a
+' freshly created node). The R3.4 node.PostMessage -> onMessage pair is
+' DELETED, not re-signatured: it is no articulable RokuOS node contract -
+' bsc's vendored Roku types (brighterscript/dist/roku-types/data.json) model
+' PostMessage exactly once, on roRenderThreadQueue (receive via
+' AddMessageHandler, used nowhere in this channel), no onMessage special is
+' modeled at all, and none of this repo's seven Task components rides one;
+' the r1 review convicted the single-arg arm and the 689b475 two-arg re-arm
+' inherits the same unmodeled door, so under either signature every notice
+' died at the wire while the display machinery below sat unreachable.
+' Boundary law (ROKU-12/CHECK43): the declared field types carry the String/
+' Integer typing, and the duration is additionally bounded 0 < d <= 30000 -
+' an out-of-range or unset (0) value falls back to the default, whatever a
+' future writer posts. Copy stays app-side static end to end.
+sub OnToastNotice(event as Object)
+    text = m.top.toastMessage
+    if text = invalid or text = "" then return
     durMs = 3000
-    raw = content.duration
-    if type(raw) = "roInt" or type(raw) = "roInteger" or type(raw) = "roLong" then
-        if raw > 0 and raw <= 30000 then durMs = raw
-    end if
+    if m.top.toastDuration > 0 and m.top.toastDuration <= 30000 then durMs = m.top.toastDuration
     EnqueueToast(text, durMs)
 end sub
 
 ' ===========================================
 ' M-ROKU-17 toast coordinator (the root scene owns the display queue)
 '
-' ToastManager posts "showToast" from any scope; the root scene is the
-' channel's sole onMessage coordinator (R3.4 design, grep-confirmed). The
+' ToastManager delivers on the observed toastSeq channel from any scope;
+' the root scene is the channel's sole toast coordinator (OnToastNotice
+' above). The
 ' queue gives each ambient notice its full screen time in FIFO order and
 ' never tramples a scene-owned modal: while the current surface's dialog
 ' field is busy, the queue re-probes on a bounded retry tick.
