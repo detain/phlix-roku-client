@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+### Fixed — the M-ROKU-17 pipeline's dispatch door opens: two-arg onMessage contract, pre-attach queue drain (M-ROKU-17r2) — 2026-10-29
+
+- **The defect the landing left.** The sibling M-ROKU-17 cure (`7942e66`,
+  disk-audited by this lane) rebuilt the display half correctly — Dialog-
+  derived overlay, root coordinator, real `dialog` field, loud capped
+  queue — but kept `sub onMessage(msg as Object)`. PostMessage dispatches
+  through the platform contract `onMessage(messageType as String, data as
+  Object)`: `msg` bound the STRING "showToast", the `roAssociativeArray`
+  probe never passed, `messageType` stayed empty and every notice died at
+  the door — the r1 headline ("the toast pipeline cannot display") still
+  lived at origin tip while CHECK49 stayed green (its rules pinned the
+  coordinator, never the signature). The manager kept the second dead
+  joint too: `if m._scene = invalid then return` — a silent permanent drop
+  for any notice raised before its scope's `setScene` (r1 ask 3).
+- **The cure.** The arm now declares the contract: gate on
+  `messageType = "showToast"`, `type()`-guard the payload node, extract the
+  text through the shipped `WireErrorText` leaf and the duration through an
+  integer probe with sane bounds (ROKU-12/CHECK43 law applied at the
+  newly-visible boundary — today's posters are static app copy, the guard
+  holds the door for the next caller). `ToastManager` gained the pre-attach
+  queue `_pending` (cap 10, drop-OLDEST with a loud dev print — never
+  silent) and `setScene` drains it FIFO into the unchanged `deliver`
+  (the GetParent root walk moves into `deliver` verbatim, so their R6
+  needles survive). Zero permanent drops on the normal path.
+- **The teeth.** CHECK49 R7 (scripts/verify-runtime.sh) pins the signature
+  literal, the guarded arm (gate, roSGNode probe, WireErrorText, integer
+  probe, EnqueueToast) and the queue/drain pair — with the silent-drop
+  guard forbidden outright. It is RED on `7942e66` (the dead door) and both
+  plants fire in the portable harness's new RED49b family (single-arg
+  re-plant names PhlixApp.brs; silent-drop re-plant names
+  ToastManager.brs; CHECK49 R1/R6 territory and Checks 47/48 hold green —
+  gate independence; restore returns exit 0). Docs row and this entry
+  carry the truth; the architecture the sibling shipped is untouched.
 ### Fixed — watch-party events are now attributed on screen while watching (M-ROKU-19) — 2026-10-29
 
 - **The defect (review roku__gameux M4).** Every SyncPlay event surfaced only on

@@ -20,14 +20,21 @@ function GetToastManager()
         m._toastManager = {
             _toasts: [],
             _scene: invalid,
+            _pending: [],
+            MAX_PENDING: 10,
 
             setScene: function(scene as Object) as Void
+                ' M-ROKU-17r2 (r1 ask 3): wiring a scene drains whatever
+                ' queued during the pre-attach window, in FIFO order.
                 m._scene = scene
+                queued = m._pending
+                m._pending = []
+                for each entry in queued
+                    m.deliver(entry.text, entry.duration)
+                end for
             end function,
 
-            show: function(message as String, durationMs = 3000 as Integer) as Void
-                if m._scene = invalid then return
-
+            deliver: function(message as String, durationMs as Integer) as Void
                 ' Create toast content node
                 content = CreateObject("roSGNode", "ContentNode")
                 content.title = message
@@ -41,6 +48,26 @@ function GetToastManager()
                     parent = target.GetParent()
                 end while
                 target.PostMessage("showToast", content)
+            end function,
+
+            show: function(message as String, durationMs = 3000 as Integer) as Void
+                ' M-ROKU-17r2 (review roku__gameux M2, r1 ask 3): the silent
+                ' pre-attach drop is gone. A notice raised before this
+                ' scope's singleton is wired to a scene queues here (cap
+                ' MAX_PENDING, drop-OLDEST with a loud print - never silent)
+                ' and drains the moment setScene lands. The root coordinator
+                ' owns its own cap (5) above this door; the two are separate
+                ' bounds on separate queues.
+                if m._scene = invalid then
+                    if m._pending.Count() >= m.MAX_PENDING then
+                        dropped = m._pending.Shift()
+                        print "Toast pre-attach queue overflow (cap " m.MAX_PENDING ") - dropped oldest notice:" dropped.text
+                    end if
+                    m._pending.Push({ text: message, duration: durationMs })
+                    return
+                end if
+
+                m.deliver(message, durationMs)
             end function,
 
             showError: function(message as String) as Void

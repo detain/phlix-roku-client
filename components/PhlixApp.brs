@@ -1040,38 +1040,41 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 end function
 
 ' R3.4: Handle messages from child nodes (e.g., showToast from ToastManager)
-sub onMessage(msg as Object)
-    if msg = invalid then return
+'
+' M-ROKU-17 cure (review roku__gameux M2): the pre-fix arm ended in
+' m.top.ComponentController.Dialog = toast - a fabricated node path (SGDEX
+' vocabulary; no ComponentController ever existed in this component set, the
+' sole repo-wide occurrence), so every ambient notice landed on invalid and
+' the channel's degraded-state feedback was invisible. The cure rides the
+' vanilla RSG dialog idiom the estate already ships (SettingsScene's
+' m.top.dialog = dialog, Utilities' ShowErrorDialog): the notice is queued to
+' the root coordinator below and displayed as a built-in-Dialog-derived node
+' through the current surface's real dialog field.
+'
+' M-ROKU-17r2: PostMessage dispatches through the PLATFORM contract
+' onMessage(messageType as String, data as Object). The kept single-arg arm
+' was still a dead door: msg bound the String "showToast", the assoc probe
+' never passed, messageType stayed "" and the coordinator below stayed
+' unreachable while every static gate stayed green. The arm now declares the
+' contract and CHECK49 R7 pins it. Boundary law (ROKU-12/CHECK43): the node's
+' title crosses through WireErrorText and its duration through an integer
+' type() probe, so the newly-visible path admits no unguarded value whatever
+' a future poster carries.
+sub onMessage(messageType as String, data as Object)
+    if messageType <> "showToast" then return
 
-    messageType = ""
-    data = invalid
+    content = data
+    if type(content) <> "roSGNode" then return
 
-    ' Extract message type and data from the roSGNodeEvent-style assoc
-    if type(msg) = "roAssociativeArray" then
-        if msg.DoesExist("messageType") then messageType = msg.messageType
-        if msg.DoesExist("data") then data = msg.data
+    text = WireErrorText(content.title, "")
+    if text = "" then return
+
+    durMs = 3000
+    raw = content.duration
+    if type(raw) = "roInt" or type(raw) = "roInteger" or type(raw) = "roLong" then
+        if raw > 0 and raw <= 30000 then durMs = raw
     end if
-
-    if messageType = "showToast" then
-        content = data
-        if content = invalid then return
-        ' M-ROKU-17 cure (review roku__gameux M2): the pre-fix arm ended in
-        ' m.top.ComponentController.Dialog = toast - a fabricated node path
-        ' (SGDEX vocabulary; no ComponentController ever existed in this
-        ' component set, the sole repo-wide occurrence), so every ambient
-        ' notice landed on invalid and the channel's degraded-state feedback
-        ' was invisible. The cure rides the vanilla RSG dialog idiom the
-        ' estate already ships (SettingsScene's m.top.dialog = dialog,
-        ' Utilities' ShowErrorDialog): the notice is queued to the root
-        ' coordinator below and displayed as a built-in-Dialog-derived node
-        ' through the current surface's real dialog field. Text is app-side
-        ' static copy, String-typed at both hops (show's parameter, this
-        ' field read), so the newly-visible path admits no unguarded wire
-        ' text (ROKU-12/CHECK43 law intact).
-        durMs = 3000
-        if content.duration > 0 then durMs = content.duration
-        EnqueueToast(content.title, durMs)
-    end if
+    EnqueueToast(text, durMs)
 end sub
 
 ' ===========================================

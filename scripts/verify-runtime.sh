@@ -5967,6 +5967,13 @@ echo "=== Check 49: the toast pipeline displays via the built-in Dialog (M-ROKU-
 # show() walks GetParent to the root coordinator). Statically pinned below;
 # the pure-leaf-free joints are node-tree behavior, so the device harness
 # pins nothing new (venue: no ROKU_HOST in this lane — disclosed).
+# M-ROKU-17r2 addendum: the landing kept the single-arg onMessage arm — the
+# PostMessage dispatch door never opened (msg bound the String "showToast",
+# the assoc probe failed, the coordinator was unreachable, every rule above
+# stayed GREEN on a pipeline that could not display) — and the manager's
+# silent pre-attach drop. R7 pins the two-arg contract, the WireErrorText /
+# integer type() guards at the newly-visible boundary and the queue->drain;
+# the r2 plants live in the portable harness RED49 family.
 PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
@@ -6095,6 +6102,50 @@ if tm is not None:
             "the root coordinator, not the scope-stored (possibly nested) scene"
         )
 
+# ---- R7 dispatch contract + pre-attach drain (M-ROKU-17r2) ------------------
+# PostMessage hands the root scene the platform's
+# onMessage(messageType as String, data as Object); a single-Object arm binds
+# msg to the STRING type name and the whole coordinator rots unreachable.
+# R7 pins the contract, the type-guarded extraction inside the arm
+# (ROKU-12/CHECK43 law at the newly-visible boundary) and the manager-side
+# pre-attach queue - the silent-drop guard was the second dead door (r1
+# ask 3: zero permanent drops on the normal path, capped and loud on
+# overflow).
+if app is not None:
+    if "sub onMessage(messageType as String, data as Object)" not in app:
+        problems.append(
+            f"  {APP} - CHECK49 R7: the root handler does not declare the platform "
+            'onMessage(messageType as String, data as Object) contract — a single-arg '
+            'arm binds msg to the String "showToast" and the coordinator is unreachable'
+        )
+    else:
+        m7 = re.search(r"(?m)^sub onMessage\(messageType as String, data as Object\)\n(.*?)^end sub", app, re.S)
+        if m7 is None:
+            problems.append(f"  {APP} - CHECK49 R7: the contract arm's body could not be inspected")
+        else:
+            arm = m7.group(1)
+            for needle in (
+                'if messageType <> "showToast" then return',
+                'if type(content) <> "roSGNode" then return',
+                'WireErrorText(content.title',
+                'type(raw) = "roInt"',
+                'EnqueueToast(',
+            ):
+                if needle not in arm:
+                    problems.append(
+                        f"  {APP} - CHECK49 R7: the dispatch arm lost {needle!r} — the gate/"
+                        "guard/queue path is incomplete at the newly-visible boundary"
+                    )
+if tm is not None:
+    if "if m._scene = invalid then return" in tm:
+        problems.append(
+            f"  {TMGR} - CHECK49 R7: the silent pre-attach drop guard is back — a notice "
+            "raised before setScene must queue (capped, drop-oldest WITH print), not vanish"
+        )
+    for needle in ("_pending", "MAX_PENDING", "m._pending.Push", "queued = m._pending", "m.deliver("):
+        if needle not in tm:
+            problems.append(f"  {TMGR} - CHECK49 R7: pre-attach queue/drain needle {needle!r} is gone")
+
 if problems:
     for prob in problems:
         print(prob)
@@ -6106,6 +6157,8 @@ print("           current surface's dialog field; the root coordinator queues FI
 print("           drop-oldest with print), never tramples a scene modal (bounded 2s x 15")
 print("           retry), dismisses via the documented close/wasClosed pair on a root-")
 print("           attached timer, and every scope's ToastManager reaches it by GetParent")
+print("           the two-arg onMessage dispatch contract and the pre-attach queue drain")
+print("           stand (M-ROKU-17r2)")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
