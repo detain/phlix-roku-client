@@ -339,9 +339,16 @@ sub Teardown()
     if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
 end sub
 
-' Bubble requestClose from a child scene up to PhlixApp (which holds PopScreen).
-sub OnChildRequestClose()
-    m.top.requestClose = true
+' requestClose contract (docs/navigation.md): the OBSERVING parent removes the
+' child that raised the signal and takes focus back - the mirror of
+' PhlixApp.PopScreen. The old one-line bubble re-set this scene's own
+' requestClose, a signal that dies below HomeScene, leaving Back a silent
+' no-op on the Home-opened screens [review roku__casualgamer C1].
+sub OnChildRequestClose(event as Object)
+    child = event.GetNode()
+    if child = invalid or child.GetParent() <> m.top then return
+    m.top.RemoveChild(child)
+    m.top.SetFocus(true)
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean

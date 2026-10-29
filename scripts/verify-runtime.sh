@@ -2163,4 +2163,80 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 27: child-scene close is local removal, never a bubble-up ==="
+# Back-navigation law (C03, 2026-10-28): the requestClose contract (docs/
+# navigation.md) makes the OBSERVING parent remove the child scene that raised
+# the signal - the parent-side mirror of PhlixApp.PopScreen. Before this fix
+# every parent handler (22 files) re-bubbled m.top.requestClose = true instead;
+# the bubble died at HomeScene (whose requestClose is not even declared in
+# HomeScene.xml and is not observed by PhlixApp.ShowHome), so Back was a
+# silent no-op on every screen opened from Home. This check fails loud if the
+# bubble anti-pattern returns to any scene that owns a child-close handler:
+#   R1  every components/*.brs defining 'sub OnChildRequestClose' (except
+#       PhlixApp.brs, whose handler pops the screen stack) must take
+#       '(event as Object)' and remove the requesting child via RemoveChild.
+#   R2  no OnChildRequestClose body may set m.top.requestClose (that is the
+#       dead bubble; self-close signals belong in OnKeyEvent/OnBackPressed).
+#   R3  HomeScene.brs must never write m.top.requestClose - the field does
+#       not exist on its interface and nothing above observes it.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import glob, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO", ".")
+problems = []
+
+handler_re = re.compile(
+    r"^sub\s+OnChildRequestClose\s*(\(event as Object\)|\(\))\s*\n(.*?)^end sub",
+    re.MULTILINE | re.DOTALL)
+
+scanned = 0
+for path in sorted(glob.glob(os.path.join(repo, "components", "*.brs"))):
+    rel = os.path.relpath(path, repo)
+    src = open(path, encoding="utf-8").read()
+    if rel == os.path.join("components", "PhlixApp.brs"):
+        continue
+    for m in handler_re.finditer(src):
+        scanned += 1
+        sig, body = m.group(1), m.group(2)
+        if sig != "(event as Object)":
+            problems.append(
+                f"  {rel} - CHECK27: OnChildRequestClose lacks the event "
+                "parameter; it cannot identify the requesting child to "
+                "remove it")
+        if "RemoveChild(" not in body:
+            problems.append(
+                f"  {rel} - CHECK27: OnChildRequestClose never calls "
+                "RemoveChild; the requestClose contract requires the "
+                "observing parent to remove the child scene locally")
+        if re.search(r"m\.top\.requestClose\s*=\s*true", body):
+            problems.append(
+                f"  {rel} - CHECK27: OnChildRequestClose re-bubbles "
+                "m.top.requestClose = true; the bubble died below HomeScene "
+                "and made Back a no-op (C03 regression)")
+
+home = os.path.join(repo, "components", "HomeScene.brs")
+if os.path.exists(home):
+    for num, line in enumerate(open(home, encoding="utf-8"), 1):
+        if re.search(r"m\.top\.requestClose\s*=", line):
+            problems.append(
+                f"  components/HomeScene.brs:{num} - CHECK27: HomeScene "
+                "writes its own requestClose - the field is undeclared in "
+                "HomeScene.xml and unobserved above; the signal can only die")
+
+if problems:
+    for p in problems:
+        print(p)
+    print(f"  CHECK27: {len(problems)} back-navigation contract problem(s)")
+    sys.exit(1)
+
+print(f"  CHECK27: all {scanned} parent OnChildRequestClose handlers remove "
+      "the requesting child locally and never bubble; HomeScene never writes "
+      "an undeclared requestClose")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

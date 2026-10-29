@@ -157,9 +157,22 @@ sub ShowActions(userId as String, userName as String)
     scene.LoadUser(userId, name)
 end sub
 
-' Bubble requestClose from a child scene up to the parent.
-sub OnChildRequestClose()
-    m.top.requestClose = true
+' requestClose contract (docs/navigation.md): the OBSERVING parent removes the
+' child that raised the signal and takes focus back (mirror of PhlixApp.
+' PopScreen). The old bubble-up died below HomeScene - Back was a silent no-op
+' on every Home-opened screen [review roku__casualgamer C1]. Init also
+' self-observes this handler on m.top: when our OWN requestClose fires, our
+' parent owns the removal and we only tear down.
+sub OnChildRequestClose(event as Object)
+    child = event.GetNode()
+    if child = invalid then return
+    if child = m.top then
+        Teardown()
+        return
+    end if
+    if child.GetParent() <> m.top then return
+    m.top.RemoveChild(child)
+    m.top.SetFocus(true)
 end sub
 
 ' Pair every ObserveField with an UnObserveField so the scene does not leak.

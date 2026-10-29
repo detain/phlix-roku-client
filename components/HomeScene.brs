@@ -689,9 +689,18 @@ sub FocusHeaderZone()
     m.currentRail = "search"
 end sub
 
-' Bubble requestClose from a child scene up to PhlixApp (which holds PopScreen).
-sub OnChildRequestClose()
-    m.top.requestClose = true
+' requestClose contract (docs/navigation.md): the OBSERVING parent removes the
+' child scene that raised the signal and takes focus back — the Home-level
+' mirror of PhlixApp.PopScreen (which only manages stack-pushed deep-link
+' screens). The previous one-line bubble re-set HomeScene's own requestClose:
+' a field HomeScene.xml does not declare and PhlixApp.ShowHome does not
+' observe, so the signal died mid-chain and Back was a silent no-op on every
+' screen opened from Home [review roku__casualgamer C1].
+sub OnChildRequestClose(event as Object)
+    child = event.GetNode()
+    if child = invalid or child.GetParent() <> m.top then return
+    m.top.RemoveChild(child)
+    m.top.SetFocus(true)
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean

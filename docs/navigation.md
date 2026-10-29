@@ -74,6 +74,14 @@ m.top.requestClose = true
 is called automatically. This lets a child scene request removal **without**
 knowing its parent or having a reference to `PhlixApp`.
 
+Scenes opened from **HomeScene** (and every nested parent) are not on that stack:
+they are appended by their parent scene, which observes the child's `requestClose`
+and removes it locally (`event.GetNode()` + `RemoveChild` + `SetFocus`), the
+parent-side mirror of `PopScreen`. The signal is never re-bubbled upward —
+`scripts/verify-runtime.sh` CHECK27 fails loud on a bubble-style handler.
+Scenes that also self-observe their own `requestClose` treat a self-fired event
+as "our parent is removing us": they run their local `Teardown()` and return.
+
 `alwaysNotify="true"` ensures the observer fires even when the value is set to
 `true` multiple times (important for scenes that may set it during `Init`).
 
@@ -104,17 +112,15 @@ for this step to keep the diff reviewable.
 
 ## Known Limitations
 
-### Un-wired parent scenes (~13 remaining)
+### Back/Close contract (C03 — fixed 2026-10-28)
 
-Approximately 13 parent scenes (~21 `m.top.Append` calls) are **not yet wired** with an
-`ObserveField("requestClose", "OnChildRequestClose")` handler. Child scenes in those
-branches that call `m.top.requestClose = true` will have the signal silently ignored.
-
-Affected branches include:
-- `SearchScene` → `SeriesScene` / `SeasonScene` / `DetailScene`
-- And others listed in `CHANGELOG.md` under the R0.4 fix entry.
-
-This is a **pre-existing gap** — not a regression introduced by R0.4. R0.4 wired the
-8 primary parent scenes (HomeScene, FavoritesScene, MusicScene, AdminScene,
-CollectionsScene, DetailScene, LibraryAdminScene, LiveTvScene). Future work should
-wire the remaining branches.
+The parent-side removal above replaced the old bubble-up contract (C03,
+2026-10-28). Before that fix, every parent `OnChildRequestClose` handler
+re-bubbled `m.top.requestClose = true` and the chain silently died at
+HomeScene — Back was a no-op on every screen opened from Home, and the
+"un-wired parent scenes" gap listed here earlier was not a wiring gap at all
+but this dead bubble contract. All 22 parent handlers now remove the
+requesting child locally; `scripts/verify-runtime.sh` CHECK27 pins the law so
+a bubble-style handler cannot come back. Bootstrap scenes (Connect, Login,
+ServerPicker) still transition via their own events and remain outside the
+stack, as documented above.
