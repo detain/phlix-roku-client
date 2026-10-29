@@ -2,6 +2,53 @@
 
 ## [Unreleased]
 
+### Fixed — the toast pipeline displays via the shipped dialog mechanism (M-ROKU-17) — 2026-10-29
+
+- **The defect (review roku__gameux M2).** The R3.4 ambient-feedback layer was a
+  three-layer phantom — and the r1 round adjudicated its one "fix" a phantom too
+  (`934a322` is not an object anywhere; the defect re-verified live at `7541a10`):
+  the root `onMessage` showToast arm ended in `m.top.ComponentController.Dialog = toast` —
+  SGDEX vocabulary, no such node ever existed in the component set (sole occurrence
+  repo-wide), the assignment landed on invalid; the overlay `ToastScene` extended
+  `Scene`, which is not a legal `Scene.dialog` payload (Roku's Scene reference expects
+  "a node extended from a Dialog node"); and its script faked its mechanics — a Timer
+  created but never attached (timers only tick in the render tree), a Label
+  `visible="false"` never flipped, `m.top.close` writes (the built-in Dialog's dismiss
+  control, not a Scene field) and a fabricated OnKeyEvent. Delivery was dead too:
+  BrightScript `m` is per component-script-scope, so every including scope owns its own
+  ToastManager instance, and the only non-root consumer (`PlayerScene.SetProgressWarning`)
+  never called `setScene` — its singleton died at the invalid guard.
+- **The cure (riding the shipped idiom).** `ToastScene.xml` re-based onto
+  `extends="Dialog"` — zero children, zero literals (the notice text rides the inherited
+  title field); the phantom `ToastScene.brs` deleted. The root `PhlixApp` coordinator
+  gains an honest queue: FIFO cap 5, overflow drops the OLDEST with a loud dev print
+  (never silent); display through `target.dialog = toast` on the CURRENT surface
+  (topmost Scene-derived last-appended child — the OnConnected idiom, gated by
+  `DoesExist("dialog")`); a scene-owned modal is never trampled (busy surface: bounded
+  2s x 15-tick probe window, an expired queue drops WITH a print — zero permanent-drop
+  on the normal path); auto-dismiss and Back exit ride the documented `close`/`wasClosed`
+  pair on a shared Timer attached to the root scene (a Timer only ticks in the render
+  tree); `OnToastClosed` drains the queue and an `IsSameNode` identity guard discards
+  stale events from a reclaimed toast. `ToastManager.show()` now walks the documented
+  `GetParent()` chain to the root coordinator (there is NO `GetTop()` on roSGNode — that
+  is roSGScreen), and `PlayerScene` wires its scope's singleton (`toast.setScene(m.top)`).
+  The one notice string made visible today is static player-progress copy, String-typed
+  at both hops — the newly-visible path admits no unguarded wire text (ROKU-12/CHECK43
+  law intact), and locale law is untouched (zero new literals, zero catalog edits).
+- **The gate.** New CHECK49 leg in `scripts/verify-runtime.sh`: R1 keeps
+  ComponentController extinct repo-wide (comment-masked, so era prose may name the dead
+  defect); R2 pins `extends="Dialog"` byte-exactly and the phantom chrome (`toastLabel`,
+  "Toast text here") extinct; R3 requires `components/ToastScene.brs` to stay DELETED;
+  R4 pins the display write, the `wasClosed` drain observer and the `close` dismiss
+  write; R5 pins the coordinator shape (queue init, the EnqueueToast/TryShowToast/
+  ArmToastRetry trio, the cap-5 and 15-tick bounds, the root-attached `AppendChild
+  (m.toastTimer)`); R6 pins the PlayerScene wiring and the manager root walk. CHECK25's
+  stale Toast EXEMPT rotated out with the label that justified it (a stale exemption is
+  itself red). Red-on-parent MEASURED at `7541a10`: 17 named CHECK49 pins fire with
+  CHECK25 firing jointly (by design) and every other leg green; the full run exits 0 at
+  49 legs here. Portable harness: a four-file plant-and-restore leg fires CHECK49 R1/R2/
+  R3/R4/R6 naming each plant, CHECK47/CHECK48 gate independence, restore -> exit 0.
+
 ### Fixed — credential custody on the Connect/pair flow: consent-gated cleartext and self-decided redirects (M-ROKU-15) — 2026-10-29
 
 - **The defect (review roku__exploiter M4).** Three custody holes survived the

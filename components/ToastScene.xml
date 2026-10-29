@@ -1,19 +1,22 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<component name="ToastScene" extends="Scene">
-  <interface>
-    <field id="message" type="string" />
-    <field id="duration" type="integer" value="3000" />
-  </interface>
-  <children>
-    <Label id="toastLabel"
-           text="Toast text here"
-           color="#FFFFFF"
-           backgroundColor="#CC000000"
-           width="1280"
-           horizAlign="center"
-           vertAlign="bottom"
-           padding="20"
-           visible="false" />
-  </children>
-  <script uri="pkg:/components/ToastScene.brs" />
+<!-- @copyright 2026 Joe Huss <detain@interserver.net> -->
+<!-- @license   MIT -->
+
+<!-- M-ROKU-17 (review roku__gameux M2): the toast overlay, re-based onto
+     Roku's built-in Dialog node class. The pre-fix markup extended Scene,
+     which can never display: a Scene is not a legal Scene.dialog payload
+     (Roku's Scene reference: "setting this field to a node extended from a
+     Dialog node causes the dialog to be displayed"), the show write targeted
+     a fabricated ComponentController node, and the dismiss path wrote
+     m.top.close - the built-in Dialog's write-only dismiss control, not a
+     Scene field. As a Dialog subclass this node displays by the estate's
+     shipped dialog idiom (the PhlixApp root coordinator assigns it to the
+     current surface's dialog field), is dismissed by the documented close
+     control, and reports its exit via wasClosed; dialogs consume Back/Home
+     natively, so no key handling ships here. The notice text rides the
+     inherited title field (the only mandatory Dialog region) from the
+     caller's copy, so this markup ships no user-facing literals and stays
+     outside the CHECK25 translate net (its stale "Toast text here" EXEMPT
+     entry rotated out with the label). -->
+<component name="ToastScene" extends="Dialog">
 </component>

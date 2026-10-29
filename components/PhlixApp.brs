@@ -91,6 +91,21 @@ sub Init()
     m.toastManager = GetToastManager()
     m.toastManager.setScene(m.top)
 
+    ' M-ROKU-17: toast coordinator state (the coordinator subs live just
+    ' below onMessage). The
+    ' queue gives every ambient notice its own screen time in FIFO order;
+    ' activeToast names the Dialog we currently own (invalid when none),
+    ' the shared root-attached timer runs under a single purpose flag, and
+    ' the retry pair bounds the blocked-surface probe window (see
+    ' ArmToastRetry). All live on the root scene, which is always in the
+    ' render tree - a Timer only ticks while attached.
+    m.toastQueue = []
+    m.activeToast = invalid
+    m.toastTimer = invalid
+    m.toastTimerPurpose = ""
+    m.toastRetryArmed = false
+    m.toastRetryTicks = 0
+
     ' R6.3: Capture cold-launch deep-link params passed from main.brs.
     ' Stored so they can be processed after the auth flow completes.
     m.deepLinkParams = invalid
@@ -1039,11 +1054,164 @@ sub onMessage(msg as Object)
 
     if messageType = "showToast" then
         content = data
-        toast = CreateObject("roSGNode", "ToastScene")
-        toast.message = content.title
-        toast.duration = content.duration
-        m.top.ComponentController.Dialog = toast
+        if content = invalid then return
+        ' M-ROKU-17 cure (review roku__gameux M2): the pre-fix arm ended in
+        ' m.top.ComponentController.Dialog = toast - a fabricated node path
+        ' (SGDEX vocabulary; no ComponentController ever existed in this
+        ' component set, the sole repo-wide occurrence), so every ambient
+        ' notice landed on invalid and the channel's degraded-state feedback
+        ' was invisible. The cure rides the vanilla RSG dialog idiom the
+        ' estate already ships (SettingsScene's m.top.dialog = dialog,
+        ' Utilities' ShowErrorDialog): the notice is queued to the root
+        ' coordinator below and displayed as a built-in-Dialog-derived node
+        ' through the current surface's real dialog field. Text is app-side
+        ' static copy, String-typed at both hops (show's parameter, this
+        ' field read), so the newly-visible path admits no unguarded wire
+        ' text (ROKU-12/CHECK43 law intact).
+        durMs = 3000
+        if content.duration > 0 then durMs = content.duration
+        EnqueueToast(content.title, durMs)
     end if
+end sub
+
+' ===========================================
+' M-ROKU-17 toast coordinator (the root scene owns the display queue)
+'
+' ToastManager posts "showToast" from any scope; the root scene is the
+' channel's sole onMessage coordinator (R3.4 design, grep-confirmed). The
+' queue gives each ambient notice its full screen time in FIFO order and
+' never tramples a scene-owned modal: while the current surface's dialog
+' field is busy, the queue re-probes on a bounded retry tick.
+'   cap    5 queued notices; overflow drops the OLDEST (the fresher
+'          degraded-state signal is the one worth keeping) with a loud dev
+'          print - never a silent drop
+'   retry  2 s between probes, at most 15 probes (a 30 s window); an
+'          expired queue is dropped WITH a print - a notice that could not
+'          reach the screen in half a minute is stale by design
+'   normal zero permanent drops: an unblocked arrival displays in the
+'          same call
+' ===========================================
+sub EnqueueToast(text as String, durMs as Integer)
+    m.toastQueue.Push({text: text, durMs: durMs})
+    if m.toastQueue.Count() > 5 then
+        dropped = m.toastQueue.Shift()
+        print "Toast queue overflow (cap 5) - dropped oldest notice:" dropped.text
+    end if
+    TryShowToast()
+end sub
+
+sub TryShowToast()
+    ' A toast we still own is on screen; its wasClosed observer drains the
+    ' queue the moment it frees. A toast whose holder scene was popped
+    ' under us leaves a detached node and no closing event - reclaim the
+    ' state and fall through to display.
+    if m.activeToast <> invalid then
+        if m.activeToast.GetParent() <> invalid then return
+        m.activeToast = invalid
+        if m.toastTimer <> invalid then m.toastTimer.control = "stop"
+    end if
+    if m.toastQueue.Count() = 0 then return
+
+    target = CurrentToastSurface()
+    if target.dialog <> invalid then
+        ' The surface carries a dialog (ours would have been reclaimed
+        ' above; this is a scene-owned ShowErrorDialog modal): defer.
+        ArmToastRetry()
+        return
+    end if
+
+    notice = m.toastQueue.Shift()
+    toast = CreateObject("roSGNode", "ToastScene")
+    toast.title = notice.text
+    toast.ObserveField("wasClosed", "OnToastClosed")
+    m.activeToast = toast
+    target.dialog = toast
+    m.toastRetryTicks = 0
+    ArmToastDismiss(notice.durMs)
+end sub
+
+' CurrentToastSurface - the topmost visible scene node.
+' PushScreen and the Show* bootstrap methods append every screen as the
+' LAST child of the root (the same "last appended child" idiom OnConnected
+' uses to name them), so the last child is the visible surface whenever it
+' is Scene-derived - only Scene nodes carry the dialog field the toast
+' displays through. Boot-chrome children (Label/Group) fall through to the
+' root scene itself.
+function CurrentToastSurface() as Object
+    childCount = m.top.GetChildCount()
+    if childCount > 0 then
+        last = m.top.GetChild(childCount - 1)
+        if last.DoesExist("dialog") then return last
+    end if
+    return m.top
+end function
+
+sub ArmToastDismiss(durMs as Integer)
+    EnsureToastTimer()
+    m.toastTimerPurpose = "dismiss"
+    m.toastTimer.control = "stop"
+    m.toastTimer.duration = durMs / 1000
+    m.toastTimer.control = "start"
+end sub
+
+sub ArmToastRetry()
+    if m.toastRetryArmed then return
+    if m.toastRetryTicks >= 15 then
+        stale = m.toastQueue.Count()
+        m.toastQueue.Clear()
+        m.toastRetryTicks = 0
+        print "Toast retry window (30s) exhausted - dropped" stale "queued notice(s); the surface stayed modal"
+        return
+    end if
+    m.toastRetryArmed = true
+    m.toastRetryTicks = m.toastRetryTicks + 1
+    EnsureToastTimer()
+    m.toastTimerPurpose = "retry"
+    m.toastTimer.control = "stop"
+    m.toastTimer.duration = 2
+    m.toastTimer.control = "start"
+end sub
+
+' The timer node is a child of the ROOT scene - always in the render tree,
+' unlike the freshly-created toast (a Timer only ticks while attached; the
+' pre-fix ToastScene.brs CreateObject'd one and never parented it, so even
+' the imagined auto-dismiss could not fire). One purpose at a time: the
+' coordinator arms dismiss only while a toast is owned and retry only
+' while a queue is blocked.
+sub EnsureToastTimer()
+    if m.toastTimer <> invalid then return
+    m.toastTimer = CreateObject("roSGNode", "Timer")
+    m.top.AppendChild(m.toastTimer)
+    m.toastTimer.ObserveField("fire", "OnToastTimerFire")
+end sub
+
+sub OnToastTimerFire(event as Object)
+    if m.toastTimerPurpose = "retry" then
+        m.toastRetryArmed = false
+        TryShowToast()
+        return
+    end if
+    ' dismiss tick: close is the built-in Dialog's write-only dismiss
+    ' control - setting it dismisses the dialog regardless of value (Roku
+    ' Dialog reference). The wasClosed observer below then drains the
+    ' queue; the pre-fix script wrote the same field on a Scene, where it
+    ' is nothing at all.
+    if m.activeToast <> invalid then
+        m.activeToast.close = true
+    end if
+end sub
+
+' wasClosed is the Dialog's documented close event: it fires on the close
+' control, on Back/Home (dialogs consume both natively - this cure ships no
+' custom key handling), and when another dialog supersedes this one. The
+' identity guard ignores a stale event from a toast the coordinator has
+' already reclaimed (holder scene popped under us), so a late arrival can
+' never disarm the live toast's dismiss timer.
+sub OnToastClosed(event as Object)
+    if not event.GetNode().IsSameNode(m.activeToast) then return
+    m.activeToast = invalid
+    if m.toastTimer <> invalid then m.toastTimer.control = "stop"
+    TryShowToast()
 end sub
 
 ' ApplyXmlChrome - localize the XML chrome literals (titles/labels that

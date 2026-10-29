@@ -1,5 +1,19 @@
 ' R3.4: Generalized toast/notification system for background errors
 ' Singleton accessible via GetToastManager()
+'
+' M-ROKU-17 (review roku__gameux M2) scope law: BrightScript m is per
+' component-script-scope, so EVERY component that script-includes this file
+' owns its own manager instance — a scope must setScene(its m.top) before
+' show() delivers anything (this is why PlayerScene's progress warning was
+' silently dead: nobody ever wired that scope's singleton). Delivery always
+' lands on the root scene component, which is the channel's sole onMessage
+' coordinator; the stored scene only has to be a node in this channel's
+' tree, and the PostMessage below finds the root by walking the documented
+' GetParent chain (consumer scenes nest to arbitrary depth — PlayerScene
+' rides under DetailScene when pushed from there).
+' The pre-fix era posted straight to the stored scene; combined with the
+' fabricated ComponentController write in the root handler, the pipeline
+' could not display from any caller.
 
 function GetToastManager()
     if m._toastManager = invalid then
@@ -20,7 +34,13 @@ function GetToastManager()
                 content.duration = durationMs
 
                 ' Post to the scene's controller
-                m._scene.PostMessage("showToast", content)
+                target = m._scene
+                parent = target.GetParent()
+                while parent <> invalid
+                    target = parent
+                    parent = target.GetParent()
+                end while
+                target.PostMessage("showToast", content)
             end function,
 
             showError: function(message as String) as Void

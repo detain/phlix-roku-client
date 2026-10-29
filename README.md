@@ -688,7 +688,7 @@ phlix-roku/
 │   ├── PlayerScene.brs     # Video player (+ additive "Watch Together" SyncPlay overlay, opened with the "*"/Options key; gated, hub-disabled, ws:// only) (+ additive video-quality picker, opened with the Up key; server-A7-dependent, no-ops without a ladder) (+ additive Audio/Subtitles Settings panel, opened with the Down key; persists preferred_audio_track / preferred_subtitle_track)
 │   ├── SyncPlayTask.{xml,brs} # Long-lived Task running the SyncPlay ws:// socket off the render thread (roStreamSocket; RunSocket loop; flat syncplay_* frames)
 │   ├── HubCommandTask.{xml,brs} # Long-lived Task consuming hub relay pending_command / play_media frames (mints a relay token, Bearer on the RFC6455 handshake)
-│   ├── ToastScene.brs      # Toast/notification overlay driven by ToastManager
+│   ├── ToastScene.xml      # Toast overlay — Dialog-derived node shown via the current surface's dialog field (M-ROKU-17; queue/dismiss owned by the PhlixApp root coordinator, no script)
 │   ├── ConnectScene.brs    # First-run "Connect to server" screen (normalizes + probes /health, persists server_url, then proceeds to login)
 │   ├── LoginScene.brs      # Login screen (username/password only); after login probes GET /me/servers to detect hub vs direct
 │   └── ServerPickerScene.brs # Hub mode: "Choose a server" list (one-shot GET /me/servers); pick persists active_server_id → relay routing

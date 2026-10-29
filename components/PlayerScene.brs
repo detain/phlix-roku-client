@@ -969,8 +969,14 @@ sub SetProgressWarning(msg as String)
     ' Don't overwrite live SyncPlay status while the panel is open.
     if m.syncPanel <> invalid and m.syncPanel.visible then return
 
-    ' R3.4: Use generalized toast system
+    ' R3.4: Use generalized toast system. M-ROKU-17 (review roku__gameux
+    ' M2): BrightScript m is per component-script-scope, so this scope's
+    ' ToastManager singleton started life with no scene and dropped every
+    ' notice at the invalid guard (PhlixApp's Init was the only setScene
+    ' caller repo-wide). Hand it this scene; show() walks the parent chain
+    ' to the root coordinator that owns the showToast display arm.
     toast = GetToastManager()
+    toast.setScene(m.top)
     toast.showWarning(msg)
 
     ' Also update the status label if visible

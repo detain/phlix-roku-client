@@ -1912,9 +1912,6 @@ EXEMPT = {
         "\u2605": "decorative glyph, not text",
         "0.0/10": "numeric placeholder overwritten by data binding before "
                   "the badge ever renders"},
-    "components/ToastScene.xml": {
-        "Toast text here": "never rendered - visible=false and init replaces "
-                           "the text with m.top.message"},
 }
 
 # en_US value -> set of flattened keys carrying it (entity-decoded compare)
@@ -5939,6 +5936,176 @@ print("           refusal); the one server_url persist site sits behind a loud")
 print("           cleartext-consent dialog for remote http origins; inference, consent")
 print("           and hops share one host predicate; the seven catalogs speak both the")
 print("           refusal and the dialog; the unit suite pins every pure leaf")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+# ============================================================================
+echo "=== Check 49: the toast pipeline displays via the built-in Dialog (M-ROKU-17) ==="
+# TOAST DISPLAY LAW (M-ROKU-17, review roku__gameux M2; adjudicated against
+# the M-ROKU-17 r1 REWORK phantom). The R3.4 ambient-feedback layer was a
+# three-layer phantom: the show write targeted m.top.ComponentController.Dialog
+# (SGDEX vocabulary — no ComponentController ever existed in the component
+# set, so the assignment landed on invalid and every notice vanished); the
+# overlay extended Scene, which is not a legal Scene.dialog payload (Roku's
+# Scene reference expects "a node extended from a Dialog node"); and the
+# overlay script faked its mechanics (a Timer that was created but never
+# attached — timers only tick in the render tree — an invisible label, and
+# m.top.close writes, which is the built-in Dialog's dismiss control, not a
+# Scene field). Delivery was dead too: BrightScript m is per component-script-
+# scope, so ToastManager's "singleton" is one instance per including scope,
+# and the only non-root consumer never called setScene. Cure, riding the
+# estate's shipped dialog idiom (SettingsScene m.top.dialog = dialog;
+# Utilities ShowErrorDialog): ToastScene re-based onto the built-in Dialog,
+# displayed by the root coordinator through the CURRENT SURFACE's dialog
+# field (topmost Scene-derived last-appended child — the OnConnected idiom),
+# FIFO queue (cap 5, drop-oldest WITH print) that never tramples a scene-
+# owned modal (bounded 2s x 15 retry, expired queue dropped WITH print),
+# dismissal via the documented close/wasClosed pair on a ROOT-attached
+# timer, and per-scope delivery restored (PlayerScene wires its singleton;
+# show() walks GetParent to the root coordinator). Statically pinned below;
+# the pure-leaf-free joints are node-tree behavior, so the device harness
+# pins nothing new (venue: no ROKU_HOST in this lane — disclosed).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import glob, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+APP = "components/PhlixApp.brs"
+SCENE_XML = "components/ToastScene.xml"
+SCENE_BRS = "components/ToastScene.brs"
+PLAYER = "components/PlayerScene.brs"
+TMGR = "source/lib/ToastManager.brs"
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK49: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask_brs(text):
+    # BrightScript line comments (' to end of line) stripped — the pins match
+    # CODE, never era prose that legitimately names the dead defect (the
+    # CHECK47 masking precedent).
+    return re.sub(r"'[^\n]*", "", text)
+
+
+def mask_xml(text):
+    return re.sub(r"<!--.*?-->", "", text, flags=re.S)
+
+
+# ---- R1 the fabricated ComponentController write stays extinct -------------
+hits = sorted(
+    p for p in glob.glob("source/**/*.brs", recursive=True)
+    + glob.glob("components/**/*.xml", recursive=True)
+    + glob.glob("components/**/*.brs", recursive=True)
+    if "ComponentController" in mask_xml(mask_brs(open(p, encoding="utf-8", errors="replace").read()))
+)
+for h in hits:
+    problems.append(
+        f"  {h} - CHECK49 R1: ComponentController is back — no such node exists in this "
+        "component set; the toast display must ride the real Scene dialog field"
+    )
+
+# ---- R2 the overlay extends the built-in Dialog, phantom chrome extinct ----
+xml = read(SCENE_XML)
+if xml is None:
+    problems.append(f"  {SCENE_XML} - CHECK49 R2: the toast overlay component vanished")
+else:
+    xml = mask_xml(xml)
+    m = re.search(r'<component\s+name="ToastScene"\s+extends="([^"]+)"', xml)
+    if m is None or m.group(1) != "Dialog":
+        problems.append(
+            f"  {SCENE_XML} - CHECK49 R2: ToastScene extends "
+            f"{'?missing?' if m is None else m.group(1)!r} — only a node extended from the "
+            "built-in Dialog is a legal Scene.dialog payload; the Scene base was the defect"
+        )
+    for ghost in ("toastLabel", "Toast text here"):
+        if ghost in xml:
+            problems.append(
+                f"  {SCENE_XML} - CHECK49 R2: the pre-fix chrome ({ghost}) is back — the "
+                "notice text rides the inherited Dialog title field; this markup ships no literals"
+            )
+
+# ---- R3 the phantom-mechanics script stays deleted --------------------------
+if os.path.exists(SCENE_BRS):
+    problems.append(
+        f"  {SCENE_BRS} - CHECK49 R3: the fabricated overlay script is re-grown — its Timer "
+        "was never attached, its label never visible, and m.top.close is not a Scene field; "
+        "dismissal now rides the Dialog close/wasClosed pair owned by the root coordinator"
+    )
+
+# ---- R4 the display + dismiss arms ride real fields -------------------------
+app = read(APP)
+if app is not None:
+    app = mask_brs(app)
+    if "target.dialog = toast" not in app:
+        problems.append(
+            f"  {APP} - CHECK49 R4: the dialog display write is gone — the coordinator must "
+            "assign the toast to the current surface's dialog field (the estate idiom)"
+        )
+    if 'toast.ObserveField("wasClosed", "OnToastClosed")' not in app:
+        problems.append(
+            f"  {APP} - CHECK49 R4: the wasClosed drain observer is gone — without it a "
+            "dismissed or Back-closed toast never hands the surface to the next queued notice"
+        )
+    if "m.activeToast.close = true" not in app:
+        problems.append(
+            f"  {APP} - CHECK49 R4: the documented Dialog close control write is gone — "
+            "auto-dismiss regressed to a phantom"
+        )
+
+    # ---- R5 the queue coordinator keeps its bounded, loud shape -------------
+    for needle, why in (
+        ("m.toastQueue = []", "queue state initialized in Init"),
+        ("sub EnqueueToast(", "enqueue arm"),
+        ("if m.toastQueue.Count() > 5 then", "FIFO cap 5 with drop-oldest"),
+        ("sub TryShowToast(", "drain arm"),
+        ("sub ArmToastRetry(", "bounded blocked-surface retry"),
+        ("m.toastRetryTicks >= 15", "30 s retry window (15 x 2 s)"),
+        ("m.top.AppendChild(m.toastTimer)",
+         "dismiss/retry timer attached to the ROOT scene (a Timer only ticks in the render tree)"),
+    ):
+        if needle not in app:
+            problems.append(f"  {APP} - CHECK49 R5: {why} is gone ({needle!r})")
+
+# ---- R6 per-scope delivery restored ------------------------------------------
+pl = read(PLAYER)
+if pl is not None and "toast.setScene(m.top)" not in mask_brs(pl):
+    problems.append(
+        f"  {PLAYER} - CHECK49 R6: the progress-warning scope unwired its ToastManager "
+        "singleton again — per-script-scope m means show() dies at the invalid guard without it"
+    )
+tm = read(TMGR)
+if tm is not None:
+    tm = mask_brs(tm)
+    if "while parent <> invalid" not in tm or "target.GetParent()" not in tm:
+        problems.append(
+            f"  {TMGR} - CHECK49 R6: the GetParent root walk is gone — showToast must reach "
+            "the root coordinator, not the scope-stored (possibly nested) scene"
+        )
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK49: %d toast-display pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK49: the toast overlay is a built-in-Dialog node displayed through the")
+print("           current surface's dialog field; the root coordinator queues FIFO (cap 5,")
+print("           drop-oldest with print), never tramples a scene modal (bounded 2s x 15")
+print("           retry), dismisses via the documented close/wasClosed pair on a root-")
+print("           attached timer, and every scope's ToastManager reaches it by GetParent")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
