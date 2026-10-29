@@ -196,16 +196,14 @@ sub Teardown()
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean
-    handled = false
-
-    if press then
-        if key = "back" then
-            ' No back-out before a server is chosen (keep it simple - eat back).
-            handled = true
-        end if
-    end if
-
-    return handled
+    ' M-ROKU-16 (review roku__gameux M1): the "keep it simple - eat back" trap
+    ' is deleted. Back on this screen must behave exactly like Back on every
+    ' other bootstrap surface: consumed nowhere here, it bubbles to
+    ' PhlixApp.OnKeyEvent, which at the empty stack raises exitChannel for a
+    ' clean main.brs exit (CHECK31; docs/navigation.md root-back law). A
+    ' disabled Back is a certification blocker, not a simplification.
+    ' Pinned by CHECK47 R1 (bootstrap OnKeyEvent must not consume back).
+    return false
 end function
 
 ' ApplyXmlChrome - localize the XML chrome literals (titles/labels that

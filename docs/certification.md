@@ -63,7 +63,7 @@ exclusive behavior; 1.3 is declared for certification, not capability.
 |---|-------------|--------|-------|
 | 3.1 | All remote keys handled (including instantreplay, info) | PASS | R6.9: instantreplay, info implemented; intervals corrected |
 | 3.2 | Transport key intervals follow convention | PASS | R6.9: rewind/fastforward=30s, left/right=10s |
-| 3.3 | Back button exits channel from root | PASS | M-ROKU-01: OnKeyEvent consumes back at empty stack and raises exitChannel; main() returns (CHECK31) |
+| 3.3 | Back button exits channel from root | PASS | M-ROKU-01: OnKeyEvent consumes back at empty stack and raises exitChannel; main() returns (CHECK31). M-ROKU-16: the bootstrap screens (Connect/Login/ServerPicker) no longer eat Back — their handlers never consume it, so the press bubbles to that exit arm (CHECK47 R1); a bootstrap screen that disabled Back would re-trap a signed-out user |
 | 3.4 | Focus does not steal from user | PASS | R5.10: HomeScene.SetFocus only on first load |
 | 3.5 | Trickplay thumbnails on scrub | FAIL | R6.10: Server provides sprite sheets, Roku requires BIF format |
 | 3.6 | Channel icon appears correctly in Roku UI | FAIL | R6.2: All image assets are placeholder sizes (166B-6917B) |

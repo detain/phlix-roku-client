@@ -196,6 +196,10 @@ cp "$REAL_REPO/source/lib/AppContext.brs" "$FAKE_REPO/source/lib/AppContext.brs"
 # single source and the docs/debugging.md support story: both ride along.
 cp "$REAL_REPO/source/lib/ApiClient.brs" "$FAKE_REPO/source/lib/ApiClient.brs"
 cp "$REAL_REPO/docs/debugging.md" "$FAKE_REPO/docs/debugging.md"
+# Check 47 (M-ROKU-16) R3 pins the bootstrap Back law docs truth —
+# docs/navigation.md + docs/certification.md join the stage list.
+cp "$REAL_REPO/docs/navigation.md" "$FAKE_REPO/docs/navigation.md"
+cp "$REAL_REPO/docs/certification.md" "$FAKE_REPO/docs/certification.md"
 # Check 44 (M-ROKU-11 completion) pins the task-thread version leaf in
 # source/lib/SyncPlayProtocol.brs (the two task components ride via cp -a).
 cp "$REAL_REPO/source/lib/SyncPlayProtocol.brs" "$FAKE_REPO/source/lib/SyncPlayProtocol.brs"
@@ -291,6 +295,11 @@ assert_contains "CHECK45: content-id allowlist" "$POSITIVE_OUT"
 # origin/accept law must run green in the CI layout too.
 assert_contains "=== Check 46:" "$POSITIVE_OUT"
 assert_contains "CHECK46: https origins refuse the plaintext :8097 dial" "$POSITIVE_OUT"
+# M-ROKU-16: Check 47 inputs (the four bootstrap scenes and the PhlixApp
+# boot chrome ride the whole-components cp -a; the two docs join the stage
+# list), so the bootstrap Back law must run green in the CI layout too.
+assert_contains "=== Check 47:" "$POSITIVE_OUT"
+assert_contains "CHECK47: bootstrap scenes never consume Back" "$POSITIVE_OUT"
 
 # --- locale resolution: simulate the device selecting a ja_JP-style locale ---
 # LoadLocaleStrings normalizes roAppInfo.GetCurrentLocale() with .Trim().
@@ -1328,6 +1337,66 @@ GREEN46_RC=$?
 set -e
 [ "$GREEN46_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after all three planted SyncPlay defects are removed (got $GREEN46_RC)"
 assert_contains "CHECK46: https origins refuse the plaintext :8097 dial" "$GREEN46_OUT"
+# --- CHECK47 plant (M-ROKU-16): re-swallow Back in a scratch ConnectScene and
+# return the boot chrome to the trap era (no SetFocus + per-error ObserveField
+# in ShowBootError). Both classes must be named (R1/R2), the adjacent gates
+# stay green (independence), and full restore returns exit 0.
+RED47_ROOT="$TEST_ROOT/red47"
+mkdir -p "$RED47_ROOT"
+cp -a "$TEST_ROOT/repo" "$RED47_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$RED47_ROOT/phlix-server"
+export RED47_REPO="$RED47_ROOT/repo"
+python3 - <<'PYEOF'
+import os
+repo = os.environ["RED47_REPO"]
+cs = os.path.join(repo, "components/ConnectScene.brs")
+text = open(cs, encoding="utf-8").read()
+needle = "pinned by CHECK47 R1.\n    return false\nend function"
+assert text.count(needle) == 1, "CHECK47 plant: ConnectScene pass-through shape drifted"
+trap = ("pinned by CHECK47 R1.\n"
+        "    handled = false\n\n"
+        "    if press then\n"
+        "        if key = \"back\" then\n"
+        "            handled = true\n"
+        "        end if\n"
+        "    end if\n\n"
+        "    return handled\nend function")
+open(cs, "w", encoding="utf-8").write(text.replace(needle, trap, 1))
+
+pa = os.path.join(repo, "components/PhlixApp.brs")
+text = open(pa, encoding="utf-8").read()
+needle = ("    if m.bootRetryButton <> invalid then\n"
+          "        m.bootRetryButton.SetFocus(true)\n"
+          "    end if\nend sub")
+assert text.count(needle) == 1, "CHECK47 plant: ShowBootError focus arm shape drifted"
+plant = ("    if m.bootRetryButton <> invalid then\n"
+         "        m.bootRetryButton.ObserveField(\"buttonSelected\", \"OnBootRetryButton\")\n"
+         "    end if\nend sub")
+open(pa, "w", encoding="utf-8").write(text.replace(needle, plant, 1))
+PYEOF
+set +e
+RED47_OUT=$(bash "$RED47_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+RED47_RC=$?
+set -e
+[ "$RED47_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the bootstrap Back trap and the unfocusable retry chrome are re-planted (got 0 — the CHECK47 guard is toothless)"
+sed -n '/=== Check 47:/,$p' <<<"$RED47_OUT" | grep -qF 'components/ConnectScene.brs - CHECK47 R1' ||
+	fail "CHECK47 red must fire R1 and name components/ConnectScene.brs on the re-swallowed back (got: $RED47_OUT)"
+sed -n '/=== Check 47:/,$p' <<<"$RED47_OUT" | grep -qF 'CHECK47 R2: ShowBootError no longer SetFocus' ||
+	fail "CHECK47 red must fire R2 on the stripped focus (got: $RED47_OUT)"
+sed -n '/=== Check 47:/,$p' <<<"$RED47_OUT" | grep -qF 'CHECK47 R2: ShowBootError observes fields again' ||
+	fail "CHECK47 red must fire R2 on the re-planted per-error observer (got: $RED47_OUT)"
+sed -n '/=== Check 46:/,/=== Check 47:/p' <<<"$RED47_OUT" | grep -qF "CHECK46: https origins refuse the plaintext :8097 dial" ||
+	fail "Check 46 must stay PASS while Check 47 is red (gate independence)"
+sed -n '/=== Check 44:/,/=== Check 45:/p' <<<"$RED47_OUT" | grep -qF "CHECK44: relay mint + handshake map" ||
+	fail "Check 44 must stay PASS while Check 47 is red (gate independence)"
+cp "$FAKE_REPO/components/ConnectScene.brs" "$RED47_ROOT/repo/components/ConnectScene.brs"
+cp "$FAKE_REPO/components/PhlixApp.brs" "$RED47_ROOT/repo/components/PhlixApp.brs"
+set +e
+GREEN47_OUT=$(bash "$RED47_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+GREEN47_RC=$?
+set -e
+[ "$GREEN47_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after both planted bootstrap-Back defects are removed (got $GREEN47_RC)"
+assert_contains "CHECK47: bootstrap scenes never consume Back" "$GREEN47_OUT"
 
 # --- negative: audiobook dropped from the ENUM comment -> exit != 0 + CHECK14
 export FAKE_REPO

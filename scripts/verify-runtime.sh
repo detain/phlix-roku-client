@@ -5559,4 +5559,155 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo ""
+echo "=== Check 47: bootstrap scenes never consume Back; the boot-retry button is focusable (M-ROKU-16) ==="
+# Bootstrap Back law (review roku__gameux M1, fix M-ROKU-16). ConnectScene,
+# LoginScene and ServerPickerScene each shipped a deliberate Back trap
+# (OnKeyEvent consumed the press with handled = true — comments said "Don't
+# allow backing out"). A signed-out user — whose FIRST screen is one of these
+# three — could not leave the channel except via Home or power: certification
+# requires Back to be never-disabled, and docs/navigation.md's own root-back
+# law (M-ROKU-01/CHECK31) already promises "One Back from Home — or from any
+# other bootstrap screen — exits cleanly". The traps made that claim false.
+# Cure: the three scenes no longer consume anything (their OnKeyEvent bodies
+# carry NO "back" branch; the press bubbles to PhlixApp.OnKeyEvent, whose
+# stack-bottom arm raises exitChannel and ends main()). Compounding half of
+# the finding: ShowBootError displayed the Retry button without ever
+# SetFocus'ing it — buttonSelected needs focus + OK, so after a 20s boot
+# timeout the visible control was unpressable — and it re-ObserveField'd the
+# button on every error (m5: duplicate handlers). Cure: the observer is wired
+# exactly once in Init; ShowBootError focuses the button.
+#   R1  no bootstrap-scene OnKeyEvent body (comments masked) mentions "back"
+#       at all — HomeScene included, since its back pass-through is the
+#       precedent the cure mirrors; a re-grown trap on ANY of the four
+#       dead-ends users the same way.
+#   R2  PhlixApp boot chrome: ShowBootError focuses bootRetryButton and
+#       performs no ObserveField (the re-observe era is extinct); Init owns
+#       the single buttonSelected wiring.
+#   R3  docs truth: navigation.md names the bootstrap no-consume law by
+#       CHECK47, and certification.md's 3.3 row carries M-ROKU-16 (the
+#       shipped scope now covers the bootstrap screens, not just the root).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+SCENES = [
+    "components/ConnectScene.brs",
+    "components/LoginScene.brs",
+    "components/ServerPickerScene.brs",
+    "components/HomeScene.brs",
+]
+APP = "components/PhlixApp.brs"
+NAV = "docs/navigation.md"
+CERT = "docs/certification.md"
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK47: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(code):
+    out = []
+    for line in code.splitlines():
+        t = line.strip()
+        if t.startswith("'") or t.startswith("Rem") or t.startswith("rem "):
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
+def body(code, kind, name):
+    m = re.search(rf"{kind}\s+{name}\b[\s\S]*?\bend\s+{kind}\b", code)
+    return m.group(0) if m else None
+
+
+# ---- R1 no bootstrap scene consumes Back -------------------------------
+for path in SCENES:
+    src = read(path)
+    if src is None:
+        continue
+    b = body(mask(src), "function", "OnKeyEvent")
+    if b is None:
+        # The handler may also be deleted entirely (also a pass-through).
+        if body(mask(src), "sub", "OnKeyEvent") is not None:
+            problems.append(f"  {path} - CHECK47 R1: sub-form OnKeyEvent found — the pin parses the function form")
+        continue
+    if re.search(r'key\s*=\s*"back"', b) or re.search(r'"back"\s*=\s*key', b):
+        problems.append(
+            f'  {path} - CHECK47 R1: OnKeyEvent branches on "back" again — bootstrap Back must bubble '
+            "to PhlixApp.OnKeyEvent (the CHECK31 exit arm); a scene-level back branch is the trap era "
+            "(review roku__gameux M1)"
+        )
+
+# ---- R2 boot-retry chrome: focused, wired once --------------------------
+app = read(APP)
+if app is not None:
+    acode = mask(app)
+    b = body(acode, "sub", "ShowBootError")
+    if b is None:
+        problems.append(f"  {APP} - CHECK47 R2: ShowBootError is gone")
+    else:
+        if "m.bootRetryButton.SetFocus(true)" not in b:
+            problems.append(
+                "  components/PhlixApp.brs - CHECK47 R2: ShowBootError no longer SetFocus'es the retry "
+                "button — an unfocused Button cannot raise buttonSelected (visible-but-unpressable era)"
+            )
+        if "ObserveField(" in b:
+            problems.append(
+                "  components/PhlixApp.brs - CHECK47 R2: ShowBootError observes fields again — the "
+                "per-error re-observe accumulated duplicate buttonSelected handlers (m5); Init owns the wiring"
+            )
+    b = body(acode, "sub", "Init")
+    if b is None:
+        problems.append(f"  {APP} - CHECK47 R2: Init is gone")
+    else:
+        if 'm.bootRetryButton.ObserveField("buttonSelected", "OnBootRetryButton")' not in b:
+            problems.append(
+                "  components/PhlixApp.brs - CHECK47 R2: Init no longer wires bootRetryButton "
+                "buttonSelected exactly once"
+            )
+
+# ---- R3 docs truth ------------------------------------------------------
+nav = read(NAV)
+if nav is not None:
+    if "CHECK47" not in nav:
+        problems.append(f"  {NAV} - CHECK47 R3: navigation.md does not name the bootstrap no-consume law (CHECK47)")
+cert = read(CERT)
+if cert is not None:
+    row = None
+    for line in cert.splitlines():
+        if line.startswith("| 3.3 "):
+            row = line
+            break
+    if row is None:
+        problems.append(f"  {CERT} - CHECK47 R3: certification.md lost its 3.3 Back row")
+    elif "M-ROKU-16" not in row:
+        problems.append(f"  {CERT} - CHECK47 R3: certification.md 3.3 still claims the root alone (M-ROKU-16 scope missing)")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK47: %d bootstrap-Back/boot-retry pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK47: bootstrap scenes never consume Back (all four bubble to the CHECK31 exit")
+print("           arm); the boot-retry button is focused on display and its buttonSelected")
+print("           observer is wired once in Init; navigation.md and certification.md carry")
+print("           the shipped scope")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

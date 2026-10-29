@@ -76,6 +76,16 @@ sub Init()
     m.bootErrorGroup = m.top.FindNode("bootErrorGroup")
     m.bootErrorLabel = m.top.FindNode("bootErrorLabel")
     m.bootRetryButton = m.top.FindNode("bootRetryButton")
+    ' M-ROKU-16 (review roku__gameux M1/m5): wire the retry button EXACTLY
+    ' ONCE, here, where the node is resolved. ShowBootError used to
+    ' ObserveField("buttonSelected") on every error display, so repeated
+    ' retries accumulated duplicate handlers. The button is a static child of
+    ' the root scene, so boot-time wiring is the natural single owner;
+    ' ShowBootError now only focuses the button (focus + OK is what raises
+    ' buttonSelected — an unfocused Button is visible but unpressable).
+    if m.bootRetryButton <> invalid then
+        m.bootRetryButton.ObserveField("buttonSelected", "OnBootRetryButton")
+    end if
 
     ' R3.4: Initialize toast manager
     m.toastManager = GetToastManager()
@@ -202,9 +212,16 @@ sub ShowBootError(msg as String)
             m.bootErrorLabel.text = msg
         end if
     end if
-    ' Wire retry button so timeout-triggered AND manually-shown errors both retry
+    ' M-ROKU-16 (review roku__gameux M1): move focus onto the retry Button.
+    ' The pre-fix display showed the error chrome with no SetFocus anywhere,
+    ' and buttonSelected requires focus + OK — after a 20s boot timeout the
+    ' "Retry" control was visible but NOT pressable from the remote. This is
+    ' the C20-era focus law at the boot surface: the control the user is
+    ' expected to act on receives focus when it appears. The buttonSelected
+    ' observer is wired once in Init (no per-error re-observe, m5 cure).
+    ' Timeout-triggered AND manually-shown errors both land on a live Retry.
     if m.bootRetryButton <> invalid then
-        m.bootRetryButton.ObserveField("buttonSelected", "OnBootRetryButton")
+        m.bootRetryButton.SetFocus(true)
     end if
 end sub
 

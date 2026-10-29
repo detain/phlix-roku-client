@@ -2,6 +2,42 @@
 
 ## [Unreleased]
 
+### Fixed — bootstrap screens never consume Back; the boot-retry button is focusable and wired once (M-ROKU-16) — 2026-10-29
+
+- **The defect (review roku__gameux M1 + m5).** ConnectScene, LoginScene and
+  ServerPickerScene each ate the Back press deliberately (`handled = true` —
+  "Don't allow backing out"), so a signed-out user — whose first surface is
+  one of these three — had no escape but Home or power. Certification requires
+  Back to be never-disabled, and docs/navigation.md's own root-back law
+  (M-ROKU-01/CHECK31) already promised "One Back from Home — or from any other
+  bootstrap screen — exits cleanly": the traps made the repo's own sentence
+  false. Compounding on the boot chrome: `ShowBootError` revealed the Retry
+  button but never `SetFocus`'d it (`buttonSelected` requires focus + OK, so
+  after a 20 s boot timeout the visible control was unpressable), and it
+  re-`ObserveField`'d `buttonSelected` on every display, accumulating duplicate
+  handlers with each retry.
+- **The cure.** The three scenes' `OnKeyEvent` bodies carry no `"back"` branch
+  at all — they return false, and the press bubbles to `PhlixApp.OnKeyEvent`,
+  whose stack-bottom arm raises `exitChannel` for the clean `main()` end
+  (exactly the HomeScene precedent, which never had a back branch). The
+  buttonSelected observer moves to `Init` (wired exactly once; the static
+  button outlives every error cycle), and `ShowBootError` now ends with
+  `m.bootRetryButton.SetFocus(true)` — the C20-era focus law applied at the
+  boot surface.
+- **Teeth.** New CHECK47 leg in `scripts/verify-runtime.sh`: R1 convicts any
+  `OnKeyEvent` body of the four bootstrap scenes that branches on `"back"`
+  (comments masked; HomeScene included so the precedent cannot regrow a trap);
+  R2 pins `ShowBootError`'s focus arm + zero `ObserveField(` and Init's single
+  wiring; R3 pins the docs scope (navigation.md names the law by CHECK47,
+  certification.md 3.3 carries M-ROKU-16). Red-on-parent MEASURED: the new
+  script against the era tree `39380e3` — exit 1, exactly 8 named problems
+  (R1 ×3 scene traps, R2 ×3 chrome pins — missing focus, the per-error re-observe and
+  Init's absent single-wiring are the same era read three ways — R3 ×2 docs not yet
+  carrying the law), all 46 sibling legs green. Portable plant-and-restore leg:
+  re-swallowing Back in a scratch ConnectScene and returning the chrome to the
+  trap era fire R1/R2 by name with CHECK46/CHECK44 green (gate independence);
+  restore returns exit 0.
+
 ### Fixed — SecWebSocketAcceptValue truncates at the CRLF blank line (M-ROKU-14 r1 MAJOR-1) — 2026-10-29
 
 - **The defect (r1 review of `4240ad2`).** The accept parser's header-block

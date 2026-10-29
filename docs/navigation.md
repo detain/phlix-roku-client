@@ -116,6 +116,19 @@ exit (review roku__casualgamer M2). The shipped law (M-ROKU-01, CHECK31):
 library has no creatable `roApp.Exit()`). One Back from Home — or from any other
 bootstrap screen — exits cleanly with no intermediate black frame.
 
+For that promise to hold **on the bootstrap screens**, those screens must not eat the
+press. ConnectScene, LoginScene and ServerPickerScene each shipped a Back trap
+(`handled = true`, no-op — "Don't allow backing out") that made the sentence above
+false for exactly the screens a signed-out user meets first (review roku__gameux M1;
+certification requires Back to be never-disabled). The cure (M-ROKU-16): a bootstrap
+scene's `OnKeyEvent` never consumes Back — it returns false so the press bubbles to
+`PhlixApp.OnKeyEvent` and the stack-bottom exit arm fires. `scripts/verify-runtime.sh`
+CHECK47 pins this (R1: no `OnKeyEvent` body of Connect/Login/ServerPicker/Home mentions
+`"back"` at all) alongside the boot-retry focus law (R2: `ShowBootError` SetFocus'es
+the retry button — visible-but-unpressable controls are the same dead-end class — and
+the `buttonSelected` observer is wired exactly once in `Init`), and the docs-scope
+truth (R3).
+
 ## Architectural Note: Nested Scenes
 
 All 42 child components in this channel `extend="Scene"` and are added as children

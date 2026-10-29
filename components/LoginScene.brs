@@ -232,16 +232,15 @@ sub HideStatus()
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean
-    handled = false
-
-    if press then
-        if key = "back" then
-            ' Don't allow back from login screen
-            handled = true
-        end if
-    end if
-
-    return handled
+    ' M-ROKU-16 (review roku__gameux M1): Back is never disabled here. The old
+    ' arm swallowed the press, so a user on the login screen could not leave
+    ' the channel except via Home/power — a certification violation and a
+    ' contradiction of docs/navigation.md, whose root-back law already covers
+    ' every bootstrap screen. Returning false bubbles the press to
+    ' PhlixApp.OnKeyEvent: at the empty stack it raises exitChannel and
+    ' main.brs exits cleanly, no black dead-screen in between (CHECK31).
+    ' Pinned by CHECK47 R1 (bootstrap OnKeyEvent must not consume back).
+    return false
 end function
 
 ' ApplyXmlChrome - localize the XML chrome literals (titles/labels that

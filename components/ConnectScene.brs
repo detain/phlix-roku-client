@@ -351,16 +351,15 @@ sub Teardown()
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean
-    handled = false
-
-    if press then
-        if key = "back" then
-            ' Don't allow backing out of the connect screen (no server yet).
-            handled = true
-        end if
-    end if
-
-    return handled
+    ' M-ROKU-16 (review roku__gameux M1): Back is never disabled here. The old
+    ' arm consumed the press as a no-op ("Don't allow backing out"), trapping
+    ' a signed-out user inside the channel — Roku certification requires Back
+    ' to always work, and docs/navigation.md's root-back law already promises
+    ' one-Back clean exit from EVERY bootstrap screen. We refuse to consume:
+    ' returning false bubbles the press to PhlixApp.OnKeyEvent, whose
+    ' stack-bottom arm raises exitChannel and ends main() (CHECK31). The
+    ' no-consume law for the bootstrap scenes is pinned by CHECK47 R1.
+    return false
 end function
 
 ' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
