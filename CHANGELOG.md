@@ -2,6 +2,59 @@
 
 ## [Unreleased]
 
+### Fixed — manifest rsg_version 7.0 fiction cured to the legal cert value 1.3 + CHECK39 (M-ROKU-07) — 2026-10-29
+
+- **The defect (review roku__crossfe M3).** The manifest declared
+  `rsg_version=7.0` since the R6.1 manifest "fix". That is not a legal value:
+  per the live channel-manifest docs (developer.roku.com, retrieved
+  2026-10-29) `rsg_version` "Sets the SceneGraph observer callback model" and
+  its documented value space is 1.0/1.1/1.2/1.3 — "7.0" conflated the key with
+  RSG's component-library package version. Devices silently IGNORE unknown
+  values and run the firmware default (1.2 as of Roku OS 9.3), so the line was
+  a false-comfort knob no vendored tool could flag: brighterscript's
+  RokuConstants treats unknown-but-semver values as valid by design (the exit
+  was `node_modules/.../brighterscript/dist/RokuConstants.js:11-39`). And the
+  knob the channel thought it had turned is a certification requirement that
+  expired while the fiction sat: "You must set this parameter to
+  rsg_version=1.3 by October 1, 2026, to continue passing certification
+  testing" (same page; vendored tooling corroborates — Roku's static-analysis
+  cert tool requires 1.3 at minFirmware 15.1.0+). The maybe-cured C33 (9ff4a6d)
+  was the README docs-truth lane — it never touched the manifest: red-on-parent
+  re-proven at 0c9c7ac below.
+- **The cure.** `manifest` declares `rsg_version=1.3` with a contiguous `'`
+  rationale comment block at the key (value space, the default-to-1.2 rule,
+  the certification deadline and the feature-usage census). Adjudication was
+  honest-first: the channel relies on NO >=1.1-exclusive behavior — 489
+  `ObserveField` sites and `roSGNodeEvent` task loops are core SceneGraph at
+  every rsg version; zero `Register(OneShot)`-class calls — so the removal
+  option was live, but 1.3 is MANDATED by the passed cert deadline, and it
+  costs nothing: its hard rule is that Eval() "cannot be used with
+  rsg_version=1.2" and the shipped `.brs` set calls Eval exactly zero times.
+  Docs truth pass: `docs/certification.md` row 1.5 demoted from the false PASS
+  to PARTIAL with a new §1a value-space/deadline citation (the "mm_icon_focus_sd
+  fixed" credit reclassified per live docs — it and `mm_icon_side_hd` are now
+  LEGACY attributes — and the one remaining REQUIRED-key gap, the absent
+  `mm_icon_focus_fhd`, recorded for its own art lane, matching the
+  `docs/static-checks.md` row 39).
+- **CHECK39 (verify-runtime.sh, new leg).** R1 the key exists (absent = silent
+  firmware default = cert fail); R2 value ∈ the documented set
+  {1.0,1.1,1.2,1.3} — the 7.0 fiction class, named in the red; R3 shipped
+  value is exactly 1.3 (re-bless only from a measured red if Roku moves the
+  goalpost); R4 the comment block above the key carries "cert" and "observer"
+  (case-insensitive, CHECK38 R3 idiom); R5 `\bEval\(` extinct in
+  source/+components/ `.brs` (string-aware comment masking) so the >=1.2
+  declaration and the code can never contradict each other. Red-on-parent
+  proof: at 0c9c7ac the leg fires exactly 2 problems (R2 naming `'7.0'`, R4)
+  and the other 38 checks stay green (PARENT_EXIT=1, no other
+  "CHECKn: N problem(s)" lines). After the cure the full script exits 0
+  (39/39 legs) and `make lint` (bsc/bslint) stays exit 0 — bsc accepts 1.3.
+- **Portable harness.** CI-layout positive run asserts the Check 39 header +
+  green line; a dedicated scratch-copy red leg plants `rsg_version=7.0` with
+  the rationale comment stripped — CHECK39 fires naming the illegal value and
+  R4, while the sibling manifest readers CHECK18 (version drift) and CHECK38
+  (design plane) stay green (gate independence); restoring the cured manifest
+  returns exit 0 (falsifiability). Full `verify-runtime-portable.sh` run: PASS.
+
 ### Fixed — ui_resolutions declares hd-only, matching the hardcoded 1280x720 design plane (M-ROKU-06, CHECK38) — 2026-10-29
 
 - **The defect (review roku__crossfe M6).** The manifest declared

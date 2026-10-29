@@ -32,7 +32,24 @@ splash_min_time=2000
 ' declaration, the plane's FHD-only outliers and this comment's presence.
 ui_resolutions=hd
 
-rsg_version=7.0
+' M-ROKU-07 (review roku__crossfe M7): rsg_version selects the SceneGraph
+' OBSERVER CALLBACK MODEL, not a component-library release — its documented
+' value space is 1.0/1.1/1.2/1.3 (developer.roku.com/dev/docs/channel-manifest,
+' retrieved 2026-10-29; the entry defaults to 1.2 as of Roku OS 9.3). The
+' long-shipped 7.0 was RSG's package version bled into the wrong key: devices
+' silently IGNORE unknown values, so the line was a false-comfort knob brighterscript
+' cannot flag (it treats unknown-but-semver values as valid by design).
+' The same page: "You must set this parameter to rsg_version=1.3 by
+' October 1, 2026, to continue passing certification testing" — that deadline
+' has passed and this channel carries a live certification intent
+' (docs/certification.md), so 1.3 is the cert-required shipped value.
+' Feature-usage honesty: the channel relies on NO >=1.1-exclusive behavior —
+' the 489 ObserveField sites and roSGNodeEvent task loops are core SceneGraph
+' at every rsg version — and 1.3 costs nothing: its hard rule is that Eval()
+' cannot be used at rsg_version>=1.2, and the shipped .brs set calls Eval zero
+' times. CHECK39 pins the value space, the 1.3 certification posture, this
+' comment's presence and the Eval() extinction.
+rsg_version=1.3
 
 screensaver_title=Phlix
 screensaver_private=false

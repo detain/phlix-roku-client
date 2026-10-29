@@ -1,7 +1,7 @@
 # Roku Channel Certification Checklist
 
-**Source:** Roku Channel Certification Requirements (developer.roku.com)
-**Date Retrieved:** August 2026
+**Source:** Roku Channel Certification Requirements (developer.roku.com); manifest law re-verified against the live [channel-manifest page](https://developer.roku.com/dev/docs/channel-manifest) on 2026-10-29 (M-ROKU-07)
+**Date Retrieved:** August 2026 (rsg_version/required-attrs rows re-checked 2026-10-29)
 **Channel:** Phlix (com.phlix)
 **Version:** 1.0.1
 
@@ -15,7 +15,32 @@
 | 1.2 | Application responds to user input within 2 seconds | UNVERIFIED — needs device | |
 | 1.3 | No ANR (Application Not Responding) dialogs | UNVERIFIED — needs device | |
 | 1.4 | Memory usage acceptable (< 512MB typical) | UNVERIFIED — needs device | |
-| 1.5 | All required manifest keys present | PASS | R6.1 fixed manifest (mm_icon_focus_sd, splash_min_time, rsg_version, screensaver keys) |
+| 1.5 | All required manifest keys present | PARTIAL | Was a false PASS: R6.1 "fixed" the manifest but shipped `rsg_version=7.0` — not a legal value (see §1a, M-ROKU-07). Now `rsg_version=1.3`, pinned by CHECK39. Remaining required-key gap: `mm_icon_focus_fhd` (live docs: "The app will not appear on devices … without this attribute", 540x405) is **absent**; `mm_icon_focus_sd`/`mm_icon_side_hd`, which R6.1 counted as fixes, are now LEGACY (deprecated) attributes per the same docs — present but no longer cert-relevant |
+
+### 1a. Manifest value-space truth (M-ROKU-07, re-verified 2026-10-29)
+
+`rsg_version` is a real manifest key and it does **not** take a SceneGraph
+component-library release number. Per the live channel-manifest docs
+(retrieved 2026-10-29), it "Sets the SceneGraph observer callback model", with
+documented values **1.0** (deprecated as of Roku OS 8), **1.1**, **1.2** (what
+the entry "defaults to … as of Roku OS 9.3 if it's not specified"), and
+**1.3**. The shipped `rsg_version=7.0` conflated this key with RSG's package
+version — devices silently ignore unknown values, so for the channel's whole
+life the line was a false-comfort knob that ran on the firmware default, and
+no vendored tool could catch it (brighterscript treats unknown-but-semver
+values as valid by design).
+
+Certification posture: the same page states — verbatim — "You must set this
+parameter to `rsg_version=1.3` by October 1, 2026, to continue passing
+certification testing." That deadline has passed, so **1.3 is now the shipped
+value** (`manifest`, with its rationale comment block; CHECK39 in
+`scripts/verify-runtime.sh` pins the value space, the 1.3 cert posture, the
+comment's presence, and Roku's companion rule that "Eval() cannot be used with
+`rsg_version=1.2`" — shipped code calls Eval zero times, keeping the
+declaration honest). Feature-usage note, per the observer-model semantics: the
+channel's 489 `ObserveField` sites and `roSGNodeEvent` task loops are core
+SceneGraph at every rsg version — nothing in the codebase relies on a >=1.1
+exclusive behavior; 1.3 is declared for certification, not capability.
 | 1.6 | Version numbers consistent (manifest, package.json, Makefile) | PASS | All 1.0.1 per R6.1 |
 
 ---
@@ -127,5 +152,5 @@
 
 ## Required for Submission
 
-1. Commission proper channel art (7 assets per R6.2)
+1. Commission proper channel art (7 assets per R6.2) — PLUS `mm_icon_focus_fhd` (540x405): a REQUIRED manifest attribute per the live channel-manifest docs, still absent from both the manifest and the art set (M-ROKU-07 residual note; reviewer M3's icon clause, needs an art asset, tracked for its own lane)
 2. Server-side: expose BIF URL in getTrickplay endpoint, OR implement sprite-based preview in R2.1 overlay

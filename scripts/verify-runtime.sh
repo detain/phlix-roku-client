@@ -4011,4 +4011,127 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo ""
+echo "=== Check 39: manifest rsg_version legal value space + cert posture (M-ROKU-07) ==="
+# rsg_version is a real manifest key whose value space is the SceneGraph
+# OBSERVER CALLBACK MODEL. The channel shipped rsg_version=7.0 (RSG's package
+# version bled into the wrong key) for its whole life: devices silently ignore
+# unknown values, and brighterscript's RokuConstants deliberately treats
+# unknown-but-semver values as valid — so no vendored tool could ever flag it
+# (review roku__crossfe M3). This leg is the gate that cannot be fooled.
+# Law (developer.roku.com/dev/docs/channel-manifest, retrieved 2026-10-29):
+#   rsg_version "Sets the SceneGraph observer callback model."
+#   Documented values: 1.0 (deprecated as of Roku OS 8), 1.1, 1.2 ("defaults
+#   to 1.2 as of Roku OS 9.3 if it's not specified"), 1.3.
+#   "You must set this parameter to rsg_version=1.3 by October 1, 2026, to
+#   continue passing certification testing."
+# Rules:
+#   R1  the rsg_version key exists — absent means the firmware default (1.2
+#       on any modern OS), which fails the post-2026-10-01 cert law
+#   R2  its value sits inside the documented set {1.0,1.1,1.2,1.3} — unknown
+#       values are silently ignored by devices (false-comfort knob; the 7.0
+#       fiction class), and no other gate in the estate sees them
+#   R3  the shipped value is exactly 1.3 — legal 1.0/1.1/1.2 declarations fail
+#       certification today; re-bless this pin ONLY when Roku moves the
+#       goalpost, from a measured red, never pre-emptively
+#   R4  the contiguous ' comment block directly above the key carries the
+#       words "cert" and "observer" (case-insensitive) — the rationale stays
+#       visible where the next editor decides (CHECK38 R3 idiom)
+#   R5  Eval() is extinct in shipped .brs — Roku's docs state Eval() "cannot
+#       be used with rsg_version=1.2", so the declaration and the code may
+#       never contradict each other (string-aware line-comment masking)
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+LEGAL_RSG_VERSIONS = ("1.0", "1.1", "1.2", "1.3")
+
+if not os.path.exists("manifest"):
+    print("  manifest - CHECK39: manifest not found; the rsg_version law is unreadable")
+    print("  CHECK39: 1 rsg_version problem(s)")
+    sys.exit(1)
+
+manifest = open("manifest", encoding="utf-8").read()
+rm = re.search(r'^\s*rsg_version\s*=\s*(.+?)\s*$', manifest, re.MULTILINE)
+if rm is None:
+    problems.append("  manifest - CHECK39 R1: no rsg_version key — devices would run the "
+                    "firmware default (1.2 as of RokuOS 9.3) and fail the post-2026-10-01 "
+                    "certification law requiring rsg_version=1.3 (M-ROKU-07)")
+else:
+    value = rm.group(1)
+    if value not in LEGAL_RSG_VERSIONS:
+        problems.append(f"  manifest - CHECK39 R2: rsg_version={value!r} is outside Roku's "
+                        f"documented value space {LEGAL_RSG_VERSIONS} (the SceneGraph observer "
+                        "callback model) — devices silently ignore unknown values, so the "
+                        "declaration means nothing (the M-ROKU-07 7.0 fiction class)")
+    elif value != "1.3":
+        problems.append(f"  manifest - CHECK39 R3: rsg_version={value!r} is legal but fails "
+                        "certification — Roku requires 1.3 to continue passing static-analysis "
+                        "cert testing as of 2026-10-01 (channel-manifest docs, M-ROKU-07)")
+
+# R4: the certification/observer rationale must live AT the key. Walk the
+# contiguous ' comment block directly above the rsg_version line.
+lines = manifest.splitlines()
+idx = next((i for i, l in enumerate(lines)
+            if re.match(r'\s*rsg_version\s*=', l)), None)
+if idx is not None:
+    start = idx
+    while start > 0 and lines[start - 1].lstrip().startswith("'"):
+        start -= 1
+    block = "\n".join(lines[start:idx])
+    if not ("cert" in block.lower() and "observer" in block.lower()):
+        problems.append("  manifest - CHECK39 R4: the rsg_version key lost its certification/"
+                        "observer-callback rationale comment — state the law where the next "
+                        "editor sees it (M-ROKU-07)")
+
+# R5: Eval() extinction keeps the >=1.2 declaration honest. Line-comment
+# masking cuts at the first ' outside a double-quoted string (Check 19's
+# code_view idiom, scoped to this leg).
+def code_view(line):
+    out, in_str = [], False
+    for ch in line:
+        if ch == '"':
+            in_str = not in_str
+        if ch == "'" and not in_str:
+            break
+        out.append(ch)
+    return "".join(out)
+
+brs_files = []
+for root in ("source", "components"):
+    for dirpath, _dirs, files in os.walk(root):
+        for f in sorted(files):
+            if f.endswith(".brs"):
+                brs_files.append(os.path.join(dirpath, f))
+
+for p in brs_files:
+    try:
+        for i, line in enumerate(open(p, encoding="utf-8").read().splitlines(), 1):
+            if re.search(r'\bEval\s*\(', code_view(line)):
+                problems.append(f"  {p}:{i} - CHECK39 R5: Eval() call contradicts the declared "
+                                "rsg_version>=1.2 law (Roku: 'Eval() cannot be used with "
+                                "rsg_version=1.2') — remove the call (M-ROKU-07)")
+    except OSError as e:
+        problems.append(f"  {p} - CHECK39: unreadable: {e}")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK39: %d rsg_version problem(s)" % len(problems))
+    sys.exit(1)
+
+print("  CHECK39: rsg_version=1.3 inside Roku's documented value space "
+      "(1.0/1.1/1.2/1.3 observer callback model); cert-posture rationale at the key; "
+      "Eval() extinct in shipped code")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
