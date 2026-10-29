@@ -3467,38 +3467,33 @@ PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
-
-echo "=== Check 35: CanDecodeVideo keeps the SDK options-AA call shape (M-ROKU-05) ==="
-# SIGNATURE LAW (M-ROKU-05, review roku__crossfe M5): ifDeviceInfo.CanDecodeVideo
-# is documented as CanDecodeVideo(video_format As Object) As Object - ONE
-# associative array (keys codec/container/profile/level, lower-case quoted for
-# pre-14.1 key case sensitivity) returning an AA whose "result" key holds the
-# Boolean. The day-1 wrapper fabricated a positional (String, String, String)
-# signature; that API never existed, so the R6.8 direct-play gate either threw
-# a member/function arity error or coerced Invalid at every call site. The cure
-# is DeviceCanDecodeVideo building the options AA, parsing "result", and
-# failing OPEN (allow direct play) whenever the gate itself is broken - a
-# wrongly-closed gate taxes every video with transcode, a wrongly-open one is
-# recovered by PlayerScene's OnPlayerStateChange transcode fallback. Rules
-# (all scoped via \b so the wrapper's own name DeviceCanDecodeVideo - whose
-# public String signature is deliberately preserved - never trips them):
-#   R1  no .brs file (comments stripped) contains a bare receiver-form
-#       CanDecodeVideo( call with a comma inside its argument list - the
-#       positional shape stays dead
-#   R2  the wrapper function body (comments stripped) builds a quoted
-#       lower-case options AA ("codec"/"container"/"profile") and issues a
-#       single-argument \bCanDecodeVideo(x) device call
-#   R3  the wrapper parses the returned AA via Lookup("result")
-#   R4  the gate stays fail-OPEN: a HasMethod("CanDecodeVideo") pre-7.10
-#       firmware guard, exactly three logged fail-open arms ("failing open to
-#       direct play"), and at least three "return true" fallbacks (missing
-#       method / non-AA return / non-Boolean result)
-#   R5  the fabricated positional signature comment never returns in any
-#       comment line of the wrapper file
+echo ""
+echo "=== Check 36: day-1 honesty triangle wired end-to-end (M-ROKU-04 closeout) ==="
+# CONSUMER-SIDE LAW (M-ROKU-04, review roku__casualgamer M5): Check 34 pins the
+# taxonomy PRODUCERS (classifier, ladder, catalog) but says nothing about the
+# boot CONSUMERS - without this leg, PhlixApp could silently regress to the
+# pre-fix "guess the cause" dialog (which misdiagnosed never-logged-in users as
+# network failures), or the Settings server switch could revert to the dead
+# "not implemented" copy, and the gate would stay green. Rules:
+#   R1  both boot-auth handlers (OnAuthResponse/OnHubAuthResponse) delegate
+#       failures to HandleBootAuthFailure(result), and the three pre-fix
+#       misdiagnosis literals are dead text in PhlixApp.brs code
+#   R2  HandleBootAuthFailure keeps all four honest arms: silent no_session ->
+#       login, transport -> ShowConnect(reason), session_invalid -> the live
+#       Session Expired dialog (Translate-sourced), else generic
+#   R3  the reason survives the handoff: ShowConnect forwards bootReason and
+#       ConnectScene renders it via TranslateTransportReason
+#   R4  ApiTask forwards restoreReason in BOTH boot legs (checkAuth +
+#       checkAuthHub) - producers feeding the consumer (2 forwardings pinned)
+#   R5  the server switch is REAL: SettingsScene hands off to
+#       OnSwitchServer(), which wipes credentials but keeps the address and
+#       lands on ConnectScene
+#   R6  the killed dead key settings.status_server_switch_not_implemented
+#       stays out of every shipped locale catalog (dead-copy graveyard)
 PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
-import os, re, sys
+import glob, json, os, re, sys
 
 repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
 os.chdir(repo)
@@ -3506,8 +3501,14 @@ os.chdir(repo)
 problems = []
 
 
-def read(path):
-    return open(path, encoding="utf-8").read()
+def read(*parts):
+    return open(os.path.join(repo, *parts), encoding="utf-8").read()
+
+
+def body(src, name):
+    m = re.search(r"^(?:sub|function)\s+" + name + r"\b[^\n]*\n(.*?)^end (?:sub|function)",
+                  src, re.MULTILINE | re.DOTALL)
+    return m.group(1) if m else None
 
 
 def strip_comments(text):
@@ -3515,83 +3516,99 @@ def strip_comments(text):
                      if not l.lstrip().startswith("'"))
 
 
-def keep_comments(text):
-    return "\n".join(l for l in text.splitlines() if l.lstrip().startswith("'"))
+APP = "components/PhlixApp.brs"
+app_code = strip_comments(read(*APP.split("/")))
 
+# R1: both boot handlers delegate to the ladder; lying literals stay dead.
+for fn in ("OnAuthResponse", "OnHubAuthResponse"):
+    b = body(app_code, fn)
+    if b is None:
+        problems.append(f"  {APP} - CHECK36 R1: {fn}() not found")
+    elif "HandleBootAuthFailure(result)" not in b:
+        problems.append(f"  {APP} - CHECK36 R1: {fn} no longer routes failures to "
+                        "HandleBootAuthFailure(result) - the boot path may be "
+                        "guessing causes again (M-ROKU-04)")
+for lie in ("Unable to reach server", "Session Expired", "Connection Error"):
+    if lie in app_code:
+        problems.append(f"  {APP} - CHECK36 R1: reintroduced hardcoded misdiagnosis "
+                        f'string "{lie}" - boot copy must come from the catalog ladder')
 
-brs_files = []
-for root in ("source", "components"):
-    for dirpath, _dirs, files in os.walk(root):
-        for f in sorted(files):
-            if f.endswith(".brs"):
-                brs_files.append(os.path.join(dirpath, f))
+# R2: the ladder keeps every honest arm.
+lad = body(app_code, "HandleBootAuthFailure")
+if lad is None:
+    problems.append(f"  {APP} - CHECK36 R2: HandleBootAuthFailure() not found - the "
+                    "shared boot-failure ladder IS the M-ROKU-04 cure")
+else:
+    if '"no_session"' not in lad:
+        problems.append(f'  {APP} - CHECK36 R2: ladder lost its "no_session" arm - '
+                        "first-run users must reach login silently, never an error")
+    if "IsTransportReason(" not in lad or "ShowConnect(" not in lad:
+        problems.append(f"  {APP} - CHECK36 R2: ladder no longer routes transport "
+                        "buckets to ShowConnect - a dead dialog over a login form "
+                        "is the bug, not the cure")
+    if '"session_invalid"' not in lad or 'Translate("login_expired_title")' not in lad:
+        problems.append(f'  {APP} - CHECK36 R2: ladder lost its "session_invalid" arm - '
+                        "the Session Expired dialog finally has a live trigger")
 
-# R1: the positional device-call shape is extinct in executable code.
-for p in brs_files:
-    code = strip_comments(read(p))
-    for m in re.finditer(r'\bCanDecodeVideo\s*\(([^)]*)\)', code):
-        if "," in m.group(1):
-            problems.append(f"  {p} - CHECK35 R1: positional CanDecodeVideo({m.group(1).strip()}) "
-                            "call - the SDK takes ONE options associative array (M-ROKU-05)")
+# R3: the reason survives the handoff into the retry screen.
+sc = body(app_code, "ShowConnect")
+if sc is None or "bootReason" not in sc:
+    problems.append(f"  {APP} - CHECK36 R3: ShowConnect no longer forwards bootReason - "
+                    "the per-cause message would be lost on the retry screen")
+cs = strip_comments(read("components", "ConnectScene.brs"))
+if "m.top.bootReason" not in cs or "TranslateTransportReason(" not in cs:
+    problems.append("  components/ConnectScene.brs - CHECK36 R3: ConnectScene no longer "
+                    "renders the transported boot reason (m.top.bootReason -> "
+                    "TranslateTransportReason) - the retry screen went generic")
 
-WRAP = "source/lib/AppContext.brs"
-if not os.path.exists(WRAP):
-    problems.append(f"  {WRAP} - CHECK35: wrapper file gone; the cure lost its home")
-    print("\n".join(problems))
-    print("  CHECK35: %d CanDecodeVideo-shape problem(s)" % len(problems))
-    sys.exit(1)
+# R4: producers feed the consumer - both boot legs forward restoreReason.
+fwd = re.findall(r"result\.error\s*=\s*(?:api|hubApi)\.restoreReason",
+                 strip_comments(read("components", "ApiTask.brs")))
+if len(fwd) != 2:
+    problems.append(f"  components/ApiTask.brs - CHECK36 R4: expected 2 restoreReason "
+                    f"forwardings (checkAuth + checkAuthHub), found {len(fwd)} - "
+                    "without them the boot ladder receives no reason and Check 34's "
+                    "taxonomy is orphaned at the consumer end")
 
-raw = read(WRAP)
-fm = re.search(r"^function\s+DeviceCanDecodeVideo\b.*?\nend function",
-               raw, re.MULTILINE | re.DOTALL)
-if fm is None:
-    problems.append(f"  {WRAP} - CHECK35 R2: DeviceCanDecodeVideo() not found")
-    print("\n".join(problems))
-    print("  CHECK35: %d CanDecodeVideo-shape problem(s)" % len(problems))
-    sys.exit(1)
-body = strip_comments(fm.group(0))
+# R5: the Settings server switch is real, not decorative.
+ss = body(strip_comments(read("components", "SettingsScene.brs")), "OnSwitchServerConfirmed")
+if ss is None:
+    problems.append("  components/SettingsScene.brs - CHECK36 R5: "
+                    "OnSwitchServerConfirmed() not found")
+else:
+    if "switch_not_implemented" in ss:
+        problems.append("  components/SettingsScene.brs - CHECK36 R5: the server switch "
+                        "is back to 'not implemented' - it must hand off to OnSwitchServer()")
+    if "OnSwitchServer()" not in ss:
+        problems.append("  components/SettingsScene.brs - CHECK36 R5: confirmed switch no "
+                        "longer hands off to PhlixApp.OnSwitchServer() - dead button again")
+sw = body(app_code, "OnSwitchServer")
+if sw is None:
+    problems.append(f"  {APP} - CHECK36 R5: OnSwitchServer() not found")
+elif "ResetCachedStorage(true)" not in sw or "ShowConnect()" not in sw:
+    problems.append(f"  {APP} - CHECK36 R5: OnSwitchServer no longer wipes-and-reconnects "
+                    "(ResetCachedStorage(true) + ShowConnect()) - the switch is decorative")
 
-# R2: options AA with quoted lower-case keys + single-argument device call.
-for k in ("codec", "container", "profile"):
-    if f'"{k}"' not in body:
-        problems.append(f'  {WRAP} - CHECK35 R2: options key "{k}" missing from '
-                        f"the wrapper body; pre-14.1 firmware reads AA keys "
-                        "case-sensitively, so keys must stay lower-case quoted")
-if not re.search(r'\bCanDecodeVideo\(\s*[A-Za-z_][A-Za-z0-9_]*\s*\)', body):
-    problems.append(f"  {WRAP} - CHECK35 R2: no single-options-AA "
-                    "CanDecodeVideo(x) device call form in the wrapper body")
-
-# R3: the result AA carries an honest boolean before it gates.
-if 'Lookup("result")' not in body:
-    problems.append(f'  {WRAP} - CHECK35 R3: no Lookup("result") on the return; '
-                    "the SDK answers with an AA whose result key is the boolean")
-
-# R4: broken gate fails OPEN - firmware guard + three fallback arms.
-if 'HasMethod("CanDecodeVideo")' not in body:
-    problems.append(f'  {WRAP} - CHECK35 R4: the HasMethod("CanDecodeVideo") '
-                    "pre-7.10 firmware guard is gone")
-if body.count("failing open to direct play") != 3:
-    problems.append(f"  {WRAP} - CHECK35 R4: expected 3 fail-open arms bearing "
-                    "'failing open to direct play', found "
-                    f"{body.count('failing open to direct play')}")
-if len(re.findall(r'^\s*return true\s*$', body, re.MULTILINE)) < 3:
-    problems.append(f"  {WRAP} - CHECK35 R4: fewer than 3 'return true' "
-                    "fallbacks - the broken gate must not fail closed")
-
-# R5: the fabricated positional doc never returns.
-if re.search(r'\bCanDecodeVideo\(codec as String', keep_comments(raw)):
-    problems.append(f"  {WRAP} - CHECK35 R5: the fabricated positional "
-                    "CanDecodeVideo(codec as String, ...) doc is back; the SDK "
-                    "signature is CanDecodeVideo(video_format As Object) As Object")
+# R6: dead-copy graveyard - the killed key stays dead in every shipped catalog.
+for p in sorted(glob.glob(os.path.join(repo, "locale", "*", "strings.json"))):
+    try:
+        cat = json.loads(open(p, encoding="utf-8").read())
+    except Exception as e:  # noqa: BLE001 - the parse IS the contract
+        problems.append(f"  {p} - CHECK36: unreadable: {e}")
+        continue
+    settings = cat.get("settings") if isinstance(cat.get("settings"), dict) else {}
+    if "status_server_switch_not_implemented" in settings:
+        problems.append(f"  {p} - CHECK36 R6: settings.status_server_switch_not_implemented "
+                        "resurrected - R5 pins the live path, so it is dead copy")
 
 if problems:
-    for p in problems:
-        print(p)
-    print("  CHECK35: %d CanDecodeVideo-shape problem(s)" % len(problems))
+    for prob in problems:
+        print(prob)
+    print("  CHECK36: %d day-1-honesty problem(s)" % len(problems))
     sys.exit(1)
 
-print("  CHECK35: options-AA call shape, result-key parse, and three fail-open "
-      "arms all pinned; the positional fabrication stays dead")
+print("  CHECK36: honesty wired end-to-end - reason produced (ApiTask x2), routed "
+      "(ladder x4 arms), rendered (ConnectScene), switch real, dead copy stays dead")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

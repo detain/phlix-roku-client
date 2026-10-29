@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+### Fixed — Day-1 honesty triangle had no consumer-side pin; CHECK36 closes the loop (M-ROKU-04 closeout) — 2026-10-29
+
+- **The gap.** d252b17 cured the day-1 onboarding dead-ends (honest boot-failure
+  ladder, reason-forwarding boot legs, real Settings→Server switch, LAN Find
+  flow) and Check 34 pinned the taxonomy PRODUCERS — classifier buckets, the
+  literal Translate ladder, catalog messages. Nothing pinned the CONSUMERS:
+  PhlixApp.brs could silently regress to the pre-fix "guess the cause" dialog
+  (which told never-logged-in users "Unable to reach server. Please check your
+  network."), ShowConnect could drop the boot reason on the handoff, or the
+  server switch could revert to the dead "not implemented" copy, and the gate
+  would stay green.
+- **CHECK36 (scripts/verify-runtime.sh).** Six rules close the triangle: R1
+  both boot-auth handlers delegate failures to HandleBootAuthFailure(result)
+  and the three pre-fix misdiagnosis literals stay dead text in PhlixApp.brs
+  code; R2 the ladder keeps its no_session / transport / session_invalid arms
+  (Translate-sourced copy); R3 the reason survives the handoff
+  (ShowConnect→bootReason→ConnectScene TranslateTransportReason); R4 ApiTask
+  forwards restoreReason in BOTH boot legs (count-pinned to 2); R5 the server
+  switch is real (SettingsScene hands off to OnSwitchServer, which keeps
+  ResetCachedStorage(true) + ShowConnect); R6 the killed
+  settings.status_server_switch_not_implemented key stays out of every shipped
+  catalog.
+- **Teeth.** Mutation-proven in a scratch worktree at d252b17: each of R1-R5
+  mutations (handler re-hardcode, no_session arm swap, dropped forwarding, dead
+  button return, bootReason handoff removal) reddens exactly CHECK36 and
+  nothing else; resurrecting the dead key in en_US fires CHECK36 R6 plus the
+  legitimate Check 21 mirror-parity corroboration; restored control run exit 0.
+- **Gates.** verify-runtime.sh exit 0 (45 legs) and the portable twin
+  (tests/scripts/verify-runtime-portable.sh) exit 0 with the Check 36 header
+  riding the staged fake layout; validate-xml and `make lint` untouched-green
+  (this commit is gate-only — zero shipped .brs/.xml/.json changes).
+
 ### Fixed — Direct-play gate called CanDecodeVideo with fabricated positional strings; options-AA signature cure (M-ROKU-05, CHECK35) — 2026-10-29
 
 - **The symptom (review roku__crossfe M5).** The R6.8 direct-play gate
