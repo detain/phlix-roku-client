@@ -3760,7 +3760,8 @@ echo "=== Check 37: discovery rides the documented socket surface and cannot lat
 #       vendored worked example (SetAddress bind, SetMessagePort,
 #       NotifyReadable, SetBroadcast, JoinGroup, SetSendToAddress, SendStr,
 #       GetSocketID/GetID event ownership, IsReadable, ReceiveStr) - and the
-#       four undocumented r1 forms + the name-obfuscation helper stay dead
+#       the six r1 counter-doc/evasion patterns (four forms the r1 code
+#       actually drove + two evasion artifacts) stay dead
 #       ("udp:", EnableBroadcast, JoinMulticastGroup, SendToAddr,
 #       DiscoverySocketName, one-arg .Receive()).
 #   R2  ConnectScene's find flow observes BOTH "response" and "state" on the

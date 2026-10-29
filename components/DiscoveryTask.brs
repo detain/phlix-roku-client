@@ -26,9 +26,12 @@
 '   ifSocket.SetSendToAddress + SendStr                    ' the sendto half
 '   ifSocketAsync.GetID vs roSocketEvent.GetSocketID       ' event ownership
 '   IsReadable + ReceiveStr(length)                        ' non-blocking drain
-' Every call is compiler-visible (the component IS in the bsc catalog); the
-' indirection is gone, so a future rename/arity slip reddens `make lint`
-' instead of the user's living room.
+' Every call is written by its documented name and the component-name
+' indirection is gone. Enforcement truth, measured (r2 review issue 1): bsc/
+' bslint do NOT resolve member calls on CreateObject-typed locals, so the
+' compiler is NOT the guard here - CHECK37 (scripts/verify-runtime.sh) is:
+' it pins every documented verb present and every r1 counter-doc form dead,
+' so a future rename reddens the runtime gate instead of the user's living room.
 '
 ' Sends the SAME M-SEARCH datagram shape the server's own discovery client
 ' builds (phlix-server src/Discovery/Ssdp/SsdpSocket.php:316-321 — method
@@ -187,7 +190,7 @@ end sub
 ' The M-SEARCH datagram - CRLF-terminated, blank line last, verbatim shape
 ' of the server-side client builder. BrightScript has no \r escapes.
 ' The parser for the answers (ParseSsdpResponse) lives in Utilities.brs -
-' pure logic belongs where the unit tests can reach it (CHECK37 R5).
+' pure logic belongs where the unit tests can reach it (CHECK37 R4).
 function DiscoveryRequest() as String
     crlf = Chr(13) + Chr(10)
     req = "M-SEARCH * HTTP/1.1" + crlf

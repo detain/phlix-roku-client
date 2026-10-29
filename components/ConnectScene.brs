@@ -218,7 +218,7 @@ end sub
 
 ' Shared teardown - retire the scan so the next press can re-scan
 ' (m.findTask doubles as the in-flight guard). Both observers go together
-' (C03 teardown-pairing law; CHECK37 R3 counts them).
+' (C03 teardown-pairing law; CHECK37 R2 counts them).
 sub RetireFindTask()
     if m.findTask = invalid then return
     m.findTask.UnObserveField("response")

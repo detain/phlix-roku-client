@@ -22,8 +22,10 @@
   bind, `SetMessagePort`/`NotifyReadable`, `ifSocketCastOption.SetBroadcast`
   and `JoinGroup`, `SetSendToAddress`+`SendStr`, `GetSocketID`/`GetID` event
   ownership, and an `IsReadable`+`ReceiveStr` drain. The name indirection is
-  gone — a future rename or arity slip reddens `make lint`, not the user's
-  living room.
+  gone. Enforcement truth, measured: bsc/bslint do not resolve member calls on
+  `CreateObject`-typed locals, so CHECK37 — not the compiler — is the guard:
+  it pins every documented verb present and every r1 counter-doc form dead,
+  reddening the runtime gate instead of the user's living room.
 - **The floor.** ConnectScene now observes BOTH `response` and `state` on the
   find task; `state="finish"` arriving without a response retires the task
   and renders the same honest `connect_find_none` floor an empty scan gets —
