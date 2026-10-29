@@ -105,6 +105,15 @@
 #       distance, so any re-zero re-added in the cured range reddens this
 #       leg — mutation-proven), CHECK20/21/39 stay green (gate independence),
 #       and removing the plant returns exit 0 (falsifiability).
+#  (15) negative+restore (M-ROKU-09 dead versioning design): re-planting the
+#       cured class into a scratch copy of scripts/derive-version.sh — a
+#       function reachable from nothing (the deleted get_git_count/
+#       get_ci_build_version twin) plus a usage-header flag no main() arm
+#       dispatches (--ghost) — must fire CHECK40 R1+R2 naming both plants,
+#       with CHECK18/CHECK39 gate independence, and restoring the cured file
+#       returns exit 0. Check 40 also asserts green on the positive run (its
+#       inputs — derive-version.sh, .github/workflows/package.yml,
+#       docs/publishing.md — joined the stage list).
 #
 # RUN:  bash tests/scripts/verify-runtime-portable.sh
 # There is no Makefile slot: `make check` is a prerequisites probe, not a script
@@ -152,6 +161,12 @@ mkdir -p "$FAKE_REPO/scripts" "$FAKE_REPO/source/lib" "$FAKE_REPO/components" "$
 mkdir -p "$FAKE_SERVER/migrations"
 
 cp "$REAL_REPO/scripts/verify-runtime.sh" "$FAKE_REPO/scripts/verify-runtime.sh"
+# Check 40 (M-ROKU-09) probes scripts/derive-version.sh behavior and reads the
+# publish workflow + version-discipline docs; stage its four inputs.
+cp "$REAL_REPO/scripts/derive-version.sh" "$FAKE_REPO/scripts/derive-version.sh"
+mkdir -p "$FAKE_REPO/.github/workflows" "$FAKE_REPO/docs"
+cp "$REAL_REPO/.github/workflows/package.yml" "$FAKE_REPO/.github/workflows/package.yml"
+cp "$REAL_REPO/docs/publishing.md" "$FAKE_REPO/docs/publishing.md"
 cp "$REAL_REPO/source/lib/Utilities.brs" "$FAKE_REPO/source/lib/Utilities.brs"
 # Checks 30/32 read README.md, Check 31 reads source/main.brs and Check 33
 # reads source/lib/Storage.brs. They joined the stage list when those checks
@@ -213,6 +228,11 @@ assert_contains "=== Check 38:" "$POSITIVE_OUT"
 # run green there.
 assert_contains "=== Check 39:" "$POSITIVE_OUT"
 assert_contains "CHECK39: rsg_version=1.3 inside" "$POSITIVE_OUT"
+# M-ROKU-09: Check 40's inputs (derive-version.sh + package.yml +
+# docs/publishing.md + README) are all staged, so the version-discipline and
+# publish-vehicle leg must run green in the CI layout too.
+assert_contains "=== Check 40:" "$POSITIVE_OUT"
+assert_contains "CHECK40: derive-version.sh fully reachable" "$POSITIVE_OUT"
 assert_contains "CHECK21: all" "$POSITIVE_OUT"
 assert_contains "CHECK22: all" "$POSITIVE_OUT"
 assert_contains "CHECK23: all" "$POSITIVE_OUT"
@@ -843,6 +863,55 @@ set -e
 [ "$GREENAGG_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after the aggregation plant is removed (got $GREENAGG_RC)"
 assert_contains "CHECK20: all" "$GREENAGG_OUT"
 
+# --- Check 40 red proof + restore on an independent scratch copy: the
+# designed-but-dead versioning class (M-ROKU-09). The version script carried
+# get_git_count/get_ci_build_version that no main() case dispatched and no
+# caller consumed, plus a usage header advertising a no-arg "manifest format"
+# mode that crashed under set -u. Re-planting the class (an unreachable
+# function + a documented-but-never-dispatched --ghost flag) must fire CHECK40
+# R1 and R40 R2 naming both plants, while the sibling gates CHECK18 (version
+# drift) and CHECK39 (rsg_version) stay green (gate independence); restoring
+# the cured script must return exit 0 (falsifiability, house planted-red
+# tradition). The R3 behavior probes (no-arg works, unknown flag fails loud)
+# were mutation-proven at fix time against the parent script; see the
+# M-ROKU-09 fixlog. --
+RED40_ROOT="$TEST_ROOT/red40"
+mkdir -p "$RED40_ROOT"
+cp -a "$TEST_ROOT/repo" "$RED40_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$RED40_ROOT/phlix-server"
+python3 - "$RED40_ROOT/repo/scripts/derive-version.sh" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+plant = (
+    "\n#   derive-version.sh --ghost — documented but never dispatched (CHECK40 R2 plant)\n"
+    "get_never_called() {\n    echo ghost\n}\n"
+)
+with open(path, "w", encoding="utf-8") as f:
+    f.write(text + plant)
+PYEOF
+set +e
+RED40_OUT=$(bash "$RED40_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+RED40_RC=$?
+set -e
+[ "$RED40_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when an unreachable function + ghost flag are planted in derive-version.sh (got 0 — the dead-design guard is toothless)"
+sed -n '/=== Check 40:/,$p' <<<"$RED40_OUT" | grep -qF "get_never_called()" ||
+	fail "CHECK40 red must name the planted unreachable function (got: $RED40_OUT)"
+sed -n '/=== Check 40:/,$p' <<<"$RED40_OUT" | grep -qF "CHECK40 R2" ||
+	fail "CHECK40 red must also fire the usage/dispatch bijection leg on the planted --ghost flag"
+sed -n '/=== Check 18:/,/=== Check 19:/p' <<<"$RED40_OUT" | grep -qF 'PASS — package.json=' ||
+	fail "Check 18 (the other version reader) must stay PASS while Check 40 is red (gate independence)"
+sed -n '/=== Check 39:/,$p' <<<"$RED40_OUT" | grep -qF "CHECK39: rsg_version=1.3 inside" ||
+	fail "Check 39 must stay PASS while Check 40 is red (gate independence)"
+cp "$FAKE_REPO/scripts/derive-version.sh" "$RED40_ROOT/repo/scripts/derive-version.sh"
+set +e
+GREEN40_OUT=$(bash "$RED40_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+GREEN40_RC=$?
+set -e
+[ "$GREEN40_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after the cured derive-version.sh is restored (got $GREEN40_RC)"
+assert_contains "CHECK40: derive-version.sh fully reachable" "$GREEN40_OUT"
+
 # --- negative: audiobook dropped from the ENUM comment -> exit != 0 + CHECK14
 export FAKE_REPO
 python3 - <<'PYEOF'
@@ -932,4 +1001,4 @@ set -e
 [ "$VX_RESTORE_RC" -eq 0 ] || fail "validate-xml must return to exit 0 after the malformed plant is removed (got $VX_RESTORE_RC): $VX_RESTORE_OUT"
 assert_contains "XML validation passed" "$VX_RESTORE_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 + 37-39 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + Check 20 dotted-key red leg (planted Translate(\"player.playback_error\") -> CHECK20 fired naming file, dotted key and underscore suggestion with CHECKs 21-26 green; plant removed -> exit 0, falsifiability proven) + Check 39 rsg_version red leg+restore (planted rsg_version=7.0 + stripped rationale comment -> CHECK39 fired R2 naming the illegal value and R4, with the sibling manifest readers CHECK18/CHECK38 stayed green — gate independence; cured manifest restored -> exit 0, falsifiability proven) + M-ROKU-08 aggregation red leg+restore (planted CHECK1 violation in leg 1 -> exit non-zero with the violation printed and CHECK20/21/39 gates stayed green — single-sink accumulator, re-zeroing any cured-range leg reddens this leg; plant removed -> exit 0) + validate-xml zero-file-guard legs (real components/ green with count; empty scratch root -> \"discovered ZERO XML files\" red; missing root -> \"does not exist\" red; planted malformed XML -> named red, removed -> exit 0) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 + 37-39 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + Check 20 dotted-key red leg (planted Translate(\"player.playback_error\") -> CHECK20 fired naming file, dotted key and underscore suggestion with CHECKs 21-26 green; plant removed -> exit 0, falsifiability proven) + Check 39 rsg_version red leg+restore (planted rsg_version=7.0 + stripped rationale comment -> CHECK39 fired R2 naming the illegal value and R4, with the sibling manifest readers CHECK18/CHECK38 stayed green — gate independence; cured manifest restored -> exit 0, falsifiability proven) + M-ROKU-08 aggregation red leg+restore (planted CHECK1 violation in leg 1 -> exit non-zero with the violation printed and CHECK20/21/39 gates stayed green — single-sink accumulator, re-zeroing any cured-range leg reddens this leg; plant removed -> exit 0) + Check 40 dead-design red leg+restore (planted unreachable function + ghost documented flag -> CHECK40 fired R1 and R2 naming both plants, with CHECK18/CHECK39 gate independence; cured script restored -> exit 0 — designed-but-dead versioning machinery can no longer accumulate silently) + validate-xml zero-file-guard legs (real components/ green with count; empty scratch root -> \"discovered ZERO XML files\" red; missing root -> \"does not exist\" red; planted malformed XML -> named red, removed -> exit 0) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"

@@ -2,6 +2,74 @@
 
 ## [Unreleased]
 
+### Fixed — release version-discipline dead code cured to shipped reality + publishing docs truth (M-ROKU-09) — 2026-10-29
+
+- **The defect (review roku__devops M2).** `scripts/derive-version.sh` carried
+  CI-build-number machinery — `get_git_count()` / `get_ci_build_version()`
+  honoring `CI_BUILD_NUMBER`/`GITHUB_RUN_NUMBER` — that no `main()` case
+  dispatched and no caller in the repo referenced (grep: self-references only):
+  the "release-time version discipline designed but dead code" of the finding.
+  Same file, two adjacent fictions: the header advertised a no-arg mode that
+  "output[s] all fields as manifest format" — nothing emits manifest format,
+  and running the documented call crashed (`main "$@"` → `"$1": unbound
+  variable` under `set -u`, exit 1); and `--pkg-version|*)` silently answered
+  ANY unknown flag with the pkg version, so a caller reaching for the (dead)
+  `--build-ci` would have baked a wrong `build_version` without an error.
+  Around the script, the delivery story was undocumented: the only publication
+  vehicle is the rolling `latest` GitHub prerelease that the `Package` workflow
+  deletes (`gh release delete latest --yes --cleanup-tag`; gh help:
+  "--cleanup-tag Delete the specified tag in addition to its release") and
+  recreates on every master push — the previous sideload build is destroyed,
+  `git ls-remote --tags origin` shows exactly one tag (`latest`), no doc said
+  a store submission requires bumping the never-bumped `1.0.1` triple
+  (`git log -S'"version"' -- package.json`: initial commit only), and
+  `grep -riE "rollback|revert" docs/ README.md` was zero hits. README's store
+  section additionally claimed "Upload your packaged app (phlix.zip)" while
+  docs/publishing.md correctly requires the signed `.pkg`. The queue's
+  `cured-by: C33 9ff4a6d` is ADJACENT-not-cured: that writer-lane commit fixed
+  endpoint/URL/locale fictions in README/verify-runtime and never touched
+  derive-version.sh or the publishing/version docs (diff proof at `9ff4a6d`).
+- **The cure (scope A; delete-the-fiction, precedent windows WIN-05 e5e29b1).**
+  The dead CI-build functions are DELETED, the header documents exactly the
+  five shipped behaviors (no-arg = `--pkg-version` alias), the dispatch is
+  guarded `case "${1:-}"` with an explicit `""` arm, and unknown flags exit 2
+  naming the supported set — fail-loud where the silent trap was. Docs ship
+  the real flow: `docs/publishing.md` gains "Version Discipline" (the triple is
+  derived from `package.json` by the script; `make package` rewrites the build
+  manifest; Check 18 pins drift; Roku requires a strictly increasing triple per
+  submission → bump package.json before building the `.pkg`) and "Release
+  Vehicles and Rollback" (rolling `latest` is the shipped vehicle, previous
+  build destroyed, no GitHub-side rollback, store-side version management
+  lives at the Roku portal, and versioned releases + a rollback procedure are
+  an explicitly UNSHIPPED owner decision). README's Manifest Configuration and
+  store-publishing sections were corrected to the same truth (`.pkg`, bump
+  first, version triple not hand-edited in the manifest).
+- **Teeth (CHECK40 + harness leg 15).** New verify-runtime leg pins the class
+  shut: (R1) every function of `derive-version.sh` is reachable from top level
+  (bare-word call graph — the dead pair re-added redds it), (R2) header usage
+  flags ↔ dispatch arms are a bijection, the `""` arm/`${1:-}` guard exist and
+  the "manifest format" phrase is banned, (R3) behavior probes run the script:
+  no-arg must print package.json's version, `--build-ci` must fail — and (R4)
+  the workflow↔docs tripwire: the three `latest`-vehicle pins in
+  `package.yml`, the rolling/rollback/bump vocabulary in `publishing.md`, the
+  `.pkg` truth in README's store section (changing the vehicle without
+  rotating the docs reddens CI; the docs were already missing at parent, so
+  R4 measured red there too). Red-on-parent measured: all four rule classes
+  fire against the `9c70037`-era files (12 problems, rc=1) and green at HEAD.
+  `tests/scripts/verify-runtime-portable.sh` stages the four new inputs,
+  asserts the positive header, and carries a plant-and-restore red leg
+  (unreachable function + ghost `--ghost` flag → R1/R2 fire naming both,
+  CHECK18/CHECK39 gate-independent; restore → exit 0). No gate weakened;
+  the script's callers (`Makefile` ×4 flags) are untouched and `make
+  verify-runtime` (40 legs), `make lint`, `make validate-manifest`,
+  `make validate-xml` (48 files) and the full portable harness exit 0.
+- **Out of scope, by doctrine (scope B, owner-gated):** switching the
+  publication vehicle to versioned releases and shipping a rollback story is a
+  release-strategy decision — the workflow was NOT flipped; the concrete
+  recommendation rides the fixlog's OWNER-REEL rider. `package-signed.sh`'s
+  hardcoded `PKG_VERSION` fallback and label integrity is the sibling finding
+  M3 (`package-signed.sh` contradicts its docs), untouched here.
+
 ### Fixed — verify-runtime.sh aggregation: checks 1-10 were print-only, the gate could never fail on them (M-ROKU-08) — 2026-10-29
 
 - **The defect (review roku__devops M8).** `VIOLATIONS` — the single value

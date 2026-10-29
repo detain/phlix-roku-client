@@ -70,8 +70,8 @@ Note the IP address shown and enable dev mode via the web interface at `http://<
 git clone https://github.com/detain/phlix-roku-client.git
 cd phlix-roku-client
 
-# Review and update manifest if needed
-# Edit: manifest title, version, icons
+# Review the manifest (title/icons); the shipped version triple comes from
+# package.json's "version", not from hand-editing manifest version fields
 ```
 
 ### 3. Install Dependencies
@@ -273,8 +273,13 @@ Implemented in `SyncPlayProtocol.brs` TimeSync, mirroring `@phlix/syncplay` SPEC
 
 Edit `manifest` to customize:
 - `title`: Application name
-- `major_version`, `minor_version`, `build_version`: Version numbers
 - `ui_resolutions`: Supported resolutions (hd, fhd, uhd)
+
+The version triple is **not** edited here: `make package` derives
+`major_version`/`minor_version`/`build_version` in the build manifest from
+`package.json`'s `version` (via `scripts/derive-version.sh`; Check 18 reddens
+drift, and store submissions require a version bump — see
+`docs/publishing.md` "Version Discipline").
 
 ### BrightScript Configuration
 
@@ -416,11 +421,20 @@ tests/
 
 ### Publishing to Roku Channel Store
 
-1. Create developer account at [developer.roku.com](https://developer.roku.com)
-2. Sign in and go to Dashboard
-3. Upload your packaged app (phlix.zip)
-4. Complete store listing details
-5. Submit for review
+Store submission takes the **signed `.pkg`**, not the sideload `phlix.zip`:
+
+1. Bump `package.json`'s `version` — Roku requires a strictly increasing
+   `(major, minor, build)` triple per submission (Check 40 pins the law docs)
+2. Build the signed artifact: `make package-signed` → `phlix-X.X.X.pkg`
+   (needs a real Roku-issued code signing certificate; a self-signed cert
+   only sideloads — see the certificate section in `docs/publishing.md`)
+3. Create/sign in a developer account at [developer.roku.com](https://developer.roku.com),
+   go to Dashboard → Channels, upload the `.pkg`, complete the listing and
+   certification checklist, submit for review
+
+The full flow, the CI release vehicle (a rolling `latest` GitHub prerelease —
+no versioned releases, no GitHub-side rollback; both are open owner decisions)
+and the certificate story live in [`docs/publishing.md`](docs/publishing.md).
 
 ### Private Channel Testing
 

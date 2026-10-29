@@ -4142,4 +4142,185 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo ""
+echo "=== Check 40: version-discipline script is live code + publish vehicle matches its docs (M-ROKU-09) ==="
+# scripts/derive-version.sh carried CI-build-number machinery (get_git_count /
+# get_ci_build_version honoring CI_BUILD_NUMBER/GITHUB_RUN_NUMBER) that NO
+# main() case dispatched and NO caller consumed — "designed but dead" release
+# versioning (review roku__devops M2). Its header also advertised a no-arg
+# "output all fields as manifest format" mode that crashed under `set -u`
+# ("$1: unbound variable"), and its `*)` arm silently answered ANY unknown
+# flag with the pkg version. The cure deleted the dead functions, made the
+# header true, guarded the no-arg dispatch and made unknown flags fail loud.
+# The publication vehicle (rolling `latest` GitHub prerelease, deleted and
+# recreated every master push — package.yml release-latest) and its rollback
+# fiction-or-truth documentation are owner-gated strategy (M-ROKU-09 rider B):
+# this leg pins workflow reality to docs/publishing.md so they can never
+# silently drift, whichever way the owner eventually decides.
+# Rules:
+#   R1  REACHABILITY: every function defined in scripts/derive-version.sh is
+#       reachable from the script's top level (call graph over bare-word bash
+#       invocations, comments masked) — a function only called by another dead
+#       function is dead too; the dead design may never re-accumulate silently
+#   R2  USAGE TRUTH: the header's Usage block and the main() dispatch arms are
+#       a bijection on --flags; the no-arg case is guarded ("${1:-}") with an
+#       explicit "" arm; the banned fiction phrase "manifest format" is absent
+#   R3  BEHAVIOR PROBES (run the script): no-arg exits 0 printing the
+#       package.json version; an unknown flag exits NON-ZERO (the silent
+#       wrong-version arm is the trap that made the dead design dangerous)
+#   R4  VEHICLE↔DOCS: package.yml still implements the rolling `latest`
+#       vehicle exactly as docs/publishing.md describes it — the job deletes
+#       (gh release delete latest --yes --cleanup-tag) and recreates tag
+#       `latest` as a prerelease; publishing.md carries the rolling/rollback/
+#       bump vocabulary; README's store-publishing section names the signed
+#       .pkg (never "upload phlix.zip"). Change the vehicle and this leg
+#       reddens: rotate workflow + docs + this pin in ONE change.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, subprocess, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+DV = "scripts/derive-version.sh"
+try:
+    dv_text = open(DV, encoding="utf-8").read()
+except OSError as e:
+    problems.append(f"  {DV} - CHECK40: unreadable: {e}")
+    dv_text = None
+
+if dv_text is not None:
+    # --- R1: function reachability (bare-word call graph, comments masked) ---
+    lines = dv_text.splitlines()
+    funcs = {}          # name -> body line list
+    order = []          # definition order
+    cur = None
+    depth = 0
+    roots = set()
+    for line in lines:
+        s = line.strip()
+        if s.startswith("#"):
+            continue
+        if cur is None:
+            m = re.match(r'^([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*\)\s*\{', line)
+            if m:
+                cur = m.group(1)
+                funcs[cur] = []
+                order.append(cur)
+                depth = line.count("{") - line.count("}")
+                continue
+            for name in funcs:
+                if re.search(r'\b' + re.escape(name) + r'\b', line):
+                    roots.add(name)
+            continue
+        body_callers = [n for n in funcs if n != cur and re.search(r'\b' + re.escape(n) + r'\b', line)]
+        funcs[cur].extend(body_callers)
+        depth += line.count("{") - line.count("}")
+        if depth <= 0:
+            cur = None
+
+    # root functions invoked at top level; if no call site parses at all, the
+    # script cannot run anything — fail loud rather than pass vacuously.
+    if not roots:
+        problems.append(f"  {DV} - CHECK40 R1: no top-level function invocation found — the script dispatches nothing")
+    reachable = set(roots)
+    frontier = sorted(roots)
+    while frontier:
+        nxt = []
+        for f in frontier:
+            for callee in funcs.get(f, []):
+                if callee not in reachable:
+                    reachable.add(callee)
+                    nxt.append(callee)
+        frontier = nxt
+    dead = [n for n in order if n not in reachable]
+    for d in dead:
+        problems.append(f"  {DV} - CHECK40 R1: function '{d}()' is defined but unreachable from the script's top level — designed-but-dead versioning machinery (the M-ROKU-09 class); delete it or wire it with its consumer in the same change")
+
+    # --- R2: usage block <-> dispatch arms bijection + fiction ban ---
+    documented = set(re.findall(r'--[A-Za-z0-9-]+',
+                                "\n".join(l for l in lines
+                                          if re.match(r'^\s*#\s+derive-version\.sh\s+--', l))))
+    dispatched = set(re.findall(r'^\s*(--[A-Za-z0-9-]+)\s*[|)]', dv_text, re.MULTILINE))
+    for flag in sorted(documented - dispatched):
+        problems.append(f"  {DV} - CHECK40 R2: usage header documents '{flag}' but no main() arm dispatches it — a documented flag that answers nothing is the dead-design twin")
+    for flag in sorted(dispatched - documented):
+        problems.append(f"  {DV} - CHECK40 R2: main() dispatches '{flag}' that the usage header never documents — update the header with the flag")
+    if 'case "${1:-}" in' not in dv_text:
+        problems.append(f"  {DV} - CHECK40 R2: the no-arg dispatch is not guarded by case \"${{1:-}}\" — an unguarded \"$1\" crashes under set -u (the documented no-arg usage must work)")
+    if not re.search(r'""\s*\)', dv_text):
+        problems.append(f"  {DV} - CHECK40 R2: no explicit \"\" case arm — the documented no-arg behavior must be dispatched, not fallen through")
+    if "manifest format" in dv_text:
+        problems.append(f"  {DV} - CHECK40 R2: the header still claims a 'manifest format' output mode nothing emits (C33-era fiction); describe what ships or delete the claim")
+
+    # --- R3: behavior probes (execute the script) ---
+    try:
+        pkg_version = json.load(open("package.json", encoding="utf-8"))["version"]
+    except (OSError, KeyError, json.JSONDecodeError) as e:
+        pkg_version = None
+        problems.append(f"  package.json - CHECK40 R3: unreadable/versionless ({e}) — the probes cannot run")
+    if pkg_version is not None:
+        p = subprocess.run(["bash", DV], capture_output=True, text=True)
+        if p.returncode != 0 or p.stdout.strip() != pkg_version:
+            problems.append(f"  {DV} - CHECK40 R3: no-arg run must exit 0 and print package.json version {pkg_version!r} (got rc={p.returncode}, out={p.stdout.strip()!r}, err={p.stderr.strip()!r})")
+        p = subprocess.run(["bash", DV, "--build-ci"], capture_output=True, text=True)
+        if p.returncode == 0:
+            problems.append(f"  {DV} - CHECK40 R3: unknown flag --build-ci exited 0 printing {p.stdout.strip()!r} — the silent *)-arm wrong-version trap is back; unknown flags must exit non-zero")
+
+# --- R4: publish vehicle pinned by docs == workflow reality ---
+WF = ".github/workflows/package.yml"
+DOC = "docs/publishing.md"
+RDME = "README.md"
+try:
+    wf_text = open(WF, encoding="utf-8").read()
+except OSError as e:
+    wf_text = None
+    problems.append(f"  {WF} - CHECK40 R4: unreadable ({e}) — the publish-vehicle law is unreadable")
+try:
+    doc_text = open(DOC, encoding="utf-8").read()
+except OSError as e:
+    doc_text = None
+    problems.append(f"  {DOC} - CHECK40 R4: unreadable ({e}) — publishing docs are part of the pinned contract")
+try:
+    readme_text = open(RDME, encoding="utf-8").read()
+except OSError as e:
+    readme_text = None
+    problems.append(f"  {RDME} - CHECK40 R4: unreadable ({e})")
+
+if wf_text is not None:
+    for pin in ("gh release delete latest --yes --cleanup-tag", "tag_name: latest", "prerelease: true"):
+        if pin not in wf_text:
+            problems.append(f"  {WF} - CHECK40 R4: publish-vehicle pin '{pin}' is gone — the workflow changed its publication vehicle; rotate docs/publishing.md and this leg in the SAME change (rolling `latest` is the shipped design; versioned releases are an open owner decision, M-ROKU-09 rider B)")
+if doc_text is not None:
+    for word in ("rolling", "rollback", "bump"):
+        if word not in doc_text.lower():
+            problems.append(f"  {DOC} - CHECK40 R4: publishing docs lost the '{word}' truth (the vehicle is a rolling `latest` release that destroys the previous build; store submissions need a bumped strictly-increasing triple) — document the shipped reality (M-ROKU-09)")
+if readme_text is not None:
+    m = re.search(r'^### Publishing to Roku Channel Store\s*$(.*?)(?=^#{2,3} |\Z)',
+                  readme_text, re.MULTILINE | re.DOTALL)
+    if m is None:
+        problems.append(f"  {RDME} - CHECK40 R4: the 'Publishing to Roku Channel Store' section vanished — keep the store-submission truth (signed .pkg via make package-signed, see docs/publishing.md)")
+    else:
+        section = m.group(1)
+        if ".pkg" not in section:
+            problems.append(f"  {RDME} - CHECK40 R4: the store-publishing section never names the signed .pkg — the store submission artifact is `make package-signed` output, not phlix.zip (docs/publishing.md; M-ROKU-09)")
+        if "Upload your packaged app (phlix.zip)" in section:
+            problems.append(f"  {RDME} - CHECK40 R4: the store-publishing section re-mints the 'Upload your packaged app (phlix.zip)' fiction — store submission takes the signed .pkg (docs/publishing.md; M-ROKU-09)")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK40: %d version-discipline/publish-vehicle problem(s)" % len(problems))
+    sys.exit(1)
+
+print("  CHECK40: derive-version.sh fully reachable + usage-true + fail-loud on unknown flags;")
+print("           rolling `latest` vehicle == docs/publishing.md truth (rolling/rollback/bump present, README names the .pkg)")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

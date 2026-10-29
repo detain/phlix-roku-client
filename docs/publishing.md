@@ -16,6 +16,65 @@ This guide covers the end-to-end workflow for submitting Phlix to the Roku Chann
 
 ---
 
+## Version Discipline (read this before any store submission)
+
+The version triple a build ships is **derived, never hand-edited**:
+
+```
+package.json "version" = MAJOR.MINOR.PATCH
+   └─ scripts/derive-version.sh  (--major / --minor / --build)
+        └─ build/manifest: major_version=MAJOR  minor_version=MINOR  build_version=PATCH
+```
+
+- `make package` rewrites the version fields in the **build** copy of the
+  manifest from `package.json` every run; the checked-in root `manifest`
+  carries the same triple for human readers and verify-runtime **Check 18**
+  reddens CI when the two drift. Editing `major_version`/`minor_version`/
+  `build_version` in the root manifest directly changes nothing that ships.
+- **Roku store law:** every submission must carry a strictly greater
+  `(major, minor, build)` triple than the last accepted one. Since
+  `build_version` is only the package.json patch component, the real flow is:
+  **bump `package.json` "version" in its own commit before building the
+  submission `.pkg`** — e.g. `npm version patch --no-git-tag-version` (or edit
+  the field), then `make package-signed`. The `1.0.1` triple has never been
+  bumped in this repo's history; a second store submission without a bump
+  cannot succeed.
+- The CI-build-number machinery the version script once carried
+  (`CI_BUILD_NUMBER`/`GITHUB_RUN_NUMBER`-derived builds) was dead code and was
+  **deleted under M-ROKU-09**. No shipped path derives `build_version` from
+  git or CI. If CI-derived versions are ever wanted, they must land together
+  with their consumer and this section's rewrite (see CHECK40).
+
+---
+
+## Release Vehicles and Rollback
+
+What exists **today** (pinned against drift by verify-runtime Check 40):
+
+- **Sideload/QA channel — a single rolling `latest`.** The `Package` workflow
+  publishes a GitHub **prerelease** named `latest` on every `master` push.
+  Before publishing, the job deletes the previous `latest` release *and its
+  tag* (`gh release delete latest --yes --cleanup-tag`), then recreates it
+  from the freshly built `phlix.zip`. Consequence, stated honestly: **the
+  previous sideload build is destroyed by the next push.** `git ls-remote
+  --tags origin` shows exactly one tag (`latest`) — there are no per-build
+  versioned tags or releases.
+- **There is no GitHub-side rollback.** A QA-verified "known good" build can
+  only survive to the next push if someone downloads its `phlix.zip` in time
+  (Actions artifacts from the run are re-zipped on download; the Release
+  asset is the bare sideload zip). Keep any build you may need to return to.
+- **Store-side version management lives at the Roku Developer Portal**, not
+  in this repo — which approved build is live is portal state. Nothing here
+  automates or documents a portal-side revert procedure.
+- **Planned / owner decision pending:** versioned per-build tags + versioned
+  GitHub Releases (with or without keeping the rolling `latest`) and a
+  written rollback procedure were proposed in the 2026-10 estate review
+  (M-ROKU-09) and are **not yet shipped**. Do not "fix" the workflow toward
+  them without the owner decision; changing the vehicle reddens CHECK40 on
+  purpose — rotate the workflow, this document, and the pin together.
+
+---
+
 ## Prerequisites
 
 1. **Roku Developer Account**
