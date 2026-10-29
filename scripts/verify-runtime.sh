@@ -2645,4 +2645,155 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 30: README/package.json endpoint + URL truth (C33) ==="
+# Document-truth law (C33, 2026-10-29, review roku__writer C1+C2+C3): the
+# README "API Endpoints" table is a contract claim. The Emby-era fiction rows
+# that survived the F0b sweep (Auth/Login, Sessions, Library/VirtualFolders,
+# Items, Sessions/Play, Playstate, Users/Me) document routes the product does
+# not have — absent from the vendored server-route manifest AND from every
+# client call site. The manual-deploy recipe zipped four trees and forgot
+# locale/ (docs/i18n.md: a channel without catalogs renders raw keys), and
+# the install/support/package.json URLs pointed at nonexistent homes
+# (github.com/your-org/phlix-roku and phlix-media both 404).
+#   R1  era-fiction ban: no backticked fabricated route reappears in README
+#       (a prose mention outside backticks stays legal; a table row does not)
+#   R2  table truth: every backticked /api/v1 path on an "API Endpoints"
+#       table row resolves in tests/fixtures/server-route-manifest.json OR
+#       in the pinned hub-mode allow set (phlix-hub registers exactly these
+#       two; verified read-only against phlix-hub src/Application.php)
+#   R3  repo identity: README + package.json know exactly one live home,
+#       github.com/detain/phlix-roku-client
+#   R4  manual recipe: the hand-run zip line ships ALL FIVE required trees
+#       (manifest source components images locale — same set `make package`
+#       zips and scripts/verify-package.sh asserts per tree)
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO", ".")
+problems = []
+
+
+def line_of(src, idx):
+    return src.count("\n", 0, idx) + 1
+
+
+with open(os.path.join(repo, "README.md"), encoding="utf-8") as fh:
+    readme = fh.read()
+with open(os.path.join(repo, "package.json"), encoding="utf-8") as fh:
+    pkg = fh.read()
+with open(
+    os.path.join(repo, "tests/fixtures/server-route-manifest.json"), encoding="utf-8"
+) as fh:
+    manifest = json.load(fh)
+server_paths = {t[1] for t in manifest["routes"]}
+
+# R1: the exact fabricated Emby-era routes (review roku__writer C1).
+FABRICATED = [
+    "/api/v1/Auth/Login",
+    "/api/v1/Sessions",
+    "/api/v1/Sessions/{id}",
+    "/api/v1/Library/VirtualFolders",
+    "/api/v1/Items",
+    "/api/v1/Sessions/Play",
+    "/api/v1/Playstate",
+    "/api/v1/Playstate/Progress",
+    "/api/v1/Users/Me",
+]
+for fake in FABRICATED:
+    needle = "`" + fake + "`"
+    idx = readme.find(needle)
+    if idx != -1:
+        problems.append(
+            "README.md:%d - CHECK30 R1: fabricated Emby-era route %s is back "
+            "(the server registers no such route)" % (line_of(readme, idx), needle)
+        )
+
+# R2: hub-mode routes are registered by phlix-hub, deliberately absent from
+# the SERVER manifest; every other documented path must be manifest-verified.
+HUB_MODE = {"/api/v1/me/servers", "/api/v1/servers/{serverId}/proxy/{path:.*}"}
+lines = readme.splitlines()
+try:
+    start = next(i for i, ln in enumerate(lines) if ln.strip() == "## API Endpoints")
+except StopIteration:
+    problems.append(
+        "README.md: CHECK30 R2: '## API Endpoints' section vanished — a "
+        "docs-truth gate with no table is vacuous; re-point this check deliberately"
+    )
+    start = None
+if start is not None:
+    end = next(
+        (i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")),
+        len(lines),
+    )
+    for i in range(start, end):
+        if not lines[i].lstrip().startswith("|"):
+            continue
+        for path in re.findall(r"`(/api/v1[^`]*)`", lines[i]):
+            if path not in server_paths and path not in HUB_MODE:
+                problems.append(
+                    "README.md:%d - CHECK30 R2: documented endpoint `%s` "
+                    "resolves in neither the vendored server-route manifest "
+                    "nor the hub-mode allow set" % (i + 1, path)
+                )
+
+# R3: one canonical, live repo home (review roku__writer C3).
+for name, src in (("README.md", readme), ("package.json", pkg)):
+    for dead in ("your-org/phlix-roku", "phlix-media/phlix-roku-client"):
+        idx = src.find(dead)
+        if idx != -1:
+            problems.append(
+                "%s:%d - CHECK30 R3: dead repo URL '%s' — the live home is "
+                "github.com/detain/phlix-roku-client" % (name, line_of(src, idx), dead)
+            )
+block = re.search(r'"repository"\s*:\s*\{[^}]*\}', pkg, re.S)
+if block is None:
+    problems.append(
+        "package.json: CHECK30 R3: no repository block — npm/github identity "
+        "metadata dropped (fix deliberately, not silently)"
+    )
+elif "detain/phlix-roku-client" not in block.group(0):
+    problems.append(
+        "package.json: CHECK30 R3: repository.url does not name "
+        "detain/phlix-roku-client"
+    )
+
+# R4: the manual-deploy recipe must ship locale/ (review roku__writer C2).
+recipe = [
+    ln.strip()
+    for ln in lines
+    if ln.strip().startswith("zip -r phlix.zip")
+]
+if not recipe:
+    problems.append(
+        "README.md: CHECK30 R4: no manual 'zip -r phlix.zip' recipe found — "
+        "the gate's subject vanished; re-point this leg deliberately"
+    )
+REQUIRED_TREES = {"manifest", "source", "components", "images", "locale"}
+for ln in recipe:
+    words = set(ln.split()) - {"zip", "-r", "phlix.zip"}
+    if words != REQUIRED_TREES:
+        problems.append(
+            "README.md: CHECK30 R4: manual package recipe ships %s — must be "
+            "exactly %s (dropping locale/ ships a raw-key-rendering channel)"
+            % (sorted(words), sorted(REQUIRED_TREES))
+        )
+
+if problems:
+    for p in problems:
+        print("  " + p)
+    print("  CHECK30: %d document-truth problem(s)" % len(problems))
+    sys.exit(1)
+
+print(
+    "  CHECK30: every API-table route resolves in the server manifest or the "
+    "hub-mode pair, zero Emby-era fictions, one live repo home in README + "
+    "package.json, manual recipe ships all five trees"
+)
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

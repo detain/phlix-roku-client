@@ -67,8 +67,8 @@ Note the IP address shown and enable dev mode via the web interface at `http://<
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/phlix-roku.git
-cd phlix-roku
+git clone https://github.com/detain/phlix-roku-client.git
+cd phlix-roku-client
 
 # Review and update manifest if needed
 # Edit: manifest title, version, icons
@@ -324,8 +324,10 @@ telnet 192.168.1.100 8080
 ### Manual Deployment
 
 ```bash
-# Create package manually (components/ is required - omitting it ships a UI-less channel)
-zip -r phlix.zip manifest source components images
+# Create package manually (components/ and locale/ are required — omitting either
+# ships a UI-less or raw-key-rendering channel; 'make package' additionally derives
+# the manifest version and verifies the layout via scripts/verify-package.sh)
+zip -r phlix.zip manifest source components images locale
 
 # Sideload via curl
 curl -v -u rokudev:password -X POST \
@@ -431,22 +433,16 @@ make install
 
 ## API Endpoints
 
-The app communicates with these Phlix API endpoints:
+The app's complete, gated server URL set is pinned in
+`tests/fixtures/server-route-manifest.json` — the `make validate-routes` CI gate
+rejects any URL this client issues that is not a (method, path) tuple in that
+manifest, and `scripts/verify-runtime.sh` Check 30 cross-verifies every endpoint
+row below against it. The two hub-mode routes (`/api/v1/me/servers` and the
+relay proxy) are registered by **phlix-hub**, not by phlix-server, so they are
+deliberately absent from the server manifest.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/Auth/Login` | User authentication with device info |
-| DELETE | `/api/v1/Sessions/{id}` | End session |
-| GET | `/api/v1/Sessions` | List active sessions |
-| POST | `/api/v1/Sessions` | Create new session |
-| GET | `/api/v1/Library/VirtualFolders` | Get library folders |
-| GET | `/api/v1/Items` | Get items with filtering |
-
-| POST | `/api/v1/Sessions/Play` | Start playback session |
-| POST | `/api/v1/Playstate` | Update playstate (play/pause/stop) |
-| POST | `/api/v1/Playstate/Progress` | Report playback progress |
-
-| GET | `/api/v1/Users/Me` | Get current user info |
 | GET | `/api/v1/collections` | List collections (read-only). Returns `{collections:[...]}`. Currently unauthenticated server-side. |
 | GET | `/api/v1/collections/{id}` | Get one collection with its items (read-only). Returns `{collection, items, total}`; `items` are raw DB rows normalized client-side. Currently unauthenticated server-side. |
 | GET | `/api/v1/syncplay/groups` | SyncPlay group-list snapshot (read-only; server SP5). Returns the whole `{groups:[{id, name, member_count, has_password, current_media, is_playing}]}` envelope (NOT unwrapped) — note the list uses `id`/`name`, **not** `group_id`/`group_name`. Used to populate the Watch Together overlay without typing a group id on the TV; group create/join/leave go over the WebSocket, not REST. See "SyncPlay (Watch Together)". |
@@ -725,5 +721,5 @@ MIT License - See LICENSE file for details
 
 ## Support
 
-- Issue Tracker: GitHub Issues
-- Documentation: [Phlix Wiki](https://github.com/your-org/phlix-roku/wiki)
+- Issue Tracker: [GitHub Issues](https://github.com/detain/phlix-roku-client/issues)
+- Documentation: the [`docs/`](docs/) directory in this repository

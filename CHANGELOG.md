@@ -2,6 +2,42 @@
 
 ## [Unreleased]
 
+### Docs — README endpoint fictions, dead URLs, locale-packaging truth (CHECK30) — 2026-10-29
+
+- **The hole.** Review `roku__writer` C1-C3 (criticals). The README "API
+  Endpoints" table still led with ten Emby-era rows (`Auth/Login`, the three
+  `Sessions` verbs, `Library/VirtualFolders`, `Items`, `Sessions/Play`,
+  `Playstate`, `Playstate/Progress`, `Users/Me`) — routes the server never
+  registered (absent from the vendored 410-tuple
+  `tests/fixtures/server-route-manifest.json`) and the client never calls
+  (grep over `source/` + `components/` empty); CALIBER_LEARNINGS had already
+  warned the pre-F0b prose was stale and the block survived the sweep. The
+  manual-deploy recipe zipped `manifest source components images` and omitted
+  `locale/` — following it ships a channel that renders raw catalog keys on
+  the TV (docs/i18n.md states the consequence); only `make package` shipped
+  locales. And zero-to-TV step 2 told readers to `git clone
+  github.com/your-org/phlix-roku` (404), Support linked a 404 wiki, while
+  package.json's repository.url named a third, also-dead home
+  (`phlix-media/phlix-roku-client`, 404) — all three curls verified.
+- **The fix.** The ten fictional rows are deleted and the lead-in now points
+  at the gated manifest itself (every remaining row verified IN-manifest, or
+  hub-registered in phlix-hub for the two hub-mode routes); the manual recipe
+  zips all five trees with an honest parenthetical (the `make package` path
+  was already true — `scripts/verify-package.sh` leg 5 fails a zip whose
+  `locale/` tree carries zero files); clone URL, `cd`, Support links and
+  `package.json` repository.url all point at the live
+  `github.com/detain/phlix-roku-client` (the retired wiki replaced by the
+  in-repo `docs/`).
+- **Gate teeth.** `scripts/verify-runtime.sh` gains CHECK 30: the fabricated
+  routes may never reappear backticked; every API-table `/api/v1/...` row
+  must resolve against the vendored manifest ∪ the pinned hub-mode pair;
+  README and package.json must know exactly one repo home; the manual zip
+  recipe must name all five trees. Mutation-proven: the check ran red on the
+  era README (23 problems, listed per file:line) before the docs were cured.
+  `docs/static-checks.md` gains rows 27-30 (the table had silently stopped at
+  26 when the C03/C20/C21 lanes added their checks) and its stale "All 26
+  checks" count is corrected.
+
 ### Fixed — HomeScene header focus chain reaches Settings (CHECK29) — 2026-10-29
 
 - **The hole.** Review `roku__gameux` C2 (critical): the hand-rolled Left/Right
