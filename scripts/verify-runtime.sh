@@ -4806,17 +4806,34 @@ echo "=== Check 43: wire error text is type-guarded before it meets string ops (
 #Chars() + WireErrorMessageMax() (source/lib/Utilities.brs) and the task-
 # thread choke DeriveResponseError()/WireErrorPresent() (components/
 # ApiTask.brs). CHECK42 stays reserved to the M-ROKU-11 telemetry lane.
-#   R1  no code (comments/strings stripped) reads, returns, or compares a
-#       `.error`/`.message` wire member raw outside a type-guard line.
+#   R1  five arms over the code-masked line (strings -> "", comments dropped):
+#       a `.error`/`.message` wire member may NOT (a) be compared to a string
+#       literal, (b) meet a string op (lcase/ucase/instr/left/right/len/
+#       trim/mid), (c) meets a + on either side - concatenated into or out
+#       of a string (the r2 blind class `"Server error: " + resp.error`,
+#       both operand orders), (d) be passed as a direct call argument to a sink
+#       whose first parameter is not proven `as Object` - the Object-sink set
+#       is DERIVED from the tree's own function/sub signatures, so the guard
+#       family self-exempts while `IsTransportReason(resp.error)`-style
+#       String-sink calls convict, or (e) be lifted/returned raw into a
+#       variable. Guard-token lines (SafeErrorMessage/WireErrorPresent/
+#       WireErrorText/the "roString"/"String" type-gate literals) are exempt
+#       - arms (a)-(d) test the token on the CODE-MASKED text (a comment
+#       naming a guard cannot buy exemption, review r1 minor), (e) keeps the
+#       raw-line token (the sanctioned choke-lift allowance). `.top`-
+#       prefixed reads are RSG-typed and exempt.
 #   R2  the cure artifacts are live: Utilities defines SafeErrorMessage
 #       (value as Object) and WireErrorMessageMax() returning the pinned 300;
 #       ApiTask defines WireErrorPresent and routes DeriveResponseError
 #       through SafeErrorMessage.
-#   INFLIGHT (WARN, not counted): components/PhlixApp.brs and
-#       source/lib/ApiClient.brs carry the raw wire lifts the live M-ROKU-11
-#       telemetry lane owns curing at the ApiClient choke - REMOVAL DUTY
-#       lands with that commit; the set must never grow. Every OTHER
-#       wire-text consumer in the tree is guarded or m.top-typed.
+#   NO path exemptions. The in-flight WARN set {components/PhlixApp.brs,
+#   source/lib/ApiClient.brs} was DELETED here (review M-ROKU-12 r2, ask 2):
+#   its premise - the M-ROKU-11 lane curing the ApiClient raw lifts - landed
+#   typed at 587f85b (WireErrorText guards every wire lift in both files),
+#   and a path hole over the two wire-choke files is exactly where this class
+#   silently re-accumulated once (M-ROKU-11's own SettingsScene:214 raw
+#   concat slipped CHECK43 while they were exempted). The whole tree is one
+#   law.
 PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
@@ -4824,32 +4841,74 @@ import glob, os, re, sys
 
 repo = os.environ["REPO"]
 
-# A line carrying a guard token has touched the value through the choke.
-GUARDED = re.compile(r'SafeErrorMessage\(|WireErrorPresent\(|"roString"')
-# m.top.* are RSG-typed fields: the node coerces on write, so reads off them
-# can never hand a non-String to a string op.
-RAW_READ = re.compile(r'(?<![.\w])(?:return|=)\s+[\w.]*\.(?:error|message)\b')
-READ_ALLOW = re.compile(r'(?:return|=)\s+m\.top\.message\b')
+# A line whose CODE carries a guard token has touched the value through a
+# choke. WireErrorText (the ApiClient source-choke guard, M-ROKU-11
+# completion) joins the set here because the exemption list above was
+# deleted in the same commit: the cured lines must survive by the token,
+# never by a path hole (review M-ROKU-12 r2, Ask-1 coupled detail). The
+# type-gate literals survive the code mask below precisely so they stay
+# visible to this check.
+GUARDED = re.compile(r'SafeErrorMessage\(|WireErrorPresent\(|WireErrorText\(|"roString"|"String"')
+# A wire-controlled member. `.top` reads (m.top.* RSG fields) are exempt:
+# the node server coerces on write, so a read off them can never hand a
+# non-String to a string op. (This lookbehind is placed BEFORE the dot -
+# the pattern consumes it - where the old `(?<!m\.top\.)` window could
+# never actually match and exempted nothing.)
+WIRE = r'(?<!\.top)\.(?:error|message)\b'
+# Wire member lifted/returned raw into a variable.
+RAW_READ = re.compile(r'(?<![.\w])(?:return|=)\s+[\w.]*' + WIRE)
 # Wire member compared against a String literal (code-only view renders any
 # `<> "..."` as `<> ""` - a non-String wire value compared to text is the
 # silent-true / crash-next-line class either way).
-RAW_COMPARE = re.compile(r'(?<!m\.top\.)\.(?:error|message)\s*(?:<>|==|=)\s*""')
+RAW_COMPARE = re.compile(WIRE + r'\s*(?:<>|==|=)\s*""')
 # A String operation applied directly to a wire member.
 RAW_STRINGOP = re.compile(
-    r'\b(?:lcase|ucase|instr|left|right|len|trim|mid)\s*\([^)]*(?<!m\.top\.)\.(?:error|message)\b',
+    r'\b(?:lcase|ucase|instr|left|right|len|trim|mid)\s*\([^)]*' + WIRE,
     re.I,
 )
+# A wire member meeting a + on either side - the r2 blind-spot plant
+# `x = "Server error: " + resp.error` and its mirror.
+RAW_CONCAT = re.compile(r'[+]\s*[\w.]*' + WIRE + r'|[\w.]*' + WIRE + r'\s*[+]')
+# A wire member as the direct first argument of a call. Tolerated only when
+# the callee's first parameter is proven `as Object` (the guard family and
+# every other Object sink in the tree self-exempt via OBJECT_SINKS below);
+# any other callee - String-typed, method, or unresolved builtin - is a
+# typed sink and the crash class.
+CALL_ARG = re.compile(r'[A-Za-z_]\w*\s*\(\s*[\w.]*' + WIRE)
+FUNC_DEF = re.compile(r'^\s*(?:function|sub)\s+([A-Za-z_]\w*)\s*\(([^)]*)\)', re.I | re.M)
 
-INFLIGHT = {"components/PhlixApp.brs", "source/lib/ApiClient.brs"}
+paths = sorted(
+    glob.glob(os.path.join(repo, "source", "**", "*.brs"), recursive=True)
+    + glob.glob(os.path.join(repo, "components", "**", "*.brs"), recursive=True)
+)
 
-problems = []
-warnings = []
-scanned = 0
-tripped = 0
+# Derive the tree's own Object-sink set: a name is safe only if every
+# definition of it takes `as Object` (or no parameter) first.
+object_sinks = set()
+unsafe_sinks = set()
+for path in paths:
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for match in FUNC_DEF.finditer(fh.read()):
+            name = match.group(1)
+            params = match.group(2).strip()
+            first = params.split(",")[0] if params else ""
+            if not params or re.search(r'\bas\s+Object\b', first, re.I):
+                object_sinks.add(name)
+            else:
+                unsafe_sinks.add(name)
+object_sinks -= unsafe_sinks
 
 def code_only(line):
-    """Strip double-quoted strings; drop full-line and inline ' comments."""
-    code = re.sub(r'"[^"]*"', '""', line)
+    """Strip double-quoted strings; drop full-line and inline ' comments.
+
+    The type-gate guard literals ("roString"/"String") are KEPT verbatim:
+    they are themselves GUARDED tokens and masking them away would make
+    the r1 code-mask hardening blind the type-guard idiom it audits
+    (PlayerScene's `type(ev.message) = "roString"` family)."""
+    def mask(match):
+        literal = match.group(0)
+        return literal if literal in ('"roString"', '"String"') else '""'
+    code = re.sub(r'"[^"]*"', mask, line)
     if code.lstrip().startswith("'"):
         return ""
     cut = code.find("'")
@@ -4857,10 +4916,9 @@ def code_only(line):
         code = code[:cut]
     return code
 
-paths = sorted(
-    glob.glob(os.path.join(repo, "source", "**", "*.brs"), recursive=True)
-    + glob.glob(os.path.join(repo, "components", "**", "*.brs"), recursive=True)
-)
+problems = []
+scanned = 0
+
 for path in paths:
     rel = os.path.relpath(path, repo).replace(os.sep, "/")
     scanned += 1
@@ -4870,24 +4928,31 @@ for path in paths:
             code = code_only(line)
             if not code.strip():
                 continue
-            if GUARDED.search(line):
-                continue
             why = None
-            if RAW_COMPARE.search(code):
-                why = "compares wire .error/.message against a string literal"
-            elif RAW_STRINGOP.search(code):
-                why = "string operation on a raw wire .error/.message value"
-            elif RAW_READ.search(code) and not READ_ALLOW.search(code):
-                why = "raw wire .error/.message read/return (unguarded lift into a variable)"
+            if not GUARDED.search(code):
+                # Arms (a)-(d): the guard token must live in CODE, not in a
+                # comment on the line (review r1 minor - code-mask hardening).
+                if RAW_COMPARE.search(code):
+                    why = "compares wire .error/.message against a string literal"
+                elif RAW_STRINGOP.search(code):
+                    why = "string operation on a raw wire .error/.message value"
+                elif RAW_CONCAT.search(code):
+                    why = "concatenates a raw wire .error/.message value via + (into/out of a string)"
+                else:
+                    match = CALL_ARG.search(code)
+                    if match:
+                        callee = re.search(r'([A-Za-z_]\w*)\s*\(\s*[\w.]*$', match.group(0)).group(1)
+                        if callee not in object_sinks:
+                            why = "passes a raw wire .error/.message value to a call sink not proven to take Object (%s)" % callee
+            if why is None and not GUARDED.search(line):
+                # Arm (e) keeps the raw-line exemption - the sanctioned
+                # choke-lift allowance (review r1: "the choke-lift exemption
+                # can keep raw-line").
+                if RAW_READ.search(code):
+                    why = "raw wire .error/.message read/return (unguarded lift into a variable)"
             if why is None:
                 continue
-            tripped += 1
-            if rel in INFLIGHT:
-                warnings.append(
-                    f"  {rel}:{num} - CHECK43 WARN (in-flight M-ROKU-11 choke): {why}: {line.strip()[:80]}"
-                )
-            else:
-                problems.append(f"  {rel}:{num} - CHECK43: {why}: {line.strip()[:80]}")
+            problems.append(f"  {rel}:{num} - CHECK43: {why}: {line.strip()[:80]}")
 
 # R2 - the cure choke must be the shipped code, not a memory.
 util_path = os.path.join(repo, "source", "lib", "Utilities.brs")
@@ -4907,8 +4972,6 @@ if os.path.exists(at_path):
     if body is None or "SafeErrorMessage(" not in body.group(0):
         problems.append("  components/ApiTask.brs - CHECK43 R2: DeriveResponseError no longer routes through SafeErrorMessage")
 
-for w in warnings:
-    print(w)
 if problems:
     for prob in problems:
         print(prob)
@@ -4916,8 +4979,9 @@ if problems:
     sys.exit(1)
 
 print("  CHECK43: all wire .error/.message reads across %d .brs files are type-guarded at the" % scanned)
-print("           sink (SafeErrorMessage/WireErrorPresent/roString) or m.top-typed; choke pins live;")
-print("           %d in-flight ApiClient-choke reads WARN-listed for the M-ROKU-11 lane" % len(warnings))
+print("           sink (SafeErrorMessage/WireErrorPresent/WireErrorText/roString-type-gate),")
+print("           m.top-typed, or an `as Object` call sink derived from the tree itself;")
+print("           no path exemptions; choke pins live")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

@@ -37,6 +37,51 @@
   read() fail-loud line + R4's "vanished" line — teeth stand; this CHANGELOG
   already pinned 29, the report now matches).
 
+### Fixed — CHECK43 exemption list deleted, gate teeth grown to the two proven-blind sink classes (M-ROKU-12 r2 cure) — 2026-10-29
+
+- **The residual (review M-ROKU-12 r2).** The r1 lane landed the ApiClient/
+  PhlixApp source cure (`WireErrorText`, 587f85b) but not its tail: the
+  CHECK43 in-flight WARN exemption {components/PhlixApp.brs, source/lib/
+  ApiClient.brs} still path-blinded the two wire-choke files to the class,
+  and the gate itself still could not SEE the two sink forms its own
+  docblock names — r2 re-planted both in non-exempt `DetailScene.brs` and
+  the full script ran rc=0 PASS (this lane reproduced the blindness at
+  base `4240ad2`). The class was silently re-accumulable everywhere.
+- **Gate teeth.** CHECK43 R1 grows from three arms to five: RAW_CONCAT (a
+  wire `.error`/`.message` concatenated into or out of a string literal,
+  both operand orders — the blind plant `"Server error: " + resp.error`)
+  and TYPED_SINK (a wire member as a direct call argument to any callee
+  whose first parameter is not proven `as Object` — the set is derived
+  from the tree's own function/sub signatures, so SafeErrorMessage/
+  WireErrorPresent/WireErrorText/GetErrorMessage/DiagnosticText self-
+  exempt while the second blind plant `IsTransportReason(resp.error)`
+  convicts naming the callee). `WireErrorText\(` joins GUARDED (the r2
+  Ask-1 coupled precondition: the cured lines now survive by the token,
+  not by RAW_READ's inability to cross `(`). GUARDED is evaluated on the
+  code-masked line for the sink-family arms (a comment naming a guard no
+  longer exempts a real raw op — r1 minor; the choke-lift arm keeps the
+  raw-line allowance), and the type-gate literals survive the string mask
+  so the `type(ev.message) = "roString"` family stays exempt. The RSG
+  `.top` lookbehind is fixed into a working position (the old
+  `(?<!m\.top\.)` window could never match: the pattern consumes the dot).
+- **Exemption deletion.** The INFLIGHT dict, the WARN print and the stale
+  header prose are gone; both wire-choke files rejoin the normal scan and
+  pass clean (59 files, 46 legs, rc=0). `docs/static-checks.md` row 43 is
+  re-anchored (its INFLIGHT sentence contradicted row 44; the cure-site
+  census now reads eleven, naming the `SettingsScene:214` landing cure —
+  the historical `16f338ca8` red-on-parent figures 35/31/ten stay verbatim
+  for their true baseline). The portable RED43 leg plants ALL FIVE arms in
+  a scratch `DetailScene.brs` — each must convict naming file and read
+  (teeth proof this lane: the two-form r2 plant reddens rc=1 on the cured
+  script where it passed rc=0 at the parent, log-paired in the fix report).
+- **Prose math (r2 ask 3).** The 587f85b entry's red-on-`ff2791024` count
+  is corrected to 14 named diagnostics in both homes (docs row 44 + the
+  entry below); r2 measured 15 only on staged `a84cdb7` — the fixer's own
+  report already carried the 14.
+- **Lineage note.** The r1 review's `ten → eleven` census minor lands
+  here; the historical CHANGELOG entries keep their then-true figures
+  verbatim per house rule (forward-correction in this entry).
+
 ### Fixed — SyncPlay refuses TLS origins and proves the handshake (M-ROKU-14) — 2026-10-29
 
 - **The defect (review roku__exploiter M3).** `BuildSyncPlayWsParts`
@@ -167,8 +212,9 @@ dials + type-guarded wire error lifts (takeover lane) — 2026-10-29
   A hostile `{"error":{...}}` body degrades to the typed fallback instead of
   raising. (SettingsScene's history arm shipped in M12's landing.)
 - **Gate.** `scripts/verify-runtime.sh` CHECK44 (R1–R5, red-on-`ff2791024`
-  with 15 named diagnostics, portable-harness mint-strip plant + CHECK42
-  gate-independence assert).
+  with 14 named diagnostics — count corrected per review M-ROKU-12 r2's
+  staged re-measurement; 15 was the `a84cdb7` figure; portable-harness
+  mint-strip plant + CHECK42 gate-independence assert).
 - Takeover disclosure: the prior lanes on this item raced fleet restarts
   (phantom-closeout protocol); this lane verified surviving disk work against
   origin, adopted origin's CHECK42/M12/M11r2 lines wholesale, and landed only
