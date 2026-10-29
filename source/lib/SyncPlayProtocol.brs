@@ -387,15 +387,21 @@ function SyncPlayProtocol() as Object
         SecWebSocketAcceptValue: function(responseText as String) as String
             if responseText = invalid or responseText = "" then return ""
             nl = Chr(10)
-            block = responseText
-            blank = Instr(1, block, nl + nl)
-            if blank > 0 then block = Left(block, blank - 1)
             name = "sec-websocket-accept:"
-            for each line in block.Split(nl)
+            for each line in responseText.Split(nl)
                 ' .Trim() removes the CR of each CRLF pair (and the padding
                 ' around the value) before comparing — Trim() is an roString
                 ' method, not a global.
                 cut = line.Trim()
+                ' The first blank line ENDS the header block. The handshake's
+                ' CRLF-CRLF terminator arrives as an empty (or CR-only) entry
+                ' here — Trim() makes both shapes testable the same way, and
+                ' bare-LF terminations match too — so the scan stops there and
+                ' a body line can never impersonate a header. (M-ROKU-14
+                ' MAJOR-1: the earlier Instr(nl + nl) truncation was dead
+                ' against CRLF bytes and never fired; this stop is what makes
+                ' the docblock claim above true.)
+                if cut = "" then exit for
                 probe = UCase(Left(cut, Len(name)))
                 if probe = UCase(name) then return Mid(cut, Len(name) + 1).Trim()
             end for

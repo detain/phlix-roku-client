@@ -70,6 +70,14 @@ sub TestSecWebSocketAcceptValueParsing()
     spoofed = "HTTP/1.1 101 Switching Protocols" + crlf + crlf
     spoofed = spoofed + "Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=" + crlf
     assertEqual(proto.SecWebSocketAcceptValue(spoofed), "")
+
+    ' Paired guard: with a REAL accept header present AND a spoofed copy
+    ' after the terminator, the answer is the header block's value — the
+    ' scan stops at the first blank line and the body line is never seen.
+    realThenSpoof = "HTTP/1.1 101 Switching Protocols" + crlf
+    realThenSpoof = realThenSpoof + "Sec-WebSocket-Accept: realHeaderAcceptValue==" + crlf + crlf
+    realThenSpoof = realThenSpoof + "Sec-WebSocket-Accept: spoofedBodyAcceptVal==" + crlf
+    assertEqual(proto.SecWebSocketAcceptValue(realThenSpoof), "realHeaderAcceptValue==")
     print "TestSecWebSocketAcceptValueParsing passed"
 end sub
 

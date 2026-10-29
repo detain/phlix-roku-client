@@ -5297,7 +5297,11 @@ echo "=== Check 46: the SyncPlay dial refuses TLS origins and proves the handsha
 #       refusal line via Translate("syncplay_status_tls_refused").
 #   R2  handshake proof: the RFC6455 §1.3 magic GUID constant is live, the
 #       fail-closed trio (SecWebSocketAcceptValue / ExpectedSecWebSocketAccept
-#       / VerifyHandshakeAccept) exists in source/lib/SyncPlayProtocol.brs,
+#       / VerifyHandshakeAccept) exists in source/lib/SyncPlayProtocol.brs
+#       with the accept parser's blank-line stop (the header scan must end at
+#       the first Trim-empty line — the CRLF handshake terminator is invisible
+#       to a nl+nl search, so without the stop a body impersonates a header:
+#       review M-ROKU-14 r1 MAJOR-1),
 #       SyncPlayTask calls VerifyHandshakeAccept AFTER the HandshakeAccepted
 #       status gate (both required), tags the failure via m.wsAcceptFailed,
 #       and RunSocket reports it as the census code local.ws_accept_invalid —
@@ -5308,7 +5312,9 @@ echo "=== Check 46: the SyncPlay dial refuses TLS origins and proves the handsha
 #       seven catalogs carry errors.local_ws_accept_invalid + syncplay.
 #       status_tls_refused (Check 21 keeps the sides parity-pinned).
 #   R4  harness teeth: tests/unit/SyncPlayWsTls.test.brs pins the truth table,
-#       the header parser, and the RFC6455 §1.3 vector on-device.
+#       the header parser (incl. the body-spoof guard), the hex-shape gate,
+#       the fail-closed arms, and the RFC6455 §1.3 vector on-device — the
+#       leg below names all five Test subs.
 PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
@@ -5405,6 +5411,9 @@ if proto is not None:
             problems.append(f"  {PROTO} - CHECK46 R2: {name} is gone (the proof cannot be vacuous)")
         elif not re.search(teeth, b):
             problems.append(f"  {PROTO} - CHECK46 R2: {name} lost its fail-closed shape ({teeth})")
+    b = member("SecWebSocketAcceptValue")
+    if b is not None and 'if cut = "" then exit for' not in b:
+        problems.append(f"  {PROTO} - CHECK46 R2: SecWebSocketAcceptValue no longer stops the header scan at the first blank line — a body line can impersonate a header again (the CRLF-blind nl+nl truncation era, review M-ROKU-14 r1 MAJOR-1)")
     b = member("VerifyHandshakeAccept")
     if b is not None:
         for guard in ('if offered = "" then return false', 'if got = "" then return false', 'if expected = "" then return false'):
@@ -5466,7 +5475,7 @@ test = read(TEST)
 if test is None:
     problems.append(f"  {TEST} - CHECK46 R4: the M-ROKU-14 unit suite vanished")
 else:
-    for name in ("TestSyncPlayWsRefusedForOriginTruthTable", "TestSecWebSocketAcceptValueParsing", "TestVerifyHandshakeAcceptFailClosed", "TestRfc6455AcceptVector"):
+    for name in ("TestSyncPlayWsRefusedForOriginTruthTable", "TestSecWebSocketAcceptValueParsing", "TestIsHex40Shape", "TestVerifyHandshakeAcceptFailClosed", "TestRfc6455AcceptVector"):
         if f"sub {name}(" not in test:
             problems.append(f"  {TEST} - CHECK46 R4: {name} is gone")
 

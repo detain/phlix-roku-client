@@ -2,6 +2,41 @@
 
 ## [Unreleased]
 
+### Fixed — SecWebSocketAcceptValue truncates at the CRLF blank line (M-ROKU-14 r1 MAJOR-1) — 2026-10-29
+
+- **The defect (r1 review of `4240ad2`).** The accept parser's header-block
+  truncation searched for `\n\n`; the HTTP/WS handshake terminator is
+  `\r\n\r\n`, so the truncation never fired on real-shape input and a body
+  line after the terminator was extracted as if it were a header. The shipped
+  device vector in `TestSecWebSocketAcceptValueParsing` (spoofed body → `""`)
+  asserted the claimed law and therefore failed on-device (rooibos is
+  ROKU_HOST-gated; the CHECK46 teeth pinned only the invalid/empty guard, so
+  CI never saw it). Production was unaffected — the task hands the parser a
+  byte slice ending AT the terminator — so this cure makes the defense-in-
+  depth layer exist while claiming to, and the docblock "a body can never
+  impersonate a header" claim true as written: no prose rewording needed.
+- **The cure.** The line loop stops at the first blank line (`cut = ""` once
+  Trim removes the CR — one test covering the CRLF terminator, CR-only
+  padding, and bare-LF terminations alike) and the dead `Instr(nl + nl)`
+  truncation is removed. The shipped spoofed vector passes as-authored; a new
+  paired vector pins the complement: real accept header + terminator +
+  spoofed body line → the header's value only. Verified by faithful
+  simulation: all nine header-parse vectors (the suite's five, the review's
+  proof input, a bare-LF shape, and prod-shape slices) match expectations.
+- **Teeth.** CHECK46 R2 gains the blank-line tooth (the parser body must
+  carry the stop). Red-on-parent MEASURED: new script against the era tree
+  `4240ad2` — exit 1, exactly 1 named problem, naming
+  `source/lib/SyncPlayProtocol.brs` and the MAJOR-1 class, all 45 sibling
+  legs green. The portable plant-and-restore leg gains the THIRD defect arm:
+  stripping the stop re-grows the class, fires the tooth naming the parser
+  file, restore returns exit 0. CHECK46 R4 now names all five Test subs
+  (adds the previously-unpinned `TestIsHex40Shape`), making docs row 46's
+  "its five Test subs" true.
+- **Minors.** The close report's "28 named problems red-on-parent" claim is
+  rotated to the measured 29 (the era's missing test file double-counts: the
+  read() fail-loud line + R4's "vanished" line — teeth stand; this CHANGELOG
+  already pinned 29, the report now matches).
+
 ### Fixed — SyncPlay refuses TLS origins and proves the handshake (M-ROKU-14) — 2026-10-29
 
 - **The defect (review roku__exploiter M3).** `BuildSyncPlayWsParts`
