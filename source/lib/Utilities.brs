@@ -229,6 +229,48 @@ function ExtractServerOrigin(location as String) as String
     return scheme + "://" + rest
 end function
 
+' Accept only an SSDP search RESPONSE (M-ROKU-04 r2; moved out of
+' components/DiscoveryTask.brs so the unit tests can reach it - pure parsing
+' belongs in global scope, CHECK37 R5 pins this home). An "HTTP/1.x 200"
+' status line (NOTIFYs and foreign M-SEARCH floods on the same port are
+' datagrams we must not parse as answers - the server's own client applies
+' the same discriminator), naming us as Phlix, whose LOCATION reduces to a
+' usable origin via ExtractServerOrigin.
+' @param raw String - one received datagram's ASCII text
+' @return String - the origin, or "" when this datagram is not a keeper.
+function ParseSsdpResponse(raw as String) as String
+    if raw = invalid then return ""
+    if raw = "" then return ""
+    if raw.Left(4) <> "HTTP" then return ""
+    if Instr(1, raw, " 200") = 0 then return ""
+
+    location = ""
+    isPhlix = false
+    lines = raw.Split(Chr(10))
+    for each line in lines
+        value = line
+        if Len(value) > 0 and Mid(value, Len(value), 1) = Chr(13) then
+            value = Left(value, Len(value) - 1)
+        end if
+        ' Header lines are "Name: value". A datagram read to its length can
+        ' carry trailing NUL bytes from the sender's padding - such lines
+        ' match no prefix and are inert. AA member lookup is
+        ' case-insensitive; the Left/UCase prefix tests keep header casing
+        ' irrelevant by design.
+        upper = Left(value, 9).UCase()
+        if upper = "LOCATION:" then
+            location = Mid(value, 10).Trim()
+        else if Left(value, 4).UCase() = "USN:" then
+            if Instr(1, value.UCase(), "PHLIXSERVER") > 0 then isPhlix = true
+        else if Left(value, 7).UCase() = "SERVER:" then
+            if Instr(1, value, "Phlix/") > 0 then isPhlix = true
+        end if
+    end for
+
+    if not isPhlix then return ""
+    return ExtractServerOrigin(location)
+end function
+
 ' True when a parsed /health JSON body indicates a reachable Phlix host. The body
 ' is {status:"ok", service, version, ...}; we accept it when status="ok" OR a
 ' "version" key is present. NEVER compare a possibly-numeric field with "" - read

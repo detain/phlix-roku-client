@@ -5,7 +5,30 @@
 ' copyright 2026 Joe Huss
 '
 '
-' M-ROKU-04 — one-shot SSDP LAN scan (task thread; UI-free).
+' M-ROKU-04 r2 — one-shot SSDP LAN scan (task thread; UI-free), rebuilt on
+' the DOCUMENTED socket surface.
+'
+' The r1 scan drove an roSocket constructed with a "udp:" address string and
+' called EnableBroadcast / JoinMulticastGroup / one-arg Receive — none of
+' which exist in this repo's own vendored Roku documentation mirror
+' (node_modules/brighterscript/dist/roku-types/data.json), and hid that from
+' the compiler behind a component-name indirection. r1 could die mid-scan on a
+' BrightScript runtime error, and the dead thread never wrote `response` —
+' leaving the Connect screen latched on "Searching…" with a permanently
+' dead Find button (the exact defect class M-ROKU-04 set out to cure).
+'
+' r2 follows the roDataGramSocket worked example quoted verbatim in the
+' vendored mirror:
+'   CreateObject("roDataGramSocket")                       ' no arguments
+'   roSocketAddress + ifSocket.SetAddress                  ' BSD bind
+'   ifSocketAsync.SetMessagePort / NotifyReadable          ' roSocketEvent feed
+'   ifSocketCastOption.SetBroadcast / JoinGroup            ' real documented names
+'   ifSocket.SetSendToAddress + SendStr                    ' the sendto half
+'   ifSocketAsync.GetID vs roSocketEvent.GetSocketID       ' event ownership
+'   IsReadable + ReceiveStr(length)                        ' non-blocking drain
+' Every call is compiler-visible (the component IS in the bsc catalog); the
+' indirection is gone, so a future rename/arity slip reddens `make lint`
+' instead of the user's living room.
 '
 ' Sends the SAME M-SEARCH datagram shape the server's own discovery client
 ' builds (phlix-server src/Discovery/Ssdp/SsdpSocket.php:316-321 — method
@@ -19,9 +42,14 @@
 ' don't-validate boundary: an SSDP answer is LAN-influenced input, so it can
 ' only ever prefill a text box that the existing /health probe gates.
 '
-' Every degradation path returns an EMPTY list, which the caller renders as
-' "No Phlix server found on this network. Type the address above." — the
-' pre-M-ROKU-04 manual flow is always the floor, never lost.
+' Degradation contract (CHECK37 pins it from both sides):
+'   * every leg this thread can reach without erroring writes m.top.response
+'     with a (possibly empty) { servers: [...] } answer;
+'   * if the thread nevertheless dies, the Task node still transitions
+'     state -> "finish", and ConnectScene observes BOTH fields: a finish
+'     without a response renders the same honest "No Phlix server found"
+'     floor as an empty scan. An errored scan never latches; Find stays
+'     re-pressable; manual entry is always the floor, never lost.
 
 ' ---------------------------------------------
 ' Wire constants (cross-read from phlix-server, do not drift):
@@ -58,40 +86,65 @@ function DiscoveryMaxDatagrams() as Integer
     return 64
 end function
 
+' Per-datagram read ceiling for ReceiveStr. SSDP search responses are small
+' header sets; the vendored docs' own worked example reads 512 bytes - 2048
+' keeps headroom for long LOCATION/USN lines without an unbounded read.
+function DiscoveryMaxDatagramBytes() as Integer
+    return 2048
+end function
+
 sub Init()
     m.top.functionName = "RunDiscovery"
 end sub
-
-' bsc's component catalog (BS1129) does not know the runtime's roSocket
-' datagram object; the name is sourced from a function so the static check
-' cannot const-fold it, while the runtime CreateObject resolves it exactly.
-' This is the ONE intentional indirection of a component type name in the
-' channel and lives here, with the invalid-guard that follows its creation.
-function DiscoverySocketName() as String
-    return "roSocket"
-end function
 
 sub RunDiscovery()
     servers = []
 
     port = CreateObject("roMessagePort")
-    sock = CreateObject(DiscoverySocketName(), "udp:0.0.0.0:0")
+    sock = CreateObject("roDataGramSocket")
     if sock = invalid then
         ' Datagram sockets unavailable on this firmware - empty answer,
         ' caller falls back to manual entry (the documented floor).
         m.top.response = { servers: servers }
         return
     end if
+
+    ' Bind an ephemeral local UDP port: the documented pair is
+    ' ifSocketAddress.SetAddress(String) then ifSocket.SetAddress(roSocketAddress).
+    bindAddr = CreateObject("roSocketAddress")
+    bindAddr.SetAddress("0.0.0.0:0")
+    if not sock.SetAddress(bindAddr) then
+        sock.Close()
+        m.top.response = { servers: servers }
+        return
+    end if
+
+    ' Arm the event feed BEFORE sending so an answer that arrives instantly is
+    ' queued, not missed. SetBroadcast/JoinGroup are best-effort per the docs:
+    ' replies to our own M-SEARCH come back unicast; the join only adds
+    ' hearing the group traffic (NOTIFYs). A refused option must not sink the
+    ' scan, so their Booleans are deliberately not branched on.
     sock.SetMessagePort(port)
-    sock.EnableBroadcast(true)
+    sock.NotifyReadable(true)
+    sock.SetBroadcast(true)
 
-    ' Joining is only needed to hear passive NOTIFYs; replies to our own
-    ' M-SEARCH come back unicast. A failed join must not sink the scan.
-    sock.JoinMulticastGroup(DiscoveryMulticastAddr())
+    groupAddr = CreateObject("roSocketAddress")
+    groupAddr.SetAddress(DiscoveryMulticastAddr())
+    sock.JoinGroup(groupAddr)
 
-    ' SendToAddr returns the byte count (or a negative error) - compare
+    ' Send = documented two-step: SetSendToAddress stashes the first half of
+    ' the BSD sendto(), SendStr then ships the whole datagram.
+    sendAddr = CreateObject("roSocketAddress")
+    sendAddr.SetAddress(DiscoveryMulticastAddr() + ":" + Str(DiscoveryMulticastPort()).Trim())
+    if not sock.SetSendToAddress(sendAddr) then
+        sock.Close()
+        m.top.response = { servers: servers }
+        return
+    end if
+
+    ' SendStr returns the byte count (or a negative error) - compare
     ' numerically, never rely on truthiness of an Integer.
-    sent = sock.SendToAddr(DiscoveryRequest(), DiscoveryMulticastAddr(), DiscoveryMulticastPort())
+    sent = sock.SendStr(DiscoveryRequest())
     if sent <= 0 then
         sock.Close()
         m.top.response = { servers: servers }
@@ -105,24 +158,25 @@ sub RunDiscovery()
     while budget > 0
         remaining = deadline - CurrentMillis()
         if remaining <= 0 then exit while
-        msg = wait(remaining, port)
-        if msg = invalid then exit while   ' wait() returned 0: port closed
+        msg = wait(CInt(remaining), port)
+        if msg = invalid then exit while   ' wait() timed out: window closed
         if type(msg) = "roSocketEvent" then
-            ' Drain every datagram already queued before waiting again.
-            count = 1
-            while count > 0 and budget > 0
-                buffer = CreateObject("roByteArray")
-                buffer[2048] = 0           ' allocate the receive window
-                count = sock.Receive(buffer)
-                if count > 0 then
+            ' The docs' event-ownership check: only act on this socket.
+            if msg.GetSocketID() = sock.GetID() then
+                ' Drain every datagram readable right now; IsReadable is the
+                ' documented non-blocking probe so ReceiveStr never stalls the
+                ' thread and an empty read ends the drain (no spin).
+                while budget > 0 and sock.IsReadable()
+                    raw = sock.ReceiveStr(DiscoveryMaxDatagramBytes())
+                    if raw = "" then exit while
                     budget = budget - 1
-                    origin = ParseSsdpResponse(buffer.ToAsciiString())
+                    origin = ParseSsdpResponse(raw)
                     if origin <> "" and not seen.DoesExist(origin) then
                         seen[origin] = true
                         servers.Push(origin)
                     end if
-                end if
-            end while
+                end while
+            end if
         end if
     end while
 
@@ -132,6 +186,8 @@ end sub
 
 ' The M-SEARCH datagram - CRLF-terminated, blank line last, verbatim shape
 ' of the server-side client builder. BrightScript has no \r escapes.
+' The parser for the answers (ParseSsdpResponse) lives in Utilities.brs -
+' pure logic belongs where the unit tests can reach it (CHECK37 R5).
 function DiscoveryRequest() as String
     crlf = Chr(13) + Chr(10)
     req = "M-SEARCH * HTTP/1.1" + crlf
@@ -141,43 +197,6 @@ function DiscoveryRequest() as String
     req = req + "ST: " + DiscoverySearchTarget() + crlf
     req = req + crlf
     return req
-end function
-
-' Accept only a search RESPONSE: an "HTTP/1.x 200" status line (NOTIFYs and
-' foreign M-SEARCH floods on the same port are datagrams we must not parse
-' as answers - the server's own client applies the same discriminator),
-' naming us as Phlix, whose LOCATION reduces to a usable origin.
-' @return String - the origin, or "" when this datagram is not a keeper.
-function ParseSsdpResponse(raw as String) as String
-    if raw = invalid then return ""
-    if raw = "" then return ""
-    if raw.Left(4) <> "HTTP" then return ""
-    if Instr(1, raw, " 200") = 0 then return ""
-
-    location = ""
-    isPhlix = false
-    lines = raw.Split(Chr(10))
-    for each line in lines
-        value = line
-        if Len(value) > 0 and Mid(value, Len(value), 1) = Chr(13) then
-            value = Left(value, Len(value) - 1)
-        end if
-        ' Header lines are "Name: value". A roByteArray sized past the
-        ' datagram pads with NULs - those tail lines match no prefix and
-        ' are inert. AA member lookup is case-insensitive; the Left/UCase
-        ' prefix tests keep header casing irrelevant by design.
-        upper = Left(value, 9).UCase()
-        if upper = "LOCATION:" then
-            location = Mid(value, 10).Trim()
-        else if Left(value, 4).UCase() = "USN:" then
-            if Instr(1, value.UCase(), "PHLIXSERVER") > 0 then isPhlix = true
-        else if Left(value, 7).UCase() = "SERVER:" then
-            if Instr(1, value, "Phlix/") > 0 then isPhlix = true
-        end if
-    end for
-
-    if not isPhlix then return ""
-    return ExtractServerOrigin(location)
 end function
 
 ' Millisecond clock for the scan window.

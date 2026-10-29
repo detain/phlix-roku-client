@@ -193,6 +193,9 @@ assert_contains "PASS" "$POSITIVE_OUT"
 for i in $(seq 11 26); do
 	assert_contains "=== Check $i:" "$POSITIVE_OUT"
 done
+# M-ROKU-04 r2: Check 37's inputs (components/*.brs + source/lib/Utilities.brs)
+# are all staged in the fake layout, so the leg must also run green there.
+assert_contains "=== Check 37:" "$POSITIVE_OUT"
 assert_contains "CHECK21: all" "$POSITIVE_OUT"
 assert_contains "CHECK22: all" "$POSITIVE_OUT"
 assert_contains "CHECK23: all" "$POSITIVE_OUT"

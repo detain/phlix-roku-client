@@ -4,10 +4,14 @@
 
 <!-- copyright 2026 Joe Huss -->
 
-<!-- M-ROKU-04: one-shot SSDP LAN discovery task. UI-free by design: it only
-     answers { servers: [origin, ...] } on `response`. Transitive closure: a
-     component scope does NOT auto-include pkg:/source; Utilities.brs is the
-     extract-boundary parser (ExtractServerOrigin) this task consumes. -->
+<!-- M-ROKU-04 r2: one-shot SSDP LAN discovery task on the documented
+     roDataGramSocket surface. UI-free by design: it answers
+     { servers: [origin, ...] } on `response` on every leg it can reach
+     without erroring; if the thread dies anyway, the node still goes to
+     state="finish" and the scene renders the honest empty floor (both
+     fields observed - CHECK37). Transitive closure: a component scope does
+     NOT auto-include pkg:/source; Utilities.brs is the extract-boundary
+     parser (ExtractServerOrigin, ParseSsdpResponse) this task consumes. -->
 <component name="DiscoveryTask" extends="Task">
     <interface>
         <field id="request" type="assocarray" />

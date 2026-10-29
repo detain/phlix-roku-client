@@ -189,6 +189,11 @@ end function
 '
 ' Every failure degrades to the pre-M-ROKU-04 flow (type the address):
 ' an empty/absent answer set reads "No Phlix server found on this network".
+' r2 makes that claim true for the error path too: the task is driven on the
+' fully documented roDataGramSocket surface (no compiler-hidden calls) AND
+' the scene observes the task's `state` as well as `response`, so a scan
+' thread that dies mid-flight degrades exactly like a scan that found
+' nothing. CHECK37 pins both halves of this wiring.
 ' ---------------------------------------------
 sub OnFindPressed()
     if m.findTask <> invalid then return   ' one scan at a time
@@ -196,9 +201,43 @@ sub OnFindPressed()
     HideError()
 
     m.findTask = CreateObject("roSGNode", "DiscoveryTask")
+    ' M-ROKU-04 r2: observe BOTH fields. A Task thread that dies mid-scan on
+    ' a BrightScript runtime error never writes `response`, but the node
+    ' still transitions `state` to "finish". The r1 response-only wiring let
+    ' that error latch "Searching…" forever - m.findTask is the in-flight
+    ' guard and nothing cleared it, so every later Find press was a silent
+    ' no-op (the finding's own dead-button defect, re-introduced). With the
+    ' state arm, an errored scan degrades exactly like an empty scan: honest
+    ' find_none floor, manual entry intact, Find re-pressable. CHECK37 pins
+    ' this pair from both sides; see OnDiscoveryTaskState.
     m.findTask.ObserveField("response", "OnDiscoveryResponse")
+    m.findTask.ObserveField("state", "OnDiscoveryTaskState")
     m.top.Append(m.findTask)
     m.findTask.control = "run"
+end sub
+
+' Shared teardown - retire the scan so the next press can re-scan
+' (m.findTask doubles as the in-flight guard). Both observers go together
+' (C03 teardown-pairing law; CHECK37 R3 counts them).
+sub RetireFindTask()
+    if m.findTask = invalid then return
+    m.findTask.UnObserveField("response")
+    m.findTask.UnObserveField("state")
+    m.top.RemoveChild(m.findTask)
+    m.findTask = invalid
+end sub
+
+' state="finish" arriving while no response exists means the scan thread
+' died. Render the same honest empty-floor message as a no-hit scan and
+' free the Find button; never a latch, never a false accusation.
+sub OnDiscoveryTaskState(event as Object)
+    if event.GetData() <> "finish" then return
+    if m.findTask = invalid then return          ' already retired
+    if m.findTask.response <> invalid then return ' real answer owned by OnDiscoveryResponse
+    RetireFindTask()
+    SetStatus("")
+    ShowError(Translate("connect_find_none"))
+    if m.connectButton <> invalid then m.connectButton.SetFocus(true)
 end sub
 
 sub OnDiscoveryResponse(event as Object)
@@ -209,13 +248,9 @@ sub OnDiscoveryResponse(event as Object)
     ' discovery frame with an ApiClient transport envelope.
     answer = event.getData()
 
-    ' The task is done; retire it before any early return so the next press
-    ' can re-scan (m.findTask doubles as the in-flight guard).
-    if m.findTask <> invalid then
-        m.findTask.UnObserveField("response")
-        m.top.RemoveChild(m.findTask)
-        m.findTask = invalid
-    end if
+    ' The task is done; retire it (both observers, paired) before any early
+    ' return so the next press can re-scan.
+    RetireFindTask()
 
     SetStatus("")
 

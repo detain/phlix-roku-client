@@ -3743,4 +3743,147 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 37: discovery rides the documented socket surface and cannot latch (M-ROKU-04 r2) ==="
+# SIGNATURE LAW (M-ROKU-04 r2, review M-ROKU-04__r1 issue 1 - the blocking one):
+# r1's DiscoveryTask drove an roSocket via a "udp:" constructor string plus
+# EnableBroadcast / JoinMulticastGroup / one-arg Receive - names that appear
+# NOWHERE in this repo's own vendored Roku documentation mirror
+# (node_modules/brighterscript/dist/roku-types/data.json, whose only UDP
+# component is roDataGramSocket) - and hid the component name from bsc behind
+# a const-fold-defeating function so the compiler could not flag any of it.
+# Worse, a runtime error on that thread killed the task before `response` was
+# written, and ConnectScene observed ONLY "response" - the screen latched on
+# "Searching…" and dead-buttoned Find forever: the finding's own defect class
+# re-introduced on the success path. Rules (files comment-stripped first):
+#   R1  DiscoveryTask.brs contains the documented no-arg roDataGramSocket
+#       constructor, roSocketAddress objects, and each documented verb of the
+#       vendored worked example (SetAddress bind, SetMessagePort,
+#       NotifyReadable, SetBroadcast, JoinGroup, SetSendToAddress, SendStr,
+#       GetSocketID/GetID event ownership, IsReadable, ReceiveStr) - and the
+#       four undocumented r1 forms + the name-obfuscation helper stay dead
+#       ("udp:", EnableBroadcast, JoinMulticastGroup, SendToAddr,
+#       DiscoverySocketName, one-arg .Receive()).
+#   R2  ConnectScene's find flow observes BOTH "response" and "state" on the
+#       DiscoveryTask node and un-observes both on teardown (pairing law).
+#   R3  the state arm exists, keys on "finish", checks a missing response,
+#       retires the task, and renders the honest connect_find_none floor -
+#       an errored scan must degrade exactly like an empty scan.
+#   R4  the pure SSDP parser ParseSsdpResponse lives in Utilities.brs (global
+#       scope, unit-test reachable) and is NOT defined in the task file.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+
+def read(*parts):
+    return open(os.path.join(repo, *parts), encoding="utf-8").read()
+
+
+def strip_comments(text):
+    return "\n".join(l for l in text.splitlines()
+                     if not l.lstrip().startswith("'"))
+
+
+task = strip_comments(read("components", "DiscoveryTask.brs"))
+scene = strip_comments(read("components", "ConnectScene.brs"))
+util = read("source", "lib", "Utilities.brs")
+
+# R1a: the documented verbs of the vendored roDataGramSocket worked example.
+REQUIRED = [
+    (r'CreateObject\(\s*"roDataGramSocket"\s*\)',
+     'the documented no-arg constructor CreateObject("roDataGramSocket")'),
+    (r'CreateObject\(\s*"roSocketAddress"\s*\)',
+     'roSocketAddress objects for bind/join/sendto'),
+    (r'\.SetAddress\(', 'ifSocket.SetAddress(bind to a roSocketAddress)'),
+    (r'\.SetMessagePort\(', 'ifSocketAsync.SetMessagePort'),
+    (r'\.NotifyReadable\(', 'ifSocketAsync.NotifyReadable'),
+    (r'\.SetBroadcast\(', 'ifSocketCastOption.SetBroadcast (docs name)'),
+    (r'\.JoinGroup\(', 'ifSocketCastOption.JoinGroup (docs multicast join)'),
+    (r'\.SetSendToAddress\(', 'ifSocket.SetSendToAddress (sendto half 1)'),
+    (r'\.SendStr\(', 'ifSocket.SendStr (sendto half 2)'),
+    (r'\.GetSocketID\(', 'roSocketEvent.GetSocketID event-ownership check'),
+    (r'\.GetID\(', 'ifSocketAsync.GetID to compare it against'),
+    (r'\.IsReadable\(', 'ifSocketAsync.IsReadable non-blocking drain probe'),
+    (r'\.ReceiveStr\(', 'ifSocket.ReceiveStr documented read'),
+]
+for pat, why in REQUIRED:
+    if not re.search(pat, task):
+        problems.append(f"  components/DiscoveryTask.brs - CHECK37 R1: lost {why} "
+                        "- the scan must drive ONLY the surface vendored in "
+                        "brighterscript/dist/roku-types/data.json (M-ROKU-04 r2)")
+
+# R1b: the r1 counter-doc surface stays dead.
+FORBIDDEN = [
+    (r'"udp:', 'the undocumented roSocket "udp:" constructor string'),
+    (r'\bEnableBroadcast\b', 'EnableBroadcast (does not exist; SetBroadcast does)'),
+    (r'\bJoinMulticastGroup\b', 'JoinMulticastGroup (does not exist; JoinGroup does)'),
+    (r'\bSendToAddr\b', 'SendToAddr (not in this doc era; SetSendToAddress+SendStr)'),
+    (r'\bDiscoverySocketName\b', 'the bsc name-obfuscation indirection'),
+    (r'\.Receive\(\s*[^,()]*\)', 'one-arg Receive (documented arity is three)'),
+]
+for pat, why in FORBIDDEN:
+    if re.search(pat, task):
+        problems.append(f"  components/DiscoveryTask.brs - CHECK37 R1: reintroduced "
+                        f"{why} - the counter-doc surface is what made r1 both "
+                        "compiler-blind and crash-prone")
+
+# R2: dual-field observation + paired teardown in the consumer.
+if not re.search(r'ObserveField\(\s*"response"\s*,\s*"OnDiscoveryResponse"\s*\)', scene):
+    problems.append('  components/ConnectScene.brs - CHECK37 R2: no longer observes '
+                    'the find task\'s "response"')
+if not re.search(r'ObserveField\(\s*"state"\s*,\s*"OnDiscoveryTaskState"\s*\)', scene):
+    problems.append('  components/ConnectScene.brs - CHECK37 R2: the find task\'s '
+                    '"state" observer is gone - a thread that dies before writing '
+                    'response would latch "Searching..." and dead-button Find '
+                    'forever (the exact r1 defect)')
+for field in ("response", "state"):
+    if f'UnObserveField("{field}")' not in scene:
+        problems.append(f'  components/ConnectScene.brs - CHECK37 R2: teardown lost '
+                        f'its UnObserveField("{field}") pairing')
+
+# R3: the finish arm degrades an errored scan like an empty one.
+m3 = re.search(r"^sub\s+OnDiscoveryTaskState\b[^\n]*\n(.*?)^end sub",
+               scene, re.MULTILINE | re.DOTALL)
+if m3 is None:
+    problems.append("  components/ConnectScene.brs - CHECK37 R3: "
+                    "OnDiscoveryTaskState() not found")
+else:
+    arm = m3.group(1)
+    for token, why in (('"finish"', 'keys on the finish state'),
+                       ('response', 'checks whether a response already arrived'),
+                       ('RetireFindTask()', 'retires the task so Find stays pressable'),
+                       ('connect_find_none', 'renders the honest empty floor')):
+        if token not in arm:
+            problems.append(f"  components/ConnectScene.brs - CHECK37 R3: the state arm "
+                            f"no longer {why} ({token!r} missing) - an errored scan "
+                            "must degrade exactly like an empty scan")
+
+# R4: parser home = global scope (unit-test reachable).
+if not re.search(r"^function\s+ParseSsdpResponse\b", util, re.MULTILINE):
+    problems.append("  source/lib/Utilities.brs - CHECK37 R4: ParseSsdpResponse() "
+                    "definition left the global scope - component-scoped pure logic "
+                    "is unreachable from tests/unit")
+if re.search(r"^function\s+ParseSsdpResponse\b", task, re.MULTILINE):
+    problems.append("  components/DiscoveryTask.brs - CHECK37 R4: ParseSsdpResponse() "
+                    "moved back into component scope, out of unit-test reach")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK37: %d documented-surface problem(s)" % len(problems))
+    sys.exit(1)
+
+print("  CHECK37: discovery drives ONLY the vendored roDataGramSocket surface, the "
+      "scan degrades to the honest floor on every path, and the parser stays testable")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

@@ -2,6 +2,50 @@
 
 ## [Unreleased]
 
+### Fixed — Discovery rebuilt on the documented socket surface; errored scans degrade like empty ones (M-ROKU-04 r2, CHECK37) — 2026-10-29
+
+- **The defect (review M-ROKU-04__r1, issue 1, blocking).** The r1 LAN scan
+  drove `roSocket` through a `"udp:"` constructor string plus
+  `EnableBroadcast` / `JoinMulticastGroup` / one-arg `Receive` — none of which
+  exist in this repo's own vendored Roku documentation mirror
+  (node_modules/brighterscript/dist/roku-types/data.json, whose only UDP
+  component is `roDataGramSocket`) — and hid the component name from bsc
+  behind a const-fold-defeating function so the compiler could flag nothing.
+  A BrightScript runtime error on that thread killed the task BEFORE it wrote
+  `response`; ConnectScene observed only `response`, so the Connect screen
+  latched on "Searching…" and the Find button dead-buttoned permanently —
+  the exact day-1 defect class M-ROKU-04 set out to cure, re-introduced on
+  the feature's success path (first inbound datagram).
+- **The cure.** `components/DiscoveryTask.brs` now follows the worked example
+  quoted verbatim in the vendored docs: `CreateObject("roDataGramSocket")`
+  (no arguments, compiler-visible), `roSocketAddress` + `ifSocket.SetAddress`
+  bind, `SetMessagePort`/`NotifyReadable`, `ifSocketCastOption.SetBroadcast`
+  and `JoinGroup`, `SetSendToAddress`+`SendStr`, `GetSocketID`/`GetID` event
+  ownership, and an `IsReadable`+`ReceiveStr` drain. The name indirection is
+  gone — a future rename or arity slip reddens `make lint`, not the user's
+  living room.
+- **The floor.** ConnectScene now observes BOTH `response` and `state` on the
+  find task; `state="finish"` arriving without a response retires the task
+  and renders the same honest `connect_find_none` floor an empty scan gets —
+  manual entry is never lost and Find stays re-pressable. Teardown un-observes
+  both fields (C03 pairing law).
+- **CHECK37 (scripts/verify-runtime.sh).** R1 pins the documented verb set
+  present and the counter-doc surface dead in DiscoveryTask.brs; R2 pins the
+  dual-field observation + paired un-observation; R3 pins the finish arm's
+  degradation content; R4 pins ParseSsdpResponse's home in Utilities.brs so
+  the pure parser stays unit-reachable (it moved there from component scope).
+- **Tests.** New `tests/unit/Discovery.test.brs`: 15 cases over the three
+  pure boundary functions (ClassifyUrlFailure every bucket + honest default,
+  ExtractServerOrigin reduction/userinfo/foreign-scheme rejection,
+  ParseSsdpResponse accept/reject matrix). Venue-gated per house law —
+  rooibos needs a device (ROKU_HOST); not executed in this lane.
+- **Minor honesty carries (review issues 2/5).** restoreSession's
+  `server_error` credential-wipe is now explicitly justified in its docblock
+  (kept: the server answered and rejected the session shape; behavior
+  unchanged); probeHealth's docblock records that any 1xx/3xx verdict lands
+  on the `unreachable` label and why that is benign until redirect-off mode
+  exists.
+
 ### Fixed — Day-1 honesty triangle had no consumer-side pin; CHECK36 closes the loop (M-ROKU-04 closeout) — 2026-10-29
 
 - **The gap.** d252b17 cured the day-1 onboarding dead-ends (honest boot-failure

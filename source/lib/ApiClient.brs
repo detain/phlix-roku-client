@@ -141,6 +141,15 @@ function ApiClient(baseUrl as String) as Object
         ' A transport failure PRESERVES stored credentials: the server never
         ' proved them dead, and wiping them turned a router blip into a forced
         ' re-login behind the fake network error.
+        ' Honest disclosure (review M-ROKU-04 r1, issue 2): "server_error"
+        ' (a 2xx /auth/me with no user payload, or a non-401 answered failure)
+        ' falls through to the credential wipe below - a server that answers
+        ' with a malformed body forces a re-login. Kept deliberately: the
+        ' server PROVED it is talking and rejected the session shape, so
+        ' clearing is the safe read; pre-M-ROKU-04 code wiped on every false
+        ' path, so this arm is strictly not-worse and the taxonomy names the
+        ' cause honestly. A keep-on-server_error policy is a candidate
+        ' follow-up, not silently folded in here.
         restoreSession: function() as Boolean
             token = GetStorage().get("auth_token")
             refreshToken = GetStorage().get("refresh_token")
@@ -1169,6 +1178,12 @@ function ApiClient(baseUrl as String) as Object
         '   { state: <transport bucket>, code: 0 }    - dns/refused/tls/...
         ' Async + bounded like sendRaw, so the task thread never blocks on an
         ' absent network forever.
+        ' Info (review M-ROKU-04 r1, issue 5): any response code outside the
+        ' arms above (1xx/3xx) is labeled through ClassifyUrlFailure with
+        ' started=true and no fail text, landing on "unreachable". Benign by
+        ' construction: roUrlTransfer follows redirects by default, so a bare
+        ' 3xx only surfaces if someone later calls SetRedirect(0) - if this
+        ' probe ever gains redirect-off mode, classify 1xx/3xx explicitly.
         probeHealth: function() as Object
             url = m.baseUrl + "/health"
 
