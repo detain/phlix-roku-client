@@ -211,21 +211,60 @@ function GetDeviceMemoryTier() as String
     return DeviceInfoData().memoryTier
 end function
 
-' Check if the device can decode a specific video format.
-' R6.8: Gates direct play - if DeviceCanDecodeVideo returns false, go straight to transcode.
-' Per https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md:
-' "Use CanDecodeVideo to determine if the device can decode a specific video codec."
+' Check whether the device reports it can decode a specific video format.
+' R6.8: Gates direct play - if this returns false, PlayerScene goes straight
+' to transcode.
+'
+' SDK contract (https://developer.roku.com/dev/docs/ifdeviceinfo, live 2026-10-29):
+'   CanDecodeVideo(video_format As Object) As Object
+' The parameter is ONE associative array of format options - keys "codec",
+' "container", "profile", "level" - not positional strings, and the return
+' is an associative array whose "result" key carries the Boolean. The method
+' was added in Roku OS 7.10. Array keys are case-sensitive before Roku OS
+' 14.1, so every key here is quoted in lower case. (The comment this file
+' used to carry claimed a positional (codec, container, profile) Boolean
+' signature; that API never existed, and calling it that way threw or
+' yielded Invalid on every firmware - the M-ROKU-05 defect. CHECK35 keeps
+' the fabricated form pinned dead.)
+'
+' Fail-OPEN policy when the gate itself is broken (method missing on
+' pre-7.10 firmware, non-AA return, or no Boolean "result"): report "can
+' decode" and let the play attempt proceed. Rationale: this is a capability
+' gate, not a requirement - the server transcodes anything. A wrongly-closed
+' gate taxes every video on that device with transcode latency and server
+' load; a wrongly-open gate costs one player error, and PlayerScene's
+' OnPlayerStateChange error fallback (transcodeAttempted-guarded) already
+' starts a transcode from there.
 ' @param codec String - video codec (e.g., "h264", "h265", "vp9")
-' @param container String - container format (e.g., "mp4", "mkv", "hls")
-' @param profile String - codec profile (e.g., "high", "main", "baseline") - may be empty
-' @return Boolean - true if device can decode this format
+' @param container String - container format (e.g., "mp4", "mkv", "hls") - empty omits the key
+' @param profile String - codec profile (e.g., "high", "main", "baseline") - empty omits the key
+' @return Boolean - true if direct play is worth attempting
 function DeviceCanDecodeVideo(codec as String, container as String, profile as String) as Boolean
     devInfoObj = CreateObject("roDeviceInfo")
-    ' CanDecodeVideo(codec as String, container as String, profile as String) as Boolean
-    ' codec: the video codec (h264, h265, vp9, etc.)
-    ' container: the container format (mp4, mkv, hls, etc.)
-    ' profile: the codec profile (high, main, baseline, etc.) - empty string for any
-    return devInfoObj.CanDecodeVideo(codec, container, profile)
+    if not devInfoObj.HasMethod("CanDecodeVideo") then
+        print "AppContext: CanDecodeVideo missing (pre-7.10 firmware); failing open to direct play"
+        return true
+    end if
+
+    ' Options AA built at the boundary; keys the caller does not know (empty
+    ' string) are omitted rather than sent empty, and "level" is never
+    ' supplied - this resolver has no level knowledge.
+    videoFormat = {"codec": codec}
+    if container <> "" then videoFormat["container"] = container
+    if profile <> "" then videoFormat["profile"] = profile
+
+    decodeResult = devInfoObj.CanDecodeVideo(videoFormat)
+    if type(decodeResult) <> "roAssociativeArray" then
+        print "AppContext: CanDecodeVideo returned " type(decodeResult) ", not an AA; failing open to direct play"
+        return true
+    end if
+
+    canDecode = decodeResult.Lookup("result")
+    if type(canDecode) <> "Boolean" then
+        print "AppContext: CanDecodeVideo returned no Boolean result; failing open to direct play"
+        return true
+    end if
+    return canDecode
 end function
 
 ' Get a page size recommendation based on memory tier.

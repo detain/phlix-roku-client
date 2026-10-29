@@ -2,6 +2,46 @@
 
 ## [Unreleased]
 
+### Fixed — Direct-play gate called CanDecodeVideo with fabricated positional strings; options-AA signature cure (M-ROKU-05, CHECK35) — 2026-10-29
+
+- **The symptom (review roku__crossfe M5).** The R6.8 direct-play gate
+  wrapped `devInfoObj.CanDecodeVideo(codec, container, profile)` - THREE
+  positional strings. The SDK interface (docs.roku.com/dev/docs/ifdeviceinfo,
+  mirrored in the vendored brighterscript SDK-types corpus) defines
+  `CanDecodeVideo(video_format As Object) As Object`: one associative array
+  (keys Codec required; Profile, Level, Container optional; lower-case quoted
+  keys per the pre-14.1 case-sensitivity note) and an AA return whose
+  "result" key carries the boolean. The positional call was arity-mismatched
+  on every firmware, so the gate threw or coerced Invalid - theater or a
+  crash vector on the PlayerScene startup path.
+- **The cure.** `DeviceCanDecodeVideo` in source/lib/AppContext.brs now
+  builds the options AA (quoted lower-case keys; empty-string container/
+  profile omitted rather than sent empty; level never claimed), issues the
+  single-object call, and parses the returned AA via Lookup("result").
+  Public wrapper signature preserved, so components/PlayerScene.brs needed
+  no edit.
+- **Fail-open policy.** When the gate itself is broken - method missing on
+  pre-7.10 firmware (HasMethod guard), non-AA return, or non-Boolean
+  result - the wrapper returns true (attempt direct play) with a logged
+  note. Rationale: a capability gate, not a requirement; the server
+  transcodes anything, and PlayerScene's OnPlayerStateChange error fallback
+  (transcodeAttempted-guarded, PlayerScene.brs) already recovers a wrongly-
+  open gate, while a wrongly-closed one taxes every video with transcode
+  latency and server load.
+- **CHECK35 (scripts/verify-runtime.sh).** Five rules pin the contract:
+  R1 no positional CanDecodeVideo( call survives in any .brs (word-boundary
+  scoped so the wrapper's own name never trips it), R2 quoted lower-case
+  options keys + single-argument device-call form in the wrapper body,
+  R3 Lookup("result") parse, R4 HasMethod firmware guard with exactly three
+  fail-open "return true" arms, R5 the fabricated positional comment never
+  returns. Red-on-parent proof: against d252b17's AppContext.brs the leg
+  reports 10 problems and exits 1; in-tree mutation (wrapper reverted to
+  the HEAD blob) reddens the leg, restore greens the full 35-leg suite.
+- **Gates.** `make lint` (bsc) exit 0 (zero new diagnostics; only
+  pre-existing BS1013 test-file-reference warnings); scripts/verify-runtime.sh
+  full pass exit 0 with all legs green; scripts/validate-xml.sh unaffected
+  (no XML changed).
+
 ### Fixed — Day-1 onboarding: discover-first connect, honest transport taxonomy, real server switch, truthful boot (M-ROKU-04, CHECK34) — 2026-10-29
 
 - **The symptom (review roku__casualgamer M5).** Getting started meant
