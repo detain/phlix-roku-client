@@ -34,7 +34,7 @@
   dual-field observation + paired un-observation; R3 pins the finish arm's
   degradation content; R4 pins ParseSsdpResponse's home in Utilities.brs so
   the pure parser stays unit-reachable (it moved there from component scope).
-- **Tests.** New `tests/unit/Discovery.test.brs`: 15 cases over the three
+- **Tests.** New `tests/unit/Discovery.test.brs`: 18 cases over the three
   pure boundary functions (ClassifyUrlFailure every bucket + honest default,
   ExtractServerOrigin reduction/userinfo/foreign-scheme rejection,
   ParseSsdpResponse accept/reject matrix). Venue-gated per house law —
