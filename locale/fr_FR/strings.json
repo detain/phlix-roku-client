@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -271,6 +271,9 @@
   "player": {
     "audio_tracks": "Pistes audio",
     "create_group": "Créer un groupe",
+    "err_access_schedule": "Lecture bloquée par l'horaire d'accès. Réessayez pendant les heures autorisées.",
+    "err_session_expired": "Votre session a expiré. Veuillez vous reconnecter pour continuer à enregistrer la progression.",
+    "err_stream_limit": "Limite de flux atteinte. Arrêtez un autre flux pour continuer à regarder.",
     "leave": "Quitter",
     "playback_error": "Erreur de lecture",
     "playing_in": "Démarrage dans {seconds} s",

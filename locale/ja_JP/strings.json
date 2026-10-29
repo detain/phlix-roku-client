@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -271,6 +271,9 @@
   "player": {
     "audio_tracks": "音声トラック",
     "create_group": "グループを作成",
+    "err_access_schedule": "アクセススケジュールにより再生がブロックされています。許可された時間帶にもう一度お試しください。",
+    "err_session_expired": "セッションの有効期限が切れました。進捗の保存を継けるにはもう一度サインインしてください。",
+    "err_stream_limit": "ストリームの上限に達しました。他のストリームを停止して視聽を継けてください。",
     "leave": "退出",
     "playback_error": "再生エラー",
     "playing_in": "{seconds}秒後に再生開始",

@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -271,6 +271,9 @@
   "player": {
     "audio_tracks": "Tracce audio",
     "create_group": "Crea gruppo",
+    "err_access_schedule": "Riproduzione bloccata dalla pianificazione di accesso. Riprova durante le ore consentite.",
+    "err_session_expired": "La tua sessione e scaduta. Accedi di nuovo per continuare a salvare i progressi.",
+    "err_stream_limit": "Limite di stream raggiunta. Interrompi un altro stream per continuare a guardare.",
     "leave": "Esci",
     "playback_error": "Errore di riproduzione",
     "playing_in": "Inizia tra {seconds} s",

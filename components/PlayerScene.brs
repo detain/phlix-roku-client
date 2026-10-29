@@ -1009,7 +1009,10 @@ sub ShowProgressAuthError()
     StopPlayback()
     if m.errorOverlay <> invalid then
         if m.errorMessageLabel <> invalid then
-            m.errorMessageLabel.text = "Your session has expired. Please sign in again to continue saving progress."
+            ' M-ROKU-20 (review roku__gameux M5): this copy rode raw English on
+            ' the one surface a player meets when something is wrong; it now
+            ' rides the catalog through Translate (law: CHECK51).
+            m.errorMessageLabel.text = Translate("player_err_session_expired")
         end if
         m.errorOverlay.visible = true
         if m.errorOkButton <> invalid then m.errorOkButton.SetFocus(true)
@@ -1698,7 +1701,8 @@ sub ShowAccessError()
     StopPlayback()
     if m.errorOverlay <> invalid then
         if m.errorMessageLabel <> invalid then
-            m.errorMessageLabel.text = "Playback blocked by access schedule. Try again during allowed hours."
+            ' M-ROKU-20: rides the catalog (law: CHECK51).
+            m.errorMessageLabel.text = Translate("player_err_access_schedule")
         end if
         m.errorOverlay.visible = true
         if m.errorOkButton <> invalid then m.errorOkButton.SetFocus(true)
@@ -1711,7 +1715,8 @@ sub ShowStreamLimitError()
     StopPlayback()
     if m.errorOverlay <> invalid then
         if m.errorMessageLabel <> invalid then
-            m.errorMessageLabel.text = "Stream limit reached. Stop another stream to continue watching."
+            ' M-ROKU-20: rides the catalog (law: CHECK51).
+            m.errorMessageLabel.text = Translate("player_err_stream_limit")
         end if
         m.errorOverlay.visible = true
         if m.errorOkButton <> invalid then m.errorOkButton.SetFocus(true)

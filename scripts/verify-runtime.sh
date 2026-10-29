@@ -5744,7 +5744,7 @@ echo "=== Check 48: connect/pair credential custody - redirect law + cleartext c
 #       (NormalizeServerUrl delegates - re-rolled octet logic is how
 #       "10th-street.example.com" was once misclassified); the
 #       redirect_refused bucket carries its classifier arm, transport guard,
-#       ladder line and catalog message x7; catalogs bump as a set (1.8.0).
+#       ladder line and catalog message x7; catalogs bump as a set (1.9.0).
 #   R4  the device harness pins the law: tests/unit/RedirectCustody.test.brs
 #       and all seven Test subs.
 PYRET=0
@@ -5909,8 +5909,8 @@ for L in LOCALES:
     for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
         if cat.get("connect", {}).get(key, "") == "":
             problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
-    if cat.get("_metadata", {}).get("version") != "1.8.0":
-        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.8.0 — the catalogs bump as a set with this law")
+    if cat.get("_metadata", {}).get("version") != "1.9.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.9.0 — the catalogs bump as a set with this law")
 
 # ---- R4 the device harness pins the law -----------------------------------
 test = read(TEST)
@@ -6164,7 +6164,6 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
-
 echo "=== Check 50: watch-party attribution banner - scene-level, panel-independent (M-ROKU-19) ==="
 # PARTY ATTRIBUTION LAW (M-ROKU-19, review roku__gameux M4): every SyncPlay event
 # used to surface ONLY on the syncStatusLabel, which lives INSIDE syncPanel - and
@@ -6330,5 +6329,140 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+# ============================================================================
+echo ""
+echo "=== Check 51: live playback error copy rides the locale catalog (M-ROKU-20) ==="
+# LIVE-ERROR I18N LAW (M-ROKU-20, review roku__gameux M5): the three highest-
+# stakes messages a player can see — session-expired (progress saving is dead),
+# access-schedule block (403) and stream-limit (429) — shipped as raw English
+# inside PlayerScene's error-overlay subs while the localized watch-party
+# catalog family sat half-dead (SyncPlayScene is never instantiated). Cure: the
+# three Show*Error subs write Translate("player_err_*") into the overlay label
+# and every catalog grew the three keys x7 locales (v1.8.0 -> v1.9.0, the
+# set-bump law CHECK48 R3 pins). Pinned statically:
+#   R1  each of the three subs exists in components/PlayerScene.brs and its body
+#       carries the exact m.errorMessageLabel.text = Translate("player_err_*")
+#       write (a silently re-planted raw literal, a renamed key, or the write
+#       retargeted off the overlay label all break this arm);
+#   R2  the three cured English sentences appear as raw literals in NO .brs file
+#       under components/ or source/ (comment-masked whole-tree scan — red-on-
+#       parent measurement: at 9ba7c9d the three fragments sit in
+#       PlayerScene.brs and this leg fires on them);
+#   R3  the three keys exist, non-empty and string-typed, in ALL SEVEN shipped
+#       catalogs (the CHECK48 "SPEAKABLE in every shipped locale" idiom; Check 21
+#       keeps the full mirror parity).
+# The {token}-concat law (Check 24) does not apply by construction: none of the
+# three catalog values carries a placeholder, so plain Translate is the lawful
+# consumption path.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+BRS = "components/PlayerScene.brs"
+LOCALES = ["de_DE", "en_US", "es_ES", "fr_FR", "it_IT", "ja_JP", "pt_BR"]
+
+# arm: (sub name, flattened key, fragment unique to the cured English sentence)
+ARMS = [
+    ("ShowProgressAuthError", "player_err_session_expired", "continue saving progress"),
+    ("ShowAccessError", "player_err_access_schedule", "blocked by access schedule"),
+    ("ShowStreamLimitError", "player_err_stream_limit", "Stop another stream"),
+]
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK51: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(text):
+    out = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
+def sub_body(text, name):
+    m = re.search(r"(?ms)^sub %s\(.*?^end sub" % re.escape(name), text)
+    return m.group(0) if m else None
+
+
+# ---- R1 the three overlay subs translate -----------------------------------
+brs = read(BRS)
+if brs is not None:
+    code = mask(brs)
+    for name, key, _frag in ARMS:
+        body = sub_body(code, name)
+        if body is None:
+            problems.append(f"  {BRS} - CHECK51 R1: sub {name}() vanished — the overlay arm lost its home")
+            continue
+        needle = 'm.errorMessageLabel.text = Translate("%s")' % key
+        if needle not in body:
+            problems.append(f'  {BRS} - CHECK51 R1: {name} no longer writes Translate("{key}") to m.errorMessageLabel.text — live error copy back on raw English (or a retargeted write) is the M-ROKU-20 defect re-grown')
+
+    # ---- R2 the cured sentences are gone from every .brs --------------------
+    scan_files = []
+    for scan_dir in ("components", "source"):
+        for root, dirs, names in os.walk(scan_dir):
+            dirs.sort()
+            for name in sorted(names):
+                if name.endswith(".brs"):
+                    scan_files.append(os.path.join(root, name))
+    for path in scan_files:
+        text = read(path)
+        if text is None:
+            continue
+        for lineno, line in enumerate(mask(text).split("\n"), 1):
+            for _name, _key, frag in ARMS:
+                if frag in line:
+                    problems.append(f'  {path}:{lineno} - CHECK51 R2: raw English fragment "{frag}" re-grown as a literal outside the catalog — this copy must ride Translate (Checks 20/21 keep it speakable)')
+
+# ---- R3 every shipped locale speaks the three keys --------------------------
+for L in LOCALES:
+    path = f"locale/{L}/strings.json"
+    try:
+        with open(path, encoding="utf-8") as f:
+            cat = json.load(f)
+    except (OSError, ValueError) as err:
+        problems.append(f"  {path} - CHECK51: unreadable: {err}")
+        continue
+    player = cat.get("player", {})
+    for _name, key, _frag in ARMS:
+        bare = key[len("player_"):]
+        value = player.get(bare)
+        if not isinstance(value, str) or value.strip() == "":
+            problems.append(f"  {path} - CHECK51 R3: {key} missing — live playback errors must be SPEAKABLE in every shipped locale")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK51: %d live-error i18n pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK51: session-expired, access-schedule and stream-limit overlay copy")
+print("           rides Translate(\"player_err_*\") through the shipped loader; the")
+print("           three English sentences exist nowhere as raw literals in .brs")
+print("           code, and all seven catalogs speak the three keys")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
 exit $((VIOLATIONS))

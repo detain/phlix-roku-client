@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -271,6 +271,9 @@
   "player": {
     "audio_tracks": "Audio Tracks",
     "create_group": "Create Group",
+    "err_access_schedule": "Playback blocked by access schedule. Try again during allowed hours.",
+    "err_session_expired": "Your session has expired. Please sign in again to continue saving progress.",
+    "err_stream_limit": "Stream limit reached. Stop another stream to continue watching.",
     "leave": "Leave",
     "playback_error": "Playback Error",
     "playing_in": "Playing in {seconds}s",

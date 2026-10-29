@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+### Fixed — live playback error copy rides the locale catalog (M-ROKU-20) — 2026-10-29
+
+- **The defect (review roku__gameux M5).** The three highest-stakes messages a
+  player can see — "Your session has expired…" (progress saving dead),
+  "Playback blocked by access schedule…" (403) and "Stream limit reached…" (429) —
+  shipped as raw English inside `PlayerScene.brs`'s error-overlay subs (L1012/
+  L1701/L1714 at the parent), while the localized watch-party catalog family sat
+  half-dead behind `SyncPlayScene`, a component never instantiated anywhere.
+  A German or Japanese household got English exactly when something was wrong.
+  The three texts were already the oldest named entry in the XML-chrome lane's
+  documented-residuals list in docs/i18n.md.
+- **The cure.** The three `Show*Error` subs now write
+  `Translate("player_err_session_expired"/"player_err_access_schedule"/
+  "player_err_stream_limit")` through the shipped `LoadLocaleStrings`/`Translate`
+  loader — no `{placeholder}` tokens, so plain `Translate` is the lawful path
+  (Check 24 untouched). All seven catalogs gained the three `player` keys
+  (translated, alphabetical placement), bumping as a set v1.8.0 → v1.9.0 under
+  CHECK48 R3's law (its version pin rotated with the set); 316 → 319 flattened
+  keys per locale, Check 21 mirror parity held. Static law CHECK51 (the 51st
+  leg): R1 pins the three overlay-sub Translate writes, R2 scans every `.brs`
+  under components/ + source/ (comment-masked) for the three cured sentences as
+  raw literals, R3 pins per-locale speakability of the three keys — the CHECK48
+  idiom. Red-on-parent measured at `9ba7c9d` before the cure: 27 pins broken
+  (R1×3 + R2×3 naming L1012/L1701/L1714 + R3×21), every other leg green; green
+  after. Portable twin rides the plant-and-restore idiom: re-growing the raw
+  session-arm literal fires CHECK51 R1+R2 with CHECK20/CHECK50 gate
+  independence; restore exits 0.
+- **Disclosed residuals (minors-queue, honest annotation shipped).** The rest of
+  the M5 family stays raw: the 13 `SetSyncStatus` literals + the M-ROKU-19
+  banner copy (that lane's CHANGELOG forward-points them at this sweep's
+  choke-points — a ~10-15-key `syncplay_*` expansion kept out of this lane's
+  brief-mandated minimal shape), the `ShowErrorDialog`
+  "Error"/"Retry"/"Cancel"/"Playback failed…"/"Transcode timed out." sites
+  (25-violation census if PlayerScene joined CHECK19 TARGETS — measured, too
+  broad here), and the `SyncPlayScene` dead component itself (wire vs retire —
+  owner decision; docs/i18n.md now says so at the section row). No new wire
+  codes; no XML chrome touched.
+
+
 ### Fixed — the M-ROKU-17 pipeline's dispatch door opens: two-arg onMessage contract, pre-attach queue drain (M-ROKU-17r2) — 2026-10-29
 
 - **The defect the landing left.** The sibling M-ROKU-17 cure (`7942e66`,

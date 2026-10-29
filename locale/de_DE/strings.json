@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -271,6 +271,9 @@
   "player": {
     "audio_tracks": "Audiospuren",
     "create_group": "Gruppe erstellen",
+    "err_access_schedule": "Wiedergabe durch den Zugriffszeitplan blockiert. Während der erlaubten Zeiten erneut versuchen.",
+    "err_session_expired": "Die Sitzung ist abgelaufen. Bitte erneut anmelden, damit der Fortschritt weitergespeichert wird.",
+    "err_stream_limit": "Stream-Limit erreicht. Einen anderen Stream beenden, um weiterzusehen.",
     "leave": "Verlassen",
     "playback_error": "Wiedergabefehler",
     "playing_in": "Startet in {seconds}s",
