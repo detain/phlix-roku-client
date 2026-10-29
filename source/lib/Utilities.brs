@@ -910,12 +910,86 @@ function FormatExifSummary(exif as Object) as String
     return JoinStrings(lines, Chr(10))
 end function
 
-' R3.2: Get user-friendly error message, falling back to generic message for HTTP codes
-function GetErrorMessage(apiError as String) as String
-    if apiError = "" or apiError = invalid then return "An error occurred. Please try again."
-    if left(apiError, 5) = "http_" then
+' ===========================================
+' M-ROKU-12 (review roku__exploiter M1): HOSTILE-INPUT LAW FOR WIRE TEXT
+'
+' A server body is attacker-influenced data, not trusted text. The wire
+' contract says {error: string} / {message: string}, but a hostile server
+' (or, on http://, any LAN injector) can answer {"error":{"code":1}} or
+' {"error":123} instead. BrightScript then raises a runtime type mismatch
+' the FIRST time that value meets a String operation - "=" / "<>" against
+' "", lcase/instr/Left/Trim, string concatenation, or a non-String value
+' passed into an `as String` parameter/sink. On scenes that runs on the
+' render thread: the channel dies mid-login. On tasks it bricks the task.
+'
+' LAW: every server-controlled value (result.data.*, env.error, resp.error,
+' body.message ...) must pass through SafeErrorMessage() BEFORE any
+' comparison, concatenation, or typed sink. Non-String values are a
+' contract violation and degrade to the caller's typed fallback - they are
+' NEVER stringified or partially rendered. This mirrors the estate
+' hostile-input posture (parse-don't-validate at the boundary, fail to the
+' honest generic) and the console WS-ingest sweep precedent.
+' ===========================================
+
+' Display cap for wire-sourced text (CHECK43 pins the literal). Roku Labels
+' are single-pane chrome: a multi-kilobyte "error" is hostile noise, not
+' information; truncating keeps the dialog honest and bounded.
+function WireErrorMessageMax() as Integer
+    return 300
+end function
+
+' Remove ASCII control characters (codes < 32 plus 127) from text.
+' Roku renders plain text - there is no ANSI escape class here - but
+' control bytes inside a Label string are display garbage (CR/LF break the
+' single-line chrome, NUL truncates silently on some firmware), so wire
+' text is normalized BEFORE length-capping is trusted. O(n) over an
+' already-cap-bounded string.
+function StripWireControlChars(text as String) as String
+    out = ""
+    for i = 1 to Len(text)
+        code = Asc(Mid(text, i, 1))
+        if code >= 32 and code <> 127 then
+            out = out + Mid(text, i, 1)
+        end if
+    end for
+    return out
+end function
+
+' THE wire-text guard: returns value as a safe, displayable String, or
+' fallbackMessage when value is not a non-empty String after normalization.
+' Order is deliberate: type-guard first (never touch non-String), then
+' length-cap BEFORE the O(n) strip loop (a 10MB hostile string must not
+' cost 10M iterations), then control-strip, then trim, then emptiness.
+' @param value Object - anything read off the wire (typed Object on purpose:
+'        a `as String` parameter would itself raise before the guard runs)
+' @param fallbackMessage String - generic text for the non-String case
+' @return String - never invalid, never non-String, never > WireErrorMessageMax()
+function SafeErrorMessage(value as Object, fallbackMessage as String) as String
+    t = type(value)
+    if t <> "roString" and t <> "String" then return fallbackMessage
+
+    text = value
+    maxLen = WireErrorMessageMax()
+    if Len(text) > maxLen then
+        text = Left(text, maxLen - 1) + "…"
+    end if
+    text = StripWireControlChars(text).Trim()
+
+    if text = "" then return fallbackMessage
+    return text
+end function
+
+' R3.2: Get user-friendly error message, falling back to generic message for HTTP codes.
+' M-ROKU-12: the parameter is deliberately Object-typed now - callers may hand
+' it a raw wire value, and a non-String reaching the legacy `apiError = ""`
+' compare was itself part of the M1 crash class. Everything below operates on
+' the SafeErrorMessage-normalized string.
+function GetErrorMessage(apiError as Object) as String
+    safeError = SafeErrorMessage(apiError, "")
+    if safeError = "" then return "An error occurred. Please try again."
+    if left(safeError, 5) = "http_" then
         ' Generic HTTP error codes - use friendly messages
-        code = right(apiError, len(apiError) - 5)
+        code = right(safeError, len(safeError) - 5)
         if code = "401" then return "You are not logged in. Please sign in again."
         if code = "403" then return "You don't have permission to do that."
         if code = "404" then return "The requested item was not found."
@@ -923,8 +997,8 @@ function GetErrorMessage(apiError as String) as String
         if code = "502" or code = "503" then return "Server is temporarily unavailable."
         return "An error occurred. Please try again."
     end if
-    ' Specific server error message - use it
-    if len(apiError) > 0 then return apiError
+    ' Specific server error message - use it (already type-guarded + capped)
+    if len(safeError) > 0 then return safeError
     return "An error occurred. Please try again."
 end function
 

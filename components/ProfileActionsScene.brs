@@ -214,11 +214,16 @@ end sub
 ' error (failure), else a generic depending on resp.ok.
 function MessageOf(resp as Object) as String
     if resp <> invalid and resp.data <> invalid then
-        if resp.data.DoesExist("message") and resp.data.message <> invalid and resp.data.message <> "" then
-            return resp.data.message
+        ' M-ROKU-12 (review roku__exploiter M1): type-guard the wire keys -
+        ' raw non-String {"error":{...}} used to raise on the `<> ""` compare
+        ' and the `as String` return of this helper.
+        messageText = SafeErrorMessage(resp.data.message, "")
+        if messageText <> "" then
+            return messageText
         end if
-        if resp.data.DoesExist("error") and resp.data.error <> invalid and resp.data.error <> "" then
-            return resp.data.error
+        errorText = SafeErrorMessage(resp.data.error, "")
+        if errorText <> "" then
+            return errorText
         end if
     end if
 

@@ -129,19 +129,23 @@ sub OnLoginResponse(event as Object)
             ' its own honest, cataloged sentence. The pre-fix test was
             ' `error = "connect" or error = "timeout"` — two labels produced
             ' by guessing, both pointing at one fake network accusation.
+            ' M-ROKU-12 (review roku__exploiter M1): result.data is the
+            ' SERVER PAYLOAD (envelope law) - a hostile {"error":{"code":1}}
+            ' body used to reach lcase()/instr() and the {detail} substitution
+            ' here as a raw Object and raised a type mismatch ON THIS RENDER
+            ' THREAD. Every wire-sourced candidate now rides SafeErrorMessage.
             detail = ""
             if result.data <> invalid and type(result.data) = "roAssociativeArray" then
-                if result.data.DoesExist("error") and result.data.error <> invalid then
-                    detail = result.data.error
-                end if
+                detail = SafeErrorMessage(result.data.error, "")
             end if
-            if detail = "" and result.error <> invalid and not IsTransportReason(result.error) then
-                detail = result.error
+            envelopeError = SafeErrorMessage(result.error, "")
+            if detail = "" and envelopeError <> "" and not IsTransportReason(envelopeError) then
+                detail = envelopeError
             end if
 
-            if IsTransportReason(result.error) then
+            if IsTransportReason(envelopeError) then
                 ' Case 2 (now per-cause): the named bucket's message
-                ShowError(TranslateTransportReason(result.error))
+                ShowError(TranslateTransportReason(envelopeError))
             else if instr(1, lcase(detail), "invalid") > 0 or instr(1, lcase(detail), "credential") > 0 or instr(1, lcase(detail), "unauthorized") > 0 or instr(1, lcase(detail), "401") > 0 then
                 ' Case 1: wrong credentials (common error strings from server)
                 ShowError(Translate("login_err_bad_credentials"))

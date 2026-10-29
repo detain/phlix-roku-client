@@ -45,8 +45,12 @@ function AuthManager(api as Object) as Object
                 return { success: false, error: "Login failed" }
             end if
             if not env.ok then
-                errMsg = "Login failed"
-                if env.error <> invalid and env.error <> "" then errMsg = env.error
+                ' M-ROKU-12 (review roku__exploiter M1): env.error rides the
+                ' ApiClient envelope built from the LOGIN RESPONSE BODY
+                ' (source/lib/ApiClient.brs lifts payload.error raw) - a
+                ' non-String there used to raise on the `<> ""` compare.
+                ' Type-guard with the generic caption as fallback.
+                errMsg = SafeErrorMessage(env.error, "Login failed")
                 return { success: false, error: errMsg }
             end if
 

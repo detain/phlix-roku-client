@@ -4794,4 +4794,133 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 43: wire error text is type-guarded before it meets string ops (M-ROKU-12) ==="
+# Hostile-input law for wire text (review roku__exploiter M1, fix M-ROKU-12).
+# A response body is attacker-influenced data: the contract says {error:
+# string}, but a hostile server (or, on http://, any LAN injector) can answer
+# {"error":123} / {"error":{"code":1}} instead. That non-String meeting a
+# String operation - `<> ""` / `= ""` compares, lcase/instr/Left/Trim/Mid,
+# concatenation, or an `as String` sink - is a BrightScript runtime type
+# mismatch: on scenes it kills the render thread mid-login, on tasks it
+# bricks the task. The cure SSOTs are SafeErrorMessage() + StripWireControl-
+#Chars() + WireErrorMessageMax() (source/lib/Utilities.brs) and the task-
+# thread choke DeriveResponseError()/WireErrorPresent() (components/
+# ApiTask.brs). CHECK42 stays reserved to the M-ROKU-11 telemetry lane.
+#   R1  no code (comments/strings stripped) reads, returns, or compares a
+#       `.error`/`.message` wire member raw outside a type-guard line.
+#   R2  the cure artifacts are live: Utilities defines SafeErrorMessage
+#       (value as Object) and WireErrorMessageMax() returning the pinned 300;
+#       ApiTask defines WireErrorPresent and routes DeriveResponseError
+#       through SafeErrorMessage.
+#   INFLIGHT (WARN, not counted): components/PhlixApp.brs and
+#       source/lib/ApiClient.brs carry the raw wire lifts the live M-ROKU-11
+#       telemetry lane owns curing at the ApiClient choke - REMOVAL DUTY
+#       lands with that commit; the set must never grow. Every OTHER
+#       wire-text consumer in the tree is guarded or m.top-typed.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import glob, os, re, sys
+
+repo = os.environ["REPO"]
+
+# A line carrying a guard token has touched the value through the choke.
+GUARDED = re.compile(r'SafeErrorMessage\(|WireErrorPresent\(|"roString"')
+# m.top.* are RSG-typed fields: the node coerces on write, so reads off them
+# can never hand a non-String to a string op.
+RAW_READ = re.compile(r'(?<![.\w])(?:return|=)\s+[\w.]*\.(?:error|message)\b')
+READ_ALLOW = re.compile(r'(?:return|=)\s+m\.top\.message\b')
+# Wire member compared against a String literal (code-only view renders any
+# `<> "..."` as `<> ""` - a non-String wire value compared to text is the
+# silent-true / crash-next-line class either way).
+RAW_COMPARE = re.compile(r'(?<!m\.top\.)\.(?:error|message)\s*(?:<>|==|=)\s*""')
+# A String operation applied directly to a wire member.
+RAW_STRINGOP = re.compile(
+    r'\b(?:lcase|ucase|instr|left|right|len|trim|mid)\s*\([^)]*(?<!m\.top\.)\.(?:error|message)\b',
+    re.I,
+)
+
+INFLIGHT = {"components/PhlixApp.brs", "source/lib/ApiClient.brs"}
+
+problems = []
+warnings = []
+scanned = 0
+tripped = 0
+
+def code_only(line):
+    """Strip double-quoted strings; drop full-line and inline ' comments."""
+    code = re.sub(r'"[^"]*"', '""', line)
+    if code.lstrip().startswith("'"):
+        return ""
+    cut = code.find("'")
+    if cut >= 0:
+        code = code[:cut]
+    return code
+
+paths = sorted(
+    glob.glob(os.path.join(repo, "source", "**", "*.brs"), recursive=True)
+    + glob.glob(os.path.join(repo, "components", "**", "*.brs"), recursive=True)
+)
+for path in paths:
+    rel = os.path.relpath(path, repo).replace(os.sep, "/")
+    scanned += 1
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for num, raw in enumerate(fh, 1):
+            line = raw.rstrip("\n")
+            code = code_only(line)
+            if not code.strip():
+                continue
+            if GUARDED.search(line):
+                continue
+            why = None
+            if RAW_COMPARE.search(code):
+                why = "compares wire .error/.message against a string literal"
+            elif RAW_STRINGOP.search(code):
+                why = "string operation on a raw wire .error/.message value"
+            elif RAW_READ.search(code) and not READ_ALLOW.search(code):
+                why = "raw wire .error/.message read/return (unguarded lift into a variable)"
+            if why is None:
+                continue
+            tripped += 1
+            if rel in INFLIGHT:
+                warnings.append(
+                    f"  {rel}:{num} - CHECK43 WARN (in-flight M-ROKU-11 choke): {why}: {line.strip()[:80]}"
+                )
+            else:
+                problems.append(f"  {rel}:{num} - CHECK43: {why}: {line.strip()[:80]}")
+
+# R2 - the cure choke must be the shipped code, not a memory.
+util_path = os.path.join(repo, "source", "lib", "Utilities.brs")
+if os.path.exists(util_path):
+    util = open(util_path, encoding="utf-8", errors="replace").read()
+    if not re.search(r"function\s+SafeErrorMessage\(\s*value\s+as\s+Object", util):
+        problems.append("  source/lib/Utilities.brs - CHECK43 R2: SafeErrorMessage(value as Object) is gone")
+    if not re.search(r"function\s+WireErrorMessageMax\(\)\s*as\s*Integer[\s\S]{0,80}?\breturn\s+300\b", util):
+        problems.append("  source/lib/Utilities.brs - CHECK43 R2: WireErrorMessageMax() cap pin (300) moved or gone")
+
+at_path = os.path.join(repo, "components", "ApiTask.brs")
+if os.path.exists(at_path):
+    at = open(at_path, encoding="utf-8", errors="replace").read()
+    if not re.search(r"function\s+WireErrorPresent\(", at):
+        problems.append("  components/ApiTask.brs - CHECK43 R2: WireErrorPresent() is gone")
+    body = re.search(r"function\s+DeriveResponseError\b[\s\S]*?\bend\s+function", at)
+    if body is None or "SafeErrorMessage(" not in body.group(0):
+        problems.append("  components/ApiTask.brs - CHECK43 R2: DeriveResponseError no longer routes through SafeErrorMessage")
+
+for w in warnings:
+    print(w)
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK43: %d unguarded wire-text site(s) / broken choke pin(s)" % len(problems))
+    sys.exit(1)
+
+print("  CHECK43: all wire .error/.message reads across %d .brs files are type-guarded at the" % scanned)
+print("           sink (SafeErrorMessage/WireErrorPresent/roString) or m.top-typed; choke pins live;")
+print("           %d in-flight ApiClient-choke reads WARN-listed for the M-ROKU-11 lane" % len(warnings))
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

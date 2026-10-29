@@ -218,16 +218,26 @@ end sub
 ' depending on resp.ok.
 function MessageOf(resp as Object) as String
     if resp <> invalid and resp.data <> invalid then
-        if resp.data.DoesExist("message") and resp.data.message <> invalid and resp.data.message <> "" then
-            return resp.data.message
+        ' M-ROKU-12 (review roku__exploiter M1): the wire keys are typed
+        ' candidates, not trusted text - the old `<> ""` compares + raw
+        ' returns raised a type mismatch when a hostile server answered
+        ' {"error":{...}} / {"message":123}. SafeErrorMessage gates type,
+        ' control chars and length before anything reaches a String sink.
+        messageText = SafeErrorMessage(resp.data.message, "")
+        if messageText <> "" then
+            return messageText
         end if
-        if resp.data.DoesExist("error") and resp.data.error <> invalid and resp.data.error <> "" then
-            return resp.data.error
+        errorText = SafeErrorMessage(resp.data.error, "")
+        if errorText <> "" then
+            return errorText
         end if
     end if
 
     if resp <> invalid and resp.ok then return "Done"
-    if resp <> invalid and resp.error <> invalid and resp.error <> "" then return resp.error
+    if resp <> invalid then
+        transportError = SafeErrorMessage(resp.error, "")
+        if transportError <> "" then return transportError
+    end if
     return "Request failed"
 end function
 

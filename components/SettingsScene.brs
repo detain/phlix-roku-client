@@ -211,7 +211,7 @@ sub OnApiResponse(event as Object)
         if resp.ok then
             m.statusLabel.text = Translate("settings_status_history_cleared")
         else
-            RecordDiagnosticsError("settingsHistory", "reason=" + IIF(resp.error <> invalid and resp.error <> "", resp.error, "unknown"))
+            RecordDiagnosticsError("settingsHistory", "reason=" + DiagnosticText(resp.error))
             m.statusLabel.text = Translate("settings_status_history_clear_failed")
         end if
     end if

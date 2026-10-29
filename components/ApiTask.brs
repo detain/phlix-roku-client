@@ -206,7 +206,11 @@ function DeriveResponseOk(data as Object) as Boolean
                 return (data.data.success <> false)
             end if
             ' Admin actions return {error: "..."} on failure (no success key)
-            if data.data.DoesExist("error") and data.data.error <> invalid and data.data.error <> "" then
+            ' M-ROKU-12: never `data.data.error <> ""` on the raw value - a
+            ' hostile {"error":{...}} body makes that compare raise on the
+            ' task thread. WireErrorPresent classifies without touching a
+            ' String operator on a non-String.
+            if data.data.DoesExist("error") and WireErrorPresent(data.data.error) then
                 return false
             end if
         end if
@@ -227,27 +231,52 @@ function DeriveResponseOk(data as Object) as Boolean
     return false
 end function
 
-' Extracts the error string from an ApiClient response.
-' For wrapped helpers, error is at data.error.
-' For unwrapped helpers, error is not available (returns "").
+' Extracts the error STRING from an ApiClient response envelope.
+' For wrapped helpers, error is at data.error; API-level
+' {success:false,message:"..."} / {error:"..."} bodies carry it at
+' data.data.message / data.data.error.
+' M-ROKU-12 (review roku__exploiter M1): this is THE task-thread choke - every
+' scene-facing envelope error rides its return value, so the function is
+' only honest if the return is guaranteed String. The wire key may legally be
+' ANY JSON type when the server is hostile ({"error":123} / {"error":{...}});
+' the old raw `data.error <> ""` compare + `return data.error` raised a type
+' mismatch on the task thread, bricking the task. SafeErrorMessage() types
+' every candidate; a malformed (non-String) value degrades to "" so scenes
+' show their cataloged generic failure text instead of dying.
 function DeriveResponseError(data as Object) as String
     if data = invalid then return ""
     if type(data) = "roAssociativeArray" and data.DoesExist("ok") then
         ' Wrapped helper - error is in the envelope
-        if data.error <> invalid and data.error <> "" then
-            return data.error
+        candidate = SafeErrorMessage(data.error, "")
+        if candidate <> "" then
+            return candidate
         end if
-        ' Check for API-level {success:false,message:"..."} in data.data
+        ' Check for API-level {success:false,message:"..."} / {error:"..."} in data.data
         if type(data.data) = "roAssociativeArray" then
-            if data.data.DoesExist("message") and data.data.message <> invalid then
-                return data.data.message
+            candidate = SafeErrorMessage(data.data.message, "")
+            if candidate <> "" then
+                return candidate
             end if
-            if data.data.DoesExist("error") and data.data.error <> invalid then
-                return data.data.error
+            candidate = SafeErrorMessage(data.data.error, "")
+            if candidate <> "" then
+                return candidate
             end if
         end if
     end if
     return ""
+end function
+
+' Presence test for a wire error value that never performs a String
+' operator on a non-String (M-ROKU-12 crash class). A malformed
+' (non-String, non-invalid) error value still counts as a failure signal -
+' it must never count as success.
+function WireErrorPresent(value as Object) as Boolean
+    if value = invalid then return false
+    t = type(value)
+    if t = "roString" or t = "String" then
+        return value.Trim() <> ""
+    end if
+    return true
 end function
 
 ' ENVELOPE LAW choke (docs/api-envelope.md): record one transport envelope

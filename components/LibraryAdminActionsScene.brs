@@ -138,10 +138,7 @@ sub OnApiResponse(event as Object)
         SetStatus("")
     else if resp.op = "scanLibrary" or resp.op = "rescanLibrary" or resp.op = "matchLibraryMetadata" then
         if resp.ok and resp.data <> invalid then
-            message = "Job queued"
-            if resp.data.DoesExist("message") and resp.data.message <> invalid and resp.data.message <> "" then
-                message = resp.data.message
-            end if
+            message = SafeErrorMessage(resp.data.message, "Job queued")
             SetStatus(message)
             ' Chain a status refresh so the new job state shows (m.pendingOp is
             ' already cleared above, so this is a fresh serialized call).
@@ -189,16 +186,24 @@ end function
 ' else a generic depending on resp.ok.
 function MessageOf(resp as Object) as String
     if resp <> invalid and resp.data <> invalid then
-        if resp.data.DoesExist("message") and resp.data.message <> invalid and resp.data.message <> "" then
-            return resp.data.message
+        ' M-ROKU-12 (review roku__exploiter M1): type-guard the wire keys via
+        ' SafeErrorMessage - a raw non-String {"error":{...}} used to raise on
+        ' the `<> ""` compare / String-return before ever reaching the screen.
+        messageText = SafeErrorMessage(resp.data.message, "")
+        if messageText <> "" then
+            return messageText
         end if
-        if resp.data.DoesExist("error") and resp.data.error <> invalid and resp.data.error <> "" then
-            return resp.data.error
+        errorText = SafeErrorMessage(resp.data.error, "")
+        if errorText <> "" then
+            return errorText
         end if
     end if
 
     if resp <> invalid and resp.ok then return "Job queued"
-    if resp <> invalid and resp.error <> invalid and resp.error <> "" then return resp.error
+    if resp <> invalid then
+        transportError = SafeErrorMessage(resp.error, "")
+        if transportError <> "" then return transportError
+    end if
     return "Request failed"
 end function
 

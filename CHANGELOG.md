@@ -2,6 +2,47 @@
 
 ## [Unreleased]
 
+### Fixed — wire error text type-guarded before render-path string ops (M-ROKU-12) — 2026-10-29
+
+- **The defect (review roku__exploiter M1).** A response body is
+  attacker-influenced data: the contract says `{error: string}`, but a hostile
+  server (or, on http://, any LAN injector) can answer `{"error":123}` /
+  `{"error":{"code":1}}`. Every consumer fed that value into a String
+  operation unguarded — `<> ""` / `= ""` compares, `lcase`/`instr`,
+  concatenation, an `as String` sink — so the first hostile non-String raised
+  a BrightScript runtime type mismatch: scenes died mid-login / mid-action on
+  the render thread (LoginScene's ladder, ServerPickerScene, PlayerScene's
+  access-schedule arm, the four admin `MessageOf` reducers), and
+  `DeriveResponseError` — the task-thread choke every scene-facing envelope
+  error rides — bricked the task.
+- **The cure (one guard family).** `SafeErrorMessage(value as Object,
+  fallbackMessage as String)` (source/lib/Utilities.brs): `type(value)` must
+  be roString/String — a non-String is a contract violation and degrades to
+  the caller's typed fallback, never partially rendered; the value is capped
+  at `WireErrorMessageMax()` (300, gate-pinned literal) BEFORE the O(n)
+  `StripWireControlChars()` loop (CR/LF/TAB/NUL/DEL never reach a Label —
+  Roku renders plain text, there is no ANSI class, but control bytes are
+  single-line-chrome garbage), then trimmed; empty collapses to the fallback.
+  `GetErrorMessage` is retyped `as Object` and rides the guard first; its
+  legacy `http_*` map is preserved verbatim. The task choke
+  `DeriveResponseError` routes all three wire candidates through the guard,
+  and a new `WireErrorPresent()` (a malformed non-String error still counts
+  as failure, never as success) replaces the raw admin `{error}` compare.
+  All ten wire-text consumer sites are cured; behavior changes only for
+  hostile non-String inputs, which previously crashed or silently
+  misclassified.
+- **The gate.** CHECK43 (scripts/verify-runtime.sh) fails loud on raw
+  `.error`/`.message` reads, literal compares, or string ops in any shipped
+  .brs (red-on-parent: 35 problems across the ten cure sites + the four
+  choke pins at `16f338ca8`), pins the cure artifacts themselves (guard
+  signature, cap literal 300, DeriveResponseError wiring), exempts
+  guard-bearing lines and `m.top.*` RSG-typed fields, and WARN-lists exactly
+  the two in-flight files (components/PhlixApp.brs:388 + the
+  source/lib/ApiClient.brs envelope lifts) whose raw wire pair the live
+  M-ROKU-11 lane owns curing at the ApiClient source choke — the WARN set
+  must never grow. tests/unit/WireGuard.test.brs pins the guard contract
+  on-device (rooibos); the portable harness carries a three-arm
+  plant-and-restore red leg with CHECK26/CHECK41 gate independence.
 ### Fixed — retail-user visibility: channel version on every request, honest readable About, shipped-truth log story (M-ROKU-11) — 2026-10-29
 
 - **The defect (review roku__devops M4).** "No way to support a retail

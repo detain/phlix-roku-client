@@ -546,7 +546,12 @@ sub OnApiResponse(event as Object)
     ' Server returns 403/429 with {error:"AccessSchedule"|"StreamLimitExceeded"}
     ' in the data field even when resp.ok is true (envelope wraps it).
     if resp.data <> invalid and type(resp.data) = "roAssociativeArray" then
-        err = resp.data.error
+        ' M-ROKU-12 (review roku__exploiter M1): resp.data is the server
+        ' payload; `err = resp.data.error` raw + `err = "AccessSchedule"`
+        ' was an AA-vs-String compare on the RENDER thread - hostile
+        ' {"error":{...}} crashed the player scene. The marker check only
+        ' ever cares about exact String sentinels, so type-guard first.
+        err = SafeErrorMessage(resp.data.error, "")
         if err = "AccessSchedule" then
             ShowAccessError()
             return

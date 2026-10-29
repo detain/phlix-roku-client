@@ -60,11 +60,13 @@ sub OnApiResponse(event as Object)
         ' branch unwrapped the transport envelope - resp.data is the server
         ' payload {servers:[...]} here.
         if not resp.ok then
-            ' Request failed - show error dialog
-            errorMsg = "Unable to load servers"
-            if resp.error <> invalid and resp.error <> "" then
-                errorMsg = resp.error
-            end if
+            ' Request failed - show error dialog.
+            ' M-ROKU-12 (review roku__exploiter M1): resp.error used to be
+            ' assigned RAW into the `message as String` sink of
+            ' ShowErrorDialog - a non-String wire value is a runtime
+            ' type-mismatch on the render thread. SafeErrorMessage types it
+            ' (with the generic caption as fallback) before the dialog call.
+            errorMsg = SafeErrorMessage(resp.error, "Unable to load servers")
             ShowErrorDialog(m.top, "Error", errorMsg)
             m.servers = []
         else
