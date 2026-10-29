@@ -1,4 +1,4 @@
-.PHONY: all package install dev clean test lint lint-fix validate-manifest validate-routes _run_rooibos _run_rooibos_unit _run_rooibos_integration
+.PHONY: all package install dev clean test lint lint-fix validate-manifest validate-routes verify-package _run_rooibos _run_rooibos_unit _run_rooibos_integration
 
 # Roku IP address (set via environment or edit here)
 ROKU_IP ?= 192.168.1.100
@@ -29,10 +29,27 @@ _update-manifest: $(MANIFEST_SRC)
 
 all: package
 
-# Create zip package for sideloading
+# Create zip package for sideloading.
+# C08 (review roku__crossfe C1 + roku__devops C1): Roku's Dev Application
+# Installer requires the manifest at the ARCHIVE ROOT; the pre-fix recipe
+# zipped $(MANIFEST_OUT) = build/manifest with `zip -r`, which stored it
+# NESTED under build/ and made every packaged channel uninstallable (and
+# package.yml published exactly that zip as the rolling "latest"). Cure:
+# the directory trees keep their structure via `zip -r`; the version-derived
+# manifest rides as a bare root member via `zip -j` (junk paths). `rm -f`
+# first because zip UPDATES an existing archive — without it a stale zip
+# could keep old-layout entries after the recipe itself was fixed. The
+# target ends by opening its own output: scripts/verify-package.sh fails
+# loudly on any layout regression, so `make package` (and with it `make
+# install`, `make dev-install`, CI's package job, and package-signed.sh's
+# phlix.zip input) can no longer produce a structurally invalid artifact
+# silently.
 package: _update-manifest
 	@echo "Packaging version $(PKG_VERSION)..."
-	zip -r $(PKG_NAME).zip $(MANIFEST_OUT) source components images locale
+	@rm -f $(PKG_NAME).zip
+	zip -r $(PKG_NAME).zip source components images locale
+	zip -j $(PKG_NAME).zip $(MANIFEST_OUT)
+	@bash "$(CURDIR)/scripts/verify-package.sh" "$(CURDIR)/$(PKG_NAME).zip"
 
 # Build a signed package for store submission
 # Requires: ROKU_DEV_PASSWORD set, rokudev auth via `rokudev auth`
@@ -282,6 +299,13 @@ check:
 
 verify-runtime:
 	@bash "$(CURDIR)/scripts/verify-runtime.sh"
+
+# C08 artifact gate: assert the sideload zip's on-disk layout (root manifest,
+# no build/ entries, required trees). `make package` runs this on its own
+# output; this standalone target lets a CI job open the exact artifact it is
+# about to upload/release without rebuilding it.
+verify-package:
+	@bash "$(CURDIR)/scripts/verify-package.sh" "$(CURDIR)/$(PKG_NAME).zip"
 
 # S280: client route gate — every URL this client issues must be tuple-exact
 # against the vendored phlix-server manifest (tests/fixtures/server-route-manifest.json).

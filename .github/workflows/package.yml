@@ -93,6 +93,13 @@ jobs:
       - name: Build sideload zip (manifest + source + images)
         run: make package
 
+      - name: Verify sideload zip layout (C08 — root manifest or Roku rejects it)
+        # make package self-verifies, but this job uploads and release-latest
+        # publishes the artifact: name the assert where the bytes ship.
+        # Red-leg proven in scripts/verify-package.sh's header contract (the
+        # OLD build/manifest layout reddens root-manifest + build-entries legs).
+        run: make verify-package
+
       - name: Upload sideload package
         uses: actions/upload-artifact@v7
         with:
