@@ -68,11 +68,93 @@ function IsValidUrl(url as String) as Boolean
     return false
 end function
 
+' Reduce any URL-shaped string to its bare lowercase HOST (authority minus
+' port; an IPv6 literal keeps its brackets: "[::1]:8096/x" -> "[::1]").
+' Scheme-less input works (the Connect screen infers BEFORE a scheme exists).
+' Returns "" for an empty authority, an unclosed bracket or a userinfo-
+' bearing host ("user@evil" is never a server name we trust a class for).
+' THE single host parser behind every connect-class predicate - the scheme
+' inference, the M-ROKU-15 cleartext-consent gate and the redirect custody
+' law all read hosts through here (CHECK48 R3 pins the delegation).
+function HostOfUrl(url as String) as String
+    if url = invalid then return ""
+    u = url.Trim().Lower()
+    if u = "" then return ""
+    schemeSep = Instr(1, u, "://")
+    if schemeSep > 0 then u = u.Mid(schemeSep + 3)
+
+    cut = Len(u)
+    for i = 1 to Len(u)
+        c = Mid(u, i, 1)
+        if c = "/" or c = "?" or c = "#" then
+            cut = i - 1
+            exit for
+        end if
+    end for
+    u = Left(u, cut)
+    if u = "" then return ""
+    if Instr(1, u, "@") > 0 then return ""
+
+    if Left(u, 1) = "[" then
+        close = Instr(1, u, "]")
+        if close = 0 then return ""
+        return Left(u, close)
+    end if
+
+    colon = Instr(1, u, ":")
+    if colon > 0 then u = Left(u, colon - 1)
+    return u
+end function
+
+' True for hosts whose cleartext http:// is the LAN/loopback/link-local class
+' the README's connect section promises ("LAN/loopback hosts, https://
+' otherwise"): RFC1918 dotted quads (10/8, 172.16-31, 192.168/16), loopback
+' (127/8, localhost, [::1]/::1) and link-local (169.254/16). The R4.7 law is
+' preserved verbatim: RFC1918 range checks apply ONLY to numeric dotted
+' quads, so a hostname like "10th-street.example.com" never reads as private.
+' Single source for BOTH the NormalizeServerUrl inference and the M-ROKU-15
+' cleartext-consent gate - CHECK48 R3 pins the delegation.
+function IsPrivateHostAddress(host as String) as Boolean
+    if host = invalid then return false
+    h = host.Trim().Lower()
+    if h = "" then return false
+    if h = "localhost" then return true
+    if h = "::1" or h = "[::1]" then return true
+
+    parts = h.Split(".")
+    if parts.Count() <> 4 then return false
+    for each p in parts
+        ' Len check + digit check: each part must be 1-3 digits
+        if Len(p) < 1 or Len(p) > 3 then return false
+        for i = 1 to Len(p)
+            c = Mid(p, i, 1)
+            if c < "0" or c > "9" then return false
+        end for
+    end for
+
+    if parts[0] = "10" then return true
+    if parts[0] = "127" then return true
+    if parts[0] = "169" and parts[1] = "254" then return true
+    if parts[0] = "192" and parts[1] = "168" then return true
+    if parts[0] = "172" then
+        octet = 0
+        for i = 1 to Len(parts[1])
+            octet = octet * 10 + Asc(Mid(parts[1], i, 1)) - 48
+        end for
+        if octet >= 16 and octet <= 31 then return true
+    end if
+    return false
+end function
+
 ' Normalize a raw server/hub URL typed on the Connect screen into a bare origin
 ' ApiClient can consume (ApiClient builds {baseUrl} + "/api/v1" + path). Trims
 ' surrounding whitespace; keeps an explicit http://|https:// scheme; otherwise
-' infers the scheme from the host (local hosts -> http://, everything else ->
+' infers the scheme from the host through the single-source IsPrivateHostAddress
+' predicate (LAN/loopback/link-local hosts -> http://, everything else ->
 ' https://); finally strips a single trailing "/". Guards invalid/empty -> "".
+' A typed http:// to a NON-private host survives normalization by design - the
+' M-ROKU-15 consent gate in ConnectScene makes that class LOUD before it is
+' ever persisted.
 ' @param raw String - the user-entered URL (may be invalid)
 ' @return String - the normalized bare origin (empty string when nothing usable)
 function NormalizeServerUrl(raw as String) as String
@@ -83,58 +165,10 @@ function NormalizeServerUrl(raw as String) as String
 
     lower = url.Lower()
     if lower.Left(7) = "http://" or lower.Left(8) = "https://" then
-        ' Explicit scheme - keep as typed.
+        ' Explicit scheme - keep as typed (the cleartext class of a remote
+        ' http:// is gated at PERSIST time in ConnectScene, not here).
     else
-        ' Infer scheme from the host. Local/private hosts default to http://,
-        ' everything else (a real domain) to https://.
-        ' R4.7 fix: only apply RFC1918 checks to actual IP addresses (not hostnames
-        ' like "10th-street.example.com" that happen to start with a private prefix).
-        isLocal = false
-
-        ' Extract just the host portion (strip any path / port)
-        host = lower
-        slashPos = Instr(1, host, "/")
-        if slashPos > 0 then host = Left(host, slashPos - 1)
-        colonPos = Instr(1, host, ":")
-        if colonPos > 0 then host = Left(host, colonPos - 1)
-
-        ' Only apply RFC1918 checks when host is a dotted-quad IP (all 4 parts numeric)
-        if host <> "" then
-            parts = host.Split(".")
-            if parts.Count() = 4 then
-                allNumeric = true
-                for each p in parts
-                    ' Len check + digit check: each part must be 1-3 digits
-                    if Len(p) < 1 or Len(p) > 3 then
-                        allNumeric = false
-                        exit for
-                    end if
-                    for i = 1 to Len(p)
-                        c = Mid(p, i, 1)
-                        if c < "0" or c > "9" then
-                            allNumeric = false
-                            exit for
-                        end if
-                    end for
-                    if not allNumeric then exit for
-                end for
-
-                if allNumeric then
-                    ' Now safe to apply RFC1918 range checks (parts are IP octets)
-                    if parts[0] = "10" then isLocal = true
-                    if parts[0] = "192" and parts[1] = "168" then isLocal = true
-                    if parts[0] = "172" then
-                        octet = 0
-                        for i = 1 to Len(parts[1])
-                            octet = octet * 10 + Asc(Mid(parts[1], i, 1)) - 48
-                        end for
-                        if octet >= 16 and octet <= 31 then isLocal = true
-                    end if
-                end if
-            end if
-        end if
-
-        if isLocal then
+        if IsPrivateHostAddress(HostOfUrl(lower)) then
             url = "http://" + url
         else
             url = "https://" + url
@@ -161,7 +195,10 @@ end function
 '
 ' The law (CHECK34 in scripts/verify-runtime.sh pins the triangle):
 '   ClassifyUrlFailure returns EXACTLY the buckets
-'       bad_url | dns | refused | tls | timeout | unreachable
+'       bad_url | dns | refused | tls | timeout | unreachable | redirect_refused
+'   (redirect_refused is M-ROKU-15's client-minted custody bucket - curl's own
+'   "Maximum (N) redirects followed" text and our refused-hop fail texts both
+'   land on it; it carries its message like every curl-sourced bucket),
 '   every bucket has exactly one catalog message,
 '       connect_err_<bucket> in locale/<any>/strings.json (CHECK21 parity),
 '   and TranslateTransportReason is THE single literal Translate ladder
@@ -170,15 +207,22 @@ end function
 
 ' Map one roUrlTransfer transport failure onto a closed reason bucket.
 ' @param failReason String|invalid - roUrlEvent.GetFailureReason() (curl text,
-'        matched by keyword because the exact strings are firmware-owned)
+'        matched by keyword because the exact strings are firmware-owned), or
+'        the client-minted custody text an ApiClient send site produced when
+'        IT refused to follow a redirect (M-ROKU-15)
 ' @param started Boolean - whether the async transfer ever started; false
 '        means roUrlTransfer itself rejected the URL (malformed/unparseable)
-' @return String - one of bad_url|dns|refused|tls|timeout|unreachable
+' @return String - one of bad_url|dns|refused|tls|timeout|unreachable|redirect_refused
 function ClassifyUrlFailure(failReason as String, started as Boolean) as String
     if not started then return "bad_url"
     lower = ""
     if failReason <> invalid then lower = failReason.Lower()
     if Instr(1, lower, "resolve") > 0 then return "dns"
+    ' M-ROKU-15 custody bucket - checked BEFORE the "refused" arm on purpose:
+    ' our refusal texts ("unsafe redirect refused ...") contain the word
+    ' "refused", and the honest user story is the custody stop, not a
+    ' connection refusal. Also catches curl's own redirect-cap text.
+    if Instr(1, lower, "redirect") > 0 then return "redirect_refused"
     if Instr(1, lower, "couldn't connect") > 0 or Instr(1, lower, "could not connect") > 0 or Instr(1, lower, "refused") > 0 then return "refused"
     if Instr(1, lower, "ssl") > 0 or Instr(1, lower, "certificate") > 0 or Instr(1, lower, "tls") > 0 then return "tls"
     if Instr(1, lower, "timed out") > 0 or Instr(1, lower, "timeout") > 0 then return "timeout"
@@ -189,7 +233,7 @@ end function
 ' to an HTTP/server verdict such as session_invalid or no_session).
 function IsTransportReason(reason as String) as Boolean
     if reason = invalid then return false
-    return reason = "bad_url" or reason = "dns" or reason = "refused" or reason = "tls" or reason = "timeout" or reason = "unreachable"
+    return reason = "bad_url" or reason = "dns" or reason = "refused" or reason = "tls" or reason = "timeout" or reason = "unreachable" or reason = "redirect_refused"
 end function
 
 ' The ONE bucket -> user-message ladder (literal Translate calls so CHECKs
@@ -201,7 +245,152 @@ function TranslateTransportReason(reason as String) as String
     if reason = "tls" then return Translate("connect_err_tls")
     if reason = "timeout" then return Translate("connect_err_timeout")
     if reason = "bad_url" then return Translate("connect_err_bad_url")
+    if reason = "redirect_refused" then return Translate("connect_err_redirect_refused")
     return Translate("connect_err_unreachable")
+end function
+
+' =============================================================================
+' M-ROKU-15 — CREDENTIAL CUSTODY LEAVES (review roku__exploiter M4)
+'
+' The Connect/pair flow lets the USER choose the server origin (typed URL,
+' prefill, "Connect anyway" after a failed probe) and then ships an
+' UNENCRYPTED login password plus every Bearer token there. Two custody laws
+' live as pure leaves here so the unit suite and CHECK48 can pin them from
+' one source:
+'   1. CLEARTTEXT CONSENT: ServerUrlUsesCleartextToRemoteHost gates the
+'      single server_url persist site in ConnectScene - a cleartext http://
+'      origin to a host that is NOT the LAN/loopback/link-local class needs
+'      the user's explicit LOUD OK first (the review's "this server will
+'      receive your password unencrypted" dialog). LAN http stays silent; it
+'      is the documented normal.
+'   2. REDIRECT CUSTODY: ApiClient's credentialed send sites disable the
+'      firmware's auto-follow and walk 3xx ONLY through these leaves -
+'      ResolveRedirectTarget absolutizes a Location, IsCredentialSafeRedirect
+'      Hop admits same-origin hops plus the one safe non-identical class (the
+'      same-host http->https 443 upgrade), and RedirectHopLimit caps the
+'      chain. Every refusal surfaces as the redirect_refused bucket with its
+'      cataloged sentence - credentials never ride to a different host, and
+'      never ride DOWN to cleartext.
+' =============================================================================
+
+' True when a (normalized, scheme-bearing) server URL is cleartext http://
+' to a host OUTSIDE the LAN/loopback/link-local class - the exact shape where
+' the login password and every later Bearer request cross a sniffable path.
+' Scheme-less input returns false: the ConnectScene persist choke is only
+' ever reached with NormalizeServerUrl output (which guarantees a scheme).
+function ServerUrlUsesCleartextToRemoteHost(url as String) as Boolean
+    if url = invalid then return false
+    u = url.Trim().Lower()
+    if u.Left(7) <> "http://" then return false
+    return not IsPrivateHostAddress(HostOfUrl(u))
+end function
+
+' Manual redirect-hop budget for the send sites (CHECK48 pins the literal).
+function RedirectHopLimit() as Integer
+    return 3
+end function
+
+' Canonical lowercase origin "scheme://host[:port]" of a URL, DEFAULT ports
+' folded (http://h:80 -> http://h, https://h:443 -> https://h) so a hop that
+' merely spells the default is still same-origin. "" for anything non-http(s),
+' hostless, userinfo-bearing, bracket-less-broken or with a non-numeric port -
+' every malformed shape the custody law must REFUSE.
+function OriginOfUrl(url as String) as String
+    if url = invalid then return ""
+    u = url.Trim().Lower()
+    schemeSep = Instr(1, u, "://")
+    if schemeSep = 0 then return ""
+    scheme = Left(u, schemeSep - 1)
+    if scheme <> "http" and scheme <> "https" then return ""
+
+    rest = u.Mid(schemeSep + 3)
+    cut = Len(rest)
+    for i = 1 to Len(rest)
+        c = Mid(rest, i, 1)
+        if c = "/" or c = "?" or c = "#" then
+            cut = i - 1
+            exit for
+        end if
+    end for
+    rest = Left(rest, cut)
+    if rest = "" then return ""
+    if Instr(1, rest, "@") > 0 then return ""
+
+    host = rest
+    port = ""
+    if Left(rest, 1) = "[" then
+        close = Instr(1, rest, "]")
+        if close = 0 then return ""
+        host = Left(rest, close)
+        after = rest.Mid(close)
+        if Len(after) > 0 then
+            if Left(after, 1) <> ":" then return ""
+            port = after.Mid(1)
+        end if
+    else
+        colon = Instr(1, rest, ":")
+        if colon > 0 then
+            host = Left(rest, colon - 1)
+            port = rest.Mid(colon + 1)
+        end if
+    end if
+    if host = "" then return ""
+    if port <> "" then
+        for i = 1 to Len(port)
+            c = Mid(port, i, 1)
+            if c < "0" or c > "9" then return ""
+        end for
+        if (scheme = "http" and port = "80") or (scheme = "https" and port = "443") then port = ""
+    end if
+
+    if port <> "" then return scheme + "://" + host + ":" + port
+    return scheme + "://" + host
+end function
+
+' The redirect hop law. SAFE (true) only when:
+'   - the origins are IDENTICAL (same scheme, host and effective port) - the
+'     trailing-slash / path-rewrite class the server itself may emit; or
+'   - it is the same HOST moving from cleartext http to https on the STANDARD
+'     TLS port (http://h -> https://h, both default ports after folding): the
+'     commonest legit redirect on the web (an nginx 80->443 301), identical
+'     machine, credentials MOVE TO ENCRYPTION - custody strictly improves.
+' Everything else REFUSES: cross-host, any port change, https->http
+' DOWNGRADE, non-http schemes, malformed targets. A refused hop means the
+' Bearer token / login password stops HERE - it is never re-sent.
+function IsCredentialSafeRedirectHop(fromUrl as String, toUrl as String) as Boolean
+    fromOrigin = OriginOfUrl(fromUrl)
+    destOrigin = OriginOfUrl(toUrl)
+    if fromOrigin = "" or destOrigin = "" then return false
+    if fromOrigin = destOrigin then return true
+    if fromOrigin.Left(7) = "http://" and destOrigin.Left(8) = "https://" then
+        if fromOrigin.Mid(8) = destOrigin.Mid(9) then return true
+    end if
+    return false
+end function
+
+' Absolutize a redirect Location against the URL that produced it: absolute
+' http(s) passes through; protocol-relative "//host/p" rides the source
+' scheme; "/p" and bare relative forms ride the source ORIGIN. A CR/LF/NUL
+' bearing value is malformed (a header fragment must never reach a re-issued
+' request line) and a userinfo-bearing absolute is refused by OriginOfUrl
+' downstream. @return String - absolute URL, or "" when unusable.
+function ResolveRedirectTarget(fromUrl as String, location as String) as String
+    if location = invalid then return ""
+    loc = location.Trim()
+    if loc = "" then return ""
+    if Instr(1, loc, Chr(13)) > 0 or Instr(1, loc, Chr(10)) > 0 or Instr(1, loc, Chr(0)) > 0 then return ""
+
+    lower = loc.Lower()
+    if lower.Left(7) = "http://" or lower.Left(8) = "https://" then return loc
+
+    origin = OriginOfUrl(fromUrl)
+    if origin = "" then return ""
+    if loc.Left(2) = "//" then
+        sep = Instr(1, origin, "://")
+        return origin.Left(sep - 1) + ":" + loc
+    end if
+    if Left(loc, 1) = "/" then return origin + loc
+    return origin + "/" + loc
 end function
 
 ' Reduce an SSDP LOCATION URL (e.g. http://192.168.1.5:8096/dlna/description.xml)

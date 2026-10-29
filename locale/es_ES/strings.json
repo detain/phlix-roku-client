@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "es_ES",
     "language_name": "Español (España)",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -305,7 +305,11 @@
     "find_searching": "Buscando en tu red…",
     "find_none": "No se encontró ningún servidor Phlix en esta red. Escribe la dirección arriba.",
     "find_one": "Servidor encontrado. Pulsa Conectar.",
-    "find_picked": "Pulsa Conectar."
+    "find_picked": "Pulsa Conectar.",
+    "err_redirect_refused": "El servidor intentó mover su solicitud a otra dirección, por lo que se detuvo la conexión para proteger sus credenciales.",
+    "cleartext_title": "Conexión sin cifrado",
+    "cleartext_message": "Esta dirección del servidor no está cifrada. Su contraseña y su token de sesión viajarán en texto claro. ¿Conectar de todas formas?",
+    "cleartext_continue": "Continuar"
   },
   "login": {
     "button": "Iniciar sesión",

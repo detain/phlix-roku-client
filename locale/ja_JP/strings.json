@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -305,7 +305,11 @@
     "find_searching": "ネットワークを検索中…",
     "find_none": "このネットワークに Phlix サーバーが見つかりません。上記にアドレスを入力してください",
     "find_one": "サーバーが見つかりました。接続を押してください",
-    "find_picked": "接続を押してください"
+    "find_picked": "接続を押してください",
+    "err_redirect_refused": "サーバーがリクエストを別のアドレスに移動しようとしたため、認証情報を守るために接続を停止しました。",
+    "cleartext_title": "暗号化されていない接続",
+    "cleartext_message": "このサーバーアドレスは暗号化されていません。パスワードとセッショントークンが平文で送信されます。接続しますか？",
+    "cleartext_continue": "続行"
   },
   "login": {
     "button": "ログイン",

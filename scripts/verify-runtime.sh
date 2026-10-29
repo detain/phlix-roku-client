@@ -439,8 +439,12 @@ exempt_line_patterns = [
 ]
 # Exempt absolute path:line — specific legitimate code uses
 exempt_locs = {
-    # Utilities.brs: localhost detection for scheme inference
-    ('source/lib/Utilities.brs', 91): re.compile(r'if lower\.Left\(9\) = "localhost"'),
+    # Utilities.brs: localhost detection for the single-source host predicate
+    # (IsPrivateHostAddress - scheme inference + the M-ROKU-15 cleartext gate
+    # classify loopback through it). The pre-R4.7 pin at line 91 went stale
+    # when the inline inference moved out of NormalizeServerUrl; M-ROKU-15
+    # re-pinned it onto the predicate's own line.
+    ('source/lib/Utilities.brs', 121): re.compile(r'if h = "localhost" then return true'),
 }
 
 found_violation = False
@@ -3374,7 +3378,9 @@ repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
 os.chdir(repo)
 
 problems = []
-EXPECTED = {"bad_url", "dns", "refused", "tls", "timeout", "unreachable"}
+# M-ROKU-15 arrived WITH its triangle: classifier arm + literal ladder arm +
+# catalog message (CHECK48 re-pins the same joint law at its own level).
+EXPECTED = {"bad_url", "dns", "refused", "tls", "timeout", "unreachable", "redirect_refused"}
 
 UTIL = "source/lib/Utilities.brs"
 
@@ -5705,6 +5711,234 @@ print("  CHECK47: bootstrap scenes never consume Back (all four bubble to the CH
 print("           arm); the boot-retry button is focused on display and its buttonSelected")
 print("           observer is wired once in Init; navigation.md and certification.md carry")
 print("           the shipped scope")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 48: connect/pair credential custody - redirect law + cleartext consent (M-ROKU-15) ==="
+# CREDENTIAL CUSTODY LAW (M-ROKU-15, review roku__exploiter M4): the Connect/
+# pair flow let the USER choose the server origin (a typed URL was kept as-is
+# even when explicitly http://, and "Connect anyway" persisted whatever
+# survived normalization after a FAILED probe), while the credentialed
+# ApiClient send sites left redirect policy to the firmware's auto-follow - so
+# a login password posted in plaintext JSON, or a Bearer token, could be
+# 3xx-walked to a host the user never chose. Cure in three legs, pinned
+# statically below, with every pure leaf pinned by
+# tests/unit/RedirectCustody.test.brs on-device:
+#   R1  redirect custody: sendRaw and sendRawWithDeviceId (the login POST)
+#       disable the firmware auto-follow, adjudicate every 3xx through the
+#       pure-leaf trio (ResolveRedirectTarget / IsCredentialSafeRedirectHop /
+#       RedirectHopLimit) and abort with a fail text naming "redirect" (the
+#       redirect_refused bucket) unless the hop is same-origin or the
+#       same-host http->https upgrade; resolveLocation (Bearer-carrying,
+#       Location-hungry) disables following so its documented "WITHOUT
+#       following" contract is a guarantee, not best-effort; probeHealth
+#       stays redirect-FOLLOWING by design (zero credentials ride it, and an
+#       http->https /health 301 must still probe green).
+#   R2  cleartext consent: Connect() is the persist choke - when
+#       ServerUrlUsesCleartextToRemoteHost says so, the shipped two-button
+#       ShowErrorDialog idiom demands a LOUD OK before anything is written;
+#       the server_url write-site census stays exactly one (inside
+#       PersistAndGo, which the default-deny callback alone reaches);
+#       LAN/loopback http stays silent - the documented home-server normal.
+#   R3  single source + triangle: the scheme inference, the consent gate and
+#       the hop law all read hosts through HostOfUrl/IsPrivateHostAddress
+#       (NormalizeServerUrl delegates - re-rolled octet logic is how
+#       "10th-street.example.com" was once misclassified); the
+#       redirect_refused bucket carries its classifier arm, transport guard,
+#       ladder line and catalog message x7; catalogs bump as a set (1.8.0).
+#   R4  the device harness pins the law: tests/unit/RedirectCustody.test.brs
+#       and all seven Test subs.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+UTIL = "source/lib/Utilities.brs"
+AC = "source/lib/ApiClient.brs"
+SCENE = "components/ConnectScene.brs"
+TEST = "tests/unit/RedirectCustody.test.brs"
+LOCALES = ["en_US", "de_DE", "es_ES", "fr_FR", "it_IT", "ja_JP", "pt_BR"]
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK48: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(text):
+    out = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
+def method_body(text, name):
+    m = re.search(r"(?m)^\s*%s:\s*function\(" % re.escape(name), text)
+    if m is None:
+        return None
+    end = text.find("\n        end function", m.end())
+    return text[m.start():] if end == -1 else text[m.start():end]
+
+
+def sub_body(text, name):
+    m = re.search(r"(?m)^(?:sub|function)\s+%s\b[^\n]*\n(.*?)^end (?:sub|function)" % re.escape(name),
+                  text, re.DOTALL)
+    return m.group(0) if m else None
+
+
+util = read(UTIL)
+ac = read(AC)
+scene = read(SCENE)
+
+# ---- R1 send-site redirect custody ---------------------------------------
+if ac is not None:
+    acm = mask(ac)
+    for name in ("sendRaw", "sendRawWithDeviceId"):
+        b = method_body(acm, name)
+        if b is None:
+            problems.append(f"  {AC} - CHECK48 R1: send site `{name}` is gone — the redirect-custody census cannot run")
+            continue
+        if "http.EnableRedirects(false)" not in b:
+            problems.append(f"  {AC} - CHECK48 R1: `{name}` no longer disables the firmware auto-follow — a Bearer/password-carrying request could be 3xx-walked to a host the user never chose (M-ROKU-15)")
+        for leaf, why in (("ResolveRedirectTarget(", "a Location must be absolutized before ANY verdict"),
+                          ("IsCredentialSafeRedirectHop(", "only same-origin / same-host http-then-https hops may re-send credentials"),
+                          ("RedirectHopLimit()", "the manual chain must be bounded")):
+            if leaf not in b:
+                problems.append(f"  {AC} - CHECK48 R1: `{name}` stopped consulting {leaf[:-1]} — {why} (M-ROKU-15)")
+        if 'result.fail = "redirect refused' not in b:
+            problems.append(f"  {AC} - CHECK48 R1: `{name}` no longer fails refusals through the redirect_refused text — an un-followable 3xx would surface as the old silent empty error")
+    rl = method_body(acm, "resolveLocation")
+    if rl is None or "http.EnableRedirects(false)" not in (rl or ""):
+        problems.append(f"  {AC} - CHECK48 R1: resolveLocation (Bearer-carrying) no longer disables following — its docblock GUARANTEES the 3xx is not followed")
+    ph = method_body(acm, "probeHealth")
+    if ph is None:
+        problems.append(f"  {AC} - CHECK48 R1: probeHealth vanished — the uncredentialed probe's follow-by-design note has no body to inspect")
+    elif "EnableRedirects" in ph:
+        problems.append(f"  {AC} - CHECK48 R1: probeHealth gained redirect-off mode — it carries ZERO credentials, and an http-then-https /health 301 must still probe green (M-ROKU-04 r1 issue 5 law)")
+
+# ---- R2 the consent choke over the single persist site -------------------
+if scene is not None:
+    sc = mask(scene)
+    conn = sub_body(sc, "Connect")
+    if conn is None:
+        problems.append(f"  {SCENE} - CHECK48 R2: the Connect() persist choke is gone")
+    else:
+        gate = conn.find("ServerUrlUsesCleartextToRemoteHost(")
+        persist = conn.find("PersistAndGo(")
+        if gate == -1:
+            problems.append(f"  {SCENE} - CHECK48 R2: Connect() no longer consults ServerUrlUsesCleartextToRemoteHost — a typed http remote origin could persist silently again (the M15 cleartext class)")
+        elif persist != -1 and gate > persist:
+            problems.append(f"  {SCENE} - CHECK48 R2: the consent gate must be consulted BEFORE PersistAndGo — after-the-fact dialogs custody nothing")
+        if 'GetStorage().set(' in conn:
+            problems.append(f"  {SCENE} - CHECK48 R2: Connect() itself writes storage again — the write must live behind the gate, in PersistAndGo")
+        if "ShowErrorDialog(" not in conn:
+            problems.append(f"  {SCENE} - CHECK48 R2: the consent dialog call vanished — the gate would drop the user's request with no say at all")
+        for key in ("connect_cleartext_title", "connect_cleartext_message", "connect_cleartext_continue", "common_cancel"):
+            if f'Translate("{key}")' not in conn:
+                problems.append(f'  {SCENE} - CHECK48 R2: the dialog lost literal Translate("{key}") — CHECK20/21 keep the labels cataloged, never inline')
+    cb = sub_body(sc, "OnCleartextConsentChoice")
+    if cb is None or "if index <> 0 then return" not in cb:
+        problems.append(f"  {SCENE} - CHECK48 R2: the consent callback or its default-deny (index <> 0) guard is gone — only the explicit continue may persist")
+    if "PersistAndGo(" not in (cb or ""):
+        problems.append(f"  {SCENE} - CHECK48 R2: the confirmed arm no longer reaches PersistAndGo — the dialog would promise a connect it never performs")
+
+# server_url write-site census: exactly one across the shipped .brs corpus.
+writes = 0
+for scan_dir in ("source", "components"):
+    for root, dirs, names in os.walk(scan_dir):
+        for name in sorted(names):
+            if name.endswith(".brs"):
+                path = os.path.join(root, name)
+                code = mask(read(path) or "")
+                n = code.count('GetStorage().set("server_url"')
+                if n:
+                    if path != SCENE:
+                        problems.append(f"  {path} - CHECK48 R2: a second server_url write-site appeared outside the consent choke ({n}x) — every persist must ride Connect()/PersistAndGo()")
+                    writes += n
+if writes != 1:
+    problems.append(f"  {SCENE} - CHECK48 R2: server_url write-site census is {writes}, expected exactly 1 (PersistAndGo under the consent gate)")
+
+# ---- R3 single-source predicate + redirect_refused triangle --------------
+if util is not None:
+    u = mask(util)
+    for name in ("HostOfUrl", "IsPrivateHostAddress", "ServerUrlUsesCleartextToRemoteHost",
+                 "RedirectHopLimit", "OriginOfUrl", "IsCredentialSafeRedirectHop",
+                 "ResolveRedirectTarget"):
+        if not re.search(r"(?m)^function %s\b" % name, u):
+            problems.append(f"  {UTIL} - CHECK48 R3: the custody leaf {name}() is gone — the unit suite and the send/scene call sites reference it by name")
+    norm = sub_body(u, "NormalizeServerUrl")
+    if norm is None or "IsPrivateHostAddress(HostOfUrl(" not in norm:
+        problems.append(f'  {UTIL} - CHECK48 R3: NormalizeServerUrl no longer delegates inference to the single-source predicate — re-rolled octet logic is how "10th-street.example.com" was once misclassified')
+    gatefn = sub_body(u, "ServerUrlUsesCleartextToRemoteHost")
+    if gatefn is None or "not IsPrivateHostAddress(HostOfUrl(" not in gatefn:
+        problems.append(f"  {UTIL} - CHECK48 R3: ServerUrlUsesCleartextToRemoteHost no longer rides HostOfUrl + IsPrivateHostAddress — consent and inference must agree on ONE host class")
+    cls = sub_body(u, "ClassifyUrlFailure")
+    if cls is None or 'return "redirect_refused"' not in cls:
+        problems.append(f"  {UTIL} - CHECK48 R3: the classifier lost the redirect_refused arm — refused hops would fall to the generic unreachable lie")
+    if "redirect_refused" not in (sub_body(u, "IsTransportReason") or ""):
+        problems.append(f"  {UTIL} - CHECK48 R3: IsTransportReason no longer admits redirect_refused — restoreSession would wipe credentials the server never disproved")
+    if 'Translate("connect_err_redirect_refused")' not in (sub_body(u, "TranslateTransportReason") or ""):
+        problems.append(f"  {UTIL} - CHECK48 R3: the bucket ladder lost its connect_err_redirect_refused arm (CHECK34 R2 keeps the triangle total)")
+    if scene is not None and '"192"' in mask(scene):
+        problems.append(f"  {SCENE} - CHECK48 R3: octet literals reappeared in ConnectScene — the gate must ask the predicate, never re-derive it")
+
+for L in LOCALES:
+    path = f"locale/{L}/strings.json"
+    try:
+        with open(path, encoding="utf-8") as f:
+            cat = json.load(f)
+    except (OSError, ValueError) as err:
+        problems.append(f"  {path} - CHECK48 R3: unreadable: {err}")
+        continue
+    for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
+        if cat.get("connect", {}).get(key, "") == "":
+            problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
+    if cat.get("_metadata", {}).get("version") != "1.8.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.8.0 — the catalogs bump as a set with this law")
+
+# ---- R4 the device harness pins the law -----------------------------------
+test = read(TEST)
+if test is None:
+    problems.append(f"  {TEST} - CHECK48 R4: the M-ROKU-15 custody unit suite vanished")
+else:
+    for name in ("TestHostOfUrlVectors", "TestIsPrivateHostAddressTruthTable",
+                 "TestCleartextRemoteGateTruthTable", "TestOriginOfUrlNormalization",
+                 "TestCredentialSafeRedirectHopLaw", "TestResolveRedirectTargetShapes",
+                 "TestRedirectBucketClassification"):
+        if f"sub {name}(" not in test:
+            problems.append(f"  {TEST} - CHECK48 R4: {name} is gone")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK48: %d credential-custody pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK48: credentialed sends decide redirects themselves (auto-follow off,")
+print("           same-origin/upgrade hop law, bounded chain, honest redirect_refused")
+print("           refusal); the one server_url persist site sits behind a loud")
+print("           cleartext-consent dialog for remote http origins; inference, consent")
+print("           and hops share one host predicate; the seven catalogs speak both the")
+print("           refusal and the dialog; the unit suite pins every pure leaf")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -305,7 +305,11 @@
     "find_searching": "Netzwerk wird durchsucht…",
     "find_none": "Kein Phlix-Server im Netzwerk gefunden. Adresse oben eingeben.",
     "find_one": "Server gefunden. Connect drücken.",
-    "find_picked": "Connect drücken."
+    "find_picked": "Connect drücken.",
+    "err_redirect_refused": "Der Server wollte Ihre Anfrage an eine andere Adresse weiterleiten. Die Verbindung wurde gestoppt, um Ihre Zugangsdaten zu schützen.",
+    "cleartext_title": "Unverschlüsselte Verbindung",
+    "cleartext_message": "Diese Serveradresse ist unverschlüsselt. Passwort und Sitzungstoken werden im Klartext übertragen. Trotzdem verbinden?",
+    "cleartext_continue": "Fortfahren"
   },
   "login": {
     "button": "Anmelden",

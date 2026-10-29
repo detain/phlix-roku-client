@@ -211,6 +211,10 @@ cp "$REAL_REPO/README.md" "$FAKE_REPO/README.md"
 # seven catalogs and README — are all staged already).
 mkdir -p "$FAKE_REPO/tests/unit"
 cp "$REAL_REPO/tests/unit/SyncPlayWsTls.test.brs" "$FAKE_REPO/tests/unit/SyncPlayWsTls.test.brs"
+# Check 48 (M-ROKU-15) R4 pins the credential-custody unit suite by name; its
+# R1-R3 inputs (ApiClient, Utilities, ConnectScene, the seven catalogs) are all
+# staged already.
+cp "$REAL_REPO/tests/unit/RedirectCustody.test.brs" "$FAKE_REPO/tests/unit/RedirectCustody.test.brs"
 mkdir -p "$FAKE_REPO/tests/fixtures"
 cp "$REAL_REPO/tests/fixtures/server-route-manifest.json" "$FAKE_REPO/tests/fixtures/server-route-manifest.json"
 cp "$REAL_REPO/components/SettingsScene.brs" "$FAKE_REPO/components/SettingsScene.brs"
@@ -300,6 +304,12 @@ assert_contains "CHECK46: https origins refuse the plaintext :8097 dial" "$POSIT
 # list), so the bootstrap Back law must run green in the CI layout too.
 assert_contains "=== Check 47:" "$POSITIVE_OUT"
 assert_contains "CHECK47: bootstrap scenes never consume Back" "$POSITIVE_OUT"
+# M-ROKU-15: Check 48's inputs (the two credentialed send sites + the Location
+# reader, the ConnectScene consent choke, the Utilities custody leaves, the
+# seven catalogs and the unit suite) are all in the fake layout, so the
+# credential-custody law must run green in the CI layout too.
+assert_contains "=== Check 48:" "$POSITIVE_OUT"
+assert_contains "CHECK48: credentialed sends decide redirects" "$POSITIVE_OUT"
 
 # --- locale resolution: simulate the device selecting a ja_JP-style locale ---
 # LoadLocaleStrings normalizes roAppInfo.GetCurrentLocale() with .Trim().
@@ -1397,6 +1407,73 @@ GREEN47_RC=$?
 set -e
 [ "$GREEN47_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after both planted bootstrap-Back defects are removed (got $GREEN47_RC)"
 assert_contains "CHECK47: bootstrap scenes never consume Back" "$GREEN47_OUT"
+
+# --- CHECK48 plant (M-ROKU-15, review roku__exploiter M4): the credential-
+# custody class — firmware auto-follow walking a Bearer/password request to an
+# attacker host, and a silent cleartext persist of a remote http origin. The
+# plant re-grows THREE cured defect forms: the login send site's
+# EnableRedirects(false) removed (R1), the ConnectScene consent gate neutralised
+# (R2 — PersistAndGo would ride unchecked again), and the classifier's
+# redirect_refused arm stripped (R3; CHECK34's triangle fires jointly BY DESIGN —
+# the bucket and its message must arrive in one commit, and the leg asserts
+# both diagnostics). Sibling gates (CHECK46 origin/accept, CHECK47 bootstrap
+# Back) stay green, and the restore must return exit 0 (falsifiability).
+RED48_ROOT="$TEST_ROOT/red48"
+mkdir -p "$RED48_ROOT"
+cp -a "$TEST_ROOT/repo" "$RED48_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$RED48_ROOT/phlix-server"
+python3 - "$RED48_ROOT/repo" <<'PYEOF'
+import sys, os
+repo = sys.argv[1]
+
+ac = os.path.join(repo, "source/lib/ApiClient.brs")
+text = open(ac, encoding="utf-8").read()
+needle = ("            ' never chose. Same manual-hop law as sendRaw (see there).\n"
+          "            http.EnableRedirects(false)\n")
+assert text.count(needle) == 1, "CHECK48 plant: sendRawWithDeviceId redirect-off shape drifted"
+text = text.replace(needle, "            ' never chose. Same manual-hop law as sendRaw (see there).\n", 1)
+open(ac, "w", encoding="utf-8").write(text)
+
+sc = os.path.join(repo, "components/ConnectScene.brs")
+text = open(sc, encoding="utf-8").read()
+needle = "    if ServerUrlUsesCleartextToRemoteHost(url) then\n"
+assert text.count(needle) == 1, "CHECK48 plant: Connect() consent-gate shape drifted"
+text = text.replace(needle, "    if false then\n", 1)
+open(sc, "w", encoding="utf-8").write(text)
+
+ut = os.path.join(repo, "source/lib/Utilities.brs")
+text = open(ut, encoding="utf-8").read()
+needle = '    if Instr(1, lower, "redirect") > 0 then return "redirect_refused"\n'
+assert text.count(needle) == 1, "CHECK48 plant: classifier arm shape drifted"
+text = text.replace(needle, "", 1)
+open(ut, "w", encoding="utf-8").write(text)
+PYEOF
+set +e
+RED48_OUT=$(bash "$RED48_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+RED48_RC=$?
+set -e
+[ "$RED48_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the credential-custody defects are re-planted (got 0 — the CHECK48 guard is toothless)"
+sed -n '/=== Check 48:/,$p' <<<"$RED48_OUT" | grep -qF 'source/lib/ApiClient.brs - CHECK48 R1' ||
+	fail "CHECK48 red must fire R1 and name source/lib/ApiClient.brs on the stripped redirect-off (got: $RED48_OUT)"
+sed -n '/=== Check 48:/,$p' <<<"$RED48_OUT" | grep -qF 'components/ConnectScene.brs - CHECK48 R2' ||
+	fail "CHECK48 red must fire R2 and name components/ConnectScene.brs on the neutralised consent gate (got: $RED48_OUT)"
+sed -n '/=== Check 48:/,$p' <<<"$RED48_OUT" | grep -qF 'source/lib/Utilities.brs - CHECK48 R3' ||
+	fail "CHECK48 red must fire R3 and name source/lib/Utilities.brs on the stripped classifier arm (got: $RED48_OUT)"
+grep -qF "CHECK34 R1" <<<"$RED48_OUT" ||
+	fail "stripping the redirect_refused classifier arm must ALSO redden CHECK34's triangle (the joint-pinning is by design)"
+sed -n '/=== Check 46:/,/=== Check 47:/p' <<<"$RED48_OUT" | grep -qF "CHECK46: https origins refuse the plaintext :8097 dial" ||
+	fail "Check 46 must stay PASS while Check 48 is red (gate independence)"
+sed -n '/=== Check 47:/,/=== Check 48:/p' <<<"$RED48_OUT" | grep -qF "CHECK47: bootstrap scenes never consume Back" ||
+	fail "Check 47 must stay PASS while Check 48 is red (gate independence)"
+cp "$FAKE_REPO/source/lib/ApiClient.brs" "$RED48_ROOT/repo/source/lib/ApiClient.brs"
+cp "$FAKE_REPO/components/ConnectScene.brs" "$RED48_ROOT/repo/components/ConnectScene.brs"
+cp "$FAKE_REPO/source/lib/Utilities.brs" "$RED48_ROOT/repo/source/lib/Utilities.brs"
+set +e
+GREEN48_OUT=$(bash "$RED48_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+GREEN48_RC=$?
+set -e
+[ "$GREEN48_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after all three planted credential-custody defects are removed (got $GREEN48_RC)"
+assert_contains "CHECK48: credentialed sends decide redirects" "$GREEN48_OUT"
 
 # --- negative: audiobook dropped from the ENUM comment -> exit != 0 + CHECK14
 export FAKE_REPO

@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -305,7 +305,11 @@
     "find_searching": "Searching your network…",
     "find_none": "No Phlix server found on this network. Type the address above.",
     "find_one": "Found your server. Press Connect.",
-    "find_picked": "Press Connect."
+    "find_picked": "Press Connect.",
+    "err_redirect_refused": "The server tried to move your request to a different address, so the connection was stopped to protect your credentials.",
+    "cleartext_title": "Unencrypted connection",
+    "cleartext_message": "This server address is not encrypted. Your password and session token will travel in the clear. Connect anyway?",
+    "cleartext_continue": "Continue"
   },
   "login": {
     "button": "Login",

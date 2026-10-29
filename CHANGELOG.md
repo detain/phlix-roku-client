@@ -2,6 +2,40 @@
 
 ## [Unreleased]
 
+### Fixed — credential custody on the Connect/pair flow: consent-gated cleartext and self-decided redirects (M-ROKU-15) — 2026-10-29
+
+- **The defect (review roku__exploiter M4).** Three custody holes survived the
+  C21/C33-era laws and ROKU-14's WS-TLS floor (re-verified real at `1894809`):
+  `NormalizeServerUrl` passed a typed `http://` through to ANY host and inferred
+  `http://` from a narrow `192.`/`10.` string-prefix, `Connect()` persisted the
+  probe-scrubbed URL unconditionally (so a cleartext origin for the password POST
+  and every later Bearer was stored with no word said), and both credentialed
+  sends left `roUrlTransfer` auto-follow ON — a hostile or compromised origin's
+  `3xx Location` walked the credential to a host the user never chose.
+- **The cure (fix-essence honored).** Pure new leaves in `Utilities.brs`:
+  `HostOfUrl` (bracket-IPv6 aware), `IsPrivateHostAddress` (RFC1918 + `127/8` +
+  `169.254/16` + `localhost`/`::1` — `10th-street.example.com` stays public),
+  `ServerUrlUsesCleartextToRemoteHost`, `OriginOfUrl`, `IsCredentialSafeRedirectHop`,
+  `ResolveRedirectTarget`, `RedirectHopLimit` (3); `NormalizeServerUrl` now
+  delegates its inference to the same predicate the consent gate rides (single
+  source — disclosed broadening: bare `127.x`/`localhost`/`::1`/`169.254.x` now
+  infer `http://` like `192.168.x` always did). `Connect()` is THE consent choke:
+  an off-LAN `http://` origin renders the loud two-button dialog (cataloged
+  strings, default-deny — declining writes nothing) before the single
+  `server_url` write-site `PersistAndGo`; the "Connect anyway" override funnels
+  through the same gate. `sendRaw`/`sendRawWithDeviceId` pin
+  `EnableRedirects(false)` and re-send each hop only for a same-origin target or
+  a same-host `http -> https` upgrade; refusals carry no body and classify to a
+  new 7th bucket, `connect.redirect_refused` (catalogs x7, `_metadata.version`
+  1.7.0 -> 1.8.0), so `restoreSession` never wipes credentials on them.
+  `resolveLocation` pins the same refusal (its docblock's best-effort hedge is
+  now a guarantee); `probeHealth` deliberately keeps following — zero credentials.
+- **The gate.** New CHECK48 in `scripts/verify-runtime.sh` (redirect law +
+  consent choke + inference single-source + catalogs + suite; red-on-parent at
+  `1894809`: 69 pins broken, other 47 checks PASS) with a plant-and-restore leg
+  in the portable harness and a row in docs/static-checks.md;
+  `tests/unit/RedirectCustody.test.brs` (+7) covers the pure leaves.
+
 ### Fixed — bootstrap screens never consume Back; the boot-retry button is focusable and wired once (M-ROKU-16) — 2026-10-29
 
 - **The defect (review roku__gameux M1 + m5).** ConnectScene, LoginScene and

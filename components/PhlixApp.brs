@@ -390,7 +390,8 @@ end sub
 '   no_session      - first run / after logout: NOT an error at all. Show the
 '                     login screen silently (ShowLogin routes to ConnectScene
 '                     when no server is configured, per the M-ROKU-03 law).
-'   <transport>     - dns/refused/tls/timeout/unreachable/bad_url: the server
+'   <transport>     - dns/refused/tls/timeout/unreachable/bad_url/
+'                     redirect_refused: the server
 '                     never answered. Route to ConnectScene - the address is
 '                     prefilled and editable, the message is per-cause, and
 '                     Find/retry affordances live there. A RETRY surface,

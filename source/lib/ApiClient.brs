@@ -253,6 +253,13 @@ function ApiClient(baseUrl as String) as Object
             http.RetainBodyOnError(true)
             http.SetTimeout(30000)
             http.EnableEncodings(true)
+            ' M-ROKU-15 credential custody (review roku__exploiter M4): the
+            ' firmware's DEFAULT auto-follow can walk this Bearer-carrying
+            ' request to a host the user never chose. Redirects are OURS to
+            ' adjudicate - EnableRedirects(false) here, manual same-origin
+            ' hop validation below, every refusal loud through the
+            ' redirect_refused bucket.
+            http.EnableRedirects(false)
 
             ' Standard headers
             http.AddHeader("Content-Type", "application/json")
@@ -273,53 +280,99 @@ function ApiClient(baseUrl as String) as Object
                 http.AddHeader("X-Phlix-Session-ID", m.sessionId)
             end if
 
-            ' Honor TLS on https origins.
-            if Left(url, 6) = "https:" then
-                http.SetCertificatesFile("common:/certs/ca-bundle.crt")
-                http.InitClientCertificates()
-            end if
+            ' TLS on https origins. Set unconditionally now: the redirect
+            ' custody law can UPGRADE an http hop to https mid-flight, and a
+            ' certificate context on a plain transfer is inert, so the SAFE
+            ' default is the one that is always armed.
+            http.SetCertificatesFile("common:/certs/ca-bundle.crt")
+            http.InitClientCertificates()
 
-            ' Issue the correct HTTP verb. GET (or any verb with no body) reads;
-            ' verbs carrying a body POST/PUT/PATCH/DELETE the JSON payload.
-            started = false
-            if method = "GET" then
-                started = http.AsyncGetToString()
-            else
-                http.SetRequest(method)
-                if body <> invalid then
-                    started = http.AsyncPostFromString(FormatJSON(body))
-                else
+            result = { code: 0, json: invalid, started: false }
+            currentUrl = url
+            hop = 0
+            while true
+                http.SetUrl(currentUrl)
+
+                ' Issue the correct HTTP verb. GET (or any verb with no body)
+                ' reads; verbs carrying a body POST/PUT/PATCH/DELETE the JSON
+                ' payload.
+                started = false
+                if method = "GET" then
                     started = http.AsyncGetToString()
+                else
+                    http.SetRequest(method)
+                    if body <> invalid then
+                        started = http.AsyncPostFromString(FormatJSON(body))
+                    else
+                        started = http.AsyncGetToString()
+                    end if
                 end if
-            end if
-
-            result = { code: 0, json: invalid, started: started }
-            if not started then
-                return result
-            end if
-
-            ' Block on the response, bounded to 35s (just above the 30s transfer
-            ' timeout) so a lost/never-fired event can't hang the caller forever.
-            event = wait(35000, port)
-            if type(event) = "roUrlEvent" then
-                result.code = event.GetResponseCode()
-                if result.code < 200 then
-                    ' M-ROKU-04: transport failure - carry curl's reason so the
-                    ' caller can classify DNS vs refused vs TLS vs timeout
-                    ' instead of guessing from a started flag.
-                    reason = event.GetFailureReason()
-                    if reason <> invalid then result.fail = reason
+                result.started = started
+                if not started then
+                    return result
                 end if
-                responseString = event.GetString()
-                if responseString <> invalid and responseString <> "" then
-                    result.json = ParseJSON(responseString)
-                end if
-            else
-                ' Timed out / no event - cancel the transfer.
-                http.AsyncCancel()
-                result.fail = "Timed out waiting for response"
-            end if
 
+                ' Block on the response, bounded to 35s (just above the 30s
+                ' transfer timeout) so a lost/never-fired event can't hang the
+                ' caller forever.
+                event = wait(35000, port)
+                if type(event) <> "roUrlEvent" then
+                    ' Timed out / no event - cancel the transfer.
+                    http.AsyncCancel()
+                    result.fail = "Timed out waiting for response"
+                    return result
+                end if
+
+                code = event.GetResponseCode()
+                if code >= 300 and code < 400 then
+                    ' ---- M-ROKU-15 custody verdict on the 3xx ----
+                    ' A bare 3xx can only surface here now (redirects are
+                    ' disabled); the target is adjudicated by the pure leaf
+                    ' law and NOTHING re-sends unless it is safe.
+                    location = invalid
+                    headers = event.GetResponseHeaders()
+                    if headers <> invalid then
+                        if headers.DoesExist("Location") then
+                            location = headers.Location
+                        else if headers.DoesExist("location") then
+                            location = headers.location
+                        end if
+                    end if
+                    target = ResolveRedirectTarget(currentUrl, location)
+                    if target = "" then
+                        result.fail = "redirect refused (malformed Location)"
+                        return result
+                    end if
+                    if not IsCredentialSafeRedirectHop(currentUrl, target) then
+                        result.fail = "redirect refused (custody law: target is not the same origin)"
+                        return result
+                    end if
+                    if hop >= RedirectHopLimit() then
+                        result.fail = "redirect refused (hop limit reached)"
+                        return result
+                    end if
+                    hop = hop + 1
+                    currentUrl = target
+                else
+                    result.code = code
+                    if result.code < 200 then
+                        ' M-ROKU-04: transport failure - carry curl's reason so
+                        ' the caller can classify DNS vs refused vs TLS vs
+                        ' timeout instead of guessing from a started flag.
+                        reason = event.GetFailureReason()
+                        if reason <> invalid then result.fail = reason
+                    end if
+                    responseString = event.GetString()
+                    if responseString <> invalid and responseString <> "" then
+                        result.json = ParseJSON(responseString)
+                    end if
+                    return result
+                end if
+            end while
+
+            ' Fail-closed: every custody arm returns or re-hops, so this is
+            ' unreachable under the law - a fall-out must still surface the
+            ' honest zero-code result, never an undefined return.
             return result
         end function
 
@@ -428,7 +481,8 @@ function ApiClient(baseUrl as String) as Object
             error = ""
 
             ' M-ROKU-04: status<200 means no HTTP response at all - classify
-            ' the true cause (dns/refused/tls/timeout/unreachable/bad_url)
+            ' the true cause (dns/refused/tls/timeout/unreachable/bad_url/
+            ' redirect_refused)
             ' through the shared bucket law instead of the old coarse
             ' "connect" label that fed the fake-network misattribution.
             if status < 200 then
@@ -466,6 +520,11 @@ function ApiClient(baseUrl as String) as Object
             http.RetainBodyOnError(true)
             http.SetTimeout(30000)
             http.EnableEncodings(true)
+            ' M-ROKU-15 credential custody: THIS is the login transfer — the
+            ' one POST whose body is the account password in plaintext JSON.
+            ' A firmware auto-follow could deliver it to a host the user
+            ' never chose. Same manual-hop law as sendRaw (see there).
+            http.EnableRedirects(false)
 
             http.AddHeader("Content-Type", "application/json")
             http.AddHeader("X-Phlix-Device-ID", m.deviceId)
@@ -474,41 +533,81 @@ function ApiClient(baseUrl as String) as Object
             http.AddHeader("X-Device-Id", m.deviceId)
             http.AddHeader("X-Phlix-Client-Version", m.clientVersion)
 
-            if Left(url, 6) = "https:" then
-                http.SetCertificatesFile("common:/certs/ca-bundle.crt")
-                http.InitClientCertificates()
-            end if
+            ' TLS context armed unconditionally — see sendRaw (a custody-
+            ' approved http->https upgrade hop re-issues on THIS object).
+            http.SetCertificatesFile("common:/certs/ca-bundle.crt")
+            http.InitClientCertificates()
 
             result = { code: 0, json: invalid, started: false }
-            started = false
-            if body <> invalid then
-                http.SetRequest(method)
-                started = http.AsyncPostFromString(FormatJSON(body))
-            else
-                started = http.AsyncGetToString()
-            end if
-            result.started = started
+            currentUrl = url
+            hop = 0
+            while true
+                http.SetUrl(currentUrl)
 
-            if not started then return result
-
-            event = wait(35000, port)
-            if type(event) = "roUrlEvent" then
-                result.code = event.GetResponseCode()
-                if result.code < 200 then
-                    ' M-ROKU-04: same failure-text capture as sendRaw (see
-                    ' ClassifyUrlFailure in Utilities.brs).
-                    reason = event.GetFailureReason()
-                    if reason <> invalid then result.fail = reason
+                started = false
+                if body <> invalid then
+                    http.SetRequest(method)
+                    started = http.AsyncPostFromString(FormatJSON(body))
+                else
+                    started = http.AsyncGetToString()
                 end if
-                responseString = event.GetString()
-                if responseString <> invalid and responseString <> "" then
-                    result.json = ParseJSON(responseString)
-                end if
-            else
-                http.AsyncCancel()
-                result.fail = "Timed out waiting for response"
-            end if
+                result.started = started
 
+                if not started then return result
+
+                event = wait(35000, port)
+                if type(event) <> "roUrlEvent" then
+                    http.AsyncCancel()
+                    result.fail = "Timed out waiting for response"
+                    return result
+                end if
+
+                code = event.GetResponseCode()
+                if code >= 300 and code < 400 then
+                    ' ---- M-ROKU-15 custody verdict on the 3xx ----
+                    location = invalid
+                    headers = event.GetResponseHeaders()
+                    if headers <> invalid then
+                        if headers.DoesExist("Location") then
+                            location = headers.Location
+                        else if headers.DoesExist("location") then
+                            location = headers.location
+                        end if
+                    end if
+                    target = ResolveRedirectTarget(currentUrl, location)
+                    if target = "" then
+                        result.fail = "redirect refused (malformed Location)"
+                        return result
+                    end if
+                    if not IsCredentialSafeRedirectHop(currentUrl, target) then
+                        result.fail = "redirect refused (custody law: target is not the same origin)"
+                        return result
+                    end if
+                    if hop >= RedirectHopLimit() then
+                        result.fail = "redirect refused (hop limit reached)"
+                        return result
+                    end if
+                    hop = hop + 1
+                    currentUrl = target
+                else
+                    result.code = code
+                    if result.code < 200 then
+                        ' M-ROKU-04: same failure-text capture as sendRaw (see
+                        ' ClassifyUrlFailure in Utilities.brs).
+                        reason = event.GetFailureReason()
+                        if reason <> invalid then result.fail = reason
+                    end if
+                    responseString = event.GetString()
+                    if responseString <> invalid and responseString <> "" then
+                        result.json = ParseJSON(responseString)
+                    end if
+                    return result
+                end if
+            end while
+
+            ' Fail-closed: every custody arm returns or re-hops, so this is
+            ' unreachable under the law - a fall-out must still surface the
+            ' honest zero-code result, never an undefined return.
             return result
         end function
 
@@ -1144,16 +1243,22 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' Resolve the channel stream redirect WITH Bearer and return the Location
-        ' (the final stream url), or "" on failure. DEVICE-UNVERIFIABLE: roUrlTransfer
-        ' redirect-follow behavior is firmware-dependent; if it auto-follows we get a
-        ' 200 with no Location and return "" (caller shows an error). See worklog.
+        ' (the final stream url), or "" on failure. Since M-ROKU-15 this is
+        ' DETERMINISTIC: resolveLocation disables the firmware auto-follow, so a
+        ' 3xx surfaces as a 3xx and its Location is readable - the old era where
+        ' an auto-following firmware returned a 200 with no Location is gone. The
+        ' caller plays the returned url directly (Video carries no Bearer), and
+        ' no credential is ever re-issued toward it.
         getChannelStreamUrl: function(channelId as String) as String
             return m.resolveLocation("/admin/livetv/channels/" + channelId + "/stream")
         end function
 
-        ' Issue a GET and return the 3xx Location header WITHOUT following the redirect
-        ' (best-effort). Mirrors sendRaw's roUrlTransfer + roMessagePort + bounded wait,
-        ' but reads headers instead of the body. Sends the same device + Bearer headers.
+        ' Issue a GET and return the 3xx Location header WITHOUT following the
+        ' redirect - GUARANTEED by EnableRedirects(false) (M-ROKU-15 custody: the
+        ' Bearer-carrying transfer stops at the 3xx; nothing re-issues toward the
+        ' Location, whatever host it names). Mirrors sendRaw's roUrlTransfer +
+        ' roMessagePort + bounded wait, but reads headers instead of the body.
+        ' Sends the same device + Bearer headers.
         resolveLocation: function(path as String) as String
             url = m.baseUrl + "/api/v1" + path
 
@@ -1164,6 +1269,7 @@ function ApiClient(baseUrl as String) as Object
             http.RetainBodyOnError(true)
             http.SetTimeout(30000)
             http.EnableEncodings(true)
+            http.EnableRedirects(false)
 
             http.AddHeader("X-Phlix-Device-ID", m.deviceId)
             http.AddHeader("X-Phlix-Device-Name", m.deviceName)

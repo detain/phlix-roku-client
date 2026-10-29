@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -305,7 +305,11 @@
     "find_searching": "Recherche sur le réseau…",
     "find_none": "Aucun serveur Phlix trouvé sur ce réseau. Saisissez l'adresse ci-dessus.",
     "find_one": "Serveur trouvé. Appuyez sur Connecter.",
-    "find_picked": "Appuyez sur Connecter."
+    "find_picked": "Appuyez sur Connecter.",
+    "err_redirect_refused": "Le serveur a tenté de déplacer votre requête vers une autre adresse ; la connexion a été interrompue pour protéger vos identifiants.",
+    "cleartext_title": "Connexion non chiffrée",
+    "cleartext_message": "Cette adresse de serveur n’est pas chiffrée. Votre mot de passe et votre jeton de session circuleront en clair. Se connecter quand même ?",
+    "cleartext_continue": "Continuer"
   },
   "login": {
     "button": "Connexion",

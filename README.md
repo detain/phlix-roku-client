@@ -87,14 +87,25 @@ screen (`ConnectScene`):
 
 1. Enter your server's address (a direct Phlix server **or** a Phlix Hub — both expose
    `/health` identically), e.g. `https://my.phlix.server` or `http://192.168.1.100:8096`.
-2. Press **Connect**. The URL is normalized (a missing scheme is inferred — `http://` for
-   LAN/loopback hosts, `https://` otherwise — and a trailing `/` is stripped) and probed
-   via `GET {url}/health`.
+2. Press **Connect**. The URL is normalized (a missing scheme is inferred — `http://` only
+   for private/LAN address literals (RFC1918 incl. `10.x`/`172.16-31.x`/`192.168.x`,
+   loopback `127.x`/`::1`/`localhost`, link-local `169.254.x`), `https://` for everything
+   else — and a trailing `/` is stripped) and probed via `GET {url}/health`.
 3. On a healthy probe the URL is persisted to registry storage under `server_url` and the
-   app proceeds to the login screen, then Home.
+   app proceeds to the login screen, then Home. **Credential custody (M-ROKU-15):** an
+   `http://` origin outside that private class must pass a loud consent dialog first —
+   connecting over cleartext means the login password and every later Bearer ride it
+   unencrypted. Declining persists nothing (default-deny); both this path and the
+   "Connect anyway" override below funnel through the same gate.
 4. If the probe fails (server unreachable, or `/health` is blocked), an error is shown and
    a **Connect anyway** button appears — pressing it persists the entered URL and proceeds
-   regardless.
+   regardless (subject to the same consent gate).
+
+Credential-bearing API requests never auto-follow `3xx` redirects: the client decides each
+hop itself and re-sends credentials only for a same-origin target (or a same-host
+`http -> https` upgrade), bounded at 3 hops; anything else refuses loudly as a dedicated
+"redirect refused" error instead of walking a Bearer/password to a host the user never
+chose. The zero-credential `/health` probe still follows redirects normally.
 
 On subsequent launches the persisted `server_url` is reused and the Connect screen is
 skipped (boot goes straight to login or, if a session is restored, Home). The login screen
@@ -597,11 +608,11 @@ at the ends — never wraps):
     not configured** (the list then reports "Live TV unavailable").
 
     > **Streaming caveat (device-only-verifiable).** Channel playback hinges on resolving a
-    > Bearer-gated **302** and reading the `Location` header _without following it_. Roku's
-    > `roUrlTransfer` redirect-follow behavior is **firmware-dependent** and there is no documented
-    > "don't follow redirects" setter: if the firmware auto-follows, `GetResponseCode()` returns
-    > 200, no `Location` header is exposed, the resolved stream URL is empty, and live playback
-    > fails with a friendly error. This cannot be verified without a physical device. **Recommended
+    > Bearer-gated **302** and reading the `Location` header _without following it_. The
+    > resolution pins `EnableRedirects(false)` (M-ROKU-15 custody law — `resolveLocation`
+    > GUARANTEES the 3xx is not auto-followed, it is no longer best-effort firmware luck),
+    > so the header read is deterministic; what stays device-only is the firmware's
+    > real-world `Location` surfacing and raw-TS playback of the resolved URL. **Recommended
     > upstream mitigation:** add a JSON `GET .../stream-url` endpoint (or a signed live-TV URL) so a
     > TV `Video` node can obtain the stream URL without resolving an authenticated redirect. The
     > `mpegts`-vs-`hls` `streamFormat` heuristic (`.m3u8` in the URL → `hls`, otherwise `mpegts`)

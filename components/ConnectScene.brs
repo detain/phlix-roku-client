@@ -20,14 +20,19 @@
 '   2. Connect probes {url}/health through the single ApiTask via the
 '      probeHealth op (a FRESH ApiClient bound to the candidate url - the
 '      shared client is bound to the old/absent server_url at first run).
-'      A healthy probe persists server_url and fires connected=true.
+'      A healthy probe persists server_url — through the M-ROKU-15 cleartext
+'      consent gate when the origin is http:// to a non-LAN host — and fires
+'      connected=true.
 '   3. Every failure now says WHAT failed: probeHealth answers a classified
 '      verdict (ok | http | dns | refused | tls | timeout | bad_url |
-'      unreachable — the ClassifyUrlFailure bucket law in Utilities.brs)
+'      unreachable | redirect_refused — the ClassifyUrlFailure bucket law in Utilities.brs)
 '      and each bucket renders exactly one catalog message
 '      (connect_err_<bucket>, CHECK34 pins the triangle). The "Connect
 '      anyway" override survives on every failure: some servers block
-'      /health while serving /api/v1 just fine.
+'      /health while serving /api/v1 just fine — and whatever it persists
+'      (probe-success or override) rides the ONE Connect() choke, where a
+'      cleartext remote origin needs the loud consent dialog first
+'      (M-ROKU-15 credential custody).
 '   4. PhlixApp routes boot-time transport failures here with the reason in
 '      the bootReason interface field; Init surfaces the same per-cause
 '      message over the prefilled saved address, so "my server went to
@@ -308,8 +313,42 @@ sub OnServerSelected(event as Object)
 end sub
 
 ' Persist the chosen url and notify PhlixApp (observes `connected`).
+' M-ROKU-15 credential custody (review roku__exploiter M4): this is THE
+' server_url write-site, so it is also THE consent choke. A cleartext
+' http:// origin to a host OUTSIDE the LAN/loopback/link-local class means
+' the login screen will post the account password UNENCRYPTED there (and
+' every later Bearer request rides the same path) — the user must say so
+' out loud FIRST. The shipped two-button ShowErrorDialog idiom renders the
+' cataloged continue/cancel; default-deny: Cancel or Back persists nothing
+' and leaves the entered address for correction. LAN/loopback http stays
+' silent — it is the documented normal for a home server.
+' Residual (honest, pinned by CHECK48's docblock leg): a URL persisted by a
+' PRE-consent-law build is never re-gated on boot (storage is read
+' directly); it fails closed into THIS screen on any transport error, and
+' re-connecting must pass the gate again.
 sub Connect(url as String)
     if url = invalid or url = "" then return
+    if ServerUrlUsesCleartextToRemoteHost(url) then
+        m.pendingCleartextUrl = url
+        ShowErrorDialog(m.top, Translate("connect_cleartext_title"), Translate("connect_cleartext_message"), [Translate("connect_cleartext_continue"), Translate("common_cancel")], OnCleartextConsentChoice)
+        return
+    end if
+    PersistAndGo(url)
+end sub
+
+' ShowErrorDialog two-button callback (PlayerScene OnPlaybackRetry precedent:
+' component-scope top-level subs share `m`). 0 = the user explicitly accepted
+' cleartext custody; anything else wrote nothing.
+sub OnCleartextConsentChoice(index as Integer)
+    if index <> 0 then return
+    url = m.pendingCleartextUrl
+    m.pendingCleartextUrl = ""
+    if url = invalid or url = "" then return
+    PersistAndGo(url)
+end sub
+
+' The single storage write behind the consent gate.
+sub PersistAndGo(url as String)
     GetStorage().set("server_url", url)
     GetStorage().flush()  ' R1.6: persist the URL before the first boot auth check
     HideError()

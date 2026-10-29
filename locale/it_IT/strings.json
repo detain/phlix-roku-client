@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -305,7 +305,11 @@
     "find_searching": "Ricerca nella rete…",
     "find_none": "Nessun server Phlix trovato in questa rete. Inserisci l'indirizzo sopra.",
     "find_one": "Server trovato. Premi Connetti.",
-    "find_picked": "Premi Connetti."
+    "find_picked": "Premi Connetti.",
+    "err_redirect_refused": "Il server ha tentato di spostare la richiesta a un indirizzo diverso: la connessione è stata interrotta per proteggere le credenziali.",
+    "cleartext_title": "Connessione non cifrata",
+    "cleartext_message": "Questo indirizzo del server non è cifrato. La password e il token di sessione verranno trasmessi in chiaro. Collegarsi comunque?",
+    "cleartext_continue": "Continua"
   },
   "login": {
     "button": "Accedi",

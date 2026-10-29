@@ -92,7 +92,8 @@ end sub
 ' failures are named per cause through the bucket ladder):
 '   1. Wrong credentials (401)       -> login_err_bad_credentials
 '   2. Transport failure             -> TranslateTransportReason(bucket)
-'      (dns / refused / tls / timeout / unreachable / bad_url - the causes
+'      (dns / refused / tls / timeout / unreachable / bad_url /
+'      redirect_refused - the causes
 '      the server never got the chance to name)
 '   3. Server error (5xx, other 4xx) -> login_err_server ({detail} token)
 '   4. Login ok but getMyServers fails -> login_err_servers
@@ -125,7 +126,7 @@ sub OnLoginResponse(event as Object)
 
             ' Distinguish the failure cases. M-ROKU-04: transport failures
             ' carry a reason BUCKET (dns/refused/tls/timeout/unreachable/
-            ' bad_url - the ClassifyUrlFailure law), so each cause renders
+            ' bad_url/redirect_refused - the ClassifyUrlFailure law), so each cause renders
             ' its own honest, cataloged sentence. The pre-fix test was
             ' `error = "connect" or error = "timeout"` — two labels produced
             ' by guessing, both pointing at one fake network accusation.
