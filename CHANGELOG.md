@@ -2,6 +2,40 @@
 
 ## [Unreleased]
 
+### Fixed — M-ROKU-11 completion: version disclosure on the WebSocket/relay
+dials + type-guarded wire error lifts (takeover lane) — 2026-10-29
+
+- **The gap after CHECK42.** The landed M-ROKU-11 cure stamped the three
+  `ApiClient` REST send sites; the SyncPlay `:8097` WebSocket handshake and
+  the hub-relay path (token mint `POST` + handshake map) still dialed
+  version-blind — the M11r2 docs pass recorded that honestly; this entry
+  closes it.
+- **Dial stamps via a task-scope leaf.** Task-thread components do not see
+  `AppContext` (RSG component scopes), so `ProtocolChannelVersion()` — a
+  zero-dependency roAppInfo leaf with invalid/empty degradation — landed in
+  `SyncPlayProtocol.brs` (already included by both task XMLs; the first
+  attempt calling `GetChannelVersion()` from a task compiled clean and died
+  at runtime — CHECK44 R3 is the defect guard). `SyncPlayTask.WaitForConnect`
+  and `HubCommandTask` (mint + map) now stamp `X-Phlix-Client-Version`;
+  `probeHealth` stays header-free on purpose (arbitrary candidate origins).
+- **Wire-lift guard.** `WireErrorText(value as Object, fallback as String)`
+  (two required args — BrightScript has no default parameters, the same law
+  M12's `SafeErrorMessage` landed with) now guards every wire-controlled
+  error lift that reaches a String sink: the `restoreSession` transport
+  chain, both `http_`-bucket error arms, and PhlixApp's boot-failure reason.
+  A hostile `{"error":{...}}` body degrades to the typed fallback instead of
+  raising. (SettingsScene's history arm shipped in M12's landing.)
+- **Gate.** `scripts/verify-runtime.sh` CHECK44 (R1–R5, red-on-`ff2791024`
+  with 15 named diagnostics, portable-harness mint-strip plant + CHECK42
+  gate-independence assert).
+- Takeover disclosure: the prior lanes on this item raced fleet restarts
+  (phantom-closeout protocol); this lane verified surviving disk work against
+  origin, adopted origin's CHECK42/M12/M11r2 lines wholesale, and landed only
+  the re-verified completion delta. Server riders: header ingestion into
+  `ClientHeartbeatStore` stays a server-contract item; browser-CORS
+  `Allow-Headers` (server `CorsManager.php:53`) does not list the header and
+  is irrelevant to Roku sockets — web clients would need it added first.
+
 ### Docs — M-ROKU-11 r2: version-header coverage claims scoped to shipped truth — 2026-10-29
 
 - The r1 review (review roku__devops) held the cure solid but found the

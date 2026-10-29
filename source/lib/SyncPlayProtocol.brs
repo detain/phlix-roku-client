@@ -597,3 +597,22 @@ function NowMs() as LongInteger
     dt = CreateObject("roDateTime")
     return (dt.AsSeconds() * 1000&) + dt.GetMilliseconds()
 end function
+
+' M-ROKU-11: channel identity for the WS DIAL sides. The two roSocket tasks
+' (SyncPlayTask, HubCommandTask) hand-roll their TCP stacks on purpose and
+' their component scopes deliberately exclude AppContext.brs (bsc resolves
+' function calls per scope: AppContext's bodies reference ApiClient and
+' LoadLocaleStrings, which those thin task scopes do not include). This leaf
+' is the sanctioned escape from that scoping: it reads the SAME firmware
+' primitive GetChannelVersion() reads - roAppInfo.GetVersion(), the stamped
+' manifest major.minor.build - so the X-Phlix-Client-Version that rides the
+' RFC6455 handshakes can never disagree with the REST header or the About
+' screen. CHECK44 R3 pins both dial sites to this function; no task may send a
+' literal version. Docs: ifappinfo (vendored in brighterscript's
+' roku-types/data.json, CHECK37 surface law).
+' @return String - e.g. "1.0.1"; "unknown" only if firmware returns nothing
+function ProtocolChannelVersion() as String
+    version = CreateObject("roAppInfo").GetVersion()
+    if version = invalid or version = "" then return "unknown"
+    return version
+end function

@@ -64,7 +64,17 @@ all three `ApiClient` send sites (`sendRaw`, `sendRawWithDeviceId`,
 `resolveLocation`). Honest scope: the hub relay-token mint
 (`HubCommandTask.MintRelayToken`, a `roUrlTransfer` of its own) and the two
 SyncPlay WS upgrade handshakes (`SyncPlayProtocol.BuildHandshakeRequest` over
-a raw socket) are not yet stamped.
+a raw socket) also carry `X-Phlix-Client-Version` — the mint stamps it on its
+`POST` and the dials put it in their handshake maps (`SyncPlayTask` builds
+its `extraHeaders` upgrade map unconditionally), valued by the
+AppContext-free leaf `ProtocolChannelVersion()` (roAppInfo, `unknown`
+degradation) in `SyncPlayProtocol.brs`, because task-thread scopes cannot see
+`AppContext`. `probeHealth` stays header-free deliberately: it probes
+arbitrary candidate origins before the user has chosen one. CHECK 44 pins the
+dial sites, the leaf's roAppInfo source and AppContext-free shape, and the
+`WireErrorText` type guard on every wire error lift (a hostile non-String
+`error` body degrades to the caller's typed fallback instead of raising at a
+String sink).
 Adding a header is wire-safe: the server reads headers selectively
 (`$request->getHeader(...)`), so an unrecognized `X-Phlix-*` header is simply
 not consumed — there is no whitelist that strips it, and no new error code or

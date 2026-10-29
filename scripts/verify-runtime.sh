@@ -4923,4 +4923,215 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 44: the version header and its guards complete to the WebSocket/relay dials (M-ROKU-11 completion) ==="
+# CHECK42 (M-ROKU-11) wired the three ApiClient REST send sites. Two dial
+# families were still version-blind: the SyncPlay :8097 WebSocket handshake
+# (SyncPlayTask) and the hub relay (HubCommandTask's token-mint POST plus its
+# handshake map). Task-thread components do not see AppContext (RSG component
+# scopes), so the dials ride a zero-dependency leaf, ProtocolChannelVersion(),
+# defined in source/lib/SyncPlayProtocol.brs — a file both task XMLs already
+# include. The same landing left raw `X.error` wire lifts: the contract says
+# {error: string} but a hostile body can answer {"error":{"code":1}}, and the
+# raw member reaching a String compare/concat/sink is a BrightScript type
+# mismatch. Those lifts now route through WireErrorText, a two-required-arg
+# guard (optional params are not BrightScript — bsc BS1002). Rules keep every
+# claim load-bearing in both directions:
+#   R1 RELAY-MINT LAW: HubCommandTask sends AddHeader("X-Phlix-Client-Version",
+#      ProtocolChannelVersion()) on the mint POST and its handshake map carries
+#      the same value (comment-masked code).
+#   R2 SYNCPLAY-DIAL LAW: SyncPlayTask's WaitForConnect builds extraHeaders
+#      with the version unconditionally — the stamp line must precede the
+#      Sec-WebSocket-Protocol AddReplace branch (an offer-conditional header
+#      is the theater this rule kills).
+#   R3 LEAF LAW (scope defect guard): ProtocolChannelVersion() is defined in
+#      SyncPlayProtocol.brs over roAppInfo.GetVersion() with the invalid/empty
+#      degradation to "unknown", and neither the leaf file nor either task
+#      component may reference GetChannelVersion( or ChannelInfo( — an
+#      AppContext call from a task compiles clean and dies at runtime.
+#   R4 WIRE-LIFT GUARD: ApiClient defines WireErrorText(value as Object,
+#      fallback as String) with BOTH args required; the cured raw lifts stay
+#      cured (no `= data.error` / `= payload.error` / `= env.error` in code),
+#      the restoreSession transport chain is guarded end-to-end, and PhlixApp's
+#      boot-failure reason rides the guard.
+#   R5 DOCS LAW: docs/debugging.md names the dial coverage — the header, both
+#      task files and the leaf must appear; docs that under-claim shipped
+#      behavior are the landing debt this rule pins.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+AC = "source/lib/ApiClient.brs"
+MINT = "components/HubCommandTask.brs"
+SYNC = "components/SyncPlayTask.brs"
+PROTO = "source/lib/SyncPlayProtocol.brs"
+PA = "components/PhlixApp.brs"
+DOC = "docs/debugging.md"
+HEADER = "X-Phlix-Client-Version"
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK44: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(code):
+    out = []
+    for line in code.splitlines():
+        t = line.strip()
+        if t.startswith("'") or t.startswith("Rem") or t.startswith("rem "):
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
+# ---- R1 relay mint POST + handshake map -------------------------------
+mint = read(MINT)
+if mint is not None:
+    body = mask(mint)
+    if f'AddHeader("{HEADER}", ProtocolChannelVersion())' not in body:
+        problems.append(
+            f"  {MINT} - CHECK44 R1: the relay-token mint no longer sends "
+            f'AddHeader("{HEADER}", ProtocolChannelVersion()) — the hub relay went '
+            "version-blind again"
+        )
+    maps = body.count(f'"{HEADER}": ProtocolChannelVersion()')
+    if maps != 1:
+        problems.append(
+            f"  {MINT} - CHECK44 R1: expected exactly 1 handshake map carrying "
+            f'"{HEADER}" via ProtocolChannelVersion(), found {maps}'
+        )
+
+# ---- R2 SyncPlay dial stamp is unconditional ---------------------------
+sync = read(SYNC)
+if sync is not None:
+    body = mask(sync)
+    stamp = body.find(f'extraHeaders = {{ "{HEADER}": ProtocolChannelVersion() }}')
+    offer = body.find('extraHeaders.AddReplace("Sec-WebSocket-Protocol"')
+    if stamp < 0:
+        problems.append(
+            f"  {SYNC} - CHECK44 R2: WaitForConnect no longer builds extraHeaders "
+            f'unconditionally with "{HEADER}" — the SyncPlay dial went version-blind '
+            "(or the stamp moved inside a branch: offer-conditional disclosure is "
+            "the theater this rule kills)"
+        )
+    elif offer >= 0 and stamp > offer:
+        problems.append(
+            f"  {SYNC} - CHECK44 R2: the version stamp no longer precedes the "
+            "Sec-WebSocket-Protocol branch — restore the always-on order"
+        )
+
+# ---- R3 leaf law + scope defect guard -----------------------------------
+proto = read(PROTO)
+if proto is not None:
+    m = re.search(r"function ProtocolChannelVersion\(\) as String\n(.*?)\nend function", proto, re.S)
+    if not m:
+        problems.append(
+            f"  {PROTO} - CHECK44 R3: ProtocolChannelVersion() definition missing — "
+            "the task-thread dials have no AppContext-free source"
+        )
+    else:
+        leaf = m.group(1)
+        if 'CreateObject("roAppInfo")' not in leaf or "GetVersion()" not in leaf:
+            problems.append(
+                f"  {PROTO} - CHECK44 R3: ProtocolChannelVersion() no longer derives "
+                "from roAppInfo.GetVersion() — the value must come from firmware, "
+                "never a literal or a config hop"
+            )
+        if '"unknown"' not in leaf:
+            problems.append(
+                f"  {PROTO} - CHECK44 R3: ProtocolChannelVersion() lost its "
+                'invalid/empty degradation to "unknown"'
+            )
+    for path, code in ((PROTO, proto), (MINT, mint), (SYNC, sync)):
+        if code is None:
+            continue
+        body = mask(code)
+        for bad in ("GetChannelVersion(", "ChannelInfo("):
+            if bad in body:
+                problems.append(
+                    f"  {path} - CHECK44 R3: references AppContext symbol {bad} — "
+                    "task scopes do not load AppContext; the call compiles clean "
+                    "and dies at runtime (this exact defect was caught pre-landing)"
+                )
+
+# ---- R4 wire-lift guard -------------------------------------------------
+ac = read(AC)
+if ac is not None:
+    body = mask(ac)
+    if not re.search(r"function WireErrorText\(value as Object, fallback as String\) as String", body):
+        problems.append(
+            f"  {AC} - CHECK44 R4: the WireErrorText guard is missing or its "
+            "signature drifted (two REQUIRED args are deliberate — BrightScript "
+            "has no default parameters, bsc rejects them with BS1002)"
+        )
+    for raw in ("= data.error", "= payload.error", "= env.error"):
+        if raw in body:
+            problems.append(
+                f"  {AC} - CHECK44 R4: raw wire lift `{raw}` is back — a hostile "
+                "non-String error member reaching a String sink is a runtime type "
+                "mismatch; route every lift through WireErrorText"
+            )
+    if "IsTransportReason(env.error)" in body:
+        problems.append(
+            f"  {AC} - CHECK44 R4: the transport chain lifted env.error straight "
+            "into IsTransportReason (as String param) — use the guarded transportReason"
+        )
+    if "WireErrorText(env.error" not in body or "IsTransportReason(transportReason)" not in body:
+        problems.append(
+            f"  {AC} - CHECK44 R4: restoreSession's transport chain is no longer "
+            "guarded end-to-end (guard once into transportReason, chain on it)"
+        )
+    if body.count("WireErrorText(data.error") + body.count("WireErrorText(payload.error") != 2:
+        problems.append(
+            f"  {AC} - CHECK44 R4: the two http_-bucket error arms no longer both "
+            "ride WireErrorText (found "
+            f"{body.count('WireErrorText(data.error')}+{body.count('WireErrorText(payload.error')})"
+        )
+pa = read(PA)
+if pa is not None and "WireErrorText(result.error" not in mask(pa):
+    problems.append(
+        f"  {PA} - CHECK44 R4: the boot-failure reason lift stopped riding "
+        "WireErrorText — every consumer below treats it as String"
+    )
+
+# ---- R5 docs tell the shipped truth ---------------------------------------
+doc = read(DOC)
+if doc is not None:
+    for tok in (HEADER, "HubCommandTask", "SyncPlayTask", "ProtocolChannelVersion"):
+        if tok not in doc:
+            problems.append(
+                f"  {DOC} - CHECK44 R5: the support story no longer names `{tok}` — "
+                "the WebSocket/relay dials carry the header in code and docs/debugging.md "
+                "is the only place an operator learns the coverage; under-claiming docs "
+                "are landing debt"
+            )
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK44: %d dial-completion/wire-lift problem(s)" % len(problems))
+    sys.exit(1)
+
+print("  CHECK44: relay mint + handshake map and the SyncPlay dial carry")
+print("           X-Phlix-Client-Version from the AppContext-free roAppInfo leaf;")
+print("           the leaf degrades to \"unknown\" and no task scope references")
+print("           GetChannelVersion/ChannelInfo; WireErrorText guards every wire")
+print("           error lift with two required args and the raw lifts stay extinct;")
+print("           docs/debugging.md names the full dial coverage")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+
 exit $((VIOLATIONS))

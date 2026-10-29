@@ -385,7 +385,10 @@ end sub
 '   server_error    - answered, but /auth/me was malformed/5xx: say that.
 sub HandleBootAuthFailure(result as Object)
     reason = ""
-    if result <> invalid and result.error <> invalid and result.error <> "" then reason = result.error
+    ' M-ROKU-11 (M-ROKU-11 CHECK44 cure): result.error rides the wire lift -
+    ' type-guard before the reason reaches compares/concat below (the ring
+    ' detail and the reason = "..." dispatch arms both take it as String).
+    if result <> invalid then reason = WireErrorText(result.error, "")
 
     ' M-ROKU-11: this is a render-thread chokepoint for every boot failure
     ' (direct and hub mode both land here), so it is one of the two legal

@@ -84,6 +84,29 @@ function UnwrapApiEnvelope(env as Object) as Object
     return env
 end function
 
+' M-ROKU-11 (cures the CHECK44 wire-lift duty on this file and
+' PhlixApp): type-safe lift of a wire error/message member. The contract
+' says {error: string}, but a hostile body can answer {"error":{"code":1}}
+' — and the raw `X.error` reaching a string compare/concat/sink is a
+' BrightScript runtime type mismatch on whatever thread reads it. Every
+' lift of a wire-controlled error/message member in this file (and the
+' boot-failure reason in PhlixApp) rides this function BEFORE any String
+' operation; a non-String or empty value degrades to the caller's typed
+' fallback and is never stringified. Two required args by design:
+' optional params are not BrightScript (bsc BS1002), so every call site
+' states its fallback explicitly.
+' @param value Object - raw wire member (typed Object on purpose: an
+'        `as String` parameter would itself raise before the guard runs)
+' @param fallback String - returned when value is not a non-empty String
+' @return String - never invalid, never non-String
+function WireErrorText(value as Object, fallback as String) as String
+    if value <> invalid and type(value) = "roString" then
+        text = value.Trim()
+        if text <> "" then return text
+    end if
+    return fallback
+end function
+
 function ApiClient(baseUrl as String) as Object
     obj = {
         baseUrl: baseUrl
@@ -168,6 +191,11 @@ function ApiClient(baseUrl as String) as Object
                 ' /auth/me payload is {user}, riding at .data of the
                 ' transport envelope returned by request() (since 2c119f9).
                 env = m.request("GET", "/auth/me", invalid)
+                ' M-ROKU-11 (M-ROKU-11 CHECK44 cure): env.error is wire/transport
+                ' text; IsTransportReason takes `as String`, so a hostile
+                ' non-String would raise on the parameter sink before its body
+                ' ever ran. Type-guard once, reuse the String below.
+                transportReason = WireErrorText(env.error, "")
                 if env <> invalid and env.ok then
                     payload = UnwrapApiEnvelope(env)
                     if payload <> invalid and payload.user <> invalid then
@@ -178,10 +206,10 @@ function ApiClient(baseUrl as String) as Object
                     ' A healthy response with no user payload is a server
                     ' shape failure, not an expired session.
                     m.restoreReason = "server_error"
-                else if env <> invalid and env.ok = false and IsTransportReason(env.error) then
+                else if env <> invalid and env.ok = false and IsTransportReason(transportReason) then
                     ' The server never answered. Keep the credentials; the
                     ' boot retry surface can restore them when it wakes up.
-                    m.restoreReason = env.error
+                    m.restoreReason = transportReason
                     return false
                 else if env <> invalid and (env.status = 401 or env.status = 403) then
                     ' Server answered and rejected THIS token - it is dead.
@@ -352,7 +380,10 @@ function ApiClient(baseUrl as String) as Object
 
             if status >= 400 then
                 if data <> invalid and data.DoesExist("error") then
-                    error = data.error
+                    ' M-ROKU-11 (M-ROKU-11 CHECK44 cure): {error:<non-String>}
+                    ' is a contract violation; degrade to the http_ bucket
+                    ' like a missing error instead of lifting raw text.
+                    error = WireErrorText(data.error, "http_" + str(status).trim())
                 else
                     error = "http_" + str(status).trim()
                 end if
@@ -404,7 +435,9 @@ function ApiClient(baseUrl as String) as Object
                 error = ClassifyUrlFailure(raw.fail, raw.started)
             else if status >= 400 then
                 if payload <> invalid and payload.DoesExist("error") then
-                    error = payload.error
+                    ' M-ROKU-11 (M-ROKU-11 CHECK44 cure): type-safe lift, as
+                    ' in sendRaw — a non-String error degrades to the bucket.
+                    error = WireErrorText(payload.error, "http_" + str(status).trim())
                 else
                     error = "http_" + str(status).trim()
                 end if

@@ -159,10 +159,17 @@ function WaitForConnect(host as String, port as Integer, path as String, bearerT
     ' empty token sends no offer (illegal empty protocol-id) and the handshake
     ' then fails unauthenticated server-side.
     keyB64 = m.proto.NewWebSocketKey()
-    extraHeaders = invalid
+    ' M-ROKU-11: the channel version rides EVERY server dial, the raw RFC6455
+    ' handshake included (extraHeaders is the sanctioned carrier - see
+    ' SyncPlayProtocol.BuildHandshakeRequest). Firmware-derived via
+    ' ProtocolChannelVersion (the roAppInfo.GetVersion() leaf this scope
+    ' already includes - AppContext is deliberately NOT in task scope);
+    ' unknown request headers are inert for the :8097 worker (it reads the
+    ' specific fields it knows). CHECK44 R2 pins this site.
+    extraHeaders = { "X-Phlix-Client-Version": ProtocolChannelVersion() }
     offer = m.proto.BearerSubprotocolOffer(bearerToken)
     if offer <> "" then
-        extraHeaders = { "Sec-WebSocket-Protocol": offer }
+        extraHeaders.AddReplace("Sec-WebSocket-Protocol", offer)
     end if
     req = m.proto.BuildHandshakeRequest(host, port, path, keyB64, extraHeaders)
     sent = m.sock.SendStr(req)

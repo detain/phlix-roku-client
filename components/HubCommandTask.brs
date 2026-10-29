@@ -178,6 +178,11 @@ function MintRelayToken(apiBase as String, serverId as String, token as String) 
     transfer.SetMessagePort(m.port)
     transfer.AddHeader("Authorization", "Bearer " + token)
     transfer.AddHeader("Content-Type", "application/json")
+    ' M-ROKU-11: honest client identity on the hub relay-token mint too —
+    ' support can see WHICH channel build dialed (review roku__devops M4).
+    ' ProtocolChannelVersion: this thin task scope excludes AppContext by
+    ' design; the leaf reads the same roAppInfo.GetVersion() firmware source.
+    transfer.AddHeader("X-Phlix-Client-Version", ProtocolChannelVersion())
 
     if not transfer.AsyncPostFromString("") then return ""
 
@@ -227,8 +232,12 @@ function WaitForConnect(host as String, port as Integer, path as String, relayTo
 
     ' Send the upgrade request with the relay token on the Authorization header.
     keyB64 = m.proto.NewWebSocketKey()
+    ' M-ROKU-11: version rides the relay handshake as on every other dial
+    ' (CHECK44 R1 pins both handshake sites; ProtocolChannelVersion is the
+    ' task-scope leaf, same roAppInfo.GetVersion() firmware source).
     req = m.proto.BuildHandshakeRequest(host, port, path, keyB64, {
         Authorization: "Bearer " + relayToken
+        "X-Phlix-Client-Version": ProtocolChannelVersion()
     })
     sent = m.sock.SendStr(req)
     if sent < 0 then return false

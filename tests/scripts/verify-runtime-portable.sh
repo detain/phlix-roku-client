@@ -196,6 +196,9 @@ cp "$REAL_REPO/source/lib/AppContext.brs" "$FAKE_REPO/source/lib/AppContext.brs"
 # single source and the docs/debugging.md support story: both ride along.
 cp "$REAL_REPO/source/lib/ApiClient.brs" "$FAKE_REPO/source/lib/ApiClient.brs"
 cp "$REAL_REPO/docs/debugging.md" "$FAKE_REPO/docs/debugging.md"
+# Check 44 (M-ROKU-11 completion) pins the task-thread version leaf in
+# source/lib/SyncPlayProtocol.brs (the two task components ride via cp -a).
+cp "$REAL_REPO/source/lib/SyncPlayProtocol.brs" "$FAKE_REPO/source/lib/SyncPlayProtocol.brs"
 cp "$REAL_REPO/source/main.brs" "$FAKE_REPO/source/main.brs"
 cp "$REAL_REPO/README.md" "$FAKE_REPO/README.md"
 mkdir -p "$FAKE_REPO/tests/fixtures"
@@ -256,6 +259,7 @@ assert_contains "CHECK40: derive-version.sh fully reachable" "$POSITIVE_OUT"
 # docs/publishing.md) are all staged, so the signing-honesty leg must run
 # green in the CI layout too.
 assert_contains "=== Check 41:" "$POSITIVE_OUT"
+assert_contains "=== Check 44:" "$POSITIVE_OUT"
 assert_contains "CHECK41: no phantom password-secret claim" "$POSITIVE_OUT"
 assert_contains "CHECK21: all" "$POSITIVE_OUT"
 assert_contains "CHECK22: all" "$POSITIVE_OUT"
@@ -1070,6 +1074,41 @@ GREEN42_RC=$?
 set -e
 [ "$GREEN42_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after the cured ApiClient/SettingsScene are restored (got $GREEN42_RC)"
 assert_contains "CHECK42: all three ApiClient send sites" "$GREEN42_OUT"
+# --- Check 44 red proof on an independent scratch copy: the dial stamp
+# stripped from the relay mint must fire CHECK44 R1 naming HubCommandTask,
+# while CHECK42 (the REST send-site leg) stays PASS — gate independence.
+RED44_ROOT="$TEST_ROOT/red44"
+mkdir -p "$RED44_ROOT"
+cp -a "$TEST_ROOT/repo" "$RED44_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$RED44_ROOT/phlix-server"
+python3 - "$RED44_ROOT/repo/components/HubCommandTask.brs" <<'PYEOF'
+import sys
+path = sys.argv[1]
+text = open(path).read()
+needle = 'transfer.AddHeader("X-Phlix-Client-Version", ProtocolChannelVersion())'
+assert text.count(needle) == 1, "CHECK44 plant: mint stamp line missing (shape drift)"
+text = text.replace(needle + "\n", "", 1)
+assert 'transfer.AddHeader("X-Phlix-Client-Version"' not in text, "CHECK44 plant: strip failed"
+open(path, "w").write(text)
+PYEOF
+set +e
+RED44_OUT=$(bash "$RED44_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+RED44_RC=$?
+set -e
+[ "$RED44_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the M-ROKU-11 dial class is re-planted (got 0 — the CHECK44 guard is toothless)"
+sed -n '/=== Check 44:/,$p' <<<"$RED44_OUT" | grep -qF "CHECK44 R1" ||
+	fail "CHECK44 red must fire the relay-mint R1 leg on the stripped AddHeader"
+sed -n '/=== Check 44:/,$p' <<<"$RED44_OUT" | grep -qF "HubCommandTask" ||
+	fail "CHECK44 red must name components/HubCommandTask.brs"
+sed -n '/=== Check 42:/,/=== Check 44:/p' <<<"$RED44_OUT" | grep -qF "CHECK42: all three ApiClient send sites" ||
+	fail "Check 42 must stay PASS while Check 44 is red (gate independence)"
+cp "$FAKE_REPO/components/HubCommandTask.brs" "$RED44_ROOT/repo/components/HubCommandTask.brs"
+set +e
+GREEN44_OUT=$(bash "$RED44_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+GREEN44_RC=$?
+set -e
+[ "$GREEN44_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after the restored HubCommandTask dial (got $GREEN44_RC)"
+
 
 # --- Check 43 red proof + restore (M-ROKU-12, review roku__exploiter M1): the
 # hostile-server class — {"error":123} meeting `<> ""`, a string op, or a raw
@@ -1214,4 +1253,4 @@ set -e
 [ "$VX_RESTORE_RC" -eq 0 ] || fail "validate-xml must return to exit 0 after the malformed plant is removed (got $VX_RESTORE_RC): $VX_RESTORE_OUT"
 assert_contains "XML validation passed" "$VX_RESTORE_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 + 37-39 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + Check 20 dotted-key red leg (planted Translate(\"player.playback_error\") -> CHECK20 fired naming file, dotted key and underscore suggestion with CHECKs 21-26 green; plant removed -> exit 0, falsifiability proven) + Check 39 rsg_version red leg+restore (planted rsg_version=7.0 + stripped rationale comment -> CHECK39 fired R2 naming the illegal value and R4, with the sibling manifest readers CHECK18/CHECK38 stayed green — gate independence; cured manifest restored -> exit 0, falsifiability proven) + M-ROKU-08 aggregation red leg+restore (planted CHECK1 violation in leg 1 -> exit non-zero with the violation printed and CHECK20/21/39 gates stayed green — single-sink accumulator, re-zeroing any cured-range leg reddens this leg; plant removed -> exit 0) + Check 40 dead-design red leg+restore (planted unreachable function + ghost documented flag -> CHECK40 fired R1 and R2 naming both plants, with CHECK18/CHECK39 gate independence; cured script restored -> exit 0 — designed-but-dead versioning machinery can no longer accumulate silently) + Check 41 signing-honesty red leg+restore (planted the phantom password-env claim, the rename-into-.pkg fallback and a hardcoded PKG_VERSION default into a scratch package-signed.sh plus an un-provisioned package-signed stub job into a scratch package.yml -> CHECK41 fired R1/R2/R3/R4 naming each plant, with CHECK18/CHECK40 gate independence; cured files restored -> exit 0 — a mislabeled 'signed' artifact or a phantom-secret claim cannot return silently) + Check 42 channel-identity/diagnostics red leg+restore (stripping one send-site X-Phlix-Client-Version header, planting the \"1.0.1\" About literal and retargeting the multi-line block onto the non-wrapping statusLabel -> CHECK42 fired R1/R2/R6 naming each plant, with CHECK41/CHECK20 gate independence; cured files restored -> exit 0 — retail-user version visibility cannot silently regress) + Check 43 wire-text type-guard red leg+restore (planted a raw resp.error lift, a resp.data.message literal-compare and an lcase(env.message) into a scratch DetailScene -> CHECK43 fired all three arms naming file, rule and read, with CHECK26/CHECK41 gate independence; plant removed -> exit 0 — hostile untyped wire text cannot re-enter a render-path String operation silently) + validate-xml zero-file-guard legs (real components/ green with count; empty scratch root -> \"discovered ZERO XML files\" red; missing root -> \"does not exist\" red; planted malformed XML -> named red, removed -> exit 0) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 + 37-39 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + Check 20 dotted-key red leg (planted Translate(\"player.playback_error\") -> CHECK20 fired naming file, dotted key and underscore suggestion with CHECKs 21-26 green; plant removed -> exit 0, falsifiability proven) + Check 39 rsg_version red leg+restore (planted rsg_version=7.0 + stripped rationale comment -> CHECK39 fired R2 naming the illegal value and R4, with the sibling manifest readers CHECK18/CHECK38 stayed green — gate independence; cured manifest restored -> exit 0, falsifiability proven) + M-ROKU-08 aggregation red leg+restore (planted CHECK1 violation in leg 1 -> exit non-zero with the violation printed and CHECK20/21/39 gates stayed green — single-sink accumulator, re-zeroing any cured-range leg reddens this leg; plant removed -> exit 0) + Check 40 dead-design red leg+restore (planted unreachable function + ghost documented flag -> CHECK40 fired R1 and R2 naming both plants, with CHECK18/CHECK39 gate independence; cured script restored -> exit 0 — designed-but-dead versioning machinery can no longer accumulate silently) + Check 41 signing-honesty red leg+restore (planted the phantom password-env claim, the rename-into-.pkg fallback and a hardcoded PKG_VERSION default into a scratch package-signed.sh plus an un-provisioned package-signed stub job into a scratch package.yml -> CHECK41 fired R1/R2/R3/R4 naming each plant, with CHECK18/CHECK40 gate independence; cured files restored -> exit 0 — a mislabeled 'signed' artifact or a phantom-secret claim cannot return silently) + Check 42 channel-identity/diagnostics red leg+restore (stripping one send-site X-Phlix-Client-Version header, planting the \"1.0.1\" About literal and retargeting the multi-line block onto the non-wrapping statusLabel -> CHECK42 fired R1/R2/R6 naming each plant, with CHECK41/CHECK20 gate independence; cured files restored -> exit 0 — retail-user version visibility cannot silently regress) + Check 43 wire-text type-guard red leg+restore (planted a raw resp.error lift, a resp.data.message literal-compare and an lcase(env.message) into a scratch DetailScene -> CHECK43 fired all three arms naming file, rule and read, with CHECK26/CHECK41 gate independence; plant removed -> exit 0 — hostile untyped wire text cannot re-enter a render-path String operation silently) + Check 44 dial-completion red leg+restore (stripping the hub-relay mint X-Phlix-Client-Version AddHeader in a scratch copy -> CHECK44 fired R1 naming components/HubCommandTask.brs, with CHECK42 gate independence; cured file restored -> exit 0 — the WebSocket/relay version disclosure cannot silently regress) + validate-xml zero-file-guard legs (real components/ green with count; empty scratch root -> \"discovered ZERO XML files\" red; missing root -> \"does not exist\" red; planted malformed XML -> named red, removed -> exit 0) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
