@@ -43,6 +43,10 @@ sub Init()
 
     ' R2.1: Controls auto-hide timer (one-shot, created in ShowControls)
     m.controlsHideTimer = invalid
+    ' C20 [review roku__gameux C1]: one-shot per item - the first "playing"
+    ' transition passively reveals the control surface so it is discoverable
+    ' (resets in Show()).
+    m.controlsShownAtStart = false
 
     ' Setup button handlers
     if m.backButton <> invalid then
@@ -54,6 +58,18 @@ sub Init()
     if m.skipButton <> invalid then
         m.skipButton.ObserveField("skipRequested", "OnSkipRequested")
     end if
+
+    ' C20 [review roku__gameux C1]: the centre transport buttons live INSIDE
+    ' controlsOverlay. Before this lane the overlay never showed, so they had
+    ' zero references; a now-visible focusable button with no observer would
+    ' just be the next dead end. Wire them to the same logic the transport
+    ' keys drive (paired unobserve in ClosePlayer).
+    m.rewindButton = m.top.FindNode("rewindButton")
+    m.playPauseButton = m.top.FindNode("playPauseButton")
+    m.forwardButton = m.top.FindNode("forwardButton")
+    if m.rewindButton <> invalid then m.rewindButton.ObserveField("buttonSelected", "OnRewindPressed")
+    if m.playPauseButton <> invalid then m.playPauseButton.ObserveField("buttonSelected", "OnPlayPausePressed")
+    if m.forwardButton <> invalid then m.forwardButton.ObserveField("buttonSelected", "OnForwardPressed")
 
     ' ============================================================= '
     ' P3-S4 Sleep Timer: init and wire up UI nodes. Additive -        '
@@ -259,6 +275,8 @@ sub Show(itemId as String, args as Object)
     m.transcodePollInterval  = 1.0
     ' R1.5: reset progress failure counter for the new item
     m.progressConsecutiveFailures = 0
+    ' C20: arm the one-shot control reveal for this item's first "playing".
+    m.controlsShownAtStart = false
 
     ' Optional resume position (F3 continue-watching). DetailScene omits it ->
     ' stays 0 -> playback starts from the beginning (no behavior change).
@@ -346,6 +364,9 @@ sub Show(itemId as String, args as Object)
         if m.titleLabel <> invalid and m.item <> invalid then
             m.titleLabel.text = m.item.name + " (Preparing...)"
         end if
+        ' C20 [review roku__gameux C1]: the hint lives in the overlay's
+        ' titleLabel - surface the chrome (passively) so the wait is visible.
+        ShowControls(true, true)
         ' Start transcode via apiTask (same pattern as OnPlayerStateChange error handler).
         if m.itemId <> "" and m.itemId <> invalid then
             if m.apiTask.state = "run" then return
@@ -426,6 +447,8 @@ sub OnPlayerStateChange(event as Object)
             if m.titleLabel <> invalid and m.item <> invalid then
                 m.titleLabel.text = m.item.name + " (Preparing...)"
             end if
+            ' C20: surface the (Preparing...) hint live (see the Show() twin).
+            ShowControls(true, true)
             ' un guarded: m.transcodeAttempted is set above; this block runs once.
             if m.itemId <> "" and m.itemId <> invalid then
                 m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
@@ -436,7 +459,16 @@ sub OnPlayerStateChange(event as Object)
         end if
     else if state = "playing" then
         m.isPlaying = true
-        ShowControls(false)
+        ' C20 [review roku__gameux C1]: the first "playing" of an item passively
+        ' reveals the control surface (scrub bar, title, time, buttons) so it is
+        ' discoverable, then R2.1's 4-second timer retires it. Every later
+        ' "playing" (resume, quality switch) hides it, as before.
+        if m.controlsShownAtStart then
+            ShowControls(false)
+        else
+            m.controlsShownAtStart = true
+            ShowControls(true, true)
+        end if
 
         ' Resume seek on the FIRST "playing" transition only (reliable Roku
         ' resume pattern - content is loaded). The single resumeApplied guard
@@ -473,6 +505,11 @@ sub OnPlayerStateChange(event as Object)
         end if
     else if state = "paused" then
         m.isPlaying = false
+        ' C20 [review roku__gameux C1/m3]: pause previously produced ZERO visual
+        ' response (the review's "one ShowControls(true) call away"). Standard
+        ' Roku convention: pausing reveals the transport controls. Suppressed
+        ' while a sub-panel owns the screen so focus is never stolen mid-list.
+        if not AnyPlayerPanelOpen() then ShowControls(true)
     else if state = "stopped" then
         ' Suppress the transient "stopped" some firmware emits mid quality-switch
         ' content swap (see the guard note above); a real stop still closes via
@@ -664,31 +701,62 @@ sub OnSkipRequested(event as Object)
     end if
 end sub
 
-sub ShowControls(shouldShow as Boolean)
+' C20 [review roku__gameux C1]: overlay show/hide with focus law.
+'   - showing pulls focus to the first control (backButton, the era idiom) ONLY
+'     when focus is not already inside the overlay (mid-interaction re-shows
+'     must not yank it) - unless the caller asks for a passive reveal (peek of
+'     chrome: start-of-item, info line, "(Preparing...)" hint).
+'   - hiding must never leave focus parked on now-invisible controls (an OK
+'     press would fire the hidden Back button and tear the player down); it
+'     hands focus back to the Video node - which also restores built-in
+'     trick-play (era 2ec7d20) - unless a sub-panel owns focus.
+sub ShowControls(shouldShow as Boolean, passive = false as Boolean)
     if m.controlsOverlay = invalid then return
 
     m.controlsOverlay.visible = shouldShow
 
     if shouldShow then
-        ' When showing controls, give focus to the back button
-        if m.backButton <> invalid then
-            m.backButton.setFocus(true)
+        if not passive then
+            focusedChild = m.top.GetFocusedChild()
+            if focusedChild <> m.controlsOverlay then
+                if m.backButton <> invalid then
+                    m.backButton.setFocus(true)
+                end if
+            end if
         end if
         ' R2.1: Start/reset the auto-hide timer
         startControlsHideTimer()
     else
         ' R2.1: Stop the timer when hiding
         stopControlsHideTimer()
+        focusedChild = m.top.GetFocusedChild()
+        if not AnyPlayerPanelOpen() then
+            if focusedChild = m.controlsOverlay or focusedChild = invalid then
+                if m.videoPlayer <> invalid then
+                    m.videoPlayer.SetFocus(true)
+                end if
+            end if
+        end if
     end if
 end sub
 
 ' R2.1: Hide controls and stop the auto-hide timer
 sub HideControls()
-    stopControlsHideTimer()
-    if m.controlsOverlay <> invalid then
-        m.controlsOverlay.visible = false
-    end if
+    ShowControls(false)
 end sub
+
+' C20: true when any player sub-surface (sleep/PiP/sync/quality/settings/
+' track-list) is open. Those surfaces own focus while visible; the control
+' overlay reveal/hide must not steal it from them.
+function AnyPlayerPanelOpen() as Boolean
+    if m.sleepTimerPanelOpen then return true
+    if m.pipActive then return true
+    if m.syncPanelOpen then return true
+    if m.qualityPanelOpen then return true
+    if m.settingsPanelOpen then return true
+    if m.trackListPanelOpen then return true
+    return false
+end function
 
 ' R2.1: Start or reset the controls auto-hide timer
 sub startControlsHideTimer()
@@ -1130,6 +1198,16 @@ sub ClosePlayer()
     if m.backButton <> invalid then
         m.backButton.UnObserveField("buttonSelected")
     end if
+    ' C20: centre transport buttons - pair the Init observers added above.
+    if m.rewindButton <> invalid then
+        m.rewindButton.UnObserveField("buttonSelected")
+    end if
+    if m.playPauseButton <> invalid then
+        m.playPauseButton.UnObserveField("buttonSelected")
+    end if
+    if m.forwardButton <> invalid then
+        m.forwardButton.UnObserveField("buttonSelected")
+    end if
     if m.chapterButton <> invalid then
         m.chapterButton.UnObserveField("buttonSelected")
     end if
@@ -1271,6 +1349,14 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
 
     if press then
+        ' R2.1: Reset the auto-hide timer on any key press while controls are
+        ' visible. C20: hoisted above the panel branches so every press that
+        ' reaches the scene re-arms it (the review-era comment already stated
+        ' this intent; the panel early-returns used to skip it).
+        if m.controlsOverlay <> invalid and m.controlsOverlay.visible then
+            startControlsHideTimer()
+        end if
+
         ' --- P3-S4 Sleep Timer panel handling. ---
         if m.sleepTimerPanelOpen then
             if key = "back" then
@@ -1327,6 +1413,18 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
             return handled
         end if
 
+        ' C20 [review roku__gameux C1]: while the control surface is open it
+        ' owns the d-pad - return false so Roku's spatial focus search moves
+        ' focus between the overlay's controls (the working panels behave the
+        ' same way: their LabelList consumes the d-pad before the scene sees
+        ' it). Seek and the direct panel shortcuts stay bound while the
+        ' surface is hidden.
+        if m.controlsOverlay <> invalid and m.controlsOverlay.visible then
+            if key = "up" or key = "down" or key = "left" or key = "right" then
+                return false
+            end if
+        end if
+
         ' "*" (options) opens Watch Together. Disabled in hub mode.
         if key = "options" then
             ToggleSyncPanel()
@@ -1340,16 +1438,25 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
             ToggleSettingsPanel()
             handled = true
         else if key = "back" then
-            OnBackPressed()
+            ' C20 [review roku__gameux C1]: Back dismisses an open control
+            ' surface FIRST; only with nothing on screen to dismiss does it
+            ' leave the scene (C03 layering law - panels above already
+            ' early-return; the overlay is the next-closest layer).
+            if m.controlsOverlay <> invalid and m.controlsOverlay.visible then
+                ShowControls(false)
+            else
+                OnBackPressed()
+            end if
+            handled = true
+        else if key = "OK" then
+            ' C20 [review roku__gameux C1]: OK is the intended entry point to
+            ' the control surface (the review's dead-key finding). While the
+            ' surface is open its focused Button consumes OK itself, so this
+            ' branch only runs from Video/scene focus - always a reveal.
+            ShowControls(true)
             handled = true
         else if key = "play" then
-            if m.isPlaying then
-                m.videoPlayer.control = "pause"
-                SyncBroadcastPause()
-            else
-                m.videoPlayer.control = "resume"
-                SyncBroadcastPlay()
-            end if
+            TogglePlayPause()
             handled = true
         else if key = "pause" then
             m.videoPlayer.control = "pause"
@@ -1381,15 +1488,37 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
             ShowItemInfo()
             handled = true
         end if
-
-        ' R2.1: Reset the auto-hide timer on any key press while controls are visible
-        if m.controlsOverlay <> invalid and m.controlsOverlay.visible then
-            startControlsHideTimer()
-        end if
     end if
 
     return handled
 end function
+
+' C20 [review roku__gameux C1]: shared play/pause toggle for the "play"
+' transport key and the overlay's centre playPauseButton. Pausing drives the
+' "paused" state transition, which reveals the control surface.
+sub TogglePlayPause()
+    if m.isPlaying then
+        m.videoPlayer.control = "pause"
+        SyncBroadcastPause()
+    else
+        m.videoPlayer.control = "resume"
+        SyncBroadcastPlay()
+    end if
+end sub
+
+' C20: overlay centre-row transport handlers (same magnitudes as the
+' transport keys per R6.9: 30 s jumps).
+sub OnRewindPressed()
+    SeekRelative(-30)
+end sub
+
+sub OnForwardPressed()
+    SeekRelative(30)
+end sub
+
+sub OnPlayPausePressed()
+    TogglePlayPause()
+end sub
 
 sub SeekRelative(seconds as Float)
     if m.videoPlayer = invalid then return
@@ -1492,6 +1621,11 @@ sub ShowItemInfo()
     
     m.infoLabel.text = title + "  |  " + posStr + " / " + durStr
     m.infoLabel.visible = true
+    ' C20 [review roku__gameux C1]: infoLabel is a CHILD of controlsOverlay -
+    ' writing it while the surface is hidden made the Info key invisible.
+    ' Passively reveal the chrome (no focus hijack on an ambient peek); the
+    ' R2.1 timer retires it in step with the label's own 3 s dismiss.
+    ShowControls(true, true)
     
     ' Cancel any existing timer and start a new 3-second auto-dismiss timer
     if m.infoLabelTimer <> invalid then
@@ -2836,12 +2970,16 @@ sub EnterPipMode()
     ' Show the PiP overlay (Exit button)
     if m.pipSnapshotContainer <> invalid then
         m.pipSnapshotContainer.visible = true
+        ' C20: a visible control must be pressable - move focus to the Exit
+        ' button instead of leaving it on the hidden overlay control it came
+        ' from (the bootRetryButton "visible-never-focusable" class).
+        if m.pipExitButton <> invalid then m.pipExitButton.SetFocus(true)
     end if
 
-    ' Hide main controls overlay
-    if m.controlsOverlay <> invalid then
-        m.controlsOverlay.visible = false
-    end if
+    ' Hide main controls overlay (C20: funnel through ShowControls so the
+    ' auto-hide timer stops and the focus law applies - PiP is open, so no
+    ' focus is pulled back to the Video node).
+    ShowControls(false)
 
     print "Entered PiP mode"
 end sub

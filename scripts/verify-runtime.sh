@@ -2344,4 +2344,151 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo ""
+echo "=== Check 28: player control surface is actually shown (C20) ==="
+# Control-surface law (C20, 2026-10-29, review roku__gameux C1): the era
+# PlayerScene declared the scrub/PiP/Chapters/Sleep overlay but its ONLY
+# show-path was ExitPipMode - reachable only via a button inside the never-
+# shown overlay (closed dead loop: overlay never visible -> buttons never
+# focusable -> buttonSelected never fires). The fix binds OK to
+# ShowControls(true), reveals on "paused", passively reveals at first
+# "playing"/info/Preparing hints, dismisses Back before the scene exits,
+# lets the open surface own the d-pad (bubble for spatial focus search), and
+# wires the three centre transport buttons. This check fails loud if that
+# wiring silently regresses back to an unreachable surface.
+#   R1  the toggle drives the overlay id the XML declares hidden by default
+#   R2  OnKeyEvent has a "OK" branch that shows the surface
+#   R3  the "paused" state arm shows the surface
+#   R4  the "back" branch dismisses the surface BEFORE OnBackPressed
+#   R5  while the surface is visible the d-pad bubbles (return false) so
+#       spatial focus search can move between its controls
+#   R6  rewindButton/playPauseButton/forwardButton each have a defined
+#       buttonSelected observer AND a paired ClosePlayer unobserve
+#   R7  hiding restores Video focus (focus never parks on invisible buttons)
+#   R8  ShowControls(true) has at least 3 call sites (era had exactly 1)
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO", ".")
+brs_path = os.path.join(repo, "components", "PlayerScene.brs")
+xml_path = os.path.join(repo, "components", "PlayerScene.xml")
+problems = []
+
+
+def line_of(src, idx):
+    return src.count("\n", 0, idx) + 1
+
+
+def strip_comment_lines(text):
+    return "\n".join(l for l in text.splitlines()
+                     if not l.lstrip().startswith("'"))
+
+
+def body(src, kind, name):
+    m = re.search(r"^(?:sub|function)\s+" + name + r"\b[^\n]*\n(.*?)^end (?:sub|function)",
+                  src, re.MULTILINE | re.DOTALL)
+    return m.group(1) if m else None
+
+
+def slice_between(src, start_pat, stop_pat):
+    m = re.search(start_pat, src)
+    if not m:
+        return None
+    stop = re.search(stop_pat, src[m.end():])
+    end = m.end() + (stop.start() if stop else len(src))
+    return src[m.end():end]
+
+
+brs = open(brs_path, encoding="utf-8").read()
+code = strip_comment_lines(brs)
+xml = open(xml_path, encoding="utf-8").read()
+
+# R1: XML declares the overlay hidden; the toggle writes its .visible.
+if 'id="controlsOverlay"' not in xml:
+    problems.append("PlayerScene.xml: XML declares no controlsOverlay node")
+elif 'visible="false"' not in xml.split('id="controlsOverlay"')[0].splitlines()[-1] + \
+        xml.split('id="controlsOverlay"')[1].splitlines()[0]:
+    problems.append("PlayerScene.xml: controlsOverlay must ship visible=\"false\" "
+                    "(chrome before play)")
+sc_body = body(brs, "sub", "ShowControls")
+if sc_body is None:
+    problems.append("PlayerScene.brs: ShowControls sub not found")
+elif "m.controlsOverlay.visible = shouldShow" not in sc_body:
+    problems.append("PlayerScene.brs:%d — CHECK28 R1: ShowControls no longer "
+                    "toggles the overlay id wired in the XML"
+                    % line_of(brs, brs.find("sub ShowControls")))
+
+# R2: OK key shows the surface.
+ok_branch = slice_between(code, r'if key = "OK" then', r'else if|end if')
+if ok_branch is None or "ShowControls(true" not in ok_branch:
+    problems.append("PlayerScene.brs:%d — CHECK28 R2: no \"OK\" key branch "
+                    "showing the control surface (era dead-key regression)"
+                    % line_of(code, code.find('if key = "OK" then')
+                              if code.find('if key = "OK" then') >= 0 else 0))
+
+# R3: paused state reveals the surface.
+paused_arm = slice_between(code, r'else if state = "paused" then', r'else if|end if')
+if paused_arm is None or "ShowControls(true" not in paused_arm:
+    problems.append("PlayerScene.brs:%d — CHECK28 R3: the \"paused\" state arm "
+                    "does not reveal the control surface (zero-feedback era bug)"
+                    % line_of(code, code.find('state = "paused"')
+                              if code.find('state = "paused"') >= 0 else 0))
+
+# R4: back dismisses the surface before leaving the scene.
+back_branch = slice_between(code, r'else if key = "back" then', r'else if|end if')
+if (back_branch is None or "ShowControls(false" not in back_branch
+        or "OnBackPressed" not in back_branch
+        or back_branch.find("ShowControls(false") > back_branch.find("OnBackPressed")):
+    problems.append("PlayerScene.brs: CHECK28 R4: the scene \"back\" branch must "
+                    "dismiss the open control surface BEFORE OnBackPressed")
+
+# R5: open surface owns the d-pad via bubble-to-spatial-search.
+if not re.search(r'if key = "up" or key = "down" or key = "left" or key = "right" then\s*\n\s*return false',
+                 code):
+    problems.append("PlayerScene.brs: CHECK28 R5: no directional-key bubble while "
+                    "the overlay is visible - its buttons are unreachable by focus "
+                    "search (up/down would keep opening panels instead)")
+
+# R6: centre transport buttons wired + unobserved (visible dead-button class).
+for btn in ("rewindButton", "playPauseButton", "forwardButton"):
+    om = re.search(r"m\." + btn + r'\.ObserveField\("buttonSelected", "(\w+)"\)', code)
+    if om is None:
+        problems.append("PlayerScene.brs: CHECK28 R6: %s has no buttonSelected "
+                        "observer (overlay would show a dead focused button)" % btn)
+        continue
+    if body(brs, "sub", om.group(1)) is None:
+        problems.append("PlayerScene.brs: CHECK28 R6: %s observer handler %s is not "
+                        "defined" % (btn, om.group(1)))
+    if not re.search(r"m\." + btn + r"\.UnObserveField\(\"buttonSelected\"\)", code):
+        problems.append("PlayerScene.brs: CHECK28 R6: %s observer has no paired "
+                        "ClosePlayer unobserve" % btn)
+
+# R7: hiding hands focus back to the Video node.
+if sc_body is not None and "m.videoPlayer.SetFocus(true)" not in sc_body:
+    problems.append("PlayerScene.brs: CHECK28 R7: ShowControls(false) never "
+                    "restores Video focus - focus parks on invisible buttons")
+
+# R8: multiple live show call sites (era had exactly one, inside PiP).
+call_sites = len(re.findall(r"ShowControls\(true", code))
+if call_sites < 3:
+    problems.append("PlayerScene.brs: CHECK28 R8: only %d ShowControls(true) call "
+                    "site(s); the control surface is one PiP dead-loop away from "
+                    "the era's never-shown state" % call_sites)
+
+if problems:
+    for p in problems:
+        print("  " + p)
+    print(f"  CHECK28: {len(problems)} player control-surface problem(s)")
+    sys.exit(1)
+
+print("  CHECK28: control surface shows on OK/pause/first-play, Back dismisses it "
+      "before exiting, d-pad navigates its controls, transport buttons wired with "
+      "paired unobserves, and Video focus is restored on hide")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
