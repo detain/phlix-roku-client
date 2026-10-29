@@ -84,7 +84,9 @@ sub Init()
     m.continueItems = []
     m.currentRail = "library"
     ' Which header button is focused while m.currentRail = "search":
-    ' "search", "forYou", "favorites", "collections" or "admin" (default "search").
+    ' "search", "forYou", "favorites", "collections", "settings" or "admin"
+    ' (default "search"). The walk follows the XML header row's x-order;
+    ' Settings sits between Collections and Admin [review roku__gameux C2].
     ' "admin" is only ever reached when m.isAdmin (the button is otherwise hidden).
     m.headerCol = "search"
     m.isAdmin = false
@@ -674,6 +676,8 @@ sub FocusHeaderZone()
         m.favoritesButton.SetFocus(true)
     else if m.headerCol = "collections" and m.collectionsButton <> invalid then
         m.collectionsButton.SetFocus(true)
+    else if m.headerCol = "settings" and m.settingsButton <> invalid then
+        m.settingsButton.SetFocus(true)
     else if m.headerCol = "admin" and m.adminButton <> invalid then
         m.adminButton.SetFocus(true)
     else if m.searchButton <> invalid then
@@ -715,13 +719,20 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     if press then
         ' Horizontal header nav: while in the "search" (header) zone, Left/Right
-        ' cycle through the four header buttons (Search <-> Favorites <->
-        ' Collections <-> Admin), stopping at the ends (never wrapping). The Admin
-        ' button is only entered (Right from Collections) when m.isAdmin, so focus
-        ' never lands on the hidden button. The header buttons never consume
-        ' left/right themselves, so they bubble.
+        ' walk the header buttons in visual x-order (Search <-> For You <->
+        ' Favorites <-> Collections <-> Settings <-> Admin), stopping at the ends
+        ' (never wrapping). Settings reaches every user, not just admins — the
+        ' era chain skipped it, and because these steps return handled=true the
+        ' platform spatial fallback never fired to rescue it [review
+        ' roku__gameux C2]. The Admin button is only entered (Right from
+        ' Settings) when m.isAdmin, so focus never lands on the hidden button.
+        ' The header buttons never consume left/right themselves, so they bubble.
         if key = "left" and m.currentRail = "search" then
-            if m.headerCol = "admin" and m.collectionsButton <> invalid then
+            if m.headerCol = "admin" and m.settingsButton <> invalid then
+                m.settingsButton.SetFocus(true)
+                m.headerCol = "settings"
+                handled = true
+            else if m.headerCol = "settings" and m.collectionsButton <> invalid then
                 m.collectionsButton.SetFocus(true)
                 m.headerCol = "collections"
                 handled = true
@@ -751,7 +762,11 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
                 m.collectionsButton.SetFocus(true)
                 m.headerCol = "collections"
                 handled = true
-            else if m.headerCol = "collections" and m.isAdmin and m.adminButton <> invalid then
+            else if m.headerCol = "collections" and m.settingsButton <> invalid then
+                m.settingsButton.SetFocus(true)
+                m.headerCol = "settings"
+                handled = true
+            else if m.headerCol = "settings" and m.isAdmin and m.adminButton <> invalid then
                 m.adminButton.SetFocus(true)
                 m.headerCol = "admin"
                 handled = true

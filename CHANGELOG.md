@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Fixed — HomeScene header focus chain reaches Settings (CHECK29) — 2026-10-29
+
+- **The hole.** Review `roku__gameux` C2 (critical): the hand-rolled Left/Right
+  header walk in `OnKeyEvent` skipped `settingsButton` (x=1110) entirely —
+  Right stepped collections→admin (isAdmin) and Left stepped admin→collections.
+  Every header transition returns `handled = true`, which disables Roku's
+  spatial-search fallback, so for admins `SettingsScene` (logout, caption mode,
+  server switching, playback prefs) was HARD unreachable on a remote-only
+  platform; non-admins fell through to the spatial accident and desynced
+  `m.headerCol`. The observer and screen were finished (`OnSettingsPressed` →
+  creates `SettingsScene`) — only the nav path to them was missing.
+- **The fix.** Settings is inserted into the chain at its visual x-position:
+  Search ↔ For You ↔ Favorites ↔ Collections ↔ Settings ↔ Admin. The step into
+  Admin moves from Collections to Settings and stays `m.isAdmin`-gated (hidden-
+  button law preserved); `FocusHeaderZone()` gains the matching restore branch
+  so a grid→header return can land on Settings without desyncing the chain.
+- **Gate teeth.** `scripts/verify-runtime.sh` gains CHECK 29: header candidates
+  are parsed from the `HomeScene.xml` y=20 Button row and sorted by x, the
+  Right walk must equal the consecutive x-order pairs, the Left walk its exact
+  inverse, every edge must focus its destination column's node, the admin step
+  must be `isAdmin`-gated, `FocusHeaderZone` must restore every column, and
+  `settingsButton` must carry a live `buttonSelected`→`OnSettingsPressed`→
+  `SettingsScene` wire. Mutation-proven: era code → 3 reds (R2/R3/R5); gate
+  stripped → R4 alone reds; FocusHeaderZone branch removed → R5 alone reds.
+
 ### Fixed — validate-xml vacuous-pass hole closed (zero-file guard) — 2026-10-02
 
 - **The hole.** The estate CI-gate audit (2026-10-02) found `make validate-xml`

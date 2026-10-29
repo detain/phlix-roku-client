@@ -2491,4 +2491,158 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo ""
+echo "=== Check 29: home header focus chain reaches Settings (C21) ==="
+# Focus-chain law (C21, 2026-10-29, review roku__gameux C2): HomeScene's
+# hand-rolled left/right header walk must visit EVERY header button declared
+# in the XML header row (the Button nodes at y=20), in visual x-order, so the
+# Settings entry — and the SettingsScene behind it (logout, caption mode,
+# server switch, playback prefs) — is reachable with the remote d-pad alone.
+# The era chain skipped settingsButton entirely: Right stepped collections->
+# admin (isAdmin) and Left stepped admin->collections; every header transition
+# returned handled=true, so Roku's spatial-search fallback never fired and
+# Settings was HARD unreachable for admins (and desynced m.headerCol for
+# non-admins that fell through to it). Rules:
+#   R1  header candidates parsed from HomeScene.xml y=20 Buttons, ordered by x;
+#       settingsButton is one of them; adminButton ships visible="false"
+#   R2  the Right walk's edges equal the consecutive x-order pairs
+#   R3  the Left walk's edges are that chain's exact inverse
+#   R4  every edge focuses the node its destination column names, and the
+#       step into admin is gated on m.isAdmin (hidden-button law)
+#   R5  FocusHeaderZone() can restore focus to every header column (incl.
+#       settings) so a grid->header return never desyncs the chain
+#   R6  settingsButton's buttonSelected observer is defined and opens
+#       SettingsScene (reachability wired to a live destination)
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO", ".")
+brs_path = os.path.join(repo, "components", "HomeScene.brs")
+xml_path = os.path.join(repo, "components", "HomeScene.xml")
+problems = []
+
+
+def strip_comment_lines(text):
+    return "\n".join(l for l in text.splitlines()
+                     if not l.lstrip().startswith("'"))
+
+
+def body(src, name):
+    m = re.search(r"^(?:sub|function)\s+" + name + r"\b[^\n]*\n(.*?)^end (?:sub|function)",
+                  src, re.MULTILINE | re.DOTALL)
+    return m.group(1) if m else None
+
+
+def slice_between(src, start_pat, stop_pat):
+    m = re.search(start_pat, src)
+    if not m:
+        return None
+    stop = re.search(stop_pat, src[m.end():])
+    end = m.end() + (stop.start() if stop else len(src))
+    return src[m.end():end]
+
+
+brs = open(brs_path, encoding="utf-8").read()
+code = strip_comment_lines(brs)
+xml = open(xml_path, encoding="utf-8").read()
+
+# R1: header candidates are the Button nodes riding the y=20 row; the remote's
+# natural horizontal order is their x order.
+head = []
+for m in re.finditer(r'<Button[^>]*?translation="\[(\d+),20\]"[^>]*?id="(\w+)"', xml):
+    head.append((int(m.group(1)), m.group(2)))
+head.sort()
+cols = [nid[:-len("Button")] for _, nid in head]
+if "settings" not in cols:
+    problems.append('HomeScene.xml: CHECK29 R1: header row (y=20 Buttons) has no '
+                    'settingsButton; candidates parsed: %s' % cols)
+admin_tag = re.search(r'<Button[^>]*?id="adminButton"[^>]*/?>', xml)
+if admin_tag is not None and 'visible="false"' not in admin_tag.group(0):
+    problems.append('HomeScene.xml: CHECK29 R1: adminButton must ship '
+                    'visible="false" (the isAdmin gate only hides the step)')
+
+EDGE = re.compile(
+    r'm\.headerCol = "(\w+)"[^\n]*\n\s*m\.(\w+)\.SetFocus\(true\)\s*\n\s*m\.headerCol = "(\w+)"')
+
+
+def walk(s, label):
+    out = []
+    for src_col, btn, dst_col in EDGE.findall(s):
+        if btn != dst_col + "Button":
+            problems.append("HomeScene.brs: CHECK29 R4: %s edge %s->%s focuses %s "
+                            "(destination column says %sButton)"
+                            % (label, src_col, dst_col, btn, dst_col))
+        out.append((src_col, dst_col))
+    return out
+
+
+RIGHT = slice_between(code, r'if key = "right" and m\.currentRail = "search" then',
+                      r'else if key = "down"')
+LEFT = slice_between(code, r'if key = "left" and m\.currentRail = "search" then',
+                     r'else if key = "right"')
+if RIGHT is None or LEFT is None:
+    problems.append("HomeScene.brs: CHECK29: OnKeyEvent header branches not found "
+                    "(structure drift; the walk can no longer be verified)")
+
+expected_right = list(zip(cols, cols[1:]))
+if RIGHT is not None:
+    got = walk(RIGHT, "right")
+    if got != expected_right:
+        problems.append("HomeScene.brs: CHECK29 R2: Right header walk is %s; the "
+                        "XML x-order demands %s - a skipped candidate is only "
+                        "reachable by spatial fallback, which handled=true "
+                        "disables" % (got, expected_right))
+    # R4: the step into admin must be gated (button ships hidden).
+    adm = re.search(r'm\.headerCol = "\w+"[^\n]*\n\s*m\.adminButton\.SetFocus\(true\)'
+                    r'\s*\n\s*m\.headerCol = "admin"', RIGHT)
+    if adm is not None and "m.isAdmin" not in adm.group(0):
+        problems.append("HomeScene.brs: CHECK29 R4: the right step into admin is not "
+                        "gated on m.isAdmin - focus can land on a hidden button")
+if LEFT is not None:
+    got = walk(LEFT, "left")
+    expected_left = [(b, a) for a, b in reversed(expected_right)]
+    if got != expected_left:
+        problems.append("HomeScene.brs: CHECK29 R3: Left header walk is %s; expected "
+                        "the exact inverse of the x-order, %s" % (got, expected_left))
+
+# R5: FocusHeaderZone must be able to restore every column's focus.
+fhz = body(brs, "FocusHeaderZone")
+if fhz is None:
+    problems.append("HomeScene.brs: CHECK29 R5: FocusHeaderZone() not found")
+else:
+    for col in cols:
+        if col == "search":
+            continue  # search is the default fallback arm of the restore chain
+        pat = (r'm\.headerCol = "' + col + r'" and m\.' + col +
+               r'Button <> invalid then\s*\n\s*m\.' + col + r'Button\.SetFocus\(true\)')
+        if re.search(pat, fhz) is None:
+            problems.append("HomeScene.brs: CHECK29 R5: FocusHeaderZone cannot "
+                            "restore focus to '%s' - a grid->header return would "
+                            "desync m.headerCol from the visual focus" % col)
+
+# R6: the Settings button's destination must be live, not a dead observer.
+if 'm.settingsButton.ObserveField("buttonSelected", "OnSettingsPressed")' not in code:
+    problems.append('HomeScene.brs: CHECK29 R6: settingsButton has no '
+                    'buttonSelected observer (a focused dead button)')
+osp = body(brs, "OnSettingsPressed")
+if osp is None or 'CreateObject("roSGNode", "SettingsScene")' not in osp:
+    problems.append("HomeScene.brs: CHECK29 R6: OnSettingsPressed does not open "
+                    "SettingsScene (reachability wired to nothing)")
+
+if problems:
+    for p in problems:
+        print("  " + p)
+    print(f"  CHECK29: {len(problems)} header focus-chain problem(s)")
+    sys.exit(1)
+
+print("  CHECK29: header walk reaches every x-ordered button (Settings included) in "
+      "both directions, the admin step is isAdmin-gated, FocusHeaderZone restores "
+      "every column, and Settings opens SettingsScene")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
