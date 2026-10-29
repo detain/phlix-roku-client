@@ -13,6 +13,11 @@
     <interface>
         <field id="requestClose" type="boolean" alwaysNotify="true" />
         <field id="connected" type="boolean" value="false" />
+        <!-- M-ROKU-04 retry surface: PhlixApp routes a boot-time transport
+             failure here with the ClassifyUrlFailure bucket in this field;
+             Init prefills the saved address and shows the per-cause honest
+             message instead of the pre-fix "check your network" guess. -->
+        <field id="bootReason" type="string" value="" />
     </interface>
     <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
@@ -24,7 +29,7 @@
         <Rectangle height="720" width="1280" color="#0d0d1a" />
 
         <!-- Connect Container -->
-        <Rectangle height="420" width="560" translation="[360,150]" color="#1a1a2e">
+        <Rectangle height="620" width="560" translation="[360,80]" color="#1a1a2e">
             <!-- Title -->
             <Label height="60" width="520" translation="[20,20]"
                    id="headerLabel"
@@ -34,17 +39,29 @@
                    horizAlign="center" />
 
             <!-- Server URL -->
-            <Label height="30" width="520" translation="[20,100]"
+            <Label height="30" width="520" translation="[20,90]"
                    id="serverAddressLabel"
                    text="Server address"
                    font="font:SmallSystemFont"
                    color="#AAAAAA" />
-            <TextEditBox height="50" width="520" translation="[20,130]"
+            <TextEditBox height="50" width="520" translation="[20,120]"
                          hint="https://my.phlix.server"
                          id="serverInput" />
 
+            <!-- M-ROKU-04: LAN discovery - the Roku-idiomatic way to avoid
+                 d-pad URL typing. Finds fill the address box; manual entry
+                 above remains the documented fallback. -->
+            <Button height="60" width="520" translation="[20,180]"
+                    title="Find Phlix server on network"
+                    id="findServerButton" />
+            <LabelList height="140" width="520" translation="[20,250]"
+                       numRows="2"
+                       itemSize="[520, 45]"
+                       visible="false"
+                       id="serverList" />
+
             <!-- Error Label -->
-            <Label height="30" width="520" translation="[20,200]"
+            <Label height="30" width="520" translation="[20,400]"
                    text=""
                    font="font:SmallSystemFont"
                    color="#FF4444"
@@ -52,7 +69,7 @@
                    id="errorLabel" />
 
             <!-- Status Label -->
-            <Label height="30" width="520" translation="[20,200]"
+            <Label height="30" width="520" translation="[20,400]"
                    text=""
                    font="font:SmallSystemFont"
                    color="#0095d5"
@@ -60,12 +77,12 @@
                    id="statusLabel" />
 
             <!-- Connect Button -->
-            <Button height="60" width="520" translation="[20,240]"
+            <Button height="60" width="520" translation="[20,440]"
                     title="Connect"
                     id="connectButton" />
 
             <!-- Connect anyway (revealed only after a failed probe) -->
-            <Button height="60" width="520" translation="[20,320]"
+            <Button height="60" width="520" translation="[20,510]"
                     title="Connect anyway"
                     visible="false"
                     id="connectAnywayButton" />

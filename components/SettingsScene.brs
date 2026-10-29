@@ -158,7 +158,12 @@ sub OnSwitchServerConfirmed(index as Integer)
     m.top.dialog = invalid
 
     if index = 1 then
-        m.statusLabel.text = Translate("settings_status_server_switch_not_implemented")
+        ' M-ROKU-04: this arm used to print "not implemented" on a SHIPPED
+        ' button - the review's dead-end exhibit. Route through PhlixApp.
+        ' OnSwitchServer (sign-out from the old server, fresh ConnectScene
+        ' with the saved address prefilled for editing). Same parent chain
+        ' as OnLogoutConfirmed above; same reason it works.
+        m.top.GetParent().GetParent().OnSwitchServer()
     end if
 end sub
 

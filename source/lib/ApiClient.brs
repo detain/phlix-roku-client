@@ -94,6 +94,11 @@ function ApiClient(baseUrl as String) as Object
         deviceName: "Roku"
         deviceType: "roku"
         user: invalid
+        ' M-ROKU-04: outcome of the last restoreSession() call - one of
+        ' authenticated | no_session | session_invalid | server_error |
+        ' <transport bucket>. Read by ApiTask's checkAuth branches and
+        ' surfaced verbatim as result.error to the boot handler's ladder.
+        restoreReason: ""
 
         ' Set authentication (access) token
         setToken: function(token as String) as Void
@@ -125,7 +130,17 @@ function ApiClient(baseUrl as String) as Object
             end if
         end function
 
-        ' Restore session from storage and validate via GET /auth/me
+        ' Restore session from storage and validate via GET /auth/me.
+        ' M-ROKU-04: records WHY a restore failed in m.restoreReason - one of
+        ' authenticated | no_session | session_invalid | server_error |
+        ' <transport bucket from ClassifyUrlFailure> - so the boot handler can
+        ' route each outcome to its honest surface instead of reading the
+        ' absence of a user as "the network is broken" (the pre-fix contract:
+        ' restoreSession returned false and PhlixApp guessed "Connection
+        ' Error. Unable to reach server." for the NEVER-LOGGED-IN first run).
+        ' A transport failure PRESERVES stored credentials: the server never
+        ' proved them dead, and wiping them turned a router blip into a forced
+        ' re-login behind the fake network error.
         restoreSession: function() as Boolean
             token = GetStorage().get("auth_token")
             refreshToken = GetStorage().get("refresh_token")
@@ -144,9 +159,28 @@ function ApiClient(baseUrl as String) as Object
                     payload = UnwrapApiEnvelope(env)
                     if payload <> invalid and payload.user <> invalid then
                         m.user = payload.user
+                        m.restoreReason = "authenticated"
                         return true
                     end if
+                    ' A healthy response with no user payload is a server
+                    ' shape failure, not an expired session.
+                    m.restoreReason = "server_error"
+                else if env <> invalid and env.ok = false and IsTransportReason(env.error) then
+                    ' The server never answered. Keep the credentials; the
+                    ' boot retry surface can restore them when it wakes up.
+                    m.restoreReason = env.error
+                    return false
+                else if env <> invalid and (env.status = 401 or env.status = 403) then
+                    ' Server answered and rejected THIS token - it is dead.
+                    m.restoreReason = "session_invalid"
+                else
+                    m.restoreReason = "server_error"
                 end if
+            else
+                ' Never logged in on this install (or explicitly logged out).
+                ' Not an error condition at all - the login screen is the
+                ' answer, not a network accusation.
+                m.restoreReason = "no_session"
             end if
 
             m.setToken("")
@@ -223,6 +257,13 @@ function ApiClient(baseUrl as String) as Object
             event = wait(35000, port)
             if type(event) = "roUrlEvent" then
                 result.code = event.GetResponseCode()
+                if result.code < 200 then
+                    ' M-ROKU-04: transport failure - carry curl's reason so the
+                    ' caller can classify DNS vs refused vs TLS vs timeout
+                    ' instead of guessing from a started flag.
+                    reason = event.GetFailureReason()
+                    if reason <> invalid then result.fail = reason
+                end if
                 responseString = event.GetString()
                 if responseString <> invalid and responseString <> "" then
                     result.json = ParseJSON(responseString)
@@ -230,6 +271,7 @@ function ApiClient(baseUrl as String) as Object
             else
                 ' Timed out / no event - cancel the transfer.
                 http.AsyncCancel()
+                result.fail = "Timed out waiting for response"
             end if
 
             return result
@@ -280,15 +322,14 @@ function ApiClient(baseUrl as String) as Object
             data = raw.json
             error = ""
 
-            ' Transport failure: code=0 with no body means the request never
-            ' got a HTTP response. Distinguish timeout vs connect failure.
-            if status = 0 then
+            ' M-ROKU-04: transport failure (no HTTP response at all) maps to
+            ' an honest reason bucket via the failure text roUrlEvent carried.
+            ' The pre-fix guesswork ("started" only says the async call fired,
+            ' so a DNS failure was labelled "timeout" and everything else
+            ' "connect") is exactly the misattribution class this cure kills.
+            if status < 200 then
                 ok = false
-                if raw.started then
-                    error = "timeout"   ' connection started but timed out
-                else
-                    error = "connect"    ' never started (DNS, refused, etc.)
-                end if
+                error = ClassifyUrlFailure(raw.fail, raw.started)
             end if
 
             if status >= 400 then
@@ -337,11 +378,12 @@ function ApiClient(baseUrl as String) as Object
             payload = raw.json
             error = ""
 
-            ' sendRawWithDeviceId reports no `started` flag; every status=0
-            ' (refused, DNS, or the bounded wait expiring) is labelled
-            ' "connect" - the honest coarse verdict for this transport.
-            if status = 0 then
-                error = "connect"
+            ' M-ROKU-04: status<200 means no HTTP response at all - classify
+            ' the true cause (dns/refused/tls/timeout/unreachable/bad_url)
+            ' through the shared bucket law instead of the old coarse
+            ' "connect" label that fed the fake-network misattribution.
+            if status < 200 then
+                error = ClassifyUrlFailure(raw.fail, raw.started)
             else if status >= 400 then
                 if payload <> invalid and payload.DoesExist("error") then
                     error = payload.error
@@ -385,7 +427,7 @@ function ApiClient(baseUrl as String) as Object
                 http.InitClientCertificates()
             end if
 
-            result = { code: 0, json: invalid }
+            result = { code: 0, json: invalid, started: false }
             started = false
             if body <> invalid then
                 http.SetRequest(method)
@@ -393,18 +435,26 @@ function ApiClient(baseUrl as String) as Object
             else
                 started = http.AsyncGetToString()
             end if
+            result.started = started
 
             if not started then return result
 
             event = wait(35000, port)
             if type(event) = "roUrlEvent" then
                 result.code = event.GetResponseCode()
+                if result.code < 200 then
+                    ' M-ROKU-04: same failure-text capture as sendRaw (see
+                    ' ClassifyUrlFailure in Utilities.brs).
+                    reason = event.GetFailureReason()
+                    if reason <> invalid then result.fail = reason
+                end if
                 responseString = event.GetString()
                 if responseString <> invalid and responseString <> "" then
                     result.json = ParseJSON(responseString)
                 end if
             else
                 http.AsyncCancel()
+                result.fail = "Timed out waiting for response"
             end if
 
             return result
@@ -1109,10 +1159,22 @@ function ApiClient(baseUrl as String) as Object
         ' it runs on the ApiTask thread so a sync wait is safe here. Returns the
         ' parsed JSON body, or invalid on empty/parse-fail/transport error.
         ' ---------------------------------------------------------------------
+        ' Probe {baseUrl}/health. M-ROKU-04: returns a CLASSIFIED verdict
+        ' instead of invalid-on-any-failure:
+        '   { state: "ok", code }                      - healthy Phlix host
+        '   { state: "http", code }                   - reachable, but /health
+        '       answered non-2xx or a body that is not a healthy Phlix JSON
+        '       (the "some servers block /health" class - Connect-anyway rides
+        '       on this distinction)
+        '   { state: <transport bucket>, code: 0 }    - dns/refused/tls/...
+        ' Async + bounded like sendRaw, so the task thread never blocks on an
+        ' absent network forever.
         probeHealth: function() as Object
             url = m.baseUrl + "/health"
 
+            port = CreateObject("roMessagePort")
             http = CreateObject("roUrlTransfer")
+            http.SetPort(port)
             http.SetUrl(url)
             http.RetainBodyOnError(true)
             http.SetTimeout(8000)
@@ -1123,10 +1185,29 @@ function ApiClient(baseUrl as String) as Object
                 http.InitClientCertificates()
             end if
 
-            responseString = http.GetToString()
-            if responseString = invalid or responseString = "" then return invalid
+            started = http.AsyncGetToString()
+            if not started then
+                return { state: "bad_url", code: 0 }
+            end if
 
-            return ParseJSON(responseString)
+            event = wait(10000, port)
+            if type(event) <> "roUrlEvent" then
+                http.AsyncCancel()
+                return { state: "timeout", code: 0 }
+            end if
+
+            code = event.GetResponseCode()
+            if code >= 200 and code <= 299 then
+                parsed = ParseJSON(event.GetString())
+                if HealthOk(parsed) then
+                    return { state: "ok", code: code }
+                end if
+                return { state: "http", code: code }
+            else if code >= 400 then
+                ' Reachable and answering - just not healthy. Honest label.
+                return { state: "http", code: code }
+            end if
+            return { state: ClassifyUrlFailure(event.GetFailureReason(), true), code: code }
         end function
 
         ' Live TV read-only lists (F9b). All return the TRANSPORT envelope;

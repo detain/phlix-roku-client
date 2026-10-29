@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "es_ES",
     "language_name": "Español (España)",
-    "version": "1.4.4",
+    "version": "1.5.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -84,7 +84,6 @@
     "status_prefs_saved_locally": "Preferencias guardadas localmente — sincronizando con el servidor cuando esté disponible",
     "status_pip_enabled": "Imagen en imagen activada",
     "status_pip_disabled": "Imagen en imagen desactivada",
-    "status_server_switch_not_implemented": "El cambio de servidor aún no está disponible en este dispositivo",
     "dialog_account_title": "Cuenta",
     "dialog_account_message": "Correo: {email}\n\n¿Quieres cerrar sesión?",
     "dialog_server_title": "Servidor",
@@ -281,12 +280,36 @@
     "anyway": "Conectar de todos modos",
     "button": "Conectar",
     "server_address": "Dirección del servidor",
-    "title": "Conectar al servidor"
+    "title": "Conectar al servidor",
+    "err_empty": "Introduce una dirección de servidor",
+    "err_invalid": "Introduce una dirección de servidor válida",
+    "err_dns": "No se encontró el nombre del servidor. Revisa la dirección o usa Buscar servidor.",
+    "err_refused": "El servidor rechazó la conexión. ¿Se está ejecutando Phlix en esa dirección?",
+    "err_tls": "Error en la conexión segura. Revisa la dirección https o el certificado del servidor.",
+    "err_timeout": "El servidor tardó demasiado en responder. Inténtalo de nuevo.",
+    "err_unreachable": "No se puede acceder al servidor. Revisa su dirección y tu red.",
+    "err_bad_url": "La dirección no es válida. Incluye la URL completa, por ejemplo http://192.168.1.100:8096",
+    "err_health_blocked": "El servidor respondió, pero no con un estado saludable. Revisa la dirección o conecta igualmente.",
+    "status_connecting": "Conectando…",
+    "find_button": "Buscar servidor Phlix en la red",
+    "find_searching": "Buscando en tu red…",
+    "find_none": "No se encontró ningún servidor Phlix en esta red. Escribe la dirección arriba.",
+    "find_one": "Servidor encontrado. Pulsa Conectar.",
+    "find_picked": "Pulsa Conectar."
   },
   "login": {
     "button": "Iniciar sesión",
     "password": "Contraseña",
-    "username": "Nombre de usuario"
+    "username": "Nombre de usuario",
+    "err_no_inputs": "Introduce usuario y contraseña",
+    "status_signing_in": "Iniciando sesión…",
+    "status_loading": "Cargando servidores…",
+    "err_bad_credentials": "Usuario o contraseña no válidos.",
+    "err_server": "Error del servidor: {detail}",
+    "err_failed": "No se pudo iniciar sesión. Inténtalo de nuevo.",
+    "err_servers": "No se pudieron cargar los servidores. Inténtalo de nuevo.",
+    "expired_title": "Sesión caducada",
+    "expired_message": "Tu sesión ha caducado. Inicia sesión de nuevo."
   },
   "serverpicker": {
     "choose": "Elige un servidor"
@@ -301,7 +324,8 @@
   },
   "app": {
     "boot_cannot_reach": "No se puede acceder al servidor",
-    "boot_unable": "No se pudo conectar tras varios intentos"
+    "boot_unable": "No se pudo conectar tras varios intentos",
+    "server_problem_message": "El servidor tuvo un problema al comprobar tu sesión. Inicia sesión de nuevo."
   },
   "favorites": {
     "empty": "Aún no hay favoritos"

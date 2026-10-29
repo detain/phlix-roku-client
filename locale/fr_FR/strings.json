@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.4.4",
+    "version": "1.5.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -84,7 +84,6 @@
     "status_prefs_saved_locally": "Préférences enregistrées localement — synchronisation avec le serveur dès que possible",
     "status_pip_enabled": "Image dans l'image activée",
     "status_pip_disabled": "Image dans l'image désactivée",
-    "status_server_switch_not_implemented": "Le changement de serveur n'est pas encore disponible sur cet appareil",
     "dialog_account_title": "Compte",
     "dialog_account_message": "E-mail : {email}\n\nVoulez-vous vous déconnecter ?",
     "dialog_server_title": "Serveur",
@@ -281,12 +280,36 @@
     "anyway": "Se connecter quand même",
     "button": "Connecter",
     "server_address": "Adresse du serveur",
-    "title": "Se connecter au serveur"
+    "title": "Se connecter au serveur",
+    "err_empty": "Saisissez une adresse de serveur",
+    "err_invalid": "Saisissez une adresse de serveur valide",
+    "err_dns": "Nom du serveur introuvable. Vérifiez l'adresse ou utilisez Rechercher un serveur.",
+    "err_refused": "Le serveur a refusé la connexion. Phlix fonctionne-t-il à cette adresse ?",
+    "err_tls": "Échec de la connexion sécurisée. Vérifiez l'adresse https ou le certificat du serveur.",
+    "err_timeout": "Le serveur a mis trop de temps à répondre. Réessayez.",
+    "err_unreachable": "Impossible d'atteindre le serveur. Vérifiez son adresse et votre réseau.",
+    "err_bad_url": "Cette adresse n'est pas valide. Incluez l'URL complète, par exemple http://192.168.1.100:8096",
+    "err_health_blocked": "Le serveur a répondu, mais pas avec un état sain. Vérifiez l'adresse ou connectez quand même.",
+    "status_connecting": "Connexion…",
+    "find_button": "Rechercher un serveur Phlix sur le réseau",
+    "find_searching": "Recherche sur le réseau…",
+    "find_none": "Aucun serveur Phlix trouvé sur ce réseau. Saisissez l'adresse ci-dessus.",
+    "find_one": "Serveur trouvé. Appuyez sur Connecter.",
+    "find_picked": "Appuyez sur Connecter."
   },
   "login": {
     "button": "Connexion",
     "password": "Mot de passe",
-    "username": "Nom d'utilisateur"
+    "username": "Nom d'utilisateur",
+    "err_no_inputs": "Saisissez un nom d'utilisateur et un mot de passe",
+    "status_signing_in": "Connexion en cours…",
+    "status_loading": "Chargement des serveurs…",
+    "err_bad_credentials": "Nom d'utilisateur ou mot de passe invalide.",
+    "err_server": "Erreur du serveur : {detail}",
+    "err_failed": "Échec de la connexion. Réessayez.",
+    "err_servers": "Impossible de charger les serveurs. Réessayez.",
+    "expired_title": "Session expirée",
+    "expired_message": "Votre session a expiré. Veuillez vous reconnecter."
   },
   "serverpicker": {
     "choose": "Choisissez un serveur"
@@ -301,7 +324,8 @@
   },
   "app": {
     "boot_cannot_reach": "Impossible de joindre le serveur",
-    "boot_unable": "Connexion impossible après plusieurs tentatives"
+    "boot_unable": "Connexion impossible après plusieurs tentatives",
+    "server_problem_message": "Le serveur a rencontré un problème lors de la vérification de votre session. Veuillez vous reconnecter."
   },
   "favorites": {
     "empty": "Pas encore de favoris"

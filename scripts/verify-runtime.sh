@@ -3334,4 +3334,138 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 34: transport-failure buckets keep the honest-taxonomy triangle (M-ROKU-04) ==="
+# BUCKET LAW (M-ROKU-04, review roku__casualgamer M5): the day-1 connect path
+# once collapsed every cause into a guessed "connect"/"timeout" label and
+# PhlixApp misread "never logged in" as "Unable to reach server. Please check
+# your network." The cure is a closed set of reason buckets with a triangle
+# pin - one classifier, one literal Translate ladder, one catalog message per
+# bucket - because an unclosed taxonomy silently re-opens the misattribution
+# class (a new bucket with no message renders the raw key; a message with no
+# bucket is dead copy; a bucket nobody translates dies to the generic label).
+# Rules:
+#   R1  ClassifyUrlFailure exists in Utilities.brs and returns EXACTLY the
+#       pinned bucket set (drift in either direction is red - a new bucket
+#       must arrive WITH its message, in the same commit)
+#   R2  TranslateTransportReason is the single ladder; every bucket has a
+#       literal Translate("connect_err_<bucket>") arm (no dynamic key
+#       building - CHECK20's anti-typo guarantee stays total)
+#   R3  IsTransportReason recognizes every bucket (the boot router's guard)
+#   R4  locale/en_US/strings.json carries a non-empty connect.err_<bucket>
+#       value for every bucket (CHECK21 mirrors it into every shipped
+#       locale; CHECK24's token legs are untouched - none of these carry {})
+#   R5  no dead taxonomy copy: every connect.err_* catalog key is referenced
+#       by a literal Translate somewhere in the connect-path file set
+#       (ConnectScene/PhlixApp/LoginScene/Utilities)
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+EXPECTED = {"bad_url", "dns", "refused", "tls", "timeout", "unreachable"}
+
+UTIL = "source/lib/Utilities.brs"
+
+
+def read(*parts):
+    return open(os.path.join(repo, *parts), encoding="utf-8").read()
+
+
+def body(src, name):
+    m = re.search(r"^(?:sub|function)\s+" + name + r"\b[^\n]*\n(.*?)^end (?:sub|function)",
+                  src, re.MULTILINE | re.DOTALL)
+    return m.group(1) if m else None
+
+
+def strip_comments(text):
+    return "\n".join(l for l in text.splitlines()
+                     if not l.lstrip().startswith("'"))
+
+
+util = read("source", "lib", "Utilities.brs")
+
+# R1: classifier exists and returns exactly the pinned buckets.
+cls = body(util, "ClassifyUrlFailure")
+if cls is None:
+    problems.append(f"  {UTIL} - CHECK34 R1: ClassifyUrlFailure() not found; the "
+                    "connect path may not re-open to guessed labels (M-ROKU-04)")
+    buckets = set()
+else:
+    buckets = set(re.findall(r'return\s+"([a-z_]+)"', strip_comments(cls)))
+    missing = EXPECTED - buckets
+    extra = buckets - EXPECTED
+    if missing:
+        problems.append(f"  {UTIL} - CHECK34 R1: classifier no longer returns "
+                        f"{sorted(missing)} - deleting a bucket deletes a user's "
+                        "ability to learn that cause")
+    if extra:
+        problems.append(f"  {UTIL} - CHECK34 R1: classifier invented buckets "
+                        f"{sorted(extra)} without the triangle (message + ladder "
+                        "arm must arrive in the same commit)")
+
+# R2: the single Translate ladder covers every bucket literally.
+lad = body(util, "TranslateTransportReason")
+if lad is None:
+    problems.append(f"  {UTIL} - CHECK34 R2: TranslateTransportReason() not found "
+                    "- bucket->message must have exactly ONE ladder")
+else:
+    for b in sorted(EXPECTED):
+        if f'Translate("connect_err_{b}")' not in strip_comments(lad):
+            problems.append(f"  {UTIL} - CHECK34 R2: ladder lacks literal "
+                            f'Translate("connect_err_{b}")')
+
+# R3: the transport guard names every bucket.
+isr = body(util, "IsTransportReason")
+if isr is None:
+    problems.append(f"  {UTIL} - CHECK34 R3: IsTransportReason() not found")
+else:
+    for b in sorted(EXPECTED):
+        if f'"{b}"' not in strip_comments(isr):
+            problems.append(f"  {UTIL} - CHECK34 R3: IsTransportReason does not "
+                            f"recognize bucket {b}")
+
+# R4: en_US carries a message per bucket.
+try:
+    en = json.loads(read("locale", "en_US", "strings.json"))
+except Exception as e:  # noqa: BLE001 - fail loud, the parse IS the contract
+    problems.append(f"  locale/en_US/strings.json - CHECK34: unreadable: {e}")
+    en = {}
+connect = en.get("connect") if isinstance(en.get("connect"), dict) else {}
+if connect == {}:
+    problems.append("  locale/en_US/strings.json - CHECK34 R4: connect section missing")
+for b in sorted(EXPECTED):
+    v = connect.get("err_" + b)
+    if not isinstance(v, str) or not v.strip():
+        problems.append(f"  locale/en_US/strings.json - CHECK34 R4: connect.err_{b} "
+                        "missing or not a non-empty string")
+
+# R5: anti-dead-copy across the connect-path file set.
+consumers = ["components/ConnectScene.brs", "components/PhlixApp.brs",
+             "components/LoginScene.brs", UTIL]
+hay = "\n".join(read(*p.split("/")) for p in consumers)
+for k in sorted(connect):
+    if not k.startswith("err_"):
+        continue
+    if f'Translate("connect_{k}")' not in hay:
+        problems.append(f"  locale/en_US/strings.json - CHECK34 R5: dead copy - "
+                        f'connect.{k} is never consumed by a literal Translate("connect_{k}") '
+                        "in the connect-path file set")
+
+if problems:
+    for p in problems:
+        print(p)
+    print("  CHECK34: %d transport-taxonomy problem(s)" % len(problems))
+    sys.exit(1)
+
+print("  CHECK34: taxonomy triangle closed - %d buckets, one classifier, one "
+      "literal ladder, one honest catalog message each" % len(EXPECTED))
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

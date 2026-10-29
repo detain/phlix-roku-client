@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.4.4",
+    "version": "1.5.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -84,7 +84,6 @@
     "status_prefs_saved_locally": "Einstellungen lokal gespeichert — Synchronisierung mit dem Server, wenn verfügbar",
     "status_pip_enabled": "Bild-im-Bild aktiviert",
     "status_pip_disabled": "Bild-im-Bild deaktiviert",
-    "status_server_switch_not_implemented": "Serverwechsel ist auf diesem Gerät noch nicht verfügbar",
     "dialog_account_title": "Konto",
     "dialog_account_message": "E-Mail: {email}\n\nMöchten Sie sich abmelden?",
     "dialog_server_title": "Server",
@@ -281,12 +280,36 @@
     "anyway": "Trotzdem verbinden",
     "button": "Verbinden",
     "server_address": "Serveradresse",
-    "title": "Mit Server verbinden"
+    "title": "Mit Server verbinden",
+    "err_empty": "Bitte eine Serveradresse eingeben",
+    "err_invalid": "Bitte eine gültige Serveradresse eingeben",
+    "err_dns": "Servername nicht gefunden. Adresse prüfen oder \"Server finden\" benutzen.",
+    "err_refused": "Der Server hat die Verbindung abgelehnt. Läuft Phlix unter dieser Adresse?",
+    "err_tls": "Sichere Verbindung fehlgeschlagen. https-Adresse oder Zertifikat des Servers prüfen.",
+    "err_timeout": "Der Server hat zu lange nicht geantwortet. Erneut versuchen.",
+    "err_unreachable": "Server nicht erreichbar. Adresse und Netzwerk prüfen.",
+    "err_bad_url": "Diese Adresse ist ungültig. Vollständige URL angeben, zum Beispiel http://192.168.1.100:8096",
+    "err_health_blocked": "Der Server antwortet, meldet aber keinen gesunden Status. Adresse prüfen oder trotzdem verbinden.",
+    "status_connecting": "Verbindung wird hergestellt…",
+    "find_button": "Phlix-Server im Netzwerk finden",
+    "find_searching": "Netzwerk wird durchsucht…",
+    "find_none": "Kein Phlix-Server im Netzwerk gefunden. Adresse oben eingeben.",
+    "find_one": "Server gefunden. Connect drücken.",
+    "find_picked": "Connect drücken."
   },
   "login": {
     "button": "Anmelden",
     "password": "Passwort",
-    "username": "Benutzername"
+    "username": "Benutzername",
+    "err_no_inputs": "Bitte Benutzername und Passwort eingeben",
+    "status_signing_in": "Anmeldung läuft…",
+    "status_loading": "Server werden geladen…",
+    "err_bad_credentials": "Ungültiger Benutzername oder ungültiges Passwort.",
+    "err_server": "Serverfehler: {detail}",
+    "err_failed": "Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
+    "err_servers": "Serverliste konnte nicht geladen werden. Erneut versuchen.",
+    "expired_title": "Sitzung abgelaufen",
+    "expired_message": "Die Sitzung ist abgelaufen. Bitte erneut anmelden."
   },
   "serverpicker": {
     "choose": "Server wählen"
@@ -301,7 +324,8 @@
   },
   "app": {
     "boot_cannot_reach": "Server nicht erreichbar",
-    "boot_unable": "Verbindung nach mehreren Versuchen fehlgeschlagen"
+    "boot_unable": "Verbindung nach mehreren Versuchen fehlgeschlagen",
+    "server_problem_message": "Der Server hatte ein Problem beim Prüfen der Anmeldung. Bitte erneut anmelden."
   },
   "favorites": {
     "empty": "Noch keine Favoriten"

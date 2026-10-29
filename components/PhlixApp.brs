@@ -295,13 +295,14 @@ sub OnAuthResponse(event as Object)
             end if
             print "Deep link stashed for post-login resume"
         end if
-        ' Derive error message since restoreSession doesn't populate result.error
-        if result <> invalid and result.data = invalid then
-            ShowErrorDialog(m.top, "Connection Error", "Unable to reach server. Please check your network.")
-        else
-            ShowErrorDialog(m.top, "Session Expired", "Your session has expired. Please log in again.")
-        end if
-        ShowLogin()
+        ' M-ROKU-04: the pre-fix oracle here was `result.data = invalid` —
+        ' restoreSession leaves data invalid on EVERY false path (first run,
+        ' dead token, dead server), so first-run users were told "Unable to
+        ' reach server. Please check your network." by a screen that had just
+        ' probed /health successfully, and the Session Expired branch below
+        ' the else was unreachable dead text. The verdict now rides the
+        ' restore REASON; see HandleBootAuthFailure.
+        HandleBootAuthFailure(result)
     end if
 end sub
 
@@ -354,14 +355,54 @@ sub OnHubAuthResponse(event as Object)
             end if
             print "Deep link stashed for post-login resume"
         end if
-        ' Derive error message since restoreSession doesn't populate result.error
-        if result <> invalid and result.data = invalid then
-            ShowErrorDialog(m.top, "Connection Error", "Unable to reach server. Please check your network.")
-        else
-            ShowErrorDialog(m.top, "Session Expired", "Your session has expired. Please log in again.")
-        end if
-        ShowLogin()
+        ' M-ROKU-04: the pre-fix oracle here was `result.data = invalid` —
+        ' restoreSession leaves data invalid on EVERY false path (first run,
+        ' dead token, dead server), so first-run users were told "Unable to
+        ' reach server. Please check your network." by a screen that had just
+        ' probed /health successfully, and the Session Expired branch below
+        ' the else was unreachable dead text. The verdict now rides the
+        ' restore REASON; see HandleBootAuthFailure.
+        HandleBootAuthFailure(result)
     end if
+end sub
+
+' M-ROKU-04: the boot-auth failure ladder (shared by both modes). The reason
+' recorded by ApiClient.restoreSession arrives as result.error (see the
+' checkAuth branches in ApiTask.brs); each outcome lands on its HONEST
+' surface:
+'   no_session      - first run / after logout: NOT an error at all. Show the
+'                     login screen silently (ShowLogin routes to ConnectScene
+'                     when no server is configured, per the M-ROKU-03 law).
+'   <transport>     - dns/refused/tls/timeout/unreachable/bad_url: the server
+'                     never answered. Route to ConnectScene - the address is
+'                     prefilled and editable, the message is per-cause, and
+'                     Find/retry affordances live there. A RETRY surface,
+'                     never a dead dialog over a login form that cannot work.
+'   session_invalid - the server answered and rejected the token. The
+'                     "Session Expired" dialog finally has a live trigger
+'                     (pre-fix it was unreachable text behind the invalid-
+'                     data oracle that always took the network branch).
+'   server_error    - answered, but /auth/me was malformed/5xx: say that.
+sub HandleBootAuthFailure(result as Object)
+    reason = ""
+    if result <> invalid and result.error <> invalid and result.error <> "" then reason = result.error
+
+    if reason = "no_session" then
+        ShowLogin()
+        return
+    end if
+
+    if IsTransportReason(reason) then
+        ShowConnect(reason)
+        return
+    end if
+
+    if reason = "session_invalid" then
+        ShowErrorDialog(m.top, Translate("login_expired_title"), Translate("login_expired_message"))
+    else
+        ShowErrorDialog(m.top, Translate("common_error"), Translate("app_server_problem_message"))
+    end if
+    ShowLogin()
 end sub
 
 ' PushScreen - Creates, shows, and tracks a child scene on the screen stack.
@@ -431,8 +472,13 @@ sub OnChildRequestClose(event as Object)
     PopScreen()
 end sub
 
-sub ShowConnect()
+' Show the connect screen. M-ROKU-04: it doubles as the transport-failure
+' RETRY surface - bootReason carries a transport bucket (ClassifyUrlFailure
+' law) so the scene can prefill the saved address, show the per-cause honest
+' message, and offer Find/Connect-anyway instead of a dead end.
+sub ShowConnect(bootReason = "" as String)
     connectScene = CreateObject("roSGNode", "ConnectScene")
+    if bootReason <> "" then connectScene.bootReason = bootReason
     connectScene.ObserveField("connected", "OnConnected")
     m.top.Append(connectScene)
     connectScene.SetFocus(true)
@@ -681,6 +727,45 @@ sub OnLogout()
     ' ShowLogin routes to ConnectScene per the AppContext law instead of
     ' dead-ending on the fake network error.
     ShowLogin()
+end sub
+
+' OnSwitchServer - the Settings → Server URL → Switch button, actually wired
+' (M-ROKU-04: this button shipped answering "not implemented" — the review's
+' dead-end example). Same teardown discipline as OnLogout: capture the
+' credentials before the wipe, fire the best-effort server-side session
+' teardown BEFORE appending the next scene (order law from M-ROKU-03), then
+' land on ConnectScene — the address-edit surface, which is what "switch"
+' means. server_url survives the wipe and prefill the box so the user edits
+' rather than retypes; the new URL is persisted by ConnectScene.Connect when
+' the probe (or the anyway override) fires.
+sub OnSwitchServer()
+    teardownToken = GetStorage().get("auth_token")
+    teardownSessionId = GetStorage().get("session_id")
+    teardownBase = ""
+    if IsServerConnected() then teardownBase = GetMediaBaseUrl()
+
+    ' Six-key surgical wipe (auth/session + hub binding); server_url SURVIVES
+    ' so the ConnectScene prefill shows the CURRENT address for editing.
+    ResetCachedStorage(true)
+
+    SetIsAdmin(false)
+    StopHubCommandConsumer()
+
+    m.screenStack.Clear()
+    while m.top.GetChildCount() > 0
+        m.top.RemoveChild(m.top.GetChild(0))
+    end while
+
+    ' Best-effort sign-out from the OLD server — the whole reason someone
+    ' presses Switch may be that it is unreachable, so this rides the same
+    ' fire-and-forget task as logout and its failure is inert by design.
+    teardownTask = CreateObject("roSGNode", "ApiTask")
+    teardownTask.request = { op: "logout", base_url: teardownBase, auth_token: teardownToken, session_id: teardownSessionId }
+    m.top.Append(teardownTask)
+    teardownTask.control = "run"
+
+    ' Fresh address entry, no stale error: bootReason stays empty.
+    ShowConnect()
 end sub
 
 ' R6.3: Process a validated deep-link intent.

@@ -64,7 +64,7 @@ sub OnLoginPressed()
 
     ' Validate inputs (fail fast before any async work)
     if username = "" or password = "" then
-        ShowError("Please enter username and password")
+        ShowError(Translate("login_err_no_inputs"))
         return
     end if
 
@@ -75,7 +75,7 @@ sub OnLoginPressed()
     if m.loginButton <> invalid then
         m.loginButton.disabled = true
     end if
-    ShowStatus("Signing in...")
+    ShowStatus(Translate("login_status_signing_in"))
 
     ' Fire login on ApiTask (off render thread) and return immediately.
     ' The task will call GetHubApiClient() + ApiClient.login() internally
@@ -88,18 +88,21 @@ end sub
 ' Distinguished by result.op. Serializes login -> getMyServers so they never
 ' run concurrently on the same task node.
 '
-' Four distinct failure outcomes:
-'   1. Wrong credentials (401)          -> "Invalid username or password."
-'   2. Server unreachable (no data)    -> "Cannot connect to server. Check your network."
-'   3. Server error (5xx, other 4xx)   -> "Server error: <detail>"
-'   4. Login ok but getMyServers fails -> "Unable to load servers. Try again."
+' Failure outcomes (M-ROKU-04: every message is a catalog literal; transport
+' failures are named per cause through the bucket ladder):
+'   1. Wrong credentials (401)       -> login_err_bad_credentials
+'   2. Transport failure             -> TranslateTransportReason(bucket)
+'      (dns / refused / tls / timeout / unreachable / bad_url - the causes
+'      the server never got the chance to name)
+'   3. Server error (5xx, other 4xx) -> login_err_server ({detail} token)
+'   4. Login ok but getMyServers fails -> login_err_servers
 sub OnLoginResponse(event as Object)
     result = event.GetData()
     ' Fail fast on a malformed task frame before any member access.
     if result = invalid then
         ReEnableButton()
         HideStatus()
-        ShowError("Cannot connect to server. Check your network.")
+        ShowError(Translate("login_err_failed"))
         return
     end if
 
@@ -120,37 +123,42 @@ sub OnLoginResponse(event as Object)
             ReEnableButton()
             HideStatus()
 
-            ' Distinguish the failure cases: transport errors carry no
-            ' payload; 4xx/5xx carry the server's {error} detail at
-            ' result.data (with the same message lifted to result.error).
-            transportError = result.error = "connect" or result.error = "timeout"
+            ' Distinguish the failure cases. M-ROKU-04: transport failures
+            ' carry a reason BUCKET (dns/refused/tls/timeout/unreachable/
+            ' bad_url - the ClassifyUrlFailure law), so each cause renders
+            ' its own honest, cataloged sentence. The pre-fix test was
+            ' `error = "connect" or error = "timeout"` — two labels produced
+            ' by guessing, both pointing at one fake network accusation.
             detail = ""
             if result.data <> invalid and type(result.data) = "roAssociativeArray" then
                 if result.data.DoesExist("error") and result.data.error <> invalid then
                     detail = result.data.error
                 end if
             end if
-            if detail = "" and result.error <> invalid then detail = result.error
+            if detail = "" and result.error <> invalid and not IsTransportReason(result.error) then
+                detail = result.error
+            end if
 
-            if transportError then
-                ' Case 2: server unreachable / network error
-                ShowError("Cannot connect to server. Check your network.")
+            if IsTransportReason(result.error) then
+                ' Case 2 (now per-cause): the named bucket's message
+                ShowError(TranslateTransportReason(result.error))
             else if instr(1, lcase(detail), "invalid") > 0 or instr(1, lcase(detail), "credential") > 0 or instr(1, lcase(detail), "unauthorized") > 0 or instr(1, lcase(detail), "401") > 0 then
                 ' Case 1: wrong credentials (common error strings from server)
-                ShowError("Invalid username or password.")
+                ShowError(Translate("login_err_bad_credentials"))
             else if detail <> "" then
-                ' Case 3: server error with detail
-                ShowError("Server error: " + detail)
+                ' Case 3: server error with detail (token law: {detail}
+                ' rides TranslateWithParams - CHECK24 pins the substitution)
+                ShowError(TranslateWithParams("login_err_server", { detail: detail }))
             else
                 ' Generic fallback
-                ShowError("Login failed. Please check your credentials.")
+                ShowError(Translate("login_err_failed"))
             end if
             return
         end if
 
         ' Login succeeded. Clear errors and proceed to getMyServers (serialized).
         HideError()
-        ShowStatus("Loading servers...")
+        ShowStatus(Translate("login_status_loading"))
 
         m.apiTask.request = { op: "getMyServers" }
         m.apiTask.control = "run"
@@ -162,7 +170,7 @@ sub OnLoginResponse(event as Object)
         ' Case 4: getMyServers failed
         if result = invalid or result.ok <> true or result.data = invalid then
             ReEnableButton()
-            ShowError("Unable to load servers. Try again.")
+            ShowError(Translate("login_err_servers"))
             return
         end if
 

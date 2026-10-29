@@ -16,6 +16,11 @@
 # WHAT: builds a scratch CI-layout in /tmp:
 #     $tmp/repo/           fake checkout — the REAL scripts/verify-runtime.sh,
 #                          source/lib/Utilities.brs,
+#                          source/lib/Storage.brs + source/main.brs +
+#                          README.md + tests/fixtures/server-route-manifest.json
+#                          (Checks 30-33's inputs - README + route-manifest
+#                          truth, root-back exit law, surgical-wipe logout
+#                          law),
 #                          components/SettingsScene.brs + DetailScene.brs
 #                          (Check 19's fixed target list) + SyncPlayTask.brs
 #                          (Checks 22/23's wire-in) + SyncPlayScene.brs
@@ -138,6 +143,15 @@ mkdir -p "$FAKE_SERVER/migrations"
 
 cp "$REAL_REPO/scripts/verify-runtime.sh" "$FAKE_REPO/scripts/verify-runtime.sh"
 cp "$REAL_REPO/source/lib/Utilities.brs" "$FAKE_REPO/source/lib/Utilities.brs"
+# Checks 30/32 read README.md, Check 31 reads source/main.brs and Check 33
+# reads source/lib/Storage.brs. They joined the stage list when those checks
+# landed (M-ROKU-02/M-ROKU-03/C33 wave); without them the positive leg crashed
+# FileNotFoundError in the CI layout.
+cp "$REAL_REPO/source/lib/Storage.brs" "$FAKE_REPO/source/lib/Storage.brs"
+cp "$REAL_REPO/source/main.brs" "$FAKE_REPO/source/main.brs"
+cp "$REAL_REPO/README.md" "$FAKE_REPO/README.md"
+mkdir -p "$FAKE_REPO/tests/fixtures"
+cp "$REAL_REPO/tests/fixtures/server-route-manifest.json" "$FAKE_REPO/tests/fixtures/server-route-manifest.json"
 cp "$REAL_REPO/components/SettingsScene.brs" "$FAKE_REPO/components/SettingsScene.brs"
 cp "$REAL_REPO/components/DetailScene.brs" "$FAKE_REPO/components/DetailScene.brs"
 # Check 22 requires the syncplay_error wire-in file to exist in the checkout.

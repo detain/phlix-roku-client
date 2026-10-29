@@ -567,8 +567,13 @@ sub ExecRequest()
         else if req.op = "checkAuth" then
             ' Session restore + /auth/me validation on the task thread (not render).
             ' Runs on GetApiClient (relay base in hub mode, direct base in direct mode).
+            ' M-ROKU-04: result.error carries the restore REASON (bucket law in
+            ' Utilities.brs / restoreSession docblock) so the boot handler can
+            ' tell "never logged in" from "server unreachable" from "token dead"
+            ' instead of misreading an absent user as a network accusation.
             result.ok = api.restoreSession()
             result.data = api.user
+            if not result.ok then result.error = api.restoreReason
         else if req.op = "checkAuthHub" then
             ' Hub boot auth: uses GetHubApiClient (bare hub url) so /auth/me hits
             ' the hub directly, not through the relay (where hub-user /auth/me is
@@ -576,6 +581,7 @@ sub ExecRequest()
             hubApi = GetHubApiClient()
             result.ok = hubApi.restoreSession()
             result.data = hubApi.user
+            if not result.ok then result.error = hubApi.restoreReason
         else if req.op = "login" then
             ' Login on the task thread so the render thread never blocks.
             ' Uses GetHubApiClient (bare hub url) so login hits the hub directly,
@@ -678,9 +684,14 @@ sub ExecRequest()
         else if req.op = "probeHealth" then
             ' Probe the CANDIDATE url, not the shared GetApiClient (which is bound
             ' to the old/absent server_url at first run). Build a fresh client.
+            ' M-ROKU-04: ApiClient.probeHealth now answers a classified verdict
+            ' { state: ok|http|<transport bucket>, code } instead of invalid-on-
+            ' everything; the data crosses untouched (this op's documented
+            ' pass-through shape - not a transport envelope) and the scene
+            ' selects the user-facing message from the bucket.
             api2 = ApiClient(req.url)
             result.data = api2.probeHealth()
-            result.ok = (result.data <> invalid and HealthOk(result.data))
+            result.ok = (result.data <> invalid and result.data.state = "ok")
         else if req.op = "getProfileSchedules" then
             ApplyEnvelope(result, api.getProfileSchedules(req.profileId))
         else if req.op = "createProfileSchedule" then

@@ -149,6 +149,86 @@ function NormalizeServerUrl(raw as String) as String
     return url
 end function
 
+' =============================================================================
+' M-ROKU-04 — honest transport-failure taxonomy.
+'
+' A failing roUrlTransfer reports WHY through roUrlEvent.GetFailureReason()
+' (a curl reason string). Before this cure the connect path collapsed every
+' status-0 failure into "connect" or "timeout" based on a flag that only says
+' the async call started, and PhlixApp then mislabelled "no token yet" as
+' "Unable to reach server. Please check your network." Users were blamed for
+' a network they were not standing next to.
+'
+' The law (CHECK34 in scripts/verify-runtime.sh pins the triangle):
+'   ClassifyUrlFailure returns EXACTLY the buckets
+'       bad_url | dns | refused | tls | timeout | unreachable
+'   every bucket has exactly one catalog message,
+'       connect_err_<bucket> in locale/<any>/strings.json (CHECK21 parity),
+'   and TranslateTransportReason is THE single literal Translate ladder
+'   mapping bucket -> message. A new bucket cannot dodge the catalog.
+' =============================================================================
+
+' Map one roUrlTransfer transport failure onto a closed reason bucket.
+' @param failReason String|invalid - roUrlEvent.GetFailureReason() (curl text,
+'        matched by keyword because the exact strings are firmware-owned)
+' @param started Boolean - whether the async transfer ever started; false
+'        means roUrlTransfer itself rejected the URL (malformed/unparseable)
+' @return String - one of bad_url|dns|refused|tls|timeout|unreachable
+function ClassifyUrlFailure(failReason as String, started as Boolean) as String
+    if not started then return "bad_url"
+    lower = ""
+    if failReason <> invalid then lower = failReason.Lower()
+    if Instr(1, lower, "resolve") > 0 then return "dns"
+    if Instr(1, lower, "couldn't connect") > 0 or Instr(1, lower, "could not connect") > 0 or Instr(1, lower, "refused") > 0 then return "refused"
+    if Instr(1, lower, "ssl") > 0 or Instr(1, lower, "certificate") > 0 or Instr(1, lower, "tls") > 0 then return "tls"
+    if Instr(1, lower, "timed out") > 0 or Instr(1, lower, "timeout") > 0 then return "timeout"
+    return "unreachable"
+end function
+
+' True when a reason string is one of the transport buckets above (as opposed
+' to an HTTP/server verdict such as session_invalid or no_session).
+function IsTransportReason(reason as String) as Boolean
+    if reason = invalid then return false
+    return reason = "bad_url" or reason = "dns" or reason = "refused" or reason = "tls" or reason = "timeout" or reason = "unreachable"
+end function
+
+' The ONE bucket -> user-message ladder (literal Translate calls so CHECKs
+' 20/34 keep the anti-typo / raw-key-echo guarantee total across it).
+' Unknown reasons fall to the honest generic bucket message.
+function TranslateTransportReason(reason as String) as String
+    if reason = "dns" then return Translate("connect_err_dns")
+    if reason = "refused" then return Translate("connect_err_refused")
+    if reason = "tls" then return Translate("connect_err_tls")
+    if reason = "timeout" then return Translate("connect_err_timeout")
+    if reason = "bad_url" then return Translate("connect_err_bad_url")
+    return Translate("connect_err_unreachable")
+end function
+
+' Reduce an SSDP LOCATION URL (e.g. http://192.168.1.5:8096/dlna/description.xml)
+' to the connectable origin (http://192.168.1.5:8096). Rejects anything without
+' an http(s) scheme and any value carrying userinfo - an SSDP answer is
+' LAN-influenced input, so this is a parse boundary, not a trim helper.
+' @return String - "scheme://host[:port]" or "" when the value is unusable
+function ExtractServerOrigin(location as String) as String
+    if location = invalid then return ""
+    u = location.Trim()
+    if u = "" then return ""
+    lower = u.Lower()
+    if lower.Left(7) <> "http://" and lower.Left(8) <> "https://" then return ""
+    schemeSep = Instr(1, u, "://")
+    scheme = lower.Left(schemeSep - 1)
+    rest = u.Mid(schemeSep + 3)
+    pathSep = Instr(1, rest, "/")
+    if pathSep > 0 then rest = rest.Left(pathSep - 1)
+    querySep = Instr(1, rest, "?")
+    if querySep > 0 then rest = rest.Left(querySep - 1)
+    fragmentSep = Instr(1, rest, "#")
+    if fragmentSep > 0 then rest = rest.Left(fragmentSep - 1)
+    if rest = "" then return ""
+    if Instr(1, rest, "@") > 0 then return ""
+    return scheme + "://" + rest
+end function
+
 ' True when a parsed /health JSON body indicates a reachable Phlix host. The body
 ' is {status:"ok", service, version, ...}; we accept it when status="ok" OR a
 ' "version" key is present. NEVER compare a possibly-numeric field with "" - read

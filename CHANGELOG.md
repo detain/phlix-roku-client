@@ -2,6 +2,100 @@
 
 ## [Unreleased]
 
+### Fixed — Day-1 onboarding: discover-first connect, honest transport taxonomy, real server switch, truthful boot (M-ROKU-04, CHECK34) — 2026-10-29
+
+- **The symptom (review roku__casualgamer M5).** Getting started meant
+  hunt-and-pecking `http://192.168.1.100:8096` on the on-screen keyboard with
+  no pairing, no code and no alternative; every failure collapsed to one
+  guessed label ("Couldn't reach that server", and at boot the far worse
+  "Connection Error — Unable to reach server. Please check your network."
+  which the boot flow showed to users who were merely NOT LOGGED IN — the
+  server was fine, the session simply did not exist yet, and the real
+  "Session Expired" dialog was unreachable dead text); Settings → Server URL
+  → "Switch" answered `not_implemented` (a shipped dead button); and the
+  whole connect/login error surface bypassed the i18n catalog in hardcoded
+  English.
+- **Pairing cross-read first (server capability, read-only).** phlix-server
+  DOES ship a device-pairing flow — S518 QuickConnect
+  (`src/Server/Http/Controllers/Auth/QuickConnectController.php`, routes at
+  `src/Server/Core/Application.php:556-572`: initiate → {code,secret,
+  expiresIn}; public status poll; AuthMiddleware approve carrying the
+  256-bit SECRET; one-shot token redemption). It is deliberately NOT
+  wired from this channel: `approve` requires the secret, which per design
+  ships only inside a QR the TV must render, and Roku BrightScript has no QR
+  encoder (no bitwise primitives; ~1000-line Reed-Solomon, device-
+  untestable here — forbidden-risk class). phlix-ui has no approval page
+  yet (only the manifest tuples + error cites) and phlix-hub serves no
+  quick-connect routes. A TV showing a code nobody could enter anywhere
+  would be one MORE fake affordance — the exact defect class this item
+  cures. The estate owes a phone-side approver (ui lane follow-up, filed in
+  the fixlog); meanwhile the day-1 typed-input burden is removed the other
+  way round:
+- **Discover-first connect.** New `components/DiscoveryTask.{brs,xml}` —
+  one UDP multicast M-SEARCH to `239.255.255.250:1900` with
+  `ST: urn:schemas-upnp-org:device:MediaServer:1` (wire shape mirrored from
+  the server's own `src/Discovery/Ssdp/SsdpSocket.php:316-321`), a bounded
+  4.2 s scan, and responses accepted only when they name Phlix (USN
+  `uuid:PHLIXSERVER` or SERVER header `Phlix/` — the responder's exact
+  markers, `src/Dlna/SsdpAdvertiser.php`, which is ON by default per
+  `config/dlna.php`). `LOCATION` is reduced to a `scheme://host[:port]`
+  origin via the new Utilities `ExtractServerOrigin` (http(s) only, userinfo
+  rejected). ConnectScene gains a "Find Phlix server on network" button:
+  one hit pre-fills the address box, several open a pick-list, none (or any
+  socket failure) fall back to the manual entry floor with an honest
+  message. The typed URL stays exactly what the review called for it to be:
+  the documented fallback path, not the front door.
+- **The honest taxonomy.** `Utilities.ClassifyUrlFailure` is now the single
+  classifier over `roUrlEvent.GetFailureReason()` — `dns` / `refused` /
+  `tls` / `timeout` / `bad_url` / `unreachable`, six buckets, no guesses.
+  `ApiClient.request()`, `login()` and `probeHealth()` carry the true
+  bucket (the old `started?timeout:connect` heuristic mislabeled every DNS
+  failure as a timeout; probeHealth now reports `{state, code}` instead of
+  collapsing reachable-but-blocked `/health` into "unreachable").
+  `restoreSession()` reports WHY it failed through `m.restoreReason`:
+  `no_session` / `session_invalid` / `server_error` / one of the transport
+  buckets — and a transport blip NO LONGER wipes stored credentials (only
+  a real 401/403 does), so a router reboot does not sign the household
+  out.
+- **Truthful boot routing.** Both boot arms (`OnAuthResponse`,
+  `OnHubAuthResponse`) now share `HandleBootAuthFailure`: not-logged-in
+  lands silently on the login screen (no dialog at all — it is not an
+  error); a dead session gets the "Session Expired" dialog, which is now
+  genuinely reachable; an unreachable server gets a per-cause message and
+  lands on the Connect screen pre-filled with the saved address — the retry
+  surface (find-your-server included), not a stuck dialog, honouring the
+  C03 teardown contract throughout (`Teardown()` un-observes every new
+  observer).
+- **The "Switch" button switches.** Settings → Server URL → Switch confirms
+  into `PhlixApp.OnSwitchServer()`: credentials + session captured BEFORE
+  the surgical wipe (M-ROKU-03 order law), admin flag reset, hub consumer
+  stopped, best-effort server-side session DELETE rides the request, then
+  the Connect screen opens with the discovery floor — the
+  `settings_status_server_switch_not_implemented` key is deleted from all
+  seven catalogs.
+- **Catalog law.** Every connect/login/boot error surface moved THROUGH the
+  catalog: 25 new keys ×7 locales (catalog v1.5.0 — `connect.err_dns`,
+  `login.status_signing_in`, `app.server_problem_message`, …), the
+  token-bearing `login.err_server` consumed via `TranslateWithParams`, XML
+  chrome localized via the `ApplyXmlChrome` pattern CHECK25 requires, and
+  CHECK34 (new leg in `scripts/verify-runtime.sh`) pins the triangle: the
+  classifier's bucket set ↔ the single literal `TranslateTransportReason`
+  ladder ↔ the en_US messages (dead-copy + drift both red; red-on-parent
+  proven: 9 named diagnostics at e7c6087).
+- **Forward-fix on the same path (disclosed).** `tests/scripts/
+  verify-runtime-portable.sh` was ALREADY red on the parent: checks 30-33
+  landed reading `README.md`, `source/main.brs`, `source/lib/Storage.brs`
+  and `tests/fixtures/server-route-manifest.json`, which the CI-layout
+  fixture never staged (FileNotFoundError → exit 1; no CI job runs it, so
+  master carried the red). The stage list now includes them; the full
+  battery — positive run + every planted-red leg — exits 0.
+- **Gates.** `make lint` (bsc, zero errors), `make bslint`, full
+  `scripts/verify-runtime.sh` (34 legs incl the new CHECK34),
+  `make validate-xml`, `make validate-routes` (+ falsifiability self-test),
+  `tests/scripts/verify-runtime-portable.sh`: all exit 0. Discovery is
+  statically verified + device-untested (no Roku here); every socket failure
+  degrades to the pre-existing manual path, never a dead end.
+
 ### Fixed — Hub-mode logout teardown rides the relay base; OnLogout docblock wire-truth (CHECK33 R2) — 2026-10-29
 
 - **The residual.** Review `M-ROKU-03 r1` issue 1 (minor): the entry below

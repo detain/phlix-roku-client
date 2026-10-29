@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.4.4",
+    "version": "1.5.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -84,7 +84,6 @@
     "status_prefs_saved_locally": "Preferenze salvate localmente — sincronizzazione con il server quando disponibile",
     "status_pip_enabled": "Picture-in-Picture attivato",
     "status_pip_disabled": "Picture-in-Picture disattivato",
-    "status_server_switch_not_implemented": "Il cambio server non è ancora disponibile su questo dispositivo",
     "dialog_account_title": "Account",
     "dialog_account_message": "Email: {email}\n\nVuoi disconnetterti?",
     "dialog_server_title": "Server",
@@ -281,12 +280,36 @@
     "anyway": "Connetti comunque",
     "button": "Connetti",
     "server_address": "Indirizzo del server",
-    "title": "Connetti al server"
+    "title": "Connetti al server",
+    "err_empty": "Inserisci un indirizzo del server",
+    "err_invalid": "Inserisci un indirizzo del server valido",
+    "err_dns": "Nome del server non trovato. Controlla l'indirizzo o usa Trova server.",
+    "err_refused": "Il server ha rifiutato la connessione. Phlix è in esecuzione a questo indirizzo?",
+    "err_tls": "Connessione sicura fallita. Controlla l'indirizzo https o il certificato del server.",
+    "err_timeout": "Il server ha impiegato troppo tempo a rispondere. Riprova.",
+    "err_unreachable": "Impossibile raggiungere il server. Controlla l'indirizzo e la rete.",
+    "err_bad_url": "Questo indirizzo non è valido. Inserisci l'URL completa, ad esempio http://192.168.1.100:8096",
+    "err_health_blocked": "Il server ha risposto ma non con uno stato valido. Ricontrolla l'indirizzo o connettiti comunque.",
+    "status_connecting": "Connessione in corso…",
+    "find_button": "Trova server Phlix sulla rete",
+    "find_searching": "Ricerca nella rete…",
+    "find_none": "Nessun server Phlix trovato in questa rete. Inserisci l'indirizzo sopra.",
+    "find_one": "Server trovato. Premi Connetti.",
+    "find_picked": "Premi Connetti."
   },
   "login": {
     "button": "Accedi",
     "password": "Password",
-    "username": "Nome utente"
+    "username": "Nome utente",
+    "err_no_inputs": "Inserisci nome utente e password",
+    "status_signing_in": "Accesso in corso…",
+    "status_loading": "Caricamento server…",
+    "err_bad_credentials": "Nome utente o password non validi.",
+    "err_server": "Errore del server: {detail}",
+    "err_failed": "Accesso non riuscito. Riprova.",
+    "err_servers": "Impossibile caricare i server. Riprova.",
+    "expired_title": "Sessione scaduta",
+    "expired_message": "La tua sessione è scaduta. Accedi di nuovo."
   },
   "serverpicker": {
     "choose": "Scegli un server"
@@ -301,7 +324,8 @@
   },
   "app": {
     "boot_cannot_reach": "Impossibile raggiungere il server",
-    "boot_unable": "Impossibile connettersi dopo numerosi tentativi"
+    "boot_unable": "Impossibile connettersi dopo numerosi tentativi",
+    "server_problem_message": "Il server ha riscontrato un problema nel verificare l'accesso. Accedi di nuovo."
   },
   "favorites": {
     "empty": "Ancora nessun preferito"

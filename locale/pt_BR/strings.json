@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "pt_BR",
     "language_name": "Português (Brasil)",
-    "version": "1.4.4",
+    "version": "1.5.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -84,7 +84,6 @@
     "status_prefs_saved_locally": "Preferências salvas localmente — sincronizando com o servidor quando disponível",
     "status_pip_enabled": "Imagem na imagem ativada",
     "status_pip_disabled": "Imagem na imagem desativada",
-    "status_server_switch_not_implemented": "A troca de servidor ainda não está disponível neste dispositivo",
     "dialog_account_title": "Conta",
     "dialog_account_message": "E-mail: {email}\n\nDeseja sair?",
     "dialog_server_title": "Servidor",
@@ -281,12 +280,36 @@
     "anyway": "Conectar mesmo assim",
     "button": "Conectar",
     "server_address": "Endereço do servidor",
-    "title": "Conectar ao servidor"
+    "title": "Conectar ao servidor",
+    "err_empty": "Digite um endereço de servidor",
+    "err_invalid": "Digite um endereço de servidor válido",
+    "err_dns": "Nome do servidor não encontrado. Verifique o endereço ou use Procurar servidor.",
+    "err_refused": "O servidor recusou a conexão. O Phlix está em execução nesse endereço?",
+    "err_tls": "Falha na conexão segura. Verifique o endereço https ou o certificado do servidor.",
+    "err_timeout": "O servidor demorou demais para responder. Tente novamente.",
+    "err_unreachable": "Não foi possível acessar o servidor. Verifique o endereço e a rede.",
+    "err_bad_url": "Esse endereço não é válido. Inclua a URL completa, por exemplo http://192.168.1.100:8096",
+    "err_health_blocked": "O servidor respondeu, mas não com um status íntegro. Verifique o endereço ou conecte mesmo assim.",
+    "status_connecting": "Conectando…",
+    "find_button": "Procurar servidor Phlix na rede",
+    "find_searching": "Procurando na sua rede…",
+    "find_none": "Nenhum servidor Phlix encontrado nesta rede. Digite o endereço acima.",
+    "find_one": "Servidor encontrado. Pressione Conectar.",
+    "find_picked": "Pressione Conectar."
   },
   "login": {
     "button": "Entrar",
     "password": "Senha",
-    "username": "Nome de usuário"
+    "username": "Nome de usuário",
+    "err_no_inputs": "Digite o usuário e a senha",
+    "status_signing_in": "Entrando…",
+    "status_loading": "Carregando servidores…",
+    "err_bad_credentials": "Usuário ou senha inválidos.",
+    "err_server": "Erro do servidor: {detail}",
+    "err_failed": "Falha ao entrar. Tente novamente.",
+    "err_servers": "Não foi possível carregar os servidores. Tente novamente.",
+    "expired_title": "Sessão expirada",
+    "expired_message": "Sua sessão expirou. Entre novamente."
   },
   "serverpicker": {
     "choose": "Escolha um servidor"
@@ -301,7 +324,8 @@
   },
   "app": {
     "boot_cannot_reach": "Não foi possível acessar o servidor",
-    "boot_unable": "Não foi possível conectar após várias tentativas"
+    "boot_unable": "Não foi possível conectar após várias tentativas",
+    "server_problem_message": "O servidor teve um problema ao verificar seu acesso. Entre novamente."
   },
   "favorites": {
     "empty": "Ainda não há favoritos"
