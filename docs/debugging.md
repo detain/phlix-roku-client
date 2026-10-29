@@ -52,15 +52,19 @@ What a retail user *cannot* do: capture console prints, read a log file, or
 send anything to us. There is **no remote telemetry in this client** — no
 crash-report endpoint, no analytics call, nothing uploaded beyond the API
 requests the feature itself makes. The version header below is the only
-diagnostic the wire carries, and it only reaches the Phlix server the user
-chose to connect to.
+*build-identity* diagnostic the wire carries, and it only reaches the Phlix
+server the user chose to connect to.
 
 ### The server-side half of the story
 
-Every HTTP request this channel issues carries
-`X-Phlix-Client-Version: <roAppInfo.GetVersion()>` alongside the existing
-`X-Phlix-Device-ID/-Name/-Type` and `X-Phlix-Session-ID` headers — all three
-`ApiClient` send sites (`sendRaw`, `sendRawWithDeviceId`, `resolveLocation`).
+Every HTTP request this channel issues through its `ApiClient` transport
+carries `X-Phlix-Client-Version: <roAppInfo.GetVersion()>` alongside the
+existing `X-Phlix-Device-ID/-Name/-Type` and `X-Phlix-Session-ID` headers —
+all three `ApiClient` send sites (`sendRaw`, `sendRawWithDeviceId`,
+`resolveLocation`). Honest scope: the hub relay-token mint
+(`HubCommandTask.MintRelayToken`, a `roUrlTransfer` of its own) and the two
+SyncPlay WS upgrade handshakes (`SyncPlayProtocol.BuildHandshakeRequest` over
+a raw socket) are not yet stamped.
 Adding a header is wire-safe: the server reads headers selectively
 (`$request->getHeader(...)`), so an unrecognized `X-Phlix-*` header is simply
 not consumed — there is no whitelist that strips it, and no new error code or

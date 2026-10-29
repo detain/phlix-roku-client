@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Docs — M-ROKU-11 r2: version-header coverage claims scoped to shipped truth — 2026-10-29
+
+- The r1 review (review roku__devops) held the cure solid but found the
+  docs overclaiming its coverage — the exact defect class this item exists
+  to close. Two sentences scoped in `docs/debugging.md`: the header law now
+  reads every HTTP request the channel issues **through its `ApiClient`
+  transport** carries the stamp, with a rider disclosing that the hub
+  relay-token mint (`HubCommandTask.MintRelayToken`) and the two SyncPlay
+  WS upgrade handshakes (`SyncPlayProtocol.BuildHandshakeRequest`) are not
+  yet stamped; the telemetry sentence is narrowed to the only
+  *build-identity* diagnostic the wire carries (the device-id/name/session
+  headers are listed two lines below). The M11 "Callers traced"
+  parenthetical above is corrected in place per the reviewer's explicit
+  ask. No code and no CHECK 42 change — the script's census prose was
+  already scoped to the three ApiClient sites; re-verified against tip
+  `a84cdb7` (mint POST: Authorization + Content-Type only; WS handshakes:
+  Authorization only). Docs-only: 2 files, zero code lines.
+
 ### Fixed — wire error text type-guarded before render-path string ops (M-ROKU-12) — 2026-10-29
 
 - **The defect (review roku__exploiter M1).** A response body is
@@ -61,7 +79,9 @@
   off); (d) no crash surface at all for a user without dev mode.
 - **Callers traced (both sides).** All three ApiClient send sites
   (`sendRaw`/`sendRawWithDeviceId`/`resolveLocation` — every HTTP the
-  channel makes routes through one of them); the About row's only
+  channel makes through `ApiClient` routes through one of them; the hub
+  relay-token mint and the two SyncPlay WS upgrade handshakes are not yet
+  stamped — scoped by the r2 entry below); the About row's only
   consumer is `SettingsScene.ShowAbout()`; the server was audited
   READ-ONLY for header handling: it reads headers *selectively* via
   `$request->getHeader()` (`X-Phlix-Device-Type`
