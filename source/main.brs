@@ -19,30 +19,21 @@
 ' https://developer.roku.com/docs/developer-program/deep-linking
 
 ' Validate a deep-link contentId before using it in a URL path.
-' contentId is a URL-encoded ASCII string (max 255 chars) from an external
-' partner (Roku Search, ECP curl, etc.). Reject anything suspicious:
-' - missing/invalid
-' - too long (>255 chars)
-' - contains unencoded & (URL delimiter)
-' - contains non-printable or non-ASCII bytes
-' Returns true only when the id is safe to embed in a request path.
+' M-ROKU-13 (review roku__exploiter M2): this is now a thin delegate onto the
+' canonical shape guard IsSafeContentId() (source/lib/Utilities.brs — source
+' scripts share the main-thread scope, and components script-include it). The
+' era's printable-minus-"&" checker let "/ ? = # ." and spaces through into
+' ApiClient's "/media/" + itemId raw concatenation, so an ECP/launch-args
+' attacker could reshape the outbound authenticated path. The allowlist
+' [A-Za-z0-9_-] closes that class at this entry; the play choke
+' (PhlixApp.ProcessDeepLink) re-gates independently.
+' Returns true only when the id is safe to embed in a request path; the value
+' is judged in its trimmed form — ExtractDeepLinkParams forwards the trimmed
+' value so padding can never re-enter.
 ' @param contentId Dynamic - the raw contentId value (may be invalid)
-' @return Boolean - true when the value passes all checks
+' @return Boolean - true when the value passes the canonical shape law
 function ValidateDeepLinkContentId(contentId as Dynamic) as Boolean
-    if contentId = invalid then return false
-    if type(contentId) <> "String" and type(contentId) <> "roString" then return false
-    trimmed = contentId.Trim()
-    if trimmed = "" then return false
-    ' Max 255 chars per Roku spec
-    if trimmed.Len() > 255 then return false
-    ' No unencoded & (URL delimiter) — raw & would break query-string parsing
-    if Instr(1, trimmed, "&") > 0 then return false
-    ' Reject non-printable / non-ASCII (allow only ASCII printable range)
-    for i = 1 to trimmed.Len()
-        c = Asc(Mid(trimmed, i, 1))
-        if c < 32 or c > 126 then return false
-    end for
-    return true
+    return IsSafeContentId(contentId)
 end function
 
 ' Map a Roku mediaType to a routing action.
@@ -92,7 +83,10 @@ function ExtractDeepLinkParams(args as Object) as Object
     action = MapDeepLinkMediaType(mediaType)
     if action = "" then return invalid
 
-    return { contentId: contentId, mediaType: mediaType, action: action }
+    ' M-ROKU-13: forward the TRIMMED id (the guard judges the trimmed form;
+    ' handing downstream code the padded raw value would let whitespace re-enter
+    ' the path concat). A passing id is String-typed, so .Trim() is safe here.
+    return { contentId: contentId.Trim(), mediaType: mediaType, action: action }
 end function
 
 sub main(args as Object)

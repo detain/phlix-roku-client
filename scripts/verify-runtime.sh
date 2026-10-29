@@ -5133,5 +5133,151 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 45: untrusted mediaId is shape-gated before play (M-ROKU-13) ==="
+# Hostile-input law for content ids (review roku__exploiter M2, fix M-ROKU-13).
+# The hub-relay pending_command frames ride a PLAINTEXT socket (hostile hub or
+# LAN injector) and ECP/launch deep-link args are attacker-settable; the era
+# fed their mediaId into ApiClient's "/media/" + itemId raw concatenation with
+# only an invalid/"" check (relay) or a printable-minus-"&" checker (launch),
+# so "x?profile=1" / "x#frag" / "x/../../admin/users" turned the victim's TV
+# into an arbitrary Bearer-authenticated GET engine. Cure: the canonical
+# allowlist guard IsSafeContentId() + ContentIdMaxLen() (source/lib/
+# Utilities.brs), applied at EVERY entry (source/main.brs
+# ValidateDeepLinkContentId delegates; OnPendingHubCommand ignores hostile
+# frames) and at the single play choke (ProcessDeepLink fails visible BEFORE
+# any request is built). CHECK44 (M-ROKU-11 completion) took the previous
+# number; CHECK45 keeps this wiring load-bearing in both directions:
+#   R1  the guard family is live: IsSafeContentId(contentId as Dynamic) as
+#       Boolean over the [A-Za-z0-9_-] allowlist (range + '-'/'_' code
+#       literals — re-fattening to a printable-only sweep reddens), and
+#       ContentIdMaxLen() returns the pinned 255 (cap BEFORE the per-byte
+#       loop).
+#   R2  OnPendingHubCommand guards data.mediaId through IsSafeContentId BEFORE
+#       it calls ProcessDeepLink, and the raw invalid/"" era form is extinct.
+#   R3  ProcessDeepLink gates contentId BEFORE the getItem request is built
+#       (ordering law) and rejects VISIBLE (ShowContentNotFoundDialog) — the
+#       choke cannot be quietly gutted.
+#   R4  ValidateDeepLinkContentId delegates to the canonical guard; the
+#       printable-era loop may not return.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+UTIL = "source/lib/Utilities.brs"
+PA = "components/PhlixApp.brs"
+MAIN = "source/main.brs"
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK45: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(code):
+    out = []
+    for line in code.splitlines():
+        t = line.strip()
+        if t.startswith("'") or t.startswith("Rem") or t.startswith("rem "):
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
+# ---- R1 the canonical guard family is live, allowlist intact -----------
+util = read(UTIL)
+if util is not None:
+    if not re.search(r"function\s+IsSafeContentId\(\s*contentId\s+as\s+Dynamic\s*\)\s*as\s+Boolean", util):
+        problems.append(f"  {UTIL} - CHECK45 R1: IsSafeContentId(contentId as Dynamic) as Boolean is gone")
+    body = re.search(r"function\s+IsSafeContentId\b[\s\S]*?\bend\s+function", util)
+    if body is None:
+        problems.append(f"  {UTIL} - CHECK45 R1: IsSafeContentId body is gone")
+    else:
+        text = body.group(0)
+        if not re.search(r"ContentIdMaxLen\(\)", text):
+            problems.append(f"  {UTIL} - CHECK45 R1: the guard no longer consults the ContentIdMaxLen() cap")
+        for tok, why in (
+            (r"c >= 48 and c <= 57", "lost the 0-9 range"),
+            (r"c >= 65 and c <= 90", "lost the A-Z range"),
+            (r"c >= 97 and c <= 122", "lost the a-z range"),
+            (r"c = 45", "lost the '-' allow"),
+            (r"c = 95", "lost the '_' allow"),
+        ):
+            if not re.search(tok, text):
+                problems.append(f"  {UTIL} - CHECK45 R1: the [A-Za-z0-9_-] allowlist {why} — the guard was re-fattened")
+        if re.search(r"c < 32 or c > 126", text):
+            problems.append(f"  {UTIL} - CHECK45 R1: a printable-only sweep is back inside IsSafeContentId (path bytes / ? # . would re-enter)")
+    if not re.search(r"function\s+ContentIdMaxLen\(\)\s*as\s*Integer[\s\S]{0,80}?\breturn\s+255\b", util):
+        problems.append(f"  {UTIL} - CHECK45 R1: ContentIdMaxLen() cap pin (255) moved or gone")
+
+# ---- R2+R3 relay entry guard + play choke (PhlixApp) --------------------
+pa = read(PA)
+if pa is not None:
+    code = mask(pa)
+
+    body = re.search(r"sub\s+OnPendingHubCommand\b[\s\S]*?\bend\s+sub", code)
+    if body is None:
+        problems.append(f"  {PA} - CHECK45 R2: OnPendingHubCommand is gone")
+    else:
+        text = body.group(0)
+        if re.search(r'data\.mediaId\s*=\s*invalid\b|data\.mediaId\s*=\s*""', text):
+            problems.append(f"  {PA} - CHECK45 R2: the raw `data.mediaId = invalid or = \"\"` era form is back")
+        gi = text.find("IsSafeContentId(data.mediaId)")
+        pi = text.find("ProcessDeepLink()")
+        if gi < 0:
+            problems.append(f"  {PA} - CHECK45 R2: OnPendingHubCommand no longer gates data.mediaId through IsSafeContentId")
+        elif pi >= 0 and gi > pi:
+            problems.append(f"  {PA} - CHECK45 R2: the mediaId guard moved AFTER the ProcessDeepLink() call (ordering law)")
+
+    body = re.search(r"sub\s+ProcessDeepLink\b[\s\S]*?\bend\s+sub", code)
+    if body is None:
+        problems.append(f"  {PA} - CHECK45 R3: ProcessDeepLink is gone")
+    else:
+        text = body.group(0)
+        gi = text.find("IsSafeContentId(contentId)")
+        ri = text.find('op: "getItem"')
+        if gi < 0:
+            problems.append(f"  {PA} - CHECK45 R3: ProcessDeepLink no longer gates contentId through IsSafeContentId (the play choke is gone)")
+        elif ri >= 0 and gi > ri:
+            problems.append(f"  {PA} - CHECK45 R3: the choke moved AFTER the getItem request is built — a rejected id would leave the TV")
+        if "ShowContentNotFoundDialog(" not in text:
+            problems.append(f"  {PA} - CHECK45 R3: the choke no longer fails VISIBLE (ShowContentNotFoundDialog)")
+
+# ---- R4 the launch entry delegates (single canonical source) ------------
+main = read(MAIN)
+if main is not None:
+    code = mask(main)
+    body = re.search(r"function\s+ValidateDeepLinkContentId\b[\s\S]*?\bend\s+function", code)
+    if body is None:
+        problems.append(f"  {MAIN} - CHECK45 R4: ValidateDeepLinkContentId is gone")
+    else:
+        text = body.group(0)
+        if "IsSafeContentId(" not in text:
+            problems.append(f"  {MAIN} - CHECK45 R4: ValidateDeepLinkContentId no longer delegates to the canonical IsSafeContentId")
+        if re.search(r"c < 32 or c > 126", text):
+            problems.append(f"  {MAIN} - CHECK45 R4: the printable-era loop is back (path characters / ? # . would re-enter)")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK45: %d content-id guard site(s) ungated or choke pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK45: content-id allowlist (IsSafeContentId / cap 255) live; the relay entry and")
+print("           the play choke gate mediaId BEFORE any request leaves the TV (reject is")
+print("           visible, ordering pinned); the launch entry delegates to the canonical guard")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
 exit $((VIOLATIONS))

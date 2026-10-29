@@ -637,11 +637,18 @@ sub OnPendingHubCommand(event as Object)
     if m.hubCommandTask = invalid or m.hubCommandTask <> event.GetNode() then return
     data = event.GetData()
     if data = invalid or data.kind <> "pending_command" then return
-    if data.mediaId = invalid or data.mediaId = "" then return
+    ' M-ROKU-13 (review roku__exploiter M2): this mediaId arrives over the
+    ' PLAINTEXT hub-relay socket — a hostile hub or LAN injector can push any
+    ' frame. The era's invalid/"" check let path-shaping values through into
+    ' ProcessDeepLink -> ApiClient "/media/" + itemId. The canonical allowlist
+    ' rejects them at the entry; the play choke re-gates independently.
+    ' Reject posture = ignore (matches this handler's documented law that
+    ' unusable commands are ignored, not dialog-spammed at the viewer).
+    if not IsSafeContentId(data.mediaId) then return
 
     if m.deepLinkFetchTask <> invalid then return
 
-    m.deepLinkParams = { contentId: data.mediaId, action: "play" }
+    m.deepLinkParams = { contentId: data.mediaId.Trim(), action: "play" }
     ProcessDeepLink()
 end sub
 
@@ -782,13 +789,15 @@ sub OnSwitchServer()
 end sub
 
 ' R6.3: Process a validated deep-link intent.
+' M-ROKU-13: validation is enforced HERE, at the single play choke — an id
+' failing the canonical shape law (IsSafeContentId) never reaches the network.
 ' Fetches the item metadata from the server, then routes to the appropriate
 ' scene based on mediaType/action:
 '   "play"  -> DetailScene with auto-play
 '   "series"-> DetailScene with smart-bookmark episode selection + auto-play
 '   "season"-> SeasonScene (episode picker)
-' If the item is not found (404) or fetch fails, shows a content-not-found
-' dialog (R3.1) and returns to the home screen.
+' If the id is malformed, the item is not found (404), or the fetch fails,
+' shows a content-not-found/error dialog (R3.1) and returns to the home screen.
 '
 ' Uses ApiTask (m.deepLinkFetchTask) to fetch item metadata off the render thread.
 ' Navigation is driven by the response callback OnDeepLinkItemResponse.
@@ -798,12 +807,23 @@ sub ProcessDeepLink()
     contentId = m.deepLinkParams.contentId
     action = m.deepLinkParams.action
 
-    print "Processing deep link: contentId=" contentId " action=" action
-
-    if contentId = invalid or contentId = "" then
-        ShowDeepLinkError()
+    ' M-ROKU-13 (review roku__exploiter M2): THE play choke. Every route to
+    ' playback - cold launch, warm roInput, login-stashed JSON, and the
+    ' plaintext hub-relay pending_command - funnels through here into
+    ' ApiClient's "/media/" + itemId raw concatenation. The id is judged by
+    ' the canonical allowlist BEFORE any request is built, and the trimmed
+    ' form is what leaves the TV: a shape-rejected id can never exist in the
+    ' server's catalog (ids are UUIDs), so it fails VISIBLE (R3.1 content-not-
+    ' found dialog) without ever issuing an attacker-shaped authenticated GET.
+    safeId = invalid
+    if IsSafeContentId(contentId) then safeId = contentId.Trim()
+    if safeId = invalid then
+        print "Deep link contentId rejected by shape law (M-ROKU-13)"
+        ShowContentNotFoundDialog()
         return
     end if
+
+    print "Processing deep link: contentId=" safeId " action=" action
 
     ' Use the library manager to fetch the item metadata.
     ' R6.3: We need to get the item to validate it exists and get its details
@@ -820,7 +840,7 @@ sub ProcessDeepLink()
     ' For now, treat series like play — the DetailScene will show the series
     ' overview; the user can navigate to episodes from there.
     ' TODO: smart-bookmark logic for series to auto-select next unwatched episode
-    m.deepLinkFetchTask.request = { op: "getItem", itemId: contentId }
+    m.deepLinkFetchTask.request = { op: "getItem", itemId: safeId }
     m.deepLinkFetchTask.control = "run"
 end sub
 

@@ -2,6 +2,59 @@
 
 ## [Unreleased]
 
+### Fixed — untrusted mediaId shape-gated before play (M-ROKU-13) — 2026-10-29
+
+- **The defect (review roku__exploiter M2).** The hub relay's
+  `pending_command` frames ride a PLAINTEXT socket (`HubCommandTask` —
+  `roStreamSocket`, no TLS), and ECP/launch deep-link args are
+  attacker-settable; the play machinery consumed their `mediaId` with only an
+  `invalid`/`""` check on the relay path and a printable-minus-`&` checker on
+  the launch path. Both shapes survived into `ApiClient`'s
+  `"/media/" + itemId` raw concatenation, so `x?profile=1`, `x#frag` or
+  `x/../../admin/users` turned the victim's signed-in TV into an arbitrary
+  Bearer-authenticated GET engine (LAN injector or hostile relay; the warm
+  path additionally force-closed the active player, PhlixApp's
+  `HandleWarmDeepLink`). `ValidateDeepLinkContentId` let `/ ? = # . :`
+  through, and the relay path skipped even that.
+- **The cure (one canonical guard, two gates + one delegate).**
+  `IsSafeContentId(contentId as Dynamic)` (source/lib/Utilities.brs):
+  `type()` must be String/roString — hostile JSON shapes (number, AA, list)
+  are contract violations and return false, never stringified; the value is
+  judged in its trimmed form; the length cap `ContentIdMaxLen()` (255,
+  gate-pinned literal) runs BEFORE the per-byte loop; the loop allows exactly
+  `[A-Za-z0-9_-]` (server item ids are CHAR(36) UUIDs — nothing legitimate
+  needs a rejected byte, so the policy is a pure allowlist, no escaping).
+  Applied at every entry: `OnPendingHubCommand` ignores relay frames whose
+  `mediaId` fails the shape (matching that handler's documented ignore
+  posture), `ValidateDeepLinkContentId` delegates to it (the era's printable
+  loop is deleted; `ExtractDeepLinkParams` now forwards the trimmed value),
+  and the single play choke `ProcessDeepLink` gates the id BEFORE any
+  `getItem` request is built — a rejected id fails VISIBLE (the R3.1
+  content-not-found dialog, since a shape-rejected id can never exist in the
+  catalog) and never leaves the TV. The six play call sites (cold launch,
+  warm x2, login-stashed restore, boot arms, relay) all funnel through the
+  choke; `HandleWarmDeepLink`'s player teardown now runs only on
+  entry-validated ids.
+- **The gates.** CHECK45 (scripts/verify-runtime.sh): R1 pins the guard
+  family live (signature, the [A-Za-z0-9_-] range literals + `-`/`_` codes —
+  a printable-only re-fatten reddens — and the 255 cap literal); R2 pins the
+  relay handler's guard before its `ProcessDeepLink()` call and extinct the
+  era `invalid or = ""` form (comment-masked, ordering-pinned); R3 pins the
+  choke gate before the request assignment and the visible reject; R4 pins
+  the launch delegation. tests/unit/ContentIdGuard.test.brs pins the guard
+  contract on-device (ROKU_HOST) with the review's exact hostile shapes —
+  path traversal, `?`/`#`/`&`/`=`/`%`/space/`:`, control and high bytes,
+  non-String wire values, trim-for-judgment, and the cap boundaries. The
+  portable harness carries a two-arm plant-and-restore leg (re-planting the
+  era relay form fires R2; re-fattening the launch validator fires R4;
+  CHECK43/CHECK44 stay green through both; restore returns exit 0).
+- **Deliberately out of scope (reported, not silently expanded).** The
+  malicious-SERVER echo class — a hostile server's own `item.id` re-entering
+  path interpolations across `ApiClient` (`/media/{id}`, playback-info,
+  transcode, and the letter/`parentId` query families) — is the review's
+  wider fix-direction tail; it rides a separate queue scope, and the server
+  still enforces auth on every route it can reach.
+
 ### Fixed — M-ROKU-11 completion: version disclosure on the WebSocket/relay
 dials + type-guarded wire error lifts (takeover lane) — 2026-10-29
 

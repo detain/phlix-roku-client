@@ -1002,6 +1002,69 @@ function GetErrorMessage(apiError as Object) as String
     return "An error occurred. Please try again."
 end function
 
+' ===========================================
+' M-ROKU-13 (review roku__exploiter M2): CANONICAL CONTENT-ID SHAPE GUARD
+'
+' A mediaId reaching the play machinery is UNTRUSTED input: it arrives from a
+' hub-relay WS frame over a PLAINTEXT socket (components/HubCommandTask.brs —
+' roStreamSocket carries no TLS, so a hostile hub OR any LAN injector can push
+' {type:"pending_command",command:"play_media",media_id:"..."}) and from ECP /
+' Roku-Search deep-link launch args (source/main.brs). Before this guard the
+' relay path checked only invalid/"" and the deep-link path only rejected "&"
+' plus non-printables — so "/ ? = # ." and spaces survived into ApiClient's
+' "/media/" + itemId raw concatenation: the TV then issues the victim's
+' Bearer-authenticated request against an attacker-shaped path.
+'
+' LAW: every contentId/mediaId that may reach a path interpolation, a fetch,
+' or Play MUST pass IsSafeContentId() at its entry and at the play choke
+' (components/PhlixApp.brs ProcessDeepLink). The server's own ids are UUIDs
+' (CHAR(36)); nothing legitimate needs the rejected bytes, so the policy is a
+' pure allowlist — no escaping, no encoding guesses. This mirrors the estate
+' parse-don't-validate posture and the M-ROKU-12 guard-family idiom.
+' ===========================================
+
+' Length cap for a content id (CHECK45 pins the literal). Roku's deep-link
+' contract allows up to 255 chars; the length gate runs BEFORE the per-byte
+' allowlist loop so a megabyte hostile string cannot cost megabyte iterations.
+function ContentIdMaxLen() as Integer
+    return 255
+end function
+
+' The canonical content-id guard. Returns true only when contentId is a
+' String whose TRIMMED form is 1..ContentIdMaxLen() bytes of [A-Za-z0-9_-] —
+' exactly the character space server item ids (UUIDs) and every catalogued
+' partner id occupy. '/' '?' '#' '&' '=' '%' space ':' and all control/high
+' bytes are rejected, so a passing value is safe to embed in a URL path
+' segment verbatim.
+' CONTRACT: the value is validated in its trimmed form; call sites must use
+' the Trim()-ed value for any request built from a passing id (the play choke
+' does). A non-String (hostile JSON shape: number, AA, list) is a contract
+' violation and returns false — never stringified.
+' @param contentId Dynamic - the raw id from a WS frame or launch arg
+' @return Boolean - true only when the id is safe for a path segment
+function IsSafeContentId(contentId as Dynamic) as Boolean
+    if contentId = invalid then return false
+    t = type(contentId)
+    if t <> "roString" and t <> "String" then return false
+
+    trimmed = contentId.Trim()
+    if trimmed = "" then return false
+
+    maxLen = ContentIdMaxLen()
+    if Len(trimmed) > maxLen then return false
+
+    for i = 1 to Len(trimmed)
+        c = Asc(Mid(trimmed, i, 1))
+        ' [0-9A-Za-z_-] only: 45 '-', 48-57 '0'-'9', 65-90 'A'-'Z',
+        ' 95 '_', 97-122 'a'-'z'. Anything else (incl. every URL delimiter)
+        ' fails the shape law. (Single line: BrightScript has no `_`
+        ' continuation operator — bsc parses it as an identifier.)
+        ok = (c >= 48 and c <= 57) or (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or c = 45 or c = 95
+        if not ok then return false
+    end for
+    return true
+end function
+
 ' True when the user assocarray is flagged admin. is_admin arrives from JSON as a
 ' TINYINT Integer (1/0) but may be a Boolean; both coerce via Int() (Int(true)=1,
 ' Int(false)=0). Only Int()-coerce numeric/boolean types — Int() on a String can
