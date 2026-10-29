@@ -198,6 +198,11 @@ sub OnApiResponse(event as Object)
             prefStr = prefStr + TranslateWithParams("settings_autoplay_label", { state: autoplayValue })
             m.statusLabel.text = prefStr
         else
+            ' M-ROKU-11: the reason roApiTask classified used to be dropped on
+            ' the floor here (the status line is a fixed sentence). Record it
+            ' on the render-thread diagnostics ring so Settings -> About can
+            ' show what actually failed.
+            RecordDiagnosticsError("settingsPrefs", "reason=" + DiagnosticText(resp.error))
             m.statusLabel.text = Translate("settings_status_unable_to_load_preferences")
         end if
     else if resp.op = "clearWatchHistory" then
@@ -206,6 +211,7 @@ sub OnApiResponse(event as Object)
         if resp.ok then
             m.statusLabel.text = Translate("settings_status_history_cleared")
         else
+            RecordDiagnosticsError("settingsHistory", "reason=" + IIF(resp.error <> invalid and resp.error <> "", resp.error, "unknown"))
             m.statusLabel.text = Translate("settings_status_history_clear_failed")
         end if
     end if
@@ -350,7 +356,14 @@ sub ToggleEmailNotifications()
 end sub
 
 sub ShowAbout()
-    version = "1.0.1"
+    ' M-ROKU-11: the version used to be a hardcoded "1.0.1" literal, so every
+    ' build since R6.1 reported a number unrelated to what was installed. It
+    ' now reads roAppInfo.GetVersion() (the stamped manifest major.minor.build
+    ' via ChannelInfo in AppContext.brs) - the SAME source the
+    ' X-Phlix-Client-Version header carries, so screen and wire can never
+    ' disagree, and neither can ever drift from package.json.
+    version = GetChannelVersion()
+    channel = ChannelInfo()
     deviceModel = GetDeviceModel()
     deviceId = GetStorage().get("device_id")
     videoMode = GetDeviceVideoMode()
@@ -358,16 +371,67 @@ sub ShowAbout()
 
     ' The about_* catalog values already carry their label colon and the
     ' {token} ("Version: {version}"), so the code must append NOTHING but the
-    ' line break - the old `+ ": " + value` shape rendered
-    ' "Version: {version}: 1.0.1": literal braces plus a doubled colon.
-    ' video_mode/total_memory are colon-free label keys, so they keep ": ".
+    ' line break - the old `+ ": " + value` shape rendered literal braces
+    ' plus a doubled colon. video_mode/total_memory are colon-free label
+    ' keys, so they keep ": ".
+    '
+    ' RENDER SURFACE (M-ROKU-11): the status bar Label is height 40 with wrap
+    ' unset - per the vendored LabelBase typing, width/height bound a single
+    ' clipped line, so the old five-line Chr(10) block could never actually be
+    ' read there. The headline stays in the status bar; the full block goes to
+    ' detailLabel (width 400, height 540, wrap=true, vertAlign=top), which is
+    ' the screen's existing multi-line surface. Focusing another row restores
+    ' that row's description - the panel's normal semantics.
+    m.statusLabel.text = TranslateWithParams("settings_about_version", { version: version })
+
     info = TranslateWithParams("settings_about_version", { version: version }) + Chr(10)
     info = info + TranslateWithParams("settings_about_device_model", { model: deviceModel }) + Chr(10)
     info = info + TranslateWithParams("settings_about_device_id", { id: IIF(deviceId <> invalid, deviceId, Translate("settings_about_device_id_unknown")) }) + Chr(10)
+    info = info + TranslateWithParams("settings_about_channel_id", { id: channel.channelId }) + Chr(10)
+    info = info + TranslateWithParams("settings_about_os_version", { version: GetOSVersionString() }) + Chr(10)
     info = info + Translate("settings_about_video_mode") + ": " + videoMode + Chr(10)
     info = info + Translate("settings_about_total_memory") + ": " + str(totalMemoryMB).trim() + " MB"
 
-    m.statusLabel.text = info
+    ' Crash surface (Roku's own mechanism, nothing invented): the OS-side
+    ' record of why the PREVIOUS run ended. invalid on OS < 13.0 or when the
+    ' firmware recorded nothing. console_log is NOT part of this - it only
+    ' exists for run_as_process=1 channels and Phlix is not one (docs/
+    ' debugging.md carries the honest story).
+    info = info + Chr(10) + Translate("settings_about_crash_heading")
+    exitInfo = GetLastExitInfo()
+    if exitInfo <> invalid and exitInfo.DoesExist("exit_code") then
+        info = info + Chr(10) + TranslateWithParams("settings_about_last_exit", {
+            code: DiagnosticText(exitInfo.exit_code)
+            timestamp: DiagnosticText(exitInfo.timestamp)
+        })
+    else
+        info = info + Chr(10) + Translate("settings_about_last_exit_none")
+    end if
+
+    ' Last-N errors recorded on this run's render thread (empty right after a
+    ' fresh launch by design - the ring is memory, not a log file; the
+    ' cross-run story is the exit record above).
+    info = info + Chr(10) + Translate("settings_about_recent_errors")
+    ring = GetDiagnosticsRing()
+    if ring.Count() = 0 then
+        info = info + Chr(10) + Translate("settings_about_no_errors")
+    else
+        shown = ring.Count()
+        cap = DiagnosticsShownCount()
+        if shown > cap then shown = cap
+        start = ring.Count() - shown
+        for n = start to ring.Count() - 1
+            entry = ring[n]
+            info = info + Chr(10) + TranslateWithParams("settings_about_error_entry", {
+                index: DiagnosticText(entry.seq)
+                kind: DiagnosticText(entry.kind)
+                detail: DiagnosticText(entry.detail)
+                elapsed: DiagnosticText(entry.elapsedSec)
+            })
+        end for
+    end if
+
+    m.detailLabel.text = info
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean

@@ -387,6 +387,16 @@ sub HandleBootAuthFailure(result as Object)
     reason = ""
     if result <> invalid and result.error <> invalid and result.error <> "" then reason = result.error
 
+    ' M-ROKU-11: this is a render-thread chokepoint for every boot failure
+    ' (direct and hub mode both land here), so it is one of the two legal
+    ' diagnostics push sites. The ring is thread-local (see AppContext.brs);
+    ' the About screen reads it from the same thread.
+    if reason = "" then
+        RecordDiagnosticsError("bootAuth", "reason=unknown")
+    else
+        RecordDiagnosticsError("bootAuth", "reason=" + reason)
+    end if
+
     if reason = "no_session" then
         ShowLogin()
         return

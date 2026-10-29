@@ -304,6 +304,216 @@ function GetDeviceDiagnostics() as String
 end function
 
 ' ===========================================
+' M-ROKU-11: CHANNEL IDENTITY + LOCAL DIAGNOSTICS
+' A retail user previously had no way to tell anyone WHAT was running or
+' WHAT went wrong: no version left the device on the wire, the About screen
+' showed a hardcoded string, and the only log story was a dev-mode telnet.
+' This family closes all three with Roku's own mechanisms:
+'   - identity comes from ifappinfo (roAppInfo) - firmware, not a literal;
+'   - crash info comes from ifappmanager.GetLastExitInfo() - the OS-side
+'     last-exit record, readable from the NEXT run (OS 13.0+);
+'   - the error ring is honest UI-thread-local memory (no remote telemetry
+'     endpoint is invented or called - there is nothing to call).
+' Surface law (CHECK37): every call below is vendored in
+' node_modules/brighterscript/dist/roku-types/data.json - ifappinfo
+' GetVersion/GetID, ifdeviceinfo GetOSVersion, ifappmanager
+' GetLastExitInfo/GetUptime (roTimespan TotalMilliseconds). Firmware
+' availability is gated on GetOSVersion().major >= 13 via Val(), NOT on
+' DoesExist() (roAppManager does not implement ifAssociativeArray, so
+' component .DoesExist() is not a clean probe there).
+' ===========================================
+
+' Factory function for channel identity - returns cached singleton (Storage/
+' DeviceInfoData function-object-cache pattern). Only the two fields this
+' client actually consumes are carried (About screen + the wire header);
+' roAppInfo.GetTitle()/GetValue() stay unread rather than cached dead.
+' Docs: https://developer.roku.com/docs/references/brightscript/interfaces/ifappinfo.md
+' GetVersion() returns the conglomerate manifest version "major.minor.build";
+' make package stamps those fields from package.json via derive-version.sh,
+' so the value tracks the release chain (CHECK41 R3) with no client literal.
+' @return Object - {version, channelId} (Strings, never invalid)
+function ChannelInfo() as Object
+    if ChannelInfo._cache <> invalid then return ChannelInfo._cache
+
+    appInfo = CreateObject("roAppInfo")
+    version = appInfo.GetVersion()
+    channelId = appInfo.GetID()
+
+    ' Explicit branches, not IIF(): the firmware has a global IIF but this
+    ' project's linter does not resolve it outside the one component that
+    ' declares a local String-only copy (components/SettingsScene.brs), so
+    ' source/lib code must not reach for it.
+    if version = invalid then version = "unknown"
+    if channelId = invalid then channelId = "unknown"
+
+    ChannelInfo._cache = {
+        version: version
+        channelId: channelId
+    }
+    return ChannelInfo._cache
+end function
+
+' The channel version reported to the server on every request
+' (X-Phlix-Client-Version, ApiClient) and on the About screen - ONE source.
+' @return String - e.g. "1.0.1"
+function GetChannelVersion() as String
+    return ChannelInfo().version
+end function
+
+' Cached Roku OS version (ifdeviceinfo.GetOSVersion). Docs (live 2026-10-29,
+' https://developer.roku.com/dev/docs/ifdeviceinfo#getosversion-as-object):
+' returns an roAssociativeArray whose major / minor / revision / build values
+' are STRINGS — never compare them numerically without Val().
+' @return Object - {major, minor, revision, build} (Strings; empty when absent)
+function DeviceOSVersion() as Object
+    if DeviceOSVersion._cache <> invalid then return DeviceOSVersion._cache
+    aa = CreateObject("roDeviceInfo").GetOSVersion()
+    if aa = invalid then aa = {}
+    DeviceOSVersion._cache = aa
+    return DeviceOSVersion._cache
+end function
+
+' Human-readable OS stamp, all four firmware fields, uninterpreted.
+' @return String - e.g. "13.4.6 (4127)"
+function GetOSVersionString() as String
+    v = DeviceOSVersion()
+    return DiagnosticText(v.major) + "." + DiagnosticText(v.minor) + "." + DiagnosticText(v.revision) + " (" + DiagnosticText(v.build) + ")"
+end function
+
+' The major OS number for firmware gating (GetOSVersion().major is a String).
+' @return Integer - 0 when the firmware gave nothing usable
+function GetOSMajorVersion() as Integer
+    major = DeviceOSVersion().major
+    if major = invalid then return 0
+    return Val(major)
+end function
+
+' String-safe rendering of any firmware scalar for the {token} substitution
+' path (ApplyNamedTokens works on Strings; GetLastExitInfo mixes String and
+' Integer values across firmware versions, so nothing is assumed). An empty
+' string reads as "unknown" too: on a diagnostics surface a blank tells the
+' reader nothing about whether the field existed.
+' @param value Object|invalid - firmware value
+' @return String - printable text, "unknown" when nothing usable
+function DiagnosticText(value as Object) as String
+    if value = invalid then return "unknown"
+    t = type(value)
+    if t = "String" or t = "roString" then
+        if value = "" then return "unknown"
+        return value
+    end if
+    if t = "Integer" or t = "roInteger" or t = "LongInteger" or t = "roLongInt" then
+        return Str(value).trim()
+    end if
+    return "unknown"
+end function
+
+' The OS-side record of why the PREVIOUS run ended.
+' Docs: https://developer.roku.com/dev/docs/ifappmanager (live 2026-10-29) -
+' GetLastExitInfo() exists since Roku OS 13.0 and returns invalid when no
+' exits were recorded. Keys: timestamp (ISO 8601), exit_code (memory-related
+' values include EXIT_CHANNEL_MEM_LIMIT_FG/BG, EXIT_OUT_OF_MEMORY,
+' EXIT_AM_LOWRESOURCE, EXIT_SYSTEM_KILL; EXIT_UNKNOWN otherwise), mem_limit
+' (only on MEM_LIMIT codes), app_state, media_player_state, and console_log -
+' the LAST 20 console lines - which only exists when the manifest sets
+' run_as_process=1. This manifest does NOT set it, so console_log is absent
+' on Phlix and the docs say so instead of pretending otherwise.
+' @return Object|invalid - the raw exit record, invalid when unavailable
+function GetLastExitInfo() as Object
+    if GetOSMajorVersion() < 13 then return invalid
+    info = CreateObject("roAppManager").GetLastExitInfo()
+    if info = invalid then return invalid
+    if info.DoesExist("timestamp") then
+        print "Last exit info: code=" info.exit_code " timestamp=" info.timestamp
+    end if
+    return info
+end function
+
+' ---------------------------------------------------------------------
+' Last-N error ring (M-ROKU-11 "crash surface", honest scope)
+'
+' THREAD-LOCALITY LAW: BrightScript function-object properties (the
+' RecordDiagnosticsError.* cache below) are per-thread state. RSG tasks
+' (ApiTask & friends) run on their OWN threads, so a push from inside
+' ApiClient would never be visible to the render thread that reads the
+' About screen. The ring is therefore pushed ONLY at render-thread
+' chokepoints (PhlixApp.HandleBootAuthFailure, SettingsScene.OnApiResponse
+' failure arms); apiError is reserved for a future render-thread wrapper
+' that already holds a classified reason.
+' Cross-run visibility does NOT depend on this ring: the OS-side
+' GetLastExitInfo() above records the run that already died.
+' ---------------------------------------------------------------------
+
+' Ring capacity - CHECK42 pins this literal.
+function DiagnosticsRingSize() as Integer
+    return 12
+end function
+
+' How many ring entries the About screen renders (oldest of those shown is
+' dropped first). CHECK42 pins this literal so the doc and the code rotate
+' together.
+function DiagnosticsShownCount() as Integer
+    return 5
+end function
+
+' Milliseconds since THIS run started. ifappmanager.GetUptime() does NOT
+' return device uptime: the vendored typing (roku-types data.json) says it
+' returns an roTimespan marked when the channel was launched, so
+' TotalMilliseconds() is time since app start — exactly the ordering hint
+' the ring wants. Docs:
+' https://developer.roku.com/docs/references/brightscript/interfaces/ifappmanager.md
+' https://developer.roku.com/docs/references/brightscript/interfaces/iftimespan.md
+' @return LongInteger - elapsed milliseconds (0 when firmware gave nothing)
+function GetRunElapsedMs() as LongInteger
+    span = CreateObject("roAppManager").GetUptime()
+    if span = invalid then return 0
+    return span.TotalMilliseconds()
+end function
+
+' Append one failure verdict to the UI-thread ring, trimming to the last N.
+' @param kind String - "bootAuth" | "settingsPrefs" | "settingsHistory" | "apiError"
+' @param detail String - short technical context (path + reason)
+sub RecordDiagnosticsError(kind as String, detail as String)
+    ring = RecordDiagnosticsError._ring
+    if ring = invalid then
+        ring = []
+        RecordDiagnosticsError._ring = ring
+    end if
+    seq = RecordDiagnosticsError._seq
+    if seq = invalid then seq = 0
+    seq = seq + 1
+    RecordDiagnosticsError._seq = seq
+
+    ring.Push({
+        seq: seq
+        kind: kind
+        detail: detail
+        elapsedSec: Int(GetRunElapsedMs() / 1000)
+    })
+    while ring.Count() > DiagnosticsRingSize()
+        ring.Delete(0)
+    end while
+end sub
+
+' Read-only copy of the ring, oldest first.
+' @return Object - Array of {seq, kind, detail, elapsedSec}
+function GetDiagnosticsRing() as Object
+    ring = RecordDiagnosticsError._ring
+    if ring = invalid then return []
+    copy = []
+    for each entry in ring
+        copy.Push(entry)
+    end for
+    return copy
+end function
+
+' Empty the ring (support flow: clear, reproduce, read).
+sub ClearDiagnosticsRing()
+    RecordDiagnosticsError._ring = invalid
+    RecordDiagnosticsError._seq = invalid
+end sub
+
+' ===========================================
 ' R7.12: i18n Initialization
 ' Loads locale strings from the bundled strings.json on app startup.
 ' Called from PhlixApp.Init after device capabilities are initialized.

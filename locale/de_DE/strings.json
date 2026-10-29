@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -111,7 +111,15 @@
     "autoplay_on": "Ein",
     "autoplay_off": "Aus",
     "caption_mode_label": "Untertitelmodus: {mode}",
-    "caption_mode_set_to": "Untertitelmodus geändert auf: {mode}"
+    "caption_mode_set_to": "Untertitelmodus geändert auf: {mode}",
+    "about_channel_id": "Kanal-ID: {id}",
+    "about_os_version": "Roku OS: {version}",
+    "about_crash_heading": "Letzter Durchlauf:",
+    "about_last_exit": "Beendigungscode: {code} am {timestamp}",
+    "about_last_exit_none": "Keine ungewöhnliche Beendigung aufgezeichnet",
+    "about_recent_errors": "Letzte Fehler:",
+    "about_no_errors": "Keine in dieser Sitzung",
+    "about_error_entry": "{index}. {kind} (+{elapsed}s): {detail}"
   },
   "detail": {
     "favorite_add": "Zu Favoriten hinzufügen",

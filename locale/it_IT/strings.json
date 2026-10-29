@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -111,7 +111,15 @@
     "autoplay_on": "Attiva",
     "autoplay_off": "Disattiva",
     "caption_mode_label": "Modalità sottotitoli: {mode}",
-    "caption_mode_set_to": "Modalità sottotitoli impostata su: {mode}"
+    "caption_mode_set_to": "Modalità sottotitoli impostata su: {mode}",
+    "about_channel_id": "ID canale: {id}",
+    "about_os_version": "Roku OS: {version}",
+    "about_crash_heading": "Esecuzione precedente:",
+    "about_last_exit": "Codice di uscita: {code} alle {timestamp}",
+    "about_last_exit_none": "Nessuna uscita anomala registrata",
+    "about_recent_errors": "Errori recenti:",
+    "about_no_errors": "Nessuno in questa sessione",
+    "about_error_entry": "{index}. {kind} (+{elapsed}s): {detail}"
   },
   "detail": {
     "favorite_add": "Aggiungi ai preferiti",

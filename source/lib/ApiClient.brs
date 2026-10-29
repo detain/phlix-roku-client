@@ -93,6 +93,10 @@ function ApiClient(baseUrl as String) as Object
         deviceId: ""
         deviceName: "Roku"
         deviceType: "roku"
+        ' M-ROKU-11: declared shape; the factory tail overwrites it with
+        ' roAppInfo.GetVersion() (stamped manifest version). Never a literal
+        ' release number - CHECK42 bans that.
+        clientVersion: "unknown"
         user: invalid
         ' M-ROKU-04: outcome of the last restoreSession() call - one of
         ' authenticated | no_session | session_invalid | server_error |
@@ -227,6 +231,11 @@ function ApiClient(baseUrl as String) as Object
             http.AddHeader("X-Phlix-Device-ID", m.deviceId)
             http.AddHeader("X-Phlix-Device-Name", m.deviceName)
             http.AddHeader("X-Phlix-Device-Type", m.deviceType)
+            ' M-ROKU-11: channel version (roAppInfo.GetVersion(), i.e. the
+            ' stamped manifest major.minor.build) so support can see WHICH
+            ' build a retail device runs. Header additivity is wire-safe;
+            ' zero new wire codes. CHECK42 pins all three send sites.
+            http.AddHeader("X-Phlix-Client-Version", m.clientVersion)
 
             if m.token <> "" then
                 http.AddHeader("Authorization", "Bearer " + m.token)
@@ -430,6 +439,7 @@ function ApiClient(baseUrl as String) as Object
             http.AddHeader("X-Phlix-Device-Name", m.deviceName)
             http.AddHeader("X-Phlix-Device-Type", m.deviceType)
             http.AddHeader("X-Device-Id", m.deviceId)
+            http.AddHeader("X-Phlix-Client-Version", m.clientVersion)
 
             if Left(url, 6) = "https:" then
                 http.SetCertificatesFile("common:/certs/ca-bundle.crt")
@@ -1125,6 +1135,7 @@ function ApiClient(baseUrl as String) as Object
             http.AddHeader("X-Phlix-Device-ID", m.deviceId)
             http.AddHeader("X-Phlix-Device-Name", m.deviceName)
             http.AddHeader("X-Phlix-Device-Type", m.deviceType)
+            http.AddHeader("X-Phlix-Client-Version", m.clientVersion)
             if m.token <> "" then http.AddHeader("Authorization", "Bearer " + m.token)
             if m.sessionId <> "" then http.AddHeader("X-Phlix-Session-ID", m.sessionId)
 
@@ -1523,6 +1534,11 @@ function ApiClient(baseUrl as String) as Object
 
     ' Use real device name from firmware (e.g., "Roku 2 XD", "Roku Ultra")
     obj.deviceName = deviceInfo.GetModelDisplayName()
+
+    ' M-ROKU-11: channel identity is firmware-derived (roAppInfo via
+    ' ChannelInfo() in AppContext.brs) — never a client-side literal. The
+    ' three sendRaw sites stamp it as X-Phlix-Client-Version.
+    obj.clientVersion = GetChannelVersion()
 
     return obj
 end function

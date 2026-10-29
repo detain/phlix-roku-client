@@ -4480,4 +4480,318 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 42: channel version headers + the local diagnostics surface are wired, not claimed (M-ROKU-11) ==="
+# A retail user could not tell anyone what was running or what went wrong: no
+# version left the device, Settings -> About rendered a hardcoded "1.0.1", the
+# only crash story was a dev-mode telnet, and docs/debugging.md described that
+# telnet with claims the platform does not support (review roku__devops M4).
+# The cure added X-Phlix-Client-Version to every ApiClient send site (value
+# from roAppInfo.GetVersion(), never a literal), made the About screen read
+# real firmware identity, gave it an OS-side crash record
+# (ifappmanager.GetLastExitInfo, Roku OS 13.0+) plus a render-thread last-N
+# error ring, and moved the multi-line block onto the Label that can actually
+# wrap. Rules keep every one of those claims load-bearing IN BOTH DIRECTIONS:
+#   R1 SEND-SITE LAW: all three ApiClient send sites (sendRaw,
+#      sendRawWithDeviceId, resolveLocation) carry
+#      AddHeader("X-Phlix-Client-Version", m.clientVersion) in CODE (comments
+#      masked), and the factory stamps obj.clientVersion from the single
+#      firmware source. A fourth send site added later must be listed here.
+#   R2 NO VERSION LITERAL: no version-shaped string literal is assigned or
+#      sent anywhere in source/ + components/, and the header value is never a
+#      literal - the About lie (version = "1.0.1") may not return, in code or
+#      in the wire header.
+#   R3 SINGLE SOURCE: GetChannelVersion() -> ChannelInfo() ->
+#      CreateObject("roAppInfo").GetVersion() is the one path, defined in
+#      source/lib/AppContext.brs, and the About screen reads the version
+#      through GetChannelVersion() so screen and wire cannot disagree.
+#   R4 RING WIRED: the ring exists with its pinned capacities (12 kept, 5
+#      shown), trims through DiagnosticsRingSize(), and is fed from BOTH legal
+#      render-thread sites (PhlixApp.HandleBootAuthFailure,
+#      SettingsScene.OnApiResponse failure arms) and read by the About screen.
+#   R5 CRASH RECORD HONESTY: GetLastExitInfo() is firmware-gated with Val() on
+#      the STRING GetOSVersion().major (>= 13, per
+#      https://developer.roku.com/dev/docs/ifappmanager live 2026-10-29), and
+#      the docs state the console_log limitation - that field only exists for
+#      run_as_process=1 channels, which this manifest is NOT (pinned from both
+#      sides: manifest has no run_as_process, docs say so).
+#   R6 READABLE SURFACE: the multi-line block lands on detailLabel (which is
+#      wrap="true" and 540 tall in SettingsScene.xml); the single-line status
+#      bar keeps exactly the headline. Writing a Chr(10) block to statusLabel
+#      is the theater this leg kills.
+#   R7 CATALOG BINDING: every new About/diagnostics key exists in en_US and is
+#      consumed in components/SettingsScene.brs (dead copy red).
+#   R8 NOTHING LEAVES THE DEVICE: the diagnostics family opens no socket and
+#      issues no request - there is no invented telemetry endpoint, so the
+#      family files must contain no roUrlTransfer/AsyncPostFromString/SetUrl.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+AC = "source/lib/ApiClient.brs"
+CTX = "source/lib/AppContext.brs"
+SCENE = "components/SettingsScene.brs"
+APP = "components/PhlixApp.brs"
+XML = "components/SettingsScene.xml"
+DOC = "docs/debugging.md"
+CAT = "locale/en_US/strings.json"
+MAN = "manifest"
+
+HEADER = "X-Phlix-Client-Version"
+NEW_KEYS = [
+    "settings_about_channel_id",
+    "settings_about_os_version",
+    "settings_about_crash_heading",
+    "settings_about_last_exit",
+    "settings_about_last_exit_none",
+    "settings_about_recent_errors",
+    "settings_about_no_errors",
+    "settings_about_error_entry",
+]
+
+problems = []
+
+
+def read(path):
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def mask_comments(text):
+    """Blank out BrightScript ' comments (string-aware) keeping offsets exact."""
+    out = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        out.append(line[:cut].ljust(len(line)))
+    return "\n".join(out)
+
+
+def method_body(text, name):
+    """Slice a factory-object method from its declaration to its end function."""
+    m = re.search(r"(?m)^\s*%s:\s*function\(" % re.escape(name), text)
+    if m is None:
+        return None
+    end = text.find("end function", m.end())
+    return text[m.start():] if end == -1 else text[m.start():end]
+
+
+texts = {}
+for path in (AC, CTX, SCENE, APP, XML, DOC, CAT, MAN):
+    try:
+        texts[path] = read(path)
+    except OSError as err:
+        problems.append(f"  {path} - CHECK42: unreadable: {err} — the pin cannot run vacuously")
+
+if not problems:
+    ac = mask_comments(texts[AC])
+    ctx = mask_comments(texts[CTX])
+    scene = mask_comments(texts[SCENE])
+    app = mask_comments(texts[APP])
+    xml = texts[XML]
+    doc = texts[DOC]
+    man = texts[MAN]
+
+    # ---- R1 send-site law ------------------------------------------------
+    for name in ("sendRaw", "sendRawWithDeviceId", "resolveLocation"):
+        body = method_body(ac, name)
+        if body is None:
+            problems.append(
+                f"  {AC} - CHECK42 R1: send site `{name}` no longer exists — the three-site"
+                " census of version-header carriers cannot be verified"
+            )
+            continue
+        if not re.search(r'AddHeader\(\s*"%s"\s*,\s*m\.clientVersion\s*\)' % HEADER, body):
+            problems.append(
+                f"  {AC} - CHECK42 R1: `{name}` does not send AddHeader(\"{HEADER}\", "
+                "m.clientVersion) in code — a request path with no channel identity is the "
+                "M-ROKU-11 blind spot restated; every send site carries it"
+            )
+    if not re.search(r'obj\.clientVersion\s*=\s*GetChannelVersion\(\)', ac):
+        problems.append(
+            f"  {AC} - CHECK42 R1: the factory no longer stamps obj.clientVersion from "
+            "GetChannelVersion() — the header would ride on the declared placeholder forever"
+        )
+
+    # ---- R2 no version literal anywhere in client code -------------------
+    brs_files = []
+    for scan_dir in ("source", "components"):
+        for root, dirs, names in os.walk(scan_dir):
+            dirs.sort()
+            for name in sorted(names):
+                if name.endswith(".brs"):
+                    brs_files.append(os.path.join(root, name))
+    for path in sorted(brs_files):
+        try:
+            code = mask_comments(read(path))
+        except OSError as err:
+            problems.append(f"  {path} - CHECK42 R2: unreadable: {err}")
+            continue
+        for mo in re.finditer(r'(version\s*=\s*|AddHeader\(\s*"%s"\s*,\s*)"(\d+\.\d+(?:\.\d+)?)"' % HEADER, code, re.I):
+            lineno = code.count("\n", 0, mo.start()) + 1
+            problems.append(
+                f"  {path}:{lineno} - CHECK42 R2: a version literal in code — the About screen's "
+                'hardcoded "1.0.1" reported a number unrelated to the installed build '
+                "(M-ROKU-11); the value comes from roAppInfo.GetVersion()"
+            )
+
+    # ---- R3 single firmware source ----------------------------------------
+    if not re.search(r"function GetChannelVersion\(\) as String\s*\n\s*return ChannelInfo\(\)\.version", ctx):
+        problems.append(
+            f"  {CTX} - CHECK42 R3: GetChannelVersion() no longer returns ChannelInfo().version "
+            "— the About screen and the wire header would stop sharing one source"
+        )
+    if not re.search(r'CreateObject\("roAppInfo"\)', ctx) or ".GetVersion()" not in ctx:
+        problems.append(
+            f"  {CTX} - CHECK42 R3: ChannelInfo() no longer reads roAppInfo.GetVersion() — the "
+            "firmware is the only version source (docs/debugging.md promises it)"
+        )
+    if "GetChannelVersion()" not in scene:
+        problems.append(
+            f"  {SCENE} - CHECK42 R3: the About screen no longer reads GetChannelVersion() — "
+            "screen and wire must not be able to disagree"
+        )
+
+    # ---- R4 ring wired ---------------------------------------------------
+    for fn in ("function DiagnosticsRingSize() as Integer", "function DiagnosticsShownCount() as Integer",
+               "sub RecordDiagnosticsError(kind as String, detail as String)",
+               "function GetDiagnosticsRing() as Object", "sub ClearDiagnosticsRing()",
+               "function DiagnosticText(value as Object) as String",
+               "function GetRunElapsedMs() as LongInteger"):
+        if fn not in ctx:
+            problems.append(
+                f"  {CTX} - CHECK42 R4: `{fn}` is gone — the documented ring surface "
+                "(docs/debugging.md) would be a claim without an implementation"
+            )
+    if "return 12" not in (re.search(r"DiagnosticsRingSize\(\) as Integer\s*\n\s*return \d+", ctx).group(0)
+                           if re.search(r"DiagnosticsRingSize\(\) as Integer\s*\n\s*return \d+", ctx) else ""):
+        problems.append(
+            f"  {CTX} - CHECK42 R4: the ring capacity is no longer the pinned 12 — "
+            "docs/debugging.md states 'last 12 failures' and rotates only with this leg"
+        )
+    if not re.search(r"while ring\.Count\(\) > DiagnosticsRingSize\(\)", ctx):
+        problems.append(
+            f"  {CTX} - CHECK42 R4: the ring no longer trims through DiagnosticsRingSize() — "
+            "an unbounded 'last-N' list is not last-N"
+        )
+    if "RecordDiagnosticsError(" not in app or "RecordDiagnosticsError(" not in scene:
+        problems.append(
+            "  components - CHECK42 R4: a render-thread push site disappeared "
+            "(PhlixApp.HandleBootAuthFailure / SettingsScene.OnApiResponse failure arms) — "
+            "the ring would always read 'None this session'"
+        )
+    if len(re.findall(r"RecordDiagnosticsError\(\"settings", scene)) < 2:
+        problems.append(
+            f"  {SCENE} - CHECK42 R4: the two server-failure arms no longer both record — "
+            "dropping the classified reason is the exact defect the ring cures"
+        )
+
+    # ---- R5 crash record honesty -----------------------------------------
+    if not re.search(r"if GetOSMajorVersion\(\) < 13 then return invalid", ctx):
+        problems.append(
+            f"  {CTX} - CHECK42 R5: GetLastExitInfo() lost its Roku OS 13.0 gate — the call is "
+            "undefined on older firmware (https://developer.roku.com/dev/docs/ifappmanager)"
+        )
+    if not re.search(r"return Val\(major\)", ctx):
+        problems.append(
+            f"  {CTX} - CHECK42 R5: the OS gate no longer goes through Val() — "
+            "ifdeviceinfo.GetOSVersion() fields are STRINGS, so a numeric comparison is a "
+            "type mismatch on real firmware"
+        )
+    if 'CreateObject("roAppManager").GetLastExitInfo()' not in ctx:
+        problems.append(
+            f"  {CTX} - CHECK42 R5: the exit record is no longer read from ifappmanager — "
+            "Roku's own mechanism is the only crash surface this client may claim"
+        )
+    if re.search(r"^\s*run_as_process\s*=", man, re.M):
+        problems.append(
+            f"  {MAN} - CHECK42 R5: run_as_process is now set — docs/debugging.md states Phlix "
+            "is NOT a run_as_process channel and therefore never receives the console_log field "
+            "of GetLastExitInfo; if this is deliberate, rotate the doc in the same commit"
+        )
+    if "run_as_process=1" not in doc or "This manifest does not set it" not in doc:
+        problems.append(
+            f"  {DOC} - CHECK42 R5: the console_log caveat is gone — claiming the last-20 "
+            "console lines without the run_as_process precondition is the fiction class this "
+            "lane cured (M-ROKU-11)"
+        )
+
+    # ---- R6 readable surface --------------------------------------------
+    if "m.detailLabel.text = info" not in scene:
+        problems.append(
+            f"  {SCENE} - CHECK42 R6: the multi-line About block no longer lands on "
+            "detailLabel — statusLabel is a 40px single-line Label, so the block would be "
+            "unreadable theater (the defect this lane found)"
+        )
+    detail = re.search(r'<Label[^>]*id="detailLabel"[^>]*>', xml, re.S)
+    status = re.search(r'<Label[^>]*id="statusLabel"[^>]*>', xml, re.S)
+    if detail is None or 'wrap="true"' not in detail.group(0):
+        problems.append(
+            f"  {XML} - CHECK42 R6: detailLabel lost wrap=\"true\" — the diagnostics block "
+            "cannot render multi-line without it"
+        )
+    if status is not None and 'wrap="true"' in status.group(0):
+        problems.append(
+            f"  {XML} - CHECK42 R6: statusLabel is now a wrapping Label — the doc describes it "
+            "as the single-line headline surface; rotate docs/debugging.md together with this"
+        )
+
+    # ---- R7 catalog binding ----------------------------------------------
+    try:
+        catalog = json.loads(texts[CAT])
+    except ValueError as err:
+        problems.append(f"  {CAT} - CHECK42 R7: unparseable: {err}")
+        catalog = {}
+    flat = {f"{section}_{bare}" for section, vals in catalog.items()
+            if section != "_metadata" and isinstance(vals, dict)
+            for bare, leaf in vals.items() if isinstance(leaf, str)}
+    scene_keys = set(re.findall(r'Translate(?:WithParams)?\(\s*"([A-Za-z0-9_.]+)"', scene))
+    for key in NEW_KEYS:
+        if key not in flat:
+            problems.append(
+                f"  {CAT} - CHECK42 R7: {key} is missing from the flattened en_US table — "
+                "the About screen would render the raw key (CHECK20/21 territory)"
+            )
+        if key not in scene_keys:
+            problems.append(
+                f"  {SCENE} - CHECK42 R7: dead copy — {key} exists in the catalog but the "
+                "About screen never consumes it"
+            )
+
+    # ---- R8 nothing leaves the device ------------------------------------
+    for path, code in ((CTX, ctx), (SCENE, scene)):
+        for tok in ("roUrlTransfer", "AsyncPostFromString", "AsyncGetToString", "SetUrl("):
+            if tok in code:
+                problems.append(
+                    f"  {path} - CHECK42 R8: the diagnostics surface now issues a request "
+                    f"({tok}) — M-ROKU-11 ships LOCAL capture only; there is no telemetry "
+                    "endpoint in this estate and none may be invented here"
+                )
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK42: %d channel-identity/diagnostics problem(s)" % len(problems))
+    sys.exit(1)
+
+print("  CHECK42: all three ApiClient send sites carry X-Phlix-Client-Version from the single roAppInfo")
+print("           source; no version literal in any .brs; ring (12 kept / 5 shown) fed from both")
+print("           render-thread sites and read by About; last-exit record Val()-gated to OS 13.0+ with")
+print("           the run_as_process console_log caveat stated in the docs and true in the manifest;")
+print("           multi-line block on the wrapping detailLabel; 8 new catalog keys live and consumed;")
+print("           the diagnostics family opens no socket")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

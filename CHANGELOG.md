@@ -2,6 +2,91 @@
 
 ## [Unreleased]
 
+### Fixed — retail-user visibility: channel version on every request, honest readable About, shipped-truth log story (M-ROKU-11) — 2026-10-29
+
+- **The defect (review roku__devops M4).** "No way to support a retail
+  user": (a) the app sent `X-Phlix-Device-ID`/`-Name`/`-Type` and a
+  session id on every request but **no channel version anywhere** —
+  support looking at server logs could not tell which build a device
+  ran; (b) Settings → About rendered a **hardcoded `version = "1.0.1"`**
+  (the lie) into `statusLabel` — a 40px `wrap="false"` Label, so even the
+  old five-line `Chr(10)` block it once assembled was clipped to one
+  line: the "About" surface was theater in two directions; (c) a crash
+  left no readable trace — the only log story was dev-mode telnet, and
+  `docs/debugging.md` itself contained two fictions (a claim that the
+  channel had to be *already running* before connecting — telnet
+  streams from the connect moment; and `console.log()` vocabulary that
+  does not exist in BrightScript while `bslint.json` keeps `no-print`
+  off); (d) no crash surface at all for a user without dev mode.
+- **Callers traced (both sides).** All three ApiClient send sites
+  (`sendRaw`/`sendRawWithDeviceId`/`resolveLocation` — every HTTP the
+  channel makes routes through one of them); the About row's only
+  consumer is `SettingsScene.ShowAbout()`; the server was audited
+  READ-ONLY for header handling: it reads headers *selectively* via
+  `$request->getHeader()` (`X-Phlix-Device-Type`
+  `src/Controllers/MediaItemController.php:501`, `X-Device-Id`
+  `src/Controllers/AuthController.php:239` era coords) — **no whitelist
+  strips unknown `X-Phlix-*` headers**, so a new header is pure
+  wire-safe additivity with zero new wire codes (contract law held).
+- **The cure (Roku's own surfaces only — no invented API, no fabricated
+  telemetry endpoint).** (a) `source/lib/AppContext.brs` gains
+  `ChannelInfo()`/`GetChannelVersion()` over `roAppInfo.GetVersion()` +
+  `GetID()` (both fields vendored in
+  `node_modules/brighterscript/dist/roku-types/data.json`), cached on
+  the function object like `DeviceInfoData()`; every ApiClient send site
+  now stamps `X-Phlix-Client-Version` and the factory tail binds
+  `obj.clientVersion = GetChannelVersion()`. (b) About reads real state:
+  channel version, channel ID, Roku OS version
+  (`roDeviceInfo.GetOSVersion()` — string fields, joined via
+  `DiagnosticText`), plus **previous-run exit info** from
+  `roAppManager.GetLastExitInfo()` — documented since Roku OS 13.0
+  (https://developer.roku.com/dev/docs/ifappmanager, read 2026-10-29),
+  firmware-gated via `Val(GetOSVersion().major) >= 13` because
+  `roappmanager` does not implement `ifAssociativeArray` (no
+  `DoesExist()` probe), and **last-12 error ring** in memory
+  (`RecordDiagnosticsError`, seq'd, trimmed) pushed from the
+  render-thread chokepoints that used to discard their failure reason
+  (boot-auth handler, preferences/history arms). All of it renders into
+  `detailLabel` — the panel's only wrapping surface (width 400,
+  height 540, `wrap="true"`) — while `statusLabel` keeps the single-line
+  version headline. Thread-locality is honest in the docblock: RSG tasks
+  run on their own thread, so the ring is UI-thread-only by law and
+  crash-run visibility comes OS-side via the exit-info read.
+  (c) `docs/debugging.md` rewritten to shipped truth: a retail support
+  playbook (every About line + its source API + what retail users
+  CANNOT do), a server-side half stating the header contract, developer
+  surfaces corrected (telnet streams from connect moment; `print` not
+  `console.log`; **`console_log` in GetLastExitInfo requires
+  `run_as_process=1` — this Manifest does not set it**, so that field is
+  pinned absent in prose, not silently promised). (d) Eight
+  `settings.about_*` catalog keys, translated in all 7 locales
+  (302 → 310, v1.6.0).
+- **verify-runtime Check 42 (the anti-drift pin).** R1 all three send
+  sites carry the header from `m.clientVersion` + the factory stamp; R2
+  bans any version literal re-entering `source/`+`components/` (the
+  `1.0.1` census); R3 pins the `GetChannelVersion()` → `roAppInfo` read
+  shape and its scene consumption; R4 the ring (capacity 12, trim loop,
+  render-thread push sites); R5 the OS-13 gate + the Manifest's
+  `run_as_process` absence + the doc's console_log truth; R6 the block
+  writes the wrapping `detailLabel` and `statusLabel` stays unwrapped;
+  R7 the eight catalog keys exist and are consumed; R8 bans network I/O
+  in the diagnostics surface (a fabricated telemetry endpoint is the
+  failure mode this lane refuses to introduce).
+- **Gates.** `make lint` (bsc) 0 errors; `make bslint` pass;
+  `scripts/validate-xml.sh` pass; `scripts/verify-runtime.sh` 42/42 PASS;
+  `tests/scripts/verify-runtime-portable.sh` green incl. its new
+  Check 42 plant-and-restore leg (stripped header + planted `1.0.1` +
+  statusLabel retarget → CHECK42 R1/R2/R6 fire with CHECK41/CHECK20
+  gate independence; restore → exit 0). Red-on-parent measured at
+  `16f338ca8`: CHECK42 R1–R7 all fire on the pre-fix tree.
+- **Rider notes.** The server's AD-27 heartbeat store
+  (`src/Stats/ClientHeartbeatStoreInterface.php`, `MAX_VERSION_LENGTH=32`)
+  lands client versions via the QuickConnect/PIN-login flow only —
+  Phlix-roku authenticates through `/auth/login`, so wiring heartbeats
+  is OUT OF SCOPE here and deliberately not claimed; the header ships
+  the telemetry into logs regardless. Server-side reads (if any) are a
+  separate estate decision.
+
 ### Fixed — package-signed honesty: claimed preconditions enforced, mislabeled "signed" artifact impossible (M-ROKU-10) — 2026-10-29
 
 - **The defect (review roku__devops M3, all four bullets).**

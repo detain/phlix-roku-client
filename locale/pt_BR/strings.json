@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "pt_BR",
     "language_name": "Português (Brasil)",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -111,7 +111,15 @@
     "autoplay_on": "Ativa",
     "autoplay_off": "Inativa",
     "caption_mode_label": "Modo de legendas: {mode}",
-    "caption_mode_set_to": "Modo de legendas definido para: {mode}"
+    "caption_mode_set_to": "Modo de legendas definido para: {mode}",
+    "about_channel_id": "ID do canal: {id}",
+    "about_os_version": "Roku OS: {version}",
+    "about_crash_heading": "Execução anterior:",
+    "about_last_exit": "Código de saída: {code} em {timestamp}",
+    "about_last_exit_none": "Nenhuma saída anormal registrada",
+    "about_recent_errors": "Erros recentes:",
+    "about_no_errors": "Nenhum nesta sessão",
+    "about_error_entry": "{index}. {kind} (+{elapsed}s): {detail}"
   },
   "detail": {
     "favorite_add": "Adicionar aos favoritos",

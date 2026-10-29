@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -111,7 +111,15 @@
     "autoplay_on": "オン",
     "autoplay_off": "オフ",
     "caption_mode_label": "字幕モード: {mode}",
-    "caption_mode_set_to": "字幕モードを {mode} に設定しました"
+    "caption_mode_set_to": "字幕モードを {mode} に設定しました",
+    "about_channel_id": "チャンネルID: {id}",
+    "about_os_version": "Roku OS: {version}",
+    "about_crash_heading": "前回の実行:",
+    "about_last_exit": "終了コード: {code} / {timestamp}",
+    "about_last_exit_none": "異常終了は記録されていません",
+    "about_recent_errors": "最近のエラー:",
+    "about_no_errors": "このセッションではなし",
+    "about_error_entry": "{index}. {kind} (+{elapsed}s): {detail}"
   },
   "detail": {
     "favorite_add": "お気に入りに追加",
