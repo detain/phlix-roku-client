@@ -186,6 +186,14 @@ sub Init()
     m.syncLeaveButton = m.top.FindNode("syncLeaveButton")
     m.syncStatusLabel = m.top.FindNode("syncStatusLabel")
 
+    ' M-ROKU-19: scene-level attribution banner (visible while the sync panel is
+    ' closed) + its auto-hide timer. syncUserStopped suppresses the "disconnected"
+    ' notice when WE closed the socket (panel close / Leave) rather than a drop.
+    m.partyNotice = m.top.FindNode("partyNotice")
+    m.partyNoticeLabel = m.top.FindNode("partyNoticeLabel")
+    m.partyNoticeTimer = invalid
+    m.syncUserStopped = false
+
     if m.syncGroupList <> invalid then m.syncGroupList.ObserveField("itemSelected", "OnSyncGroupSelected")
     if m.syncCreateButton <> invalid then m.syncCreateButton.ObserveField("buttonSelected", "OnSyncCreatePressed")
     if m.syncLeaveButton <> invalid then m.syncLeaveButton.ObserveField("buttonSelected", "OnSyncLeavePressed")
@@ -1760,7 +1768,10 @@ sub CloseSyncPanel()
     ' Stop the SyncPlayTask when the panel is closed. The user may re-open
     ' the panel and reconnect (OnSyncGroupSelected / OnSyncCreatePressed will
     ' call ConnectSyncTask to start a fresh task).
+    ' M-ROKU-19: mark intentional stop so the terminal "closed" event does not
+    ' banner a false "disconnected" alarm over our own teardown.
     if m.syncTask <> invalid then
+        m.syncUserStopped = true
         m.syncTask.control = "stop"
         m.syncTask = invalid
     end if
@@ -1796,6 +1807,8 @@ sub ConnectSyncTask()
         memberName: memberName
     }
     m.syncActive = true
+    ' M-ROKU-19: a fresh socket means any later "closed" is unexpected again.
+    m.syncUserStopped = false
     ' un guarded: call site gates with "if m.syncTask = invalid then" so this only
     ' fires once per session (ConnectSyncTask is never called again after init).
     m.syncTask.control = "run"
@@ -1956,6 +1969,9 @@ sub OnSyncLeavePressed()
     SetSyncStatus("Left the group")
 
     ' Stop the task thread now that the group session is over.
+    ' M-ROKU-19: intentional stop — suppress the disconnect banner (we just said
+    ' "Left the group" in the panel label ourselves).
+    m.syncUserStopped = true
     m.syncTask.control = "stop"
     m.syncTask = invalid
 end sub
@@ -1990,6 +2006,7 @@ sub HandleSyncEvent(ev as Object)
 
     if kind = "open" then
         SetSyncStatus("Connected")
+        ShowPartyNotice("Connected to watch party", 4.0!)
 
     else if kind = "group_state" then
         group = invalid
@@ -2023,16 +2040,17 @@ sub HandleSyncEvent(ev as Object)
         if ev.DoesExist("member_name") and type(ev.member_name) = "roString" and ev.member_name <> "" then
             msg = ev.member_name + " joined"
         end if
-        if msg <> "" then SetSyncStatus(msg)
+        ' M-ROKU-19: join/leave info must be visible while watching (panel closed).
+        if msg <> "" then NotifyPartyEvent(msg, 4.0!)
 
     else if kind = "host_elect" then
         electedId = ""
         if ev.DoesExist("elected_id") and ev.elected_id <> invalid then electedId = ev.elected_id
         m.syncIsHost = (electedId <> "" and electedId = m.yourId)
         if m.syncIsHost then
-            SetSyncStatus("You are now host")
+            NotifyPartyEvent("You are now host", 4.0!)
         else
-            SetSyncStatus("Host changed")
+            NotifyPartyEvent("Host changed", 4.0!)
         end if
 
     else if kind = "timesync" then
@@ -2047,12 +2065,16 @@ sub HandleSyncEvent(ev as Object)
     else if kind = "error" then
         msg = "SyncPlay error"
         if ev.DoesExist("message") and type(ev.message) = "roString" and ev.message <> "" then msg = ev.message
-        SetSyncStatus(msg)
+        NotifyPartyEvent(msg, 6.0!)
         m.syncFollowing = false
         m.syncIsHost = false
 
     else if kind = "closed" then
         SetSyncStatus("Disconnected")
+        ' M-ROKU-19: a socket drop mid-playback is exactly the invisible event the
+        ' item names. Banner it UNLESS we closed the socket ourselves (panel close
+        ' or Leave already explained it in the panel label).
+        if not m.syncUserStopped then ShowPartyNotice("Watch party disconnected", 6.0!)
         m.syncFollowing = false
         m.syncIsHost = false
         m.syncActive = false
@@ -2085,12 +2107,17 @@ sub ApplyRemotePlayback(ev as Object)
         m.videoPlayer.seek = seconds#
         m.videoPlayer.control = "play"
         m.isPlaying = true
+        ' M-ROKU-19: the picture changed with no explanation before this leg —
+        ' attribute host-driven transport changes on screen while watching.
+        NotifyPartyEvent("Host resumed", 2.5!)
     else if t = "syncplay_playback_pause" then
         m.videoPlayer.seek = seconds#
         m.videoPlayer.control = "pause"
         m.isPlaying = false
+        NotifyPartyEvent("Host paused", 2.5!)
     else if t = "syncplay_playback_seek" then
         m.videoPlayer.seek = seconds#
+        NotifyPartyEvent("Host changed position", 2.5!)
     end if
 
     m.applyingRemote = false
@@ -2135,6 +2162,52 @@ end sub
 
 sub SetSyncStatus(text as String)
     if m.syncStatusLabel <> invalid then m.syncStatusLabel.text = text
+end sub
+
+' --- M-ROKU-19: watch-party attribution banner ---------------------------------
+' The syncStatus label lives INSIDE syncPanel, so with the panel closed (the
+' normal watching state) every party event was invisible. These subs drive the
+' scene-level partyNotice strip instead; deliberately panel-independent (bodies
+' never touch syncPanel - CHECK50 pins it). show/hide use the R2.1 one-shot
+' Timer idiom (startControlsHideTimer shape).
+' -----------------------------------------------------------------------------
+sub ShowPartyNotice(text as String, hold as Float)
+    if m.partyNotice = invalid or m.partyNoticeLabel = invalid then return
+    StopPartyNoticeTimer()
+    m.partyNoticeLabel.text = text
+    m.partyNotice.visible = true
+    m.partyNoticeTimer = CreateObject("roSGNode", "Timer")
+    m.partyNoticeTimer.duration = hold
+    m.partyNoticeTimer.repeat = false
+    m.partyNoticeTimer.ObserveField("fire", "OnPartyNoticeTimerFire")
+    m.top.Append(m.partyNoticeTimer)
+    m.partyNoticeTimer.control = "start"
+end sub
+
+sub HidePartyNotice()
+    StopPartyNoticeTimer()
+    if m.partyNotice <> invalid then m.partyNotice.visible = false
+end sub
+
+sub StopPartyNoticeTimer()
+    if m.partyNoticeTimer <> invalid then
+        m.partyNoticeTimer.control = "stop"
+        m.partyNoticeTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.partyNoticeTimer)
+        m.partyNoticeTimer = invalid
+    end if
+end sub
+
+sub OnPartyNoticeTimerFire()
+    m.partyNoticeTimer = invalid
+    HidePartyNotice()
+end sub
+
+' Panel label AND banner in one call (the choke point every attributed party
+' event uses; M-ROKU-20's i18n sweep localizes here and at the literals' calls).
+sub NotifyPartyEvent(text as String, hold as Float)
+    SetSyncStatus(text)
+    ShowPartyNotice(text, hold)
 end sub
 
 ' Stringify an id that may be a JSON number OR string (never concat a raw number).

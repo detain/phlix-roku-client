@@ -298,5 +298,24 @@
                 </LayoutGroup>
             </LayoutGroup>
         </Rectangle>
+
+        <!-- ============================================================= -->
+        <!-- M-ROKU-19: Watch-party attribution banner. Scene-level sibling -->
+        <!-- (NOT inside syncPanel) so host pause/seek/resume and join/leave -->
+        <!-- events stay visible WHILE watching, with the panel closed. The -->
+        <!-- old syncStatusLabel lived inside syncPanel only — invisible     -->
+        <!-- mid-playback. Top-center strip, clear of controls/progress and  -->
+        <!-- the modal. Text is set only at runtime (no design-time literals -->
+        <!-- per CHECK25 chrome law); hidden by default.                     -->
+        <!-- ============================================================= -->
+        <Rectangle height="56" width="760" translation="[260,24]"
+                   color="#0d0d1a" opacity="0.92" visible="false"
+                   id="partyNotice">
+            <Label height="56" width="700" translation="[30,0]"
+                   horizAlign="center" vertAlign="center" wrap="true"
+                   font="font:MediumBoldSystemFont"
+                   color="#FFFFFF"
+                   id="partyNoticeLabel" />
+        </Rectangle>
     </children>
 </component>

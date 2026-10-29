@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+### Fixed — watch-party events are now attributed on screen while watching (M-ROKU-19) — 2026-10-29
+
+- **The defect (review roku__gameux M4).** Every SyncPlay event surfaced only on
+  `syncStatusLabel`, which lives INSIDE `syncPanel` — and closing the panel
+  stops the socket, so while actually watching (panel closed) the host's
+  pause/seek/resume silently changed the picture and joins/host-elections/
+  errors/drops were invisible. `ApplyRemotePlayback` carried no status call at
+  all.
+- **The cure.** A scene-level `partyNotice` strip in `PlayerScene.xml`
+  (hidden by default, literal-free per CHECK25) driven by new
+  `ShowPartyNotice`/`HidePartyNotice` subs using the shipped R2.1 one-shot
+  Timer idiom; `NotifyPartyEvent` writes panel label AND banner. All three
+  host-transport arms attribute ("Host resumed"/"Host paused"/"Host changed
+  position", 2.5 s); open/info/host_elect/error banner 4 s, unexpected drops
+  banner "Watch party disconnected" 6 s — suppressed when the close was
+  user-initiated (`m.syncUserStopped` set before every intentional task stop,
+  reset on fresh connect). The banner is panel-independent by law (CHECK50
+  pins syncPanel out of its bodies).
+- **Disclosed residuals.** The new literals ride the same un-Translate()'d
+  family as the existing 13 `SetSyncStatus` strings — M-ROKU-20's i18n sweep
+  localizes through the `ShowPartyNotice`/`NotifyPartyEvent` choke points.
+  `SyncPlayTask`'s `closed` remains terminal (no auto-reconnect) and leaving
+  the panel still drops the party — both deeper design items reported in the
+  fixlog. Static law CHECK50 (scripts/verify-runtime.sh) + portable
+  plant-and-restore red legs pin the cure; CHECK50 numbering reserves 49 for
+  the M-ROKU-17 toast cure (landed at `7942e66` mid-this-lane; rebased atop).
+
 ### Fixed — the toast pipeline displays via the shipped dialog mechanism (M-ROKU-17) — 2026-10-29
 
 - **The defect (review roku__gameux M2).** The R3.4 ambient-feedback layer was a

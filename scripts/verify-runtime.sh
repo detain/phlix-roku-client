@@ -6111,4 +6111,171 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+
+echo "=== Check 50: watch-party attribution banner - scene-level, panel-independent (M-ROKU-19) ==="
+# PARTY ATTRIBUTION LAW (M-ROKU-19, review roku__gameux M4): every SyncPlay event
+# used to surface ONLY on the syncStatusLabel, which lives INSIDE syncPanel - and
+# closing the panel stops the socket, so while actually watching (panel closed)
+# host pause/seek/resume changed the picture in total silence and join/host/error/
+# drop events were invisible. Cure: a scene-level partyNotice strip with a
+# one-shot Timer auto-hide (R2.1 idiom), driven through ShowPartyNotice /
+# NotifyPartyEvent choke points; user-initiated socket stops (panel close, Leave)
+# set m.syncUserStopped so the terminal "closed" event banners only on real
+# drops. Pinned statically:
+#   R1  markup: components/PlayerScene.xml carries a visible=false
+#       partyNotice Rectangle DIRECT under <children> (scene-level sibling,
+#       never re-nested in syncPanel) with a partyNoticeLabel child that has no
+#       design-time text (CHECK25 chrome law).
+#   R2  mechanics: the five subs exist; ShowPartyNotice's body runs the R2.1
+#       timer trio (duration/ObserveField("fire")/Append/control="start") and
+#       flips visible; neither Show nor Hide may reference syncPanel (the
+#       panel-independence law this whole item is about); NotifyPartyEvent
+#       rides SetSyncStatus + ShowPartyNotice.
+#   R3  the silent class: ApplyRemotePlayback banners all three arms ("Host
+#       resumed"/"Host paused"/"Host changed position").
+#   R4  event coverage: HandleSyncEvent banners open/info/host_elect(x2)/error/
+#       closed (the closed arm gated on m.syncUserStopped) and the suppression
+#       flag is wired at >=5 sites across the file.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+import xml.etree.ElementTree as ET
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+XMLP = "components/PlayerScene.xml"
+BRS = "components/PlayerScene.brs"
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK50: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(text):
+    out = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
+def sub_body(text, name):
+    m = re.search(r"(?ms)^sub %s\(.*?^end sub" % re.escape(name), text)
+    return m.group(0) if m else None
+
+
+# ---- R1 markup: scene-level, hidden-by-default, literal-free --------------
+tree = None
+try:
+    tree = ET.parse(XMLP)
+except (OSError, ET.ParseError) as err:
+    problems.append(f"  {XMLP} - CHECK50 R1: unparseable: {err}")
+
+if tree is not None:
+    root = tree.getroot()
+    children = root.find("children")
+    notice = None
+    if children is not None:
+        notice = children.find("Rectangle[@id='partyNotice']")
+    if notice is None:
+        problems.append(f"  {XMLP} - CHECK50 R1: no scene-level partyNotice Rectangle directly under <children> — the banner vanished or was re-nested inside a panel (the exact defect class this item fixed)")
+    else:
+        if notice.get("visible") != "false":
+            problems.append(f'  {XMLP} - CHECK50 R1: partyNotice must ship visible="false" — an always-on strip would scar the default playback path')
+        label = notice.find("Label[@id='partyNoticeLabel']")
+        if label is None:
+            problems.append(f"  {XMLP} - CHECK50 R1: partyNotice has no partyNoticeLabel child — ShowPartyNotice would write to an invalid node")
+        elif label.get("text") is not None:
+            problems.append(f"  {XMLP} - CHECK50 R1: partyNoticeLabel carries design-time text= — CHECK25 chrome law, the string is set only at runtime")
+
+# ---- R2 mechanics: timer idiom + panel-independence ------------------------
+brs = read(BRS)
+if brs is not None:
+    code = mask(brs)
+    for name in ("ShowPartyNotice", "HidePartyNotice", "StopPartyNoticeTimer",
+                 "OnPartyNoticeTimerFire", "NotifyPartyEvent"):
+        if not re.search(r"(?m)^sub %s\(" % name, code):
+            problems.append(f"  {BRS} - CHECK50 R2: sub {name}() is gone — the banner pipeline is its only driver")
+
+    show = sub_body(code, "ShowPartyNotice")
+    if show is not None:
+        for needle in ('CreateObject("roSGNode", "Timer")', "duration = hold",
+                       'ObserveField("fire", "OnPartyNoticeTimerFire")',
+                       "m.top.Append(m.partyNoticeTimer)",
+                       'control = "start"', "m.partyNotice.visible = true"):
+            if needle not in show:
+                problems.append(f"  {BRS} - CHECK50 R2: ShowPartyNotice lost the R2.1 idiom needle [{needle}] — a banner that never auto-hides (or never arms a timer) is the old silence with extra steps")
+        if "syncPanel" in show:
+            problems.append("  " + BRS + " - CHECK50 R2: ShowPartyNotice references syncPanel — the banner MUST be panel-independent; the panel is only open while the user is not watching")
+    hide = sub_body(code, "HidePartyNotice")
+    if hide is not None:
+        if "StopPartyNoticeTimer()" not in hide or "visible = false" not in hide:
+            problems.append(f"  {BRS} - CHECK50 R2: HidePartyNotice must stop its timer AND clear visibility — an orphaned timer would hide a fresh notice mid-hold")
+        if "syncPanel" in hide:
+            problems.append("  " + BRS + " - CHECK50 R2: HidePartyNotice references syncPanel — panel-independence law")
+    notify = sub_body(code, "NotifyPartyEvent")
+    if notify is not None:
+        if "SetSyncStatus(text)" not in notify or "ShowPartyNotice(text, hold)" not in notify:
+            problems.append(f"  {BRS} - CHECK50 R2: NotifyPartyEvent must drive BOTH the panel label and the banner — either half alone re-creates the invisible-event defect for one of the two viewing states")
+
+    # ---- R3 the silent class: host-driven transport changes ----------------
+    arp = sub_body(code, "ApplyRemotePlayback")
+    if arp is None:
+        problems.append(f"  {BRS} - CHECK50 R3: ApplyRemotePlayback vanished — the host-follow path has no home")
+    else:
+        for needle in ('NotifyPartyEvent("Host resumed"', 'NotifyPartyEvent("Host paused"',
+                       'NotifyPartyEvent("Host changed position"'):
+            if needle not in arp:
+                problems.append(f"  {BRS} - CHECK50 R3: {needle} is gone — a mid-playback transport change with no on-screen attribution is precisely the invisible-event defect (gameux M4)")
+
+    # ---- R4 event coverage + drop-vs-close suppression ---------------------
+    hse = sub_body(code, "HandleSyncEvent")
+    if hse is None:
+        problems.append(f"  {BRS} - CHECK50 R4: HandleSyncEvent vanished")
+    else:
+        for needle in ('ShowPartyNotice("Connected to watch party"',
+                       'NotifyPartyEvent(msg, 4.0!)',
+                       'NotifyPartyEvent("You are now host"',
+                       'NotifyPartyEvent("Host changed"',
+                       'ShowPartyNotice("Watch party disconnected"',
+                       "if not m.syncUserStopped"):
+            if needle not in hse:
+                problems.append(f"  {BRS} - CHECK50 R4: HandleSyncEvent lost the banner arm [{needle}] — party events would fall back to panel-only visibility")
+    nflag = code.count("m.syncUserStopped")
+    if nflag < 5:
+        problems.append(f"  {BRS} - CHECK50 R4: m.syncUserStopped appears {nflag}x, expected >=5 (Init, ConnectSyncTask reset, CloseSyncPanel, OnSyncLeavePressed, closed arm) — without every site the drop-vs-teardown distinction rots")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK50: %d party-attribution pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK50: host pause/seek/resume, joins, host elections, errors and")
+print("           unexpected drops all surface on a scene-level, panel-")
+print("           independent auto-hiding banner (R2.1 timer idiom); user-")
+print("           initiated socket stops (panel close / Leave) are suppressed")
+print("           via m.syncUserStopped; the markup ships hidden and literal-free")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+
 exit $((VIOLATIONS))
