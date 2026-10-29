@@ -2179,6 +2179,20 @@ echo "=== Check 27: child-scene close is local removal, never a bubble-up ==="
 #       dead bubble; self-close signals belong in OnKeyEvent/OnBackPressed).
 #   R3  HomeScene.brs must never write m.top.requestClose - the field does
 #       not exist on its interface and nothing above observes it.
+#   R4  every ObserveField("requestClose", "NAME") must resolve NAME to a sub
+#       defined by the OBSERVING component (its own .brs or a script its XML
+#       attaches); an unresolvable handler name is a runtime-error vector on
+#       the very signal the child removal depends on (C03-r2 issue 6a).
+#   R5  every child scene that is observed for requestClose - by a literal
+#       create+observe pair in a parent or via PhlixApp.PushScreen - must
+#       write requestClose = true somewhere in its own .brs; a scene that
+#       never fires the signal can never be closed by its observer (the
+#       RecommendationsScene "For You" swallow, C03-r2 issue 1/b).
+#   R6  no Teardown body may UnObserveField("requestClose") on m.top: the
+#       variant-B self-observe arm routes a scene's OWN close signal through
+#       Teardown INSIDE the dispatch, and unobserving the notifying field
+#       there can prune the parent's pending RemoveChild arm (C03-r2 issue 2;
+#       PopScreen is immune only because it pops outside field dispatch).
 PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
@@ -2225,6 +2239,95 @@ if os.path.exists(home):
                 "writes its own requestClose - the field is undeclared in "
                 "HomeScene.xml and unobserved above; the signal can only die")
 
+# R4/R5/R6 - cross-check the two halves of the requestClose contract: the
+# OBSERVER side (a parent's ObserveField must name a handler that actually
+# exists in the observing component) and the SIGNAL side (a scene observed
+# for requestClose must somewhere fire it), plus the mid-dispatch unobserve
+# race the round-1 review caught in LibraryScene's Teardown.
+OBSERVE_RE = re.compile(r'\.ObserveField\(\s*"requestClose"\s*,\s*"([^"]+)"')
+CREATE_RE = re.compile(r'^\s*(\w+)\s*=\s*CreateObject\(\s*"roSGNode"\s*,\s*"(\w+)"')
+PUSH_RE = re.compile(r'\w+\s*=\s*PushScreen\(\s*"(\w+)"')
+
+
+def strip_comment_lines(text):
+    """Drop full-line ' comments so contract prose cannot masquerade as code."""
+    return "\n".join(l for l in text.splitlines()
+                     if not l.lstrip().startswith("'"))
+
+
+observed_children = set()
+for path in sorted(glob.glob(os.path.join(repo, "components", "*.brs"))):
+    rel = os.path.relpath(path, repo)
+    src = open(path, encoding="utf-8").read()
+    code = strip_comment_lines(src)
+
+    # R4: every requestClose observer must name a handler the observing
+    # component defines (locally, or in a script its own XML attaches).
+    for hm in OBSERVE_RE.finditer(code):
+        handler = hm.group(1)
+        local_def = re.search(r"^\s*(?:sub|function)\s+" + handler + r"\b",
+                              code, re.MULTILINE)
+        resolved = bool(local_def)
+        xml = path[:-4] + ".xml"
+        if not resolved and os.path.exists(xml):
+            xml_src = open(xml, encoding="utf-8").read()
+            for uri in re.findall(r'uri="pkg:/([^"]+\.brs)"', xml_src):
+                cand = os.path.join(repo, uri)
+                if os.path.exists(cand) and re.search(
+                        r"^\s*(?:sub|function)\s+" + handler + r"\b",
+                        strip_comment_lines(
+                            open(cand, encoding="utf-8").read()),
+                        re.MULTILINE):
+                    resolved = True
+                    break
+        if not resolved:
+            problems.append(
+                f"  {rel} - CHECK27 R4: observes requestClose with handler "
+                f"\"{handler}\" that the component never defines; the "
+                "observer-half of the close contract cannot run")
+
+    # R5 (collection half): literal create+observe trios and PushScreen
+    # call sites mark the child type as contract-bound.
+    lines = src.splitlines()
+    for i, line in enumerate(lines):
+        cm = CREATE_RE.match(line)
+        if not cm:
+            continue
+        var, typ = cm.group(1), cm.group(2)
+        window = "\n".join(lines[i + 1:i + 7])
+        if re.search(re.escape(var) + r'\.ObserveField\(\s*"requestClose"',
+                     window):
+            observed_children.add(typ)
+    for pm in PUSH_RE.finditer(code):
+        observed_children.add(pm.group(1))
+
+    # R6: a Teardown reached from a variant-B self-observe arm fires INSIDE
+    # the requestClose dispatch; unobserving the field there can prune the
+    # parent's pending removal before it runs.
+    td = re.search(r"^sub\s+Teardown\b[^\n]*\n(.*?)^end sub", code,
+                   re.MULTILINE | re.DOTALL)
+    if td and re.search(r'\.UnObserveField\(\s*"requestClose"\s*\)', td.group(1)):
+        problems.append(
+            f"  {rel} - CHECK27 R6: Teardown unobserves m.top requestClose; "
+            "the self-observe arm calls it mid-dispatch and the parent's "
+            "pending RemoveChild can be pruned (C03-r2 race)")
+
+for typ in sorted(observed_children):
+    child = os.path.join(repo, "components", typ + ".brs")
+    relc = os.path.relpath(child, repo)
+    if not os.path.exists(child):
+        problems.append(
+            f"  {relc} - CHECK27 R5: observed child scene has no script file")
+        continue
+    if not re.search(r"requestClose\s*=\s*true",
+                     strip_comment_lines(
+                         open(child, encoding="utf-8").read())):
+        problems.append(
+            f"  {relc} - CHECK27 R5: an observer is registered for this "
+            "scene's requestClose but the scene never writes requestClose = "
+            "true; its Back can never be closed by the parent (For You "
+            "soft-lock class, C03-r2)")
+
 if problems:
     for p in problems:
         print(p)
@@ -2233,7 +2336,9 @@ if problems:
 
 print(f"  CHECK27: all {scanned} parent OnChildRequestClose handlers remove "
       "the requesting child locally and never bubble; HomeScene never writes "
-      "an undeclared requestClose")
+      "an undeclared requestClose; every requestClose observer resolves, "
+      f"all {len(observed_children)} observed child scenes fire the signal, "
+      "and no Teardown unobserves it mid-dispatch")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

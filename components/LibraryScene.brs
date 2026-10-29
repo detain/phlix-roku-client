@@ -602,6 +602,13 @@ end sub
 ' every Home-opened screen [review roku__casualgamer C1]. Init also
 ' self-observes this handler on m.top: when our OWN requestClose fires, our
 ' parent owns the removal and we only tear down.
+' PopScreen tolerates its pre-removal unobserve because its removal runs
+' in the very arm doing the unobserving - pruning can never roll back an
+' already-committed RemoveChild. These handlers run INSIDE the child's
+' requestClose dispatch, and a scene must never unobserve the field from
+' an arm registered before its parent's (its own Teardown): the parent's
+' removal arm could be pruned mid-dispatch (C03-r2; CHECK27 R6). A
+' detached child's observers are freed with its subtree anyway.
 sub OnChildRequestClose(event as Object)
     child = event.GetNode()
     if child = invalid then return
@@ -643,9 +650,16 @@ sub Teardown()
     if m.optionsButton <> invalid
         m.optionsButton.UnObserveField("buttonSelected")
     end if
-    if m.top <> invalid
-        m.top.UnObserveField("requestClose")
-    end if
+    ' C03-r2: deliberately NO m.top.UnObserveField("requestClose") here.
+    ' This Teardown is reached from our self-observe arm INSIDE the
+    ' requestClose dispatch, registered BEFORE our parent's arm; unobserving
+    ' the notifying field from here can prune the parent's pending
+    ' RemoveChild arm and leave Back dead again (CHECK27 R6 pins the law).
+    ' PopScreen tolerates its own unobserve because its removal runs in the
+    ' very arm doing the unobserving - pruning cannot roll back a committed
+    ' RemoveChild.
+    ' The detached child's observers die with its subtree on removal, so
+    ' nothing leaks without this line.
 end sub
 
 ' TranslateSortLabel - localized display label for a library sort field.

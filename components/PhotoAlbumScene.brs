@@ -165,6 +165,13 @@ end sub
 ' on every Home-opened screen [review roku__casualgamer C1]. Init also
 ' self-observes this handler on m.top: when our OWN requestClose fires, our
 ' parent owns the removal and we only tear down.
+' PopScreen tolerates its pre-removal unobserve because its removal runs
+' in the very arm doing the unobserving - pruning can never roll back an
+' already-committed RemoveChild. These handlers run INSIDE the child's
+' requestClose dispatch, and a scene must never unobserve the field from
+' an arm registered before its parent's (its own Teardown): the parent's
+' removal arm could be pruned mid-dispatch (C03-r2; CHECK27 R6). A
+' detached child's observers are freed with its subtree anyway.
 sub OnChildRequestClose(event as Object)
     child = event.GetNode()
     if child = invalid then return

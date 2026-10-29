@@ -18,10 +18,12 @@ Additionally, the pre-stack back handler (`PhlixApp.OnKeyEvent`) called
 After one Back press, the remote control became unresponsive because the newly-visible
 scene never received focus.
 
-**Status: Fixed in R0.4.** The migration replaced all 34 `m.top.Close()` calls with
-`m.top.requestClose = true`. The `requestClose` field was added to all relevant XMLs and
-8 primary parent scenes are wired. See the Known Limitation note in CHANGELOG.md for the
-remaining gap.
+**Status: Fixed in R0.4 (signal side); contract completed by C03/C03-r2 (observer
+side, 2026-10-28/29).** The migration replaced all 34 `m.top.Close()` calls with
+`m.top.requestClose = true` and added the `requestClose` field to all relevant
+XMLs — but the parent half (observers actually removing the child) stayed broken
+until C03. See the Back/Close contract note under Known Limitations below for
+the final state.
 
 ## The Screen Stack
 
@@ -112,15 +114,25 @@ for this step to keep the diff reviewable.
 
 ## Known Limitations
 
-### Back/Close contract (C03 — fixed 2026-10-28)
+### Back/Close contract (C03 — fixed 2026-10-28, reworked 2026-10-29)
 
 The parent-side removal above replaced the old bubble-up contract (C03,
 2026-10-28). Before that fix, every parent `OnChildRequestClose` handler
 re-bubbled `m.top.requestClose = true` and the chain silently died at
 HomeScene — Back was a no-op on every screen opened from Home, and the
-"un-wired parent scenes" gap listed here earlier was not a wiring gap at all
-but this dead bubble contract. All 22 parent handlers now remove the
-requesting child locally; `scripts/verify-runtime.sh` CHECK27 pins the law so
-a bubble-style handler cannot come back. Bootstrap scenes (Connect, Login,
+"un-wired parent scenes" gap listed here earlier was this dead bubble
+contract. The round-1 claim that the fix closed Back for every Home-opened
+screen was wrong: RecommendationsScene ("For You") swallowed Back without
+ever firing `requestClose`, so no parent machinery could close it — for that
+one screen it genuinely WAS a wiring gap, fixed in C03-r2. All 23 parent
+handlers (the 22 C03 files plus PlayerScene's pre-existing R7.2 handler) now
+remove the requesting child locally, and LibraryScene's self-fired
+`Teardown()` no longer unobserves `requestClose` mid-dispatch (that unobserve
+could prune the parent's pending removal). `scripts/verify-runtime.sh`
+CHECK27 pins both halves of the contract: R1-R3 police the handler bodies
+(local removal, no bubble), R4 requires every `requestClose` observer to name
+a handler the observing component defines, R5 requires every observed child
+scene to fire `requestClose = true` itself, and R6 forbids unobserving
+`requestClose` inside `Teardown`. Bootstrap scenes (Connect, Login,
 ServerPicker) still transition via their own events and remain outside the
 stack, as documented above.

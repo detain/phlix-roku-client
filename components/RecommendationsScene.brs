@@ -85,6 +85,12 @@ end sub
 function OnKeyEvent(key as String, press as Boolean) as Boolean
     if press then
         if key = "back" then
+            ' requestClose contract (docs/navigation.md): HomeScene opened us
+            ' and observes our requestClose - fire the signal it removes us
+            ' on (the field is declared in RecommendationsScene.xml with
+            ' alwaysNotify). Swallowing back here left "For You" soft-locked
+            ' on every Home-opened path [review roku__casualgamer C03-r2].
+            m.top.requestClose = true
             return true
         end if
     end if
