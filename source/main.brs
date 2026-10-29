@@ -130,13 +130,35 @@ sub main(args as Object)
     input = CreateObject("roInput")
     input.SetMessagePort(screen.GetMessagePort())
 
-    ' Message loop — handles both screen events and roInput deep-link events.
-    ' roInput events arrive as roInputEvent objects with an "args" field
-    ' containing the same assocarray as cold-launch args (contentid, mediatype).
+    ' M-ROKU-01: Watch the root's exitChannel flag on this same port. When the
+    ' screen stack is empty and Back is pressed, PhlixApp.OnKeyEvent raises it
+    ' and the loop below returns — ending the channel cleanly. (Falling through
+    ' to RSG's native back handling instead only closes the focused child scene,
+    ' exposing the root's black boot chrome; see review roku__casualgamer M2.)
+    scene.ObserveField("exitChannel", screen.GetMessagePort())
+
+    ' Message loop — handles screen events, the exitChannel signal, and roInput
+    ' deep-link events. roInput events arrive as roInputEvent objects with an
+    ' "args" field containing the same assocarray as cold-launch args
+    ' (contentid, mediatype).
     while true
         msg = wait(0, screen.GetMessagePort())
         if msg = invalid then
             exit while
+        end if
+
+        ' M-ROKU-01: Clean exits. isScreenClosed covers the OS closing the root
+        ' screen; the exitChannel roSGNodeEvent covers Back-at-empty-stack. Both
+        ' end main(), which is the SceneGraph-correct channel exit (no creatable
+        ' roApp.Exit() exists in the official component library).
+        if type(msg) = "roSGScreenEvent" then
+            if msg.isScreenClosed() then
+                exit while
+            end if
+        else if type(msg) = "roSGNodeEvent" then
+            if msg.GetField() = "exitChannel" then
+                exit while
+            end if
         end if
 
         ' R6.4: Handle warm deep-link events from roInput.

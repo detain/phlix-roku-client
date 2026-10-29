@@ -2796,4 +2796,154 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 31: Back at an empty stack exits the channel; never a black dead-screen ==="
+# Root-back law (M-ROKU-01, 2026-10-29, review roku__casualgamer M2): when the
+# screen stack is empty (user is on a bootstrap scene - Home/Connect/Login/
+# ServerPicker are appended, never pushed) PhlixApp.OnKeyEvent used to return
+# PopScreen()'s false verbatim. Unconsumed, RSG's native back handling closed
+# only the FOCUSED child scene, exposing the root's black boot chrome - a dead
+# screen that needed a second Back to actually exit. The cure honors PopScreen's
+# documented contract ("false ... signals the caller should exit the channel"):
+# PhlixApp raises the exitChannel field, main.brs observes it on the screen
+# message port, the wait loop returns, main() ends, the channel exits cleanly.
+# There is no creatable roApp.Exit() in SceneGraph (the official component
+# library bsc bundles lists only roAppInfo/roAppManager/roAppMemoryMonitor), so
+# exit-by-main-return is the platform primitive.
+#   R1  components/PhlixApp.xml declares exitChannel as boolean alwaysNotify
+#       (without alwaysNotify a second true-write never re-fires the event).
+#   R2  PhlixApp.brs OnKeyEvent pairs `handled = PopScreen()` with a
+#       `not handled` guard that writes m.top.exitChannel = true AND consumes
+#       the key (handled = true). A back arm without the guard reintroduces
+#       the black dead-screen (red on the 9ff4a6d parent era).
+#   R3  source/main.brs observes exitChannel on a message port and its wait
+#       loop exits on the roSGNodeEvent for that field - the signal must
+#       actually end main(), not just exist.
+#   R4  the loop also exits on roSGScreenEvent isScreenClosed (a main loop
+#       that ignores root-screen closure is a zombie-loop vector).
+#   R5  no .brs anywhere calls CreateObject("roApp") - the fiction primitive;
+#       on-device it returns invalid and the exit silently does nothing.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import glob, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO", ".")
+problems = []
+
+
+def read(path):
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
+
+
+# R1: exitChannel declared on the root interface, boolean + alwaysNotify.
+xml_path = os.path.join(repo, "components", "PhlixApp.xml")
+if os.path.exists(xml_path):
+    xml = read(xml_path)
+    fld = re.search(
+        r"<field\s[^>]*id=\"exitChannel\"[^>]*/?>", xml)
+    if not fld:
+        problems.append(
+            "  components/PhlixApp.xml - CHECK31: exitChannel field is not "
+            "declared; the root has no exit signal for Back-at-empty-stack")
+    else:
+        decl = fld.group(0)
+        if 'type="boolean"' not in decl or 'alwaysNotify="true"' not in decl:
+            problems.append(
+                "  components/PhlixApp.xml - CHECK31: exitChannel must be "
+                'type="boolean" alwaysNotify="true"; without alwaysNotify the '
+                "exit event can be swallowed on repeat writes")
+else:
+    problems.append("  components/PhlixApp.xml missing - CHECK31")
+
+# R2: OnKeyEvent consumes back at empty stack via the exitChannel guard.
+app_path = os.path.join(repo, "components", "PhlixApp.brs")
+if os.path.exists(app_path):
+    src = read(app_path)
+    fn = re.search(
+        r"function\s+OnKeyEvent\b.*?^end function", src,
+        re.MULTILINE | re.DOTALL)
+    if not fn:
+        problems.append(
+            "  components/PhlixApp.brs - CHECK31: OnKeyEvent not found")
+    else:
+        body = fn.group(0)
+        if not re.search(r"handled\s*=\s*PopScreen\(\)", body):
+            problems.append(
+                "  components/PhlixApp.brs - CHECK31: OnKeyEvent no longer "
+                "routes back through PopScreen()")
+        guard = re.search(
+            r"if\s+not\s+handled\s+then(.*?)end\s+if", body,
+            re.DOTALL)
+        if not guard:
+            problems.append(
+                "  components/PhlixApp.brs - CHECK31: OnKeyEvent returns "
+                "PopScreen()'s false unguarded; unconsumed back at the root "
+                "closes only the focused child scene and exposes the black "
+                "boot chrome (the M2 dead-screen regression)")
+        else:
+            g = guard.group(1)
+            if not re.search(r"m\.top\.exitChannel\s*=\s*true", g):
+                problems.append(
+                    "  components/PhlixApp.brs - CHECK31: the not-handled "
+                    "guard must raise m.top.exitChannel = true (main.brs "
+                    "exits the channel on it)")
+            if not re.search(r"handled\s*=\s*true", g):
+                problems.append(
+                    "  components/PhlixApp.brs - CHECK31: the not-handled "
+                    "guard must consume the key (handled = true) so RSG "
+                    "never applies native close at the root")
+else:
+    problems.append("  components/PhlixApp.brs missing - CHECK31")
+
+# R3 + R4: main.brs wires exitChannel into the wait loop and exits on it;
+# screen closure must also end main().
+main_path = os.path.join(repo, "source", "main.brs")
+if os.path.exists(main_path):
+    src = read(main_path)
+    if not re.search(r"ObserveField\(\s*\"exitChannel\"", src, re.IGNORECASE):
+        problems.append(
+            "  source/main.brs - CHECK31: exitChannel is not observed on a "
+            "message port; raising the field would never end main()")
+    if not re.search(
+        r"\"roSGNodeEvent\"[\s\S]{0,200}?GetField\(\)\s*=\s*\"exitChannel\""
+        r"[\s\S]{0,120}?exit while", src):
+        problems.append(
+            "  source/main.brs - CHECK31: the wait loop does not exit on the "
+            "exitChannel roSGNodeEvent; the exit signal is wired to nothing")
+    if not re.search(r"isScreenClosed\(\)[\s\S]{0,120}?exit while", src):
+        problems.append(
+            "  source/main.brs - CHECK31: the wait loop ignores "
+            "roSGScreenEvent/isScreenClosed; a closed root screen must end "
+            "main(), not spin the loop")
+else:
+    problems.append("  source/main.brs missing - CHECK31")
+
+# R5: the roApp fiction primitive stays dead.
+for path in sorted(
+    glob.glob(os.path.join(repo, "**", "*.brs"), recursive=True)):
+    rel = os.path.relpath(path, repo)
+    if re.search(r"CreateObject\(\s*\"roApp\"\s*\)", read(path), re.IGNORECASE):
+        problems.append(
+            "  " + rel + " - CHECK31: CreateObject(\"roApp\") is not a "
+            "creatable Roku SceneGraph component (absent from the official "
+            "type library); it yields invalid and the exit silently fails - "
+            "exit by ending main() via exitChannel instead")
+
+if problems:
+    for p in problems:
+        print("  " + p)
+    print("  CHECK31: %d root-back exit-law problem(s)" % len(problems))
+    sys.exit(1)
+
+print(
+    "  CHECK31: exitChannel declared alwaysNotify on the root, OnKeyEvent "
+    "consumes back-at-empty-stack by raising it, main.brs observes it and ends "
+    "the loop (plus isScreenClosed hygiene), and the roApp fiction primitive "
+    "appears nowhere - one Back from Home exits cleanly, no black dead-screen")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

@@ -10,6 +10,15 @@
         ' Deep-link params from cold-launch: { contentId, mediaType, action }
         ' Set by main.brs when valid deep-link args are present in launch params.
         <field id="deepLinkParams" type="assocarray" />
+        ' Exit signal (M-ROKU-01): set by OnKeyEvent when Back is pressed with an
+        ' empty screen stack (we are on a bootstrap scene). Observed by main.brs on
+        ' the screen message port; the loop then returns, ending the channel cleanly.
+        ' There is no creatable roApp.Exit() primitive in Roku SceneGraph (absent from
+        ' the official component library bsc ships), so main-thread exit-by-return is
+        ' the platform-correct cure. Scripts must never fall through to RSG's native
+        ' back handling: it closes only the FOCUSED scene, exposing the root's black
+        ' boot chrome as a dead screen (review roku__casualgamer M2).
+        <field id="exitChannel" type="boolean" alwaysNotify="true" />
     </interface>
     <!-- Shared source dependencies (SceneGraph components must explicitly script-include
          the pkg:/source files they use; source is not auto-global to component scopes). -->

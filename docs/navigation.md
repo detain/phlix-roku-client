@@ -44,12 +44,18 @@ end sub
 
 Removes the top scene from the stack, removes it from `m.top`, calls `SetFocus(true)`
 on the newly-exposed node (fixing the dead-remote bug), and returns `true`. Returns
-`false` when the stack is empty, signaling that the channel should exit.
+`false` when the stack is empty, signaling that the channel should exit — and
+(M-ROKU-01) `OnKeyEvent` acts on that signal instead of forwarding the raw false
+to the OS:
 
 ```brightscript
 ' In OnKeyEvent:
 if key = "back" then
     handled = PopScreen()
+    if not handled then
+        m.top.exitChannel = true   ' observed by main.brs, which ends main(): clean exit
+        handled = true             ' consume — never fall through to RSG's native close
+    end if
 end if
 return handled
 ```
@@ -97,10 +103,18 @@ the transition handlers.
 The screen stack is used for **pushed screens** — scenes that are opened on top of
 HomeScene (Library, Detail, Player, Search, etc.).
 
-When the stack is empty and the user presses Back, `PopScreen()` returns `false`,
-which causes `OnKeyEvent` to return `false`, allowing the Roku OS to handle the
-back press and exit the channel. This fixes certification item 6: the previous
-implementation never exited the channel because it swallowed Back at the root.
+When the stack is empty and the user presses Back, `PopScreen()` returns `false`.
+The earlier implementation returned that `false` verbatim and claimed "the Roku OS
+handles the back press and exits the channel" — that was fiction: with nested child
+scenes (this channel's bootstrap screens are appended children of the root, not the
+root itself), RSG's native back handling closes only the FOCUSED scene. The user saw
+the root's black boot chrome as a dead screen and needed a second Back to actually
+exit (review roku__casualgamer M2). The shipped law (M-ROKU-01, CHECK31):
+`OnKeyEvent` consumes the key at stack-bottom and raises the root's
+`exitChannel` field; `main.brs` observes it on the screen message port and ends
+`main()`, which is the SceneGraph-correct channel exit (the official Roku component
+library has no creatable `roApp.Exit()`). One Back from Home — or from any other
+bootstrap screen — exits cleanly with no intermediate black frame.
 
 ## Architectural Note: Nested Scenes
 

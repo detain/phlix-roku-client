@@ -2,6 +2,41 @@
 
 ## [Unreleased]
 
+### Fixed — Back at Home exits the channel; black dead-screen cured (CHECK31) — 2026-10-29
+
+- **The hole.** Review `roku__casualgamer` M2 (major): pressing Back on Home did
+  not exit the channel — it revealed a black dead screen and required a second
+  Back. `HomeScene.OnKeyEvent` has no back arm (by design — nav law CHECK27 R3
+  keeps close signals out of the bootstrap scenes), so the key bubbled to
+  `PhlixApp.OnKeyEvent`, which returned `PopScreen()`'s raw `false` at an empty
+  stack and trusted docs/navigation.md's claim that "the Roku OS handles the
+  back press and exit the channel". Fiction: with nested child scenes RSG's
+  native close only ends the FOCUSED scene — HomeScene vanished, the root's
+  black boot chrome (`bootLoadingLabel`/`bootErrorGroup`) sat on screen until a
+  second Back closed the root too. Connect/Login/ServerPicker shared the bug.
+  `PopScreen`'s own docblock law ("false ... signals the caller should exit the
+  channel") had no acting caller.
+- **The fix.** Honor the contract: `PhlixApp.xml` declares
+  `exitChannel` (boolean, alwaysNotify); the `OnKeyEvent` back guard raises it
+  and CONSUMES the key at stack-bottom; `main.brs` observes `exitChannel` on the
+  screen message port and ends `main()` when the event arrives — the
+  SceneGraph-correct channel exit, since the official component library bsc
+  bundles lists no creatable `roApp` (only roAppInfo/roAppManager/
+  roAppMemoryMonitor), so `CreateObject("roApp").Exit()` is a silent-invalid
+  dead end. The loop additionally now exits on `roSGScreenEvent`/
+  `isScreenClosed` (zombie-loop hygiene past root closure). One Back from Home
+  exits cleanly, no black frame; docs/navigation.md's exit paragraph,
+  docs/certification.md 3.3 and the README Back row were cured of the
+  native-close fiction in the same commit.
+- **The gate.** CHECK31 (scripts/verify-runtime.sh): (R1) root interface
+  declares `exitChannel` boolean alwaysNotify; (R2) the OnKeyEvent back arm
+  pairs `handled = PopScreen()` with the `not handled` guard that writes
+  `m.top.exitChannel = true` and re-consumes; (R3) `main.brs` observes the
+  field on a port and its wait loop exits on the event; (R4) the loop exits on
+  `isScreenClosed`; (R5) no `.brs` calls `CreateObject("roApp")`. Red on the
+  9ff4a6d parent era (5 problems), green at tip; mutation probe (strip the
+  guard arm) reddens exactly R2.
+
 ### Docs — README endpoint fictions, dead URLs, locale-packaging truth (CHECK30) — 2026-10-29
 
 - **The hole.** Review `roku__writer` C1-C3 (criticals). The README "API

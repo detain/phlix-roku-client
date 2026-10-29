@@ -477,7 +477,7 @@ deliberately absent from the server manifest.
 | Button | Action |
 |--------|--------|
 | Select/Play | Play / Pause toggle |
-| Back | Go back / Close detail view |
+| Back | Go back; close detail/overlay; on Home (empty stack), exit the channel |
 | Left | Seek backward 10 seconds |
 | Right | Seek forward 10 seconds |
 | Rewind | Seek backward 30 seconds |

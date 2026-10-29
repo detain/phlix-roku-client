@@ -815,9 +815,22 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
             ' Handle back button via the screen stack. PopScreen removes the top
             ' pushed scene and calls SetFocus(true) on the newly-exposed node,
             ' fixing the pre-stack bug where the remote went dead after one Back.
-            ' PopScreen returns false when the stack is empty, meaning we are at
-            ' the root and the channel should exit (certification item 6).
             handled = PopScreen()
+            if not handled then
+                ' Stack empty: we are on a bootstrap scene (Connect/Login/
+                ' ServerPicker/Home — Home is appended, never pushed). Returning
+                ' false here used to hand the key to RSG's native close, which
+                ' only closes the FOCUSED child scene and leaves the root's black
+                ' boot chrome on screen — a dead screen needing a second Back
+                ' (review roku__casualgamer M2). Honor PopScreen's contract
+                ' instead: false means "the caller must exit the channel", so we
+                ' raise exitChannel (observed by main.brs, which returns and the
+                ' channel exits cleanly — there is no roApp.Exit() in SceneGraph)
+                ' and CONSUME the key. One Back from Home exits; no black frame.
+                ' CHECK31 pins this arm.
+                m.top.exitChannel = true
+                handled = true
+            end if
         end if
     end if
 
