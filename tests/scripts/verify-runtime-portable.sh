@@ -17,6 +17,7 @@
 #     $tmp/repo/           fake checkout — the REAL scripts/verify-runtime.sh,
 #                          source/lib/Utilities.brs,
 #                          source/lib/Storage.brs + source/main.brs +
+#                          source/lib/AppContext.brs (Check 35's wrapper home) +
 #                          README.md + tests/fixtures/server-route-manifest.json
 #                          (Checks 30-33's inputs - README + route-manifest
 #                          truth, root-back exit law, surgical-wipe logout
@@ -148,6 +149,10 @@ cp "$REAL_REPO/source/lib/Utilities.brs" "$FAKE_REPO/source/lib/Utilities.brs"
 # landed (M-ROKU-02/M-ROKU-03/C33 wave); without them the positive leg crashed
 # FileNotFoundError in the CI layout.
 cp "$REAL_REPO/source/lib/Storage.brs" "$FAKE_REPO/source/lib/Storage.brs"
+# Check 35's wrapper-home leg reads source/lib/AppContext.brs; without it the
+# leg reports "wrapper file gone" in the fake layout (staging gap found while
+# landing Check 36, M-ROKU-04 closeout).
+cp "$REAL_REPO/source/lib/AppContext.brs" "$FAKE_REPO/source/lib/AppContext.brs"
 cp "$REAL_REPO/source/main.brs" "$FAKE_REPO/source/main.brs"
 cp "$REAL_REPO/README.md" "$FAKE_REPO/README.md"
 mkdir -p "$FAKE_REPO/tests/fixtures"

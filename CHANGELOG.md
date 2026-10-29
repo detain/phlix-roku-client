@@ -29,10 +29,14 @@
   button return, bootReason handoff removal) reddens exactly CHECK36 and
   nothing else; resurrecting the dead key in en_US fires CHECK36 R6 plus the
   legitimate Check 21 mirror-parity corroboration; restored control run exit 0.
-- **Gates.** verify-runtime.sh exit 0 (45 legs) and the portable twin
-  (tests/scripts/verify-runtime-portable.sh) exit 0 with the Check 36 header
-  riding the staged fake layout; validate-xml and `make lint` untouched-green
-  (this commit is gate-only — zero shipped .brs/.xml/.json changes).
+- **Gates.** verify-runtime.sh exit 0 (all 36 legs); the portable twin
+  (tests/scripts/verify-runtime-portable.sh) exit 0 with the Check 35 and
+  Check 36 headers riding the staged fake layout - landing Check 36 surfaced a
+  Check 35 staging gap (source/lib/AppContext.brs was missing from the fake
+  layout, so the twin's wrapper-home leg reported "wrapper file gone");
+  forward-fixed by adding AppContext.brs to the portable stage list.
+  validate-xml and `make lint` untouched-green (this commit is gate-only —
+  zero shipped .brs/.xml/.json changes).
 
 ### Fixed — Direct-play gate called CanDecodeVideo with fabricated positional strings; options-AA signature cure (M-ROKU-05, CHECK35) — 2026-10-29
 
