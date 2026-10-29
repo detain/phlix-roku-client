@@ -96,6 +96,15 @@
 #       XML in a scratch COPY of the real components -> non-zero naming the
 #       plant (extraction fidelity), and removing the plant -> exit 0
 #       (falsifiability, house planted-red tradition).
+#  (14) negative+restore (M-ROKU-08 aggregation, the print-only-gate class):
+#       checks 1-10 re-zeroed the shared VIOLATIONS accumulator at the check
+#       8/9/10/11 headers, so their violations printed but never gated
+#       `exit $((VIOLATIONS))` (planted CHECK1 hit -> printed, exit 0). The
+#       cured script has ONE sink: a planted CHECK1 violation in a scratch copy
+#       must exit non-zero (plant rides the earliest leg = maximum wipe
+#       distance, so any re-zero re-added in the cured range reddens this
+#       leg — mutation-proven), CHECK20/21/39 stay green (gate independence),
+#       and removing the plant returns exit 0 (falsifiability).
 #
 # RUN:  bash tests/scripts/verify-runtime-portable.sh
 # There is no Makefile slot: `make check` is a prerequisites probe, not a script
@@ -775,6 +784,65 @@ set -e
 [ "$GREEN39_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after the cured rsg_version=1.3 manifest is restored (got $GREEN39_RC)"
 assert_contains "CHECK39: rsg_version=1.3 inside" "$GREEN39_OUT"
 
+# --- M-ROKU-08 aggregation red proof + restore (the print-only-gate class):
+# checks 1-10 shared the VIOLATIONS accumulator that checks 8/9/10/11 RE-ZEROED
+# at their headers, so a violation anywhere before Check 11 printed yet could
+# never gate the exit (measured from red at b8dd771: planted CHECK1 hit printed,
+# gate exited 0; planted CHECK39 hit after the last reset exited 1). The cure
+# kills the four re-zeros — one sink, exit $((VIOLATIONS)) sees every leg. The
+# plant rides the EARLIEST leg (CHECK1, maximum wipe distance): re-adding ANY
+# re-zero in the cured range (old :110/:124/:142/:153) redds this leg
+# (mutation-proven at fix time: one re-added reset -> plant printed, exit 0). --
+AGG_ROOT="$TEST_ROOT/agg-plant"
+mkdir -p "$AGG_ROOT"
+cp -a "$TEST_ROOT/repo" "$AGG_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$AGG_ROOT/phlix-server"
+python3 - "$AGG_ROOT/repo/source/lib/AppContext.brs" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+plant = (
+    "\nsub AggPlantedCheck1()\n"
+    '    planted = Storage.get("aggregation_probe")\n'
+    "end sub\n"
+)
+with open(path, "w", encoding="utf-8") as f:
+    f.write(text + plant)
+PYEOF
+set +e
+AGG_OUT=$(bash "$AGG_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+AGG_RC=$?
+set -e
+[ "$AGG_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when a CHECK1 violation is planted in leg 1 (got 0 — the aggregation re-zero bug is back)"
+sed -n '/=== Check 1:/,/=== Check 2:/p' <<<"$AGG_OUT" | grep -qF 'CHECK1: Storage.factory used directly' ||
+	fail "the aggregation red leg must see the planted CHECK1 violation printed (got: $AGG_OUT)"
+sed -n '/=== Check 20:/,/=== Check 21:/p' <<<"$AGG_OUT" | grep -q "CHECK20: all" ||
+	fail "Check 20 must stay PASS while Check 1 is red (gate independence)"
+sed -n '/=== Check 21:/,/=== Check 22:/p' <<<"$AGG_OUT" | grep -q "CHECK21: all" ||
+	fail "Check 21 must stay PASS while Check 1 is red (gate independence)"
+sed -n '/=== Check 39:/,$p' <<<"$AGG_OUT" | grep -q "CHECK39: rsg_version=1.3 inside" ||
+	fail "Check 39 must stay PASS while Check 1 is red (gate independence)"
+# Remove → green: same scratch tree, plant stripped, full run exits 0
+# (falsifiability, house planted-red tradition).
+python3 - "$AGG_ROOT/repo/source/lib/AppContext.brs" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+marker = "\nsub AggPlantedCheck1()"
+assert marker in text, "restore anchor missing — plant not written as expected"
+text = text[:text.index(marker)]
+with open(path, "w", encoding="utf-8") as f:
+    f.write(text)
+PYEOF
+set +e
+GREENAGG_OUT=$(bash "$AGG_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+GREENAGG_RC=$?
+set -e
+[ "$GREENAGG_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after the aggregation plant is removed (got $GREENAGG_RC)"
+assert_contains "CHECK20: all" "$GREENAGG_OUT"
+
 # --- negative: audiobook dropped from the ENUM comment -> exit != 0 + CHECK14
 export FAKE_REPO
 python3 - <<'PYEOF'
@@ -864,4 +932,4 @@ set -e
 [ "$VX_RESTORE_RC" -eq 0 ] || fail "validate-xml must return to exit 0 after the malformed plant is removed (got $VX_RESTORE_RC): $VX_RESTORE_OUT"
 assert_contains "XML validation passed" "$VX_RESTORE_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 + 37-39 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + Check 20 dotted-key red leg (planted Translate(\"player.playback_error\") -> CHECK20 fired naming file, dotted key and underscore suggestion with CHECKs 21-26 green; plant removed -> exit 0, falsifiability proven) + Check 39 rsg_version red leg+restore (planted rsg_version=7.0 + stripped rationale comment -> CHECK39 fired R2 naming the illegal value and R4, with the sibling manifest readers CHECK18/CHECK38 stayed green — gate independence; cured manifest restored -> exit 0, falsifiability proven) + validate-xml zero-file-guard legs (real components/ green with count; empty scratch root -> \"discovered ZERO XML files\" red; missing root -> \"does not exist\" red; planted malformed XML -> named red, removed -> exit 0) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 + 37-39 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + Check 20 dotted-key red leg (planted Translate(\"player.playback_error\") -> CHECK20 fired naming file, dotted key and underscore suggestion with CHECKs 21-26 green; plant removed -> exit 0, falsifiability proven) + Check 39 rsg_version red leg+restore (planted rsg_version=7.0 + stripped rationale comment -> CHECK39 fired R2 naming the illegal value and R4, with the sibling manifest readers CHECK18/CHECK38 stayed green — gate independence; cured manifest restored -> exit 0, falsifiability proven) + M-ROKU-08 aggregation red leg+restore (planted CHECK1 violation in leg 1 -> exit non-zero with the violation printed and CHECK20/21/39 gates stayed green — single-sink accumulator, re-zeroing any cured-range leg reddens this leg; plant removed -> exit 0) + validate-xml zero-file-guard legs (real components/ green with count; empty scratch root -> \"discovered ZERO XML files\" red; missing root -> \"does not exist\" red; planted malformed XML -> named red, removed -> exit 0) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"

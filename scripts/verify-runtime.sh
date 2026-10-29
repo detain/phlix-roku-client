@@ -106,22 +106,27 @@ echo ""
 echo "=== Check 8: m.videoPlayer invalid fields (maps to §5.6) ==="
 # Allow-list of real Video node fields (Roku SceneGraph SDK)
 # https://developer.roku.com/docs/references/scenegraph/media-playback-nodes/video.md
+# M-ROKU-08 aggregation law: VIOLATIONS is the single end-to-end sink — legs
+# may NEVER re-zero it. Checks 1-10 used to reset it at each header, so every
+# violation before Check 11 printed but could not gate the exit. The PASS
+# display now rides the same FOUND local checks 1-7 use.
 ALLOW_LIST="command content control currentTime duration endpoint errorMsg focusRing isFullscreen isPhoto loggingUrl manifestHDRType maxHeight maxWidth position rate retargetHeight retargetWidth secureChainingUrl securityKey stream streamFormat streamInfo subtitleStream textTrackTrack track transferType videoLocation videoNode wasPlaying wideAsync EnableCookies SetCertificatesFile ObserveField UnObserveField SetFocus globalCaptionMode seek audioTrack availableAudioTracks subtitleTracks currentSubtitleTrack errorCode width height translation volume isUnderlyingStreamPlaying notificationPeriod positionAsOfNow bifDisplay"
-VIOLATIONS=0
+FOUND=0
 while IFS=: read -r file line; do
 	field=$(echo "$line" | sed 's/.*m\.videoPlayer\.\([a-zA-Z_][a-zA-Z0-9_]*\).*/\1/' | grep -oP '[a-zA-Z_][a-zA-Z0-9_]*' | head -1)
 	if [[ -n "$field" ]] && ! echo "$ALLOW_LIST" | grep -qw "$field"; then
 		echo "  $file — CHECK8: m.videoPlayer.$field is not a real Video node field"
+		FOUND=1
 		VIOLATIONS=1
 	fi
 done < <(git grep -n 'm\.videoPlayer\.' -- '*.brs' 2>/dev/null || true)
-[[ $VIOLATIONS -eq 0 ]] && echo "  PASS"
+[[ $FOUND -eq 0 ]] && echo "  PASS"
 
 echo ""
 echo "=== Check 9: OnKeyEvent invalid Roku remote keys (maps to §3.6) ==="
 # Valid Roku remote keys per https://developer.roku.com/docs/references/scenegraph/remote-control-events.md
 ALLOW_KEYS="back up down left right OK replay play rewind fastforward options info"
-VIOLATIONS=0
+FOUND=0
 for brs in $(git ls-files -- '*.brs'); do
 	if [[ "$brs" == tests/* ]]; then continue; fi
 	if grep -q 'sub OnKeyEvent' "$brs"; then
@@ -130,27 +135,30 @@ for brs in $(git ls-files -- '*.brs'); do
 			if ! echo "$ALLOW_KEYS" | grep -qw "$key"; then
 				line_num=$(grep -n "[\"']$key[\"']" "$brs" | head -1 | cut -d: -f1)
 				echo "  $brs:$line_num — CHECK9: OnKeyEvent compares key '$key' which is not a valid Roku remote key"
+				FOUND=1
 				VIOLATIONS=1
 			fi
 		done
 	fi
 done
-[[ $VIOLATIONS -eq 0 ]] && echo "  PASS"
+[[ $FOUND -eq 0 ]] && echo "  PASS"
 
 echo ""
 echo "=== Check 10: blocking network outside ApiTask (maps to §5.3) ==="
-VIOLATIONS=0
+FOUND=0
 while IFS=: read -r file line; do
 	if [[ "$file" != components/ApiTask* ]]; then
 		echo "  $file:$line — CHECK10: blocking network call (ApiClient.wait/sync) on render thread"
+		FOUND=1
 		VIOLATIONS=1
 	fi
 done < <(git grep -rn 'ApiClient\.\(wait\|sync\)' -- '*.brs' 2>/dev/null || true)
-[[ $VIOLATIONS -eq 0 ]] && echo "  PASS"
+[[ $FOUND -eq 0 ]] && echo "  PASS"
 
 echo ""
 echo "=== Check 11: unguarded Task control=run (R1.4: busy guard required) ==="
-VIOLATIONS=0
+# M-ROKU-08: the last re-zero site lives no more — this leg's gate display is
+# driven by PYRET and its failure already accumulates via VIOLATIONS=1.
 # For each control="run" in .brs files, verify a busy-guard (state check) appears
 # within the preceding ~15 lines inside the same function.  Sites that are
 # provably one-shot (guarded by if m.XTask=invalid or m.XTask.state<>"run" nearby),

@@ -2,6 +2,41 @@
 
 ## [Unreleased]
 
+### Fixed — verify-runtime.sh aggregation: checks 1-10 were print-only, the gate could never fail on them (M-ROKU-08) — 2026-10-29
+
+- **The defect (review roku__devops M8).** `VIOLATIONS` — the single value
+  `exit $((VIOLATIONS))` reads — was RE-ZEROED at four leg headers: checks
+  8/9/10/11 opened with `VIOLATIONS=0` and rode it as a per-leg PASS-display
+  local. Check 11's reset (old :153) wiped everything checks 1-10 had flagged,
+  so those ten legs' diagnostics were theater: they printed but could never
+  gate CI (`lint.yml` verify-runtime step + the `package` job's `needs:`).
+  Measured from red at b8dd771: baseline exit 0; planted CHECK1 hit — violation
+  PRINTED, gate exit 0; planted CHECK39 hit (after the last reset, control) —
+  exit 1. The queue's `cured-by: C21 c6c9009; C33 9ff4a6d` annotation is false:
+  `VIOLATIONS=0` occurs at the identical five sites (:13 init + :110/:124/:142/
+  :153) in `c6c9009~1`, `c6c9009`, `9ff4a6d` AND `b8dd771` — neither cure
+  touched the accumulator (diff proof in `.reviews/fixlog/M-ROKU-08__fix.md`
+  §r2-cure).
+- **The cure (aggregation law: one sink, zero it once).** The four header
+  re-zeros are gone; `VIOLATIONS` is initialized once and only accumulated.
+  Checks 8/9/10 PASS-display migrated to the same `FOUND` local checks 1-7 use;
+  check 11's display was already `PYRET`-driven. Exposure sweep: the clean tree
+  prints PASS on all ten early legs, so no latent violation was surfaced — the
+  full 39-leg harness still exits 0; `make lint` (bsc) and `validate-xml.sh`
+  (48 files) unchanged-green.
+- **Teeth (portable harness leg 14).**
+  `tests/scripts/verify-runtime-portable.sh` gains a plant-and-restore
+  aggregation leg: a synthetic `Storage.get` violation rides CHECK1 — the
+  EARLIEST leg, maximum wipe distance — and the run must exit non-zero with the
+  print visible while CHECK20/21/39 stay green (gate independence); removing the
+  plant returns exit 0 (falsifiability). Re-adding ANY single re-zero in the
+  cured range reddens this leg: mutation-proven at fix time (one `VIOLATIONS=0`
+  restored at the check-8 header → plant printed, exit 0). Red-on-parent: the
+  same leg against the b8dd771 script fails exactly where the bug lived.
+  `docs/static-checks.md` carries the aggregation law + the leg.
+- **Same-shape strike, forward-fix discipline:** no behavior changed in any of
+  the 39 checks themselves — only the plumbing from print to exit.
+
 ### Fixed — manifest rsg_version 7.0 fiction cured to the legal cert value 1.3 + CHECK39 (M-ROKU-07) — 2026-10-29
 
 - **The defect (review roku__crossfe M3).** The manifest declared
