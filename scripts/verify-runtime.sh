@@ -4323,4 +4323,161 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 41: signing wrapper claims only what it enforces; CI has no un-provisioned signer (M-ROKU-10) ==="
+# scripts/package-signed.sh claimed a password environment variable no
+# component ever read (docs/publishing.md even wired that secret into a CI
+# snippet and promised a fail-loud the script could not perform), minted a
+# faux-signed artifact by cp'ing the unsigned zip to a .pkg name when rokupkg
+# failed while still printing "Signed package ready ... upload to the portal",
+# stamped versions from a dead `:-1.0.1` default make never exported through
+# to, and CI carried a package-signed stub job that installed no signer —
+# green-skipped today, release-blocking the day its gate secret was armed
+# (review roku__devops M3, all four bullets). The cure deleted the claims it
+# cannot keep, named the artifact to the certificate's actual nature, killed
+# the rename fallback fail-loud, threaded the real version, and deleted the
+# stub. Rules keep claim<->behavior consistent in BOTH directions:
+#   R1 PHANTOM-SECRET BAN: the dead credential token appears nowhere in the
+#      signing chain (script, workflow, publishing docs) — a secret no
+#      component reads may never again be advertised as required
+#   R2 NO FALSE SIGNATURE: the unsigned-zip-renamed-to-.pkg pattern is banned;
+#      the certificate-nature gate (openssl subject/issuer read) and the
+#      honest *-dev-signed artifact name exist in the script AND are echoed
+#      by docs/publishing.md; the dev-only "NOT accepted" banner exists
+#   R3 VERSION TRUTH: the stale 1.0.1 default is gone, the script derives
+#      PKG_VERSION via derive-version.sh and fails loud on an empty stamp,
+#      and the Makefile recipe passes the derived PKG_VERSION explicitly
+#   R4 CI SIGNER LAW: no workflow job runs `make package-signed` without
+#      provisioning a signer (npm install + rokudev) in the same job — the
+#      deleted stub may only return actually able to sign — and every
+#      `needs:` entry names a job that exists (dangling-need from stub
+#      removal or drift fails here)
+# Static pins only: package-signed.sh executes `make package` and touches
+# external CLIs/certs, so unlike CHECK40's pure derive-version.sh this leg
+# never runs the wrapper — its guards are grepped, and the behavioral red
+# proof rides the portable harness plant legs.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+PS = "scripts/package-signed.sh"
+MK = "Makefile"
+WF = ".github/workflows/package.yml"
+DOC = "docs/publishing.md"
+
+texts = {}
+for path in (PS, MK, WF, DOC):
+    try:
+        texts[path] = open(path, encoding="utf-8").read()
+    except OSError as e:
+        problems.append(f"  {path} - CHECK41: unreadable: {e} — the claim/behavior pin cannot run vacuously")
+
+if not problems:
+    ps, mk, wf, doc = texts[PS], texts[MK], texts[WF], texts[DOC]
+
+    # R1 phantom-secret ban
+    for path in (PS, WF, DOC):
+        if "ROKU_DEV_PASSWORD" in texts[path]:
+            problems.append(
+                f"  {path} - CHECK41 R1: claims ROKU_DEV_PASSWORD — no component in the signing chain "
+                "reads it (auth is the rokudev CLI's interactive session token). A secret advertised as "
+                "required but never consumed is the M-ROKU-10 false-assurance class: read it for real "
+                "everywhere and rotate this leg, or delete the claim."
+            )
+
+    # R2 no false signature
+    if re.search(r'cp\s+"?\$\{?PKG_NAME\}?\.zip', ps):
+        problems.append(
+            f"  {PS} - CHECK41 R2: an unsigned zip is being cp-renamed into the artifact name "
+            "— minting a mislabeled 'signed' .pkg is the exact M-ROKU-10 store-cycle-wasting defect; "
+            "signing failures must exit non-zero with no artifact"
+        )
+    if "-subject" not in ps or "-issuer" not in ps:
+        problems.append(
+            f"  {PS} - CHECK41 R2: the certificate-nature gate (openssl x509 -subject/-issuer compare) "
+            "is gone — without it a self-signed cert can masquerade as store-submittable"
+        )
+    if "-dev-signed" not in ps:
+        problems.append(
+            f"  {PS} - CHECK41 R2: the honest *-dev-signed artifact name is gone — dev-signed output "
+            "must be named to what its certificate can back (M-ROKU-10)"
+        )
+    if "NOT accepted by the Roku Channel Store" not in ps:
+        problems.append(
+            f"  {PS} - CHECK41 R2: the dev-only banner is gone — the summary must tell the operator "
+            "a self-signed artifact is never uploadable"
+        )
+    if "-dev-signed" not in doc:
+        problems.append(
+            f"  {DOC} - CHECK41 R2: the docs lost the *-dev-signed artifact truth the script now names "
+            "— behavior and docs rotate together (M-ROKU-10)"
+        )
+
+    # R3 version truth — the ban targets the ASSIGNMENT shape (a non-empty
+    # literal default in parameter expansion), not prose that names the old
+    # pattern historically; the derive law tolerates the quoted call path.
+    if re.search(r'^\s*PKG_VERSION="\$\{PKG_VERSION:-[^}"]+\}"', ps, re.M):
+        problems.append(
+            f"  {PS} - CHECK41 R3: PKG_VERSION carries a hardcoded literal fallback default — make does "
+            "not export ordinary variables, so `:-<version>}` silently mis-stamps direct invocations "
+            "(the stale 1.0.1 defect, M-ROKU-10); derive it or fail loud"
+        )
+    if not re.search(r'derive-version\.sh"?\s+--pkg-version', ps):
+        problems.append(
+            f"  {PS} - CHECK41 R3: the PKG_VERSION fallback no longer derives from "
+            "scripts/derive-version.sh --pkg-version — the single-source version law"
+        )
+    if not re.search(r'\[\s+-z\s+"\$PKG_VERSION"\s*\]', ps):
+        problems.append(
+            f"  {PS} - CHECK41 R3: the empty-version fail-loud guard is gone — an undeterminable "
+            "version must halt BEFORE minting an artifact"
+        )
+    if not re.search(r'PKG_VERSION="\$\(PKG_VERSION\)"\s+bash\s+scripts/package-signed\.sh', mk):
+        problems.append(
+            f"  {MK} - CHECK41 R3: the package-signed recipe no longer passes PKG_VERSION=\"$(PKG_VERSION)\" "
+            "into the script — make variables are not exported to recipes unless asked"
+        )
+
+    # R4 CI signer law + needs consistency
+    job_starts = [(m.start(), m.group(1)) for m in re.finditer(r"(?m)^  ([A-Za-z0-9_-]+):\s*$", wf)]
+    defined = set(name for _, name in job_starts)
+    for idx, (pos, name) in enumerate(job_starts):
+        end = job_starts[idx + 1][0] if idx + 1 < len(job_starts) else len(wf)
+        block = wf[pos:end]
+        if "make package-signed" in block:
+            if not re.search(r"npm (ci|install)", block) or "rokudev" not in block:
+                problems.append(
+                    f"  {WF} - CHECK41 R4: job '{name}' runs `make package-signed` without provisioning a "
+                    "signer (npm ci + rokudev) — the un-buildable green stub is the M-ROKU-10 class: it "
+                    "skips silently today and blocks its `needs:` consumers the day its gate secret is armed"
+                )
+    needs_pat = re.compile(r"^\s*needs:\s*(?:\[([^\]]*)\]|([A-Za-z0-9_-]+))\s*$", re.M)
+    for m in needs_pat.finditer(wf):
+        for dep in re.split(r",", m.group(1) or m.group(2) or ""):
+            dep = dep.strip().strip("'\"")
+            if dep and dep not in defined:
+                problems.append(
+                    f"  {WF} - CHECK41 R4: `needs:` lists job '{dep}' which no longer exists "
+                    "(deleted stub not un-referenced?) — release lanes would never start"
+                )
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK41: %d signing-claim/behavior problem(s)" % len(problems))
+    sys.exit(1)
+
+print("  CHECK41: no phantom password-secret claim in the signing chain; no rename-into-.pkg fallback;")
+print("           certificate nature names the artifact (dev-signed honesty in script AND docs);")
+print("           version derived + passed explicitly; no workflow signs without a provisioned signer, every needs: resolves")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

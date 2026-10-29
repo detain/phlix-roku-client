@@ -10,6 +10,7 @@ This guide covers the end-to-end workflow for submitting Phlix to the Roku Chann
 |---|---|---|---|
 | `phlix.zip` (unsigned) | `make package` | Sideloaded to any dev-enabled Roku | No |
 | `phlix-X.X.X.pkg` (signed) | `make package-signed` | Roku Channel Store | **Yes — real cert from Roku** |
+| `phlix-X.X.X-dev-signed.pkg` | `make package-signed` with a self-signed cert | Sideload testing **only** — the portal rejects it | Self-signed (dev) |
 
 - **Sideloading** (`make install` + `phlix.zip`): Fast iteration, any dev-enabled device, does not require store certification.
 - **Store submission** (`make package-signed` + `.pkg`): Requires a signed `.pkg` built with a real Roku code signing certificate.
@@ -86,12 +87,13 @@ What exists **today** (pinned against drift by verify-runtime Check 40):
    npm install -g rokudev
    ```
 
-3. **ROKU_DEV_PASSWORD** environment variable
-   - Set to the password for your Roku dev account
-   - Add to your shell profile or CI secrets:
-     ```bash
-     export ROKU_DEV_PASSWORD="your-password-here"
-     ```
+3. **Roku account credentials**
+   - You type them when `rokudev auth` prompts (item 5). There is **no
+     password environment variable to export** — nothing in the build or
+     signing chain reads one. (An earlier revision of this document claimed
+     the signing script required such a variable; no component ever read
+     it. The false claim was deleted under M-ROKU-10, and verify-runtime
+     Check 41 R1 keeps claim and behavior consistent.)
 
 4. **Roku Device in Developer Mode**
    - Enable developer mode on your Roku: https://developer.roku.com/docs/developer-program/getting-started.md
@@ -119,11 +121,21 @@ rokudev auth
 make package-signed
 ```
 
-This script:
+The script:
 
-1. Runs `make package` to produce `phlix.zip`
-2. Uses your code signing certificate (at `~/.phlix/phlix-signing.pem`) to sign the package
-3. Outputs `phlix-X.X.X.pkg` (the signed artifact for store submission)
+1. Runs `make package` to produce `phlix.zip` (self-verified layout)
+2. Uses the certificate at `~/.phlix/phlix-signing.pem`, generating a
+   self-signed development certificate only if none exists (and, in a
+   terminal, only with your consent)
+3. Determines the certificate's nature (self-signed vs Roku-issued) and
+   names the output to that truth: `phlix-X.X.X-dev-signed.pkg` for a
+   self-signed cert (sideload testing only — the summary explicitly marks it
+   NOT uploadable), `phlix-X.X.X.pkg` for a Roku-issued cert (the store
+   submission artifact)
+4. Fails loud — minting nothing — when no signer CLI is installed, when
+   signing itself fails (there is no fallback that renames the unsigned zip
+   into a `.pkg`; that mislabel was the M-ROKU-10 defect), or when the
+   certificate cannot be read
 
 ### Step 3 — Submit to the Roku Developer Portal
 
@@ -165,19 +177,26 @@ To get a real code signing certificate for store submission:
 
 ## CI/CD Integration
 
-For automated builds in GitHub Actions or similar:
+**CI does not sign packages, by design of the credentials involved.** The
+`Package` workflow builds and publishes only the sideload `phlix.zip` (the
+rolling `latest` prerelease described above). Store packaging is a manual
+workstation step: `rokudev auth` once, the Roku-issued certificate at
+`~/.phlix/phlix-signing.pem`, then `make package-signed`.
 
-```yaml
-- name: Build signed package
-  env:
-    ROKU_DEV_PASSWORD: ${{ secrets.ROKU_DEV_PASSWORD }}
-  run: make package-signed
-```
+An earlier revision showed a CI snippet exporting a password secret into
+`make package-signed` and promised the script would "fail if it is not
+set" — no component ever read that secret, and a workflow job that cannot
+install a signer is worse than no job: it lies green while skipped and
+blocks everything downstream the day its gate secret is armed. That stub
+job was deleted under M-ROKU-10. If CI signing is ever wanted, it must land
+with real signer provisioning (`npm ci`, `rokudev`, certificate handling)
+in the same job — verify-runtime Check 41 R4 reddens any workflow that runs
+`make package-signed` without one.
 
-The script will fail with clear error messages if:
-- `ROKU_DEV_PASSWORD` is not set
-- rokudev/rokupkg is not installed
-- The signing certificate is missing or invalid
+What the script genuinely fails loud about (each enforced in
+`scripts/package-signed.sh`): no signer CLI installed, signing command
+failure (no fallback artifact), unreadable or refused certificate, and an
+undeterminable package version.
 
 ---
 

@@ -107,21 +107,20 @@ jobs:
           path: phlix.zip
           if-no-files-found: error
 
-  package-signed:
-    name: Build signed package (device-dependent)
-    needs: package
-    runs-on: ubuntu-26.04
-    env:
-      ROKU_HOST: ${{ secrets.ROKU_HOST }}
-    steps:
-      - uses: actions/checkout@v6
-      - name: Build signed package
-        if: env.ROKU_HOST != ''
-        run: make package-signed
+  # (M-ROKU-10) A `package-signed` job used to live here. It ran
+  # `make package-signed` in a job that installed no signer (no setup-node /
+  # npm ci, so neither rokudev nor rokupkg existed) and collected no artifact
+  # — silently skipped while its gate secret was unset, and the day anyone
+  # armed the secret it would have failed and blocked release-latest, which
+  # listed it under `needs`. Store signing requires Roku-issued credentials,
+  # so packaging stays a manual workstation step (docs/publishing.md).
+  # Re-add CI signing only WITH signer provisioning (npm ci + rokudev + cert
+  # handling) in the same job — verify-runtime Check 41 R4 reddens a job that
+  # runs `make package-signed` without a provisioned signer.
 
   release-latest:
     name: Update "latest" prerelease
-    needs: [package, package-signed]
+    needs: package
     # On every master/main push, overwrite a rolling "latest" GitHub Release
     # carrying the RAW sideload phlix.zip as a directly-downloadable asset
     # (GitHub Actions artifacts are re-zipped on download — a Release serves the

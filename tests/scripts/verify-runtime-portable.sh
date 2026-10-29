@@ -114,6 +114,16 @@
 #       returns exit 0. Check 40 also asserts green on the positive run (its
 #       inputs — derive-version.sh, .github/workflows/package.yml,
 #       docs/publishing.md — joined the stage list).
+#  (16) negative+restore (M-ROKU-10 signing-claim honesty): re-planting the
+#       cured class into a scratch copy of scripts/package-signed.sh — the
+#       phantom password-env claim (ROKU_DEV_PASSWORD), the rename-unsigned-
+#       zip-into-.pkg fallback line, and a hardcoded PKG_VERSION default —
+#       plus an un-provisioned package-signed stub job into a scratch
+#       package.yml must fire CHECK41 R1+R2+R3+R4 naming each plant, with
+#       CHECK18/CHECK40 gate independence; restoring the cured files returns
+#       exit 0. Check 41's inputs (package-signed.sh and the Makefile joined
+#       the stage list beside package.yml/publishing.md) also assert green on
+#       the positive run.
 #
 # RUN:  bash tests/scripts/verify-runtime-portable.sh
 # There is no Makefile slot: `make check` is a prerequisites probe, not a script
@@ -167,6 +177,11 @@ cp "$REAL_REPO/scripts/derive-version.sh" "$FAKE_REPO/scripts/derive-version.sh"
 mkdir -p "$FAKE_REPO/.github/workflows" "$FAKE_REPO/docs"
 cp "$REAL_REPO/.github/workflows/package.yml" "$FAKE_REPO/.github/workflows/package.yml"
 cp "$REAL_REPO/docs/publishing.md" "$FAKE_REPO/docs/publishing.md"
+# Check 41 (M-ROKU-10) pins the signing wrapper's claims to its enforcement
+# and the Makefile's version threading: stage package-signed.sh + Makefile
+# beside the package.yml/docs publishing.md already stages.
+cp "$REAL_REPO/scripts/package-signed.sh" "$FAKE_REPO/scripts/package-signed.sh"
+cp "$REAL_REPO/Makefile" "$FAKE_REPO/Makefile"
 cp "$REAL_REPO/source/lib/Utilities.brs" "$FAKE_REPO/source/lib/Utilities.brs"
 # Checks 30/32 read README.md, Check 31 reads source/main.brs and Check 33
 # reads source/lib/Storage.brs. They joined the stage list when those checks
@@ -233,6 +248,11 @@ assert_contains "CHECK39: rsg_version=1.3 inside" "$POSITIVE_OUT"
 # publish-vehicle leg must run green in the CI layout too.
 assert_contains "=== Check 40:" "$POSITIVE_OUT"
 assert_contains "CHECK40: derive-version.sh fully reachable" "$POSITIVE_OUT"
+# M-ROKU-10: Check 41's inputs (package-signed.sh + Makefile + package.yml +
+# docs/publishing.md) are all staged, so the signing-honesty leg must run
+# green in the CI layout too.
+assert_contains "=== Check 41:" "$POSITIVE_OUT"
+assert_contains "CHECK41: no phantom password-secret claim" "$POSITIVE_OUT"
 assert_contains "CHECK21: all" "$POSITIVE_OUT"
 assert_contains "CHECK22: all" "$POSITIVE_OUT"
 assert_contains "CHECK23: all" "$POSITIVE_OUT"
@@ -912,6 +932,74 @@ set -e
 [ "$GREEN40_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after the cured derive-version.sh is restored (got $GREEN40_RC)"
 assert_contains "CHECK40: derive-version.sh fully reachable" "$GREEN40_OUT"
 
+# --- Check 41 red proof + restore on an independent scratch copy: the
+# signing-claim dishonesty class (M-ROKU-10). The wrapper once claimed a
+# password env var nothing read, fell back to renaming the unsigned zip into
+# a "signed" .pkg, stamped versions from a hardcoded 1.0.1 make never
+# exported, and CI carried a signer-less package-signed stub. Re-planting all
+# four must fire CHECK41 R1+R2+R3+R4 naming each plant, while CHECK18 (other
+# version reader) and CHECK40 (version-discipline/vehicle) stay green (gate
+# independence); restoring the cured files returns exit 0 (falsifiability).
+RED41_ROOT="$TEST_ROOT/red41"
+mkdir -p "$RED41_ROOT"
+cp -a "$TEST_ROOT/repo" "$RED41_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$RED41_ROOT/phlix-server"
+python3 - "$RED41_ROOT/repo/scripts/package-signed.sh" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+plant = (
+    "\n#   - ROKU_DEV_PASSWORD environment variable set (CHECK41 R1 plant)\n"
+    'PKG_VERSION="${PKG_VERSION:-1.0.1}"  # CHECK41 R3 plant: hardcoded default\n'
+    'cp "${PKG_NAME}.zip" "$SIGNED_PKG"  # CHECK41 R2 plant: rename-fake-pkg\n'
+)
+with open(path, "w", encoding="utf-8") as f:
+    f.write(text + plant)
+PYEOF
+python3 - "$RED41_ROOT/repo/.github/workflows/package.yml" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+plant = (
+    "\n  package-signed-stub:\n"
+    "    name: CHECK41 R4 plant (signer-less)\n"
+    "    needs: package\n"
+    "    runs-on: ubuntu-26.04\n"
+    "    steps:\n"
+    "      - name: Sign\n"
+    "        run: make package-signed\n"
+)
+with open(path, "w", encoding="utf-8") as f:
+    f.write(text + plant)
+PYEOF
+set +e
+RED41_OUT=$(bash "$RED41_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+RED41_RC=$?
+set -e
+[ "$RED41_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the M-ROKU-10 class is re-planted (got 0 — the signing-honesty guard is toothless)"
+sed -n '/=== Check 41:/,$p' <<<"$RED41_OUT" | grep -qF "CHECK41 R1" ||
+	fail "CHECK41 red must fire the phantom-secret R1 leg on the planted ROKU_DEV_PASSWORD claim"
+sed -n '/=== Check 41:/,$p' <<<"$RED41_OUT" | grep -qF "CHECK41 R2" ||
+	fail "CHECK41 red must fire the rename-into-.pkg R2 leg on the planted cp fallback"
+sed -n '/=== Check 41:/,$p' <<<"$RED41_OUT" | grep -qF "CHECK41 R3" ||
+	fail "CHECK41 red must fire the version-truth R3 leg on the planted hardcoded default"
+sed -n '/=== Check 41:/,$p' <<<"$RED41_OUT" | grep -qF "CHECK41 R4" ||
+	fail "CHECK41 red must fire the CI-signer R4 leg on the planted signer-less package-signed stub"
+sed -n '/=== Check 40:/,/=== Check 41:/p' <<<"$RED41_OUT" | grep -qF "CHECK40: derive-version.sh fully reachable" ||
+	fail "Check 40 must stay PASS while Check 41 is red (gate independence)"
+sed -n '/=== Check 18:/,/=== Check 19:/p' <<<"$RED41_OUT" | grep -qF 'PASS — package.json=' ||
+	fail "Check 18 (the other version reader) must stay PASS while Check 41 is red (gate independence)"
+cp "$FAKE_REPO/scripts/package-signed.sh" "$RED41_ROOT/repo/scripts/package-signed.sh"
+cp "$FAKE_REPO/.github/workflows/package.yml" "$RED41_ROOT/repo/.github/workflows/package.yml"
+set +e
+GREEN41_OUT=$(bash "$RED41_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+GREEN41_RC=$?
+set -e
+[ "$GREEN41_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after the cured signing wrapper + workflow are restored (got $GREEN41_RC)"
+assert_contains "CHECK41: no phantom password-secret claim" "$GREEN41_OUT"
+
 # --- negative: audiobook dropped from the ENUM comment -> exit != 0 + CHECK14
 export FAKE_REPO
 python3 - <<'PYEOF'
@@ -1001,4 +1089,4 @@ set -e
 [ "$VX_RESTORE_RC" -eq 0 ] || fail "validate-xml must return to exit 0 after the malformed plant is removed (got $VX_RESTORE_RC): $VX_RESTORE_OUT"
 assert_contains "XML validation passed" "$VX_RESTORE_OUT"
 
-echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 + 37-39 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + Check 20 dotted-key red leg (planted Translate(\"player.playback_error\") -> CHECK20 fired naming file, dotted key and underscore suggestion with CHECKs 21-26 green; plant removed -> exit 0, falsifiability proven) + Check 39 rsg_version red leg+restore (planted rsg_version=7.0 + stripped rationale comment -> CHECK39 fired R2 naming the illegal value and R4, with the sibling manifest readers CHECK18/CHECK38 stayed green — gate independence; cured manifest restored -> exit 0, falsifiability proven) + M-ROKU-08 aggregation red leg+restore (planted CHECK1 violation in leg 1 -> exit non-zero with the violation printed and CHECK20/21/39 gates stayed green — single-sink accumulator, re-zeroing any cured-range leg reddens this leg; plant removed -> exit 0) + Check 40 dead-design red leg+restore (planted unreachable function + ghost documented flag -> CHECK40 fired R1 and R2 naming both plants, with CHECK18/CHECK39 gate independence; cured script restored -> exit 0 — designed-but-dead versioning machinery can no longer accumulate silently) + validate-xml zero-file-guard legs (real components/ green with count; empty scratch root -> \"discovered ZERO XML files\" red; missing root -> \"does not exist\" red; planted malformed XML -> named red, removed -> exit 0) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"
+echo "PASS: verify-runtime.sh is portable — CI-layout positive run (exit 0, Check 14 PASS on 034_media_items_type_audiobook.sql, Check 11-26 + 37-39 headers present, CHECK21 + CHECK22 + CHECK23 + CHECK24 + CHECK25 + CHECK26 green) + ja_JP device-locale resolution leg (all literal Translate keys resolve with no en_US fallback) + Check 21 red leg (missing mirror key -> CHECK21 fired, Check 14/20/22/23/24 gates stayed green) + Check 22 content-pin red legs (rogue 20th census code -> CHECK22 fired naming it; rogue declaration in the post-flip EMPTY reserved ledger -> CHECK22 reserved-drift leg fired; removing SyncPlayReservedErrorCodes() entirely -> CHECK22 existence leg fired, the declaration gate stays armed; Check 21 stayed green all three runs) + Check 23 red legs (orphan errors key -> CHECK23 purity fired with CHECK22 green; raw EmitError literal -> CHECK23 fired, Check 21/22 gates stayed green) + Check 24 red leg (token key concatenated raw -> CHECK24 fired with file:line, Check 20/21/22/23 gates stayed green) + Check 19 exempt-anchoring red leg (prose ' for ' literal fired CHECK19 while a real for-header line stayed exempt, Check 20/21/22/23/24 gates stayed green) + Check 25 red leg (planted raw XML chrome label -> CHECK25 fired naming file:line, Check 20/21/22/23/24 gates stayed green) + Check 26 red leg (planted envelope-level resp.libraries read -> CHECK26 fired naming file and read, Check 20/24/25 gates stayed green) + Check 20 dotted-key red leg (planted Translate(\"player.playback_error\") -> CHECK20 fired naming file, dotted key and underscore suggestion with CHECKs 21-26 green; plant removed -> exit 0, falsifiability proven) + Check 39 rsg_version red leg+restore (planted rsg_version=7.0 + stripped rationale comment -> CHECK39 fired R2 naming the illegal value and R4, with the sibling manifest readers CHECK18/CHECK38 stayed green — gate independence; cured manifest restored -> exit 0, falsifiability proven) + M-ROKU-08 aggregation red leg+restore (planted CHECK1 violation in leg 1 -> exit non-zero with the violation printed and CHECK20/21/39 gates stayed green — single-sink accumulator, re-zeroing any cured-range leg reddens this leg; plant removed -> exit 0) + Check 40 dead-design red leg+restore (planted unreachable function + ghost documented flag -> CHECK40 fired R1 and R2 naming both plants, with CHECK18/CHECK39 gate independence; cured script restored -> exit 0 — designed-but-dead versioning machinery can no longer accumulate silently) + Check 41 signing-honesty red leg+restore (planted the phantom password-env claim, the rename-into-.pkg fallback and a hardcoded PKG_VERSION default into a scratch package-signed.sh plus an un-provisioned package-signed stub job into a scratch package.yml -> CHECK41 fired R1/R2/R3/R4 naming each plant, with CHECK18/CHECK40 gate independence; cured files restored -> exit 0 — a mislabeled 'signed' artifact or a phantom-secret claim cannot return silently) + validate-xml zero-file-guard legs (real components/ green with count; empty scratch root -> \"discovered ZERO XML files\" red; missing root -> \"does not exist\" red; planted malformed XML -> named red, removed -> exit 0) + audiobook-drift negative run (exit $NEG_RC, CHECK14 fired)"

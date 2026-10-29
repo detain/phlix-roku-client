@@ -2,6 +2,90 @@
 
 ## [Unreleased]
 
+### Fixed — package-signed honesty: claimed preconditions enforced, mislabeled "signed" artifact impossible (M-ROKU-10) — 2026-10-29
+
+- **The defect (review roku__devops M3, all four bullets).**
+  `scripts/package-signed.sh` + `docs/publishing.md` + the
+  `.github/workflows/package.yml` signing lane shipped four linked
+  dishonesties: (a) the header and docs claimed a `ROKU_DEV_PASSWORD`
+  environment variable was required and the script "will fail" without it —
+  **no component ever read it** (the review's evidence: the script "never
+  reads ROKU_DEV_PASSWORD", `scripts/package-signed.sh:9` at the pin); auth
+  is the external rokudev CLI's stored `rokudev auth` session, the password
+  is typed at its prompt; (b) the faux-signature fallback: when `rokupkg`
+  existed but signing failed, the script `cp`'d the unsigned zip onto the
+  `.pkg` name and still printed "✓ Signed package ready" + "Upload … to the
+  Roku developer portal" — a renamed unsigned zip under a signed name is
+  exactly the artifact that wastes a store review cycle; (c) the inert
+  version stamp: `PKG_VERSION="${PKG_VERSION:-1.0.1}"` — the Makefile
+  derived the real version but make does NOT export ordinary variables into
+  recipes, so direct invocations were permanently mis-stamped `1.0.1`;
+  (d) the CI stub: the `package-signed` job ran `make package-signed` in a
+  job that installed no signer (no setup-node/npm ci) and collected no
+  artifact — silently skipped while its gate secret is unset, and the day
+  anyone armed the secret it would have exited 1 and blocked
+  `release-latest`, which listed it under `needs:`.
+- **Callers traced (both sides).** Nothing invokes the script except the
+  `make package-signed` target (`Makefile`) — the deleted workflow job was
+  its only CI caller; no artifact collector ever consumed its output
+  (`release-latest` publishes the sideload `phlix.zip` only). Manual dev +
+  manual store are the real flows, so the minimal honest shape was chosen
+  per-flow rather than provisioning owner-gated signing credentials in CI.
+- **The cure (fail-loud-or-delete-claim doctrine; precedent ROKU-09
+  `905ab2e4` / windows WIN-05).** (a) The phantom-secret claim is deleted
+  from the script header, the Makefile comment, and every publishing.md
+  site (Prerequisites item 3, the Step-2 flow list, the CI snippet — the
+  docs now state the truth: no password env var exists to export).
+  (b) The rename fallback is killed: a signing failure exits non-zero and
+  mints NOTHING (probe-verified: signer-fail leaves zero `.pkg` files);
+  additionally the script now INSPECTS the certificate (`openssl x509`
+  subject-vs-issuer compare) and names the artifact to its nature — a
+  self-signed cert yields `phlix-X.X.X-dev-signed.pkg` with a "NOT accepted
+  by the Roku Channel Store" banner and no upload instructions, a CA-issued
+  cert yields `phlix-X.X.X.pkg` with the portal steps; an unreadable cert
+  fails loud instead of minting an artifact of unknown provenance.
+  (c) The version: the hardcoded default is gone — PKG_VERSION comes from
+  the environment (the Makefile now passes `PKG_VERSION="$(PKG_VERSION)"`
+  explicitly), else from `scripts/derive-version.sh --pkg-version`, else the
+  script halts BEFORE producing anything; `package-signed` also joined
+  `.PHONY` while in the target's neighborhood. (d) The workflow stub is
+  DELETED and `release-latest` needs `package` alone; the comment left in
+  its place states the re-admission law (a CI signing job must land WITH
+  `npm ci` + rokudev provisioning + certificate handling in one change).
+- **verify-runtime Check 41 (the anti-drift pin).** Static claim↔behavior
+  consistency in both directions: R1 the phantom token may not reappear in
+  script/workflow/docs; R2 the `cp zip→pkg` pattern is banned and the
+  nature-gate, the `-dev-signed` name and its doc echo, and the dev-only
+  banner must exist; R3 bans a literal-default `PKG_VERSION` assignment and
+  requires the derive fallback, the empty-version guard, and the Makefile's
+  explicit pass-through; R4 reddens any workflow job that runs
+  `make package-signed` without an in-job signer provision, and any
+  `needs:` entry that names a nonexistent job. The wrapper is never
+  EXECUTED by the gate (it shells out to make/external CLIs — unlike
+  CHECK40's pure script), so its behavior was probe-verified at fix time:
+  dev-signed success (honest name + banner, rc 0), signer-failure mints
+  nothing (rc 1, zero artifacts), no-signer halt (rc 1), no-version halt
+  (rc 1), CA-cert store branch (real name + portal steps).
+- **Measured proofs.** Red-on-parent: CHECK41 against the `905ab2e4` files
+  → 12 problems naming every finding class (R1 x2, R2 x5, R3 x4, R4 x1).
+  Mutation: the portable harness leg re-plants the phantom claim, the
+  rename-fake-pkg line, the hardcoded default and a signer-less stub job →
+  CHECK41 R1/R2/R3/R4 each fire by name with CHECK18/CHECK40 gate
+  independence; restore → exit 0. Gates at HEAD: `make lint` rc 0;
+  `scripts/verify-runtime.sh` full 41-leg run exit 0;
+  `bash tests/scripts/verify-runtime-portable.sh` exit 0 (incl. the new
+  leg); `bash -n` clean on both touched scripts.
+- **Docs.** `docs/publishing.md`: artifact table gains the honest
+  `*-dev-signed.pkg` row; the Step-2 flow list, Prerequisites and the
+  CI/CD section are rewritten to what the code actually does (no promise
+  it can't keep). `docs/static-checks.md`: Check 41 row + harness
+  paragraph. Publication vehicle untouched (rolling `latest` sideload +
+  manual store submission; CHECK40's pins held).
+- **Owner reel (NOT shipped here):** arming CI-side signing is an owner
+  credential decision — provisioning (`npm ci` + rokudev + Roku-issued
+  cert in CI) rides the WIN-05 upload-proof rider; until then Check 41 R4
+  keeps an un-buildable stub from re-accumulating.
+
 ### Fixed — release version-discipline dead code cured to shipped reality + publishing docs truth (M-ROKU-09) — 2026-10-29
 
 - **The defect (review roku__devops M2).** `scripts/derive-version.sh` carried

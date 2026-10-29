@@ -1,4 +1,4 @@
-.PHONY: all package install dev clean test lint lint-fix validate-manifest validate-routes verify-package _run_rooibos _run_rooibos_unit _run_rooibos_integration
+.PHONY: all package package-signed install dev clean test lint lint-fix validate-manifest validate-routes verify-package _run_rooibos _run_rooibos_unit _run_rooibos_integration
 
 # Roku IP address (set via environment or edit here)
 ROKU_IP ?= 192.168.1.100
@@ -51,12 +51,19 @@ package: _update-manifest
 	zip -j $(PKG_NAME).zip $(MANIFEST_OUT)
 	@bash "$(CURDIR)/scripts/verify-package.sh" "$(CURDIR)/$(PKG_NAME).zip"
 
-# Build a signed package for store submission
-# Requires: ROKU_DEV_PASSWORD set, rokudev auth via `rokudev auth`
+# Build a code-signed package. The artifact is named to the certificate's
+# nature: the Roku-issued cert yields phlix-X.X.X.pkg (store submission); a
+# self-signed cert yields phlix-X.X.X-dev-signed.pkg (sideload testing only,
+# never uploadable) — scripts/package-signed.sh decides and states it.
+# Truth pass (M-ROKU-10): the old comment demanded a "ROKU_DEV_PASSWORD"
+# env var that no component ever read; credentials belong to the rokudev
+# CLI's interactive `rokudev auth` step. PKG_VERSION is passed explicitly
+# because make does not export ordinary variables into recipes — without
+# this the script could never stamp the real version.
 package-signed:
 	@echo "Building signed package..."
-	@bash scripts/package-signed.sh
-	@echo "Signed package ready. See docs/publishing.md for submission steps."
+	@PKG_VERSION="$(PKG_VERSION)" bash scripts/package-signed.sh
+	@echo "Done — see docs/publishing.md for artifact truth and submission steps."
 
 # Install to Roku device
 install: package
