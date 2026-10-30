@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.12.0",
+    "version": "1.13.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -98,7 +98,7 @@
     "button_clear": "Clear",
     "button_caption_on": "On",
     "button_caption_off": "Off",
-    "button_caption_instant_replay": "Instant Replay",
+    "button_caption_instant_replay": "Instant replay",
     "button_caption_when_mute": "When muted",
     "about_version": "Version: {version}",
     "about_device_model": "Device Model: {model}",
@@ -192,6 +192,7 @@
     "play": "Play",
     "pause": "Pause",
     "cancel": "Cancel",
+    "confirm": "Confirm",
     "refresh": "Refresh",
     "search": "Search",
     "settings": "Settings",
@@ -350,7 +351,7 @@
     "cleartext_continue": "Continue"
   },
   "login": {
-    "button": "Login",
+    "button": "Log In",
     "password": "Password",
     "username": "Username",
     "err_no_inputs": "Please enter username and password",
@@ -427,6 +428,8 @@
   },
   "profileactions": {
     "clear_pin": "Clear PIN",
+    "confirm_message": "Remove the parental PIN from {name}? Rating controls stop applying immediately.",
+    "confirm_title": "Clear profile PIN?",
     "rating_prefix": "Rating: {rating}"
   },
   "profiles": {
@@ -456,6 +459,9 @@
   },
   "useradminactions": {
     "approve": "Approve",
+    "confirm_make_message": "Grant admin rights to {name}? They will be able to manage the whole server.",
+    "confirm_remove_message": "Remove admin rights from {name}?",
+    "confirm_title": "Change admin rights?",
     "disable": "Disable",
     "make_admin": "Make Admin",
     "remove_admin": "Remove Admin",

@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.12.0",
+    "version": "1.13.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -192,6 +192,7 @@
     "play": "Lecture",
     "pause": "Pause",
     "cancel": "Annuler",
+    "confirm": "Confirmer",
     "refresh": "Rafraîchir",
     "search": "Rechercher",
     "settings": "Paramètres",
@@ -427,6 +428,8 @@
   },
   "profileactions": {
     "clear_pin": "Effacer le code PIN",
+    "confirm_message": "Retirer le code PIN parental de {name} ? Le contrôle d'évaluation cessera immédiatement.",
+    "confirm_title": "Effacer le code PIN du profil ?",
     "rating_prefix": "Classification : {rating}"
   },
   "profiles": {
@@ -456,6 +459,9 @@
   },
   "useradminactions": {
     "approve": "Approuver",
+    "confirm_make_message": "Accorder les droits d'administrateur à {name} ? Cette personne pourra gérer tout le serveur.",
+    "confirm_remove_message": "Retirer les droits d'administrateur à {name} ?",
+    "confirm_title": "Modifier les droits d'administrateur ?",
     "disable": "Désactiver",
     "make_admin": "Nommer admin",
     "remove_admin": "Retirer admin",

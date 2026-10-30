@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.12.0",
+    "version": "1.13.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -192,6 +192,7 @@
     "play": "再生",
     "pause": "一時停止",
     "cancel": "キャンセル",
+    "confirm": "確認",
     "refresh": "更新",
     "search": "検索",
     "settings": "設定",
@@ -427,6 +428,8 @@
   },
   "profileactions": {
     "clear_pin": "PINを消去",
+    "confirm_message": "{name} のペアレンタルPINを削除しますか？レーティング制限は直ちに適用されなくなります。",
+    "confirm_title": "プロフィールのPINを消去しますか？",
     "rating_prefix": "評価: {rating}"
   },
   "profiles": {
@@ -456,6 +459,9 @@
   },
   "useradminactions": {
     "approve": "承認",
+    "confirm_make_message": "{name} に管理者権限を付与しますか？サーバー全体を管理できるようになります。",
+    "confirm_remove_message": "{name} の管理者権限を解除しますか？",
+    "confirm_title": "管理者権限を変更しますか？",
     "disable": "無効化",
     "make_admin": "管理者にする",
     "remove_admin": "管理者解除",

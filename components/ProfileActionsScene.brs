@@ -68,6 +68,9 @@ sub Init()
     m.profileId = ""
     m.profileName = ""
     m.pendingOp = invalid
+    ' [minors W-min95 M-ROKU-27] confirm-dialog intent stash for Clear PIN —
+    ' re-armed on every press, read by OnClearPinChoice; never a guard.
+    m.pendingClearPin = false
 
     ' Focus the first rating button.
     if m.ratingGButton <> invalid then m.ratingGButton.SetFocus(true)
@@ -145,7 +148,29 @@ sub QueueRating(rating as Integer)
     m.apiTask.control = "run"
 end sub
 
+' [minors W-min95 M-ROKU-27, review roku__exploiter m6] clearing a parental PIN
+' is a security-reducing op that used to DELETE on a single press of a
+' repeats-on-hold button with no confirmation — the same 'person-with-the-remote'
+' hazard as the admin toggle. Adopt the repo consent idiom: stash the intent,
+' show a named dialog, DELETE only on the affirmative. Default-deny: Cancel or
+' Back sends nothing. The stash is re-armed on every press and never guards, so
+' a Back-dismissed dialog leaves no lockout.
 sub OnClearPin(event as Object)
+    if m.pendingOp <> invalid then return
+    if m.profileId = "" then return
+
+    m.pendingClearPin = true
+    ShowErrorDialog(m.top, Translate("profileactions_confirm_title"), TranslateWithParams("profileactions_confirm_message", { name: m.profileName }), [Translate("common_confirm"), Translate("common_cancel")], OnClearPinChoice)
+end sub
+
+' ShowErrorDialog two-button callback (OnSetAdminChoice / OnCleartextConsentChoice
+' precedent: component-scope top-level subs share `m`). 0 = confirmed; anything
+' else fired no request.
+sub OnClearPinChoice(index as Integer)
+    if index <> 0 then return
+    confirmed = m.pendingClearPin
+    m.pendingClearPin = false
+    if confirmed <> true then return
     if m.pendingOp <> invalid then return
     if m.profileId = "" then return
 

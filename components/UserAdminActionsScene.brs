@@ -71,6 +71,11 @@ sub Init()
     m.userName = ""
     m.currentIsAdmin = false
     m.pendingOp = invalid
+    ' [minors W-min95 M-ROKU-27] the confirm-dialog intent stash (roBoolean
+    ' while a dialog is open, invalid otherwise). Never a press guard — it is
+    ' re-armed on every OnToggleAdmin — so a Back-dismissed dialog strands
+    ' nothing. Callback-only channel from dialog button index to request.
+    m.pendingAdminToggle = invalid
 
     ' Focus the first action button.
     if m.approveButton <> invalid then m.approveButton.SetFocus(true)
@@ -115,13 +120,46 @@ sub OnDisable(event as Object)
 end sub
 
 ' Toggle admin: send the OPPOSITE of the current flag. Serialized + guarded.
+' [minors W-min95 M-ROKU-27, review roku__exploiter m6] flipping admin rights is
+' a one-press privilege change on a button that repeats-on-hold, sitting between
+' Disable and Reset Password with the target's name nowhere in the gesture. The
+' in-flight serialization the review asked for was already shipped (m.pendingOp,
+' W-min93 era); the live half was the MISSING confirmation step. Adopt the
+' ConnectScene cleartext-consent idiom: stash the intent, render a named dialog
+' (TranslateWithParams {name}), proceed only on the affirmative button.
+' Default-deny: Cancel or Back writes nothing. The stash is re-armed on every
+' press and is never a guard, so a Back-dismissed dialog leaves no lockout.
 sub OnToggleAdmin(event as Object)
+    if m.pendingOp <> invalid then return
+    if m.userId = "" then return
+
+    granting = not m.currentIsAdmin
+    m.pendingAdminToggle = granting
+    if granting then
+        messageText = TranslateWithParams("useradminactions_confirm_make_message", { name: m.userName })
+    else
+        messageText = TranslateWithParams("useradminactions_confirm_remove_message", { name: m.userName })
+    end if
+    ShowErrorDialog(m.top, Translate("useradminactions_confirm_title"), messageText, [Translate("common_confirm"), Translate("common_cancel")], OnSetAdminChoice)
+end sub
+
+' ShowErrorDialog two-button callback (OnCleartextConsentChoice precedent:
+' component-scope top-level subs share `m`). 0 = confirmed grant/revoke;
+' anything else sent no request. The op direction comes from the stash re-armed
+' at press time, so a held-button repeat can never act on a stale intent.
+' Single-task serialization law: never two control="run" outstanding — the
+' m.pendingOp guard below holds the same one-op-at-a-time law as every sender.
+sub OnSetAdminChoice(index as Integer)
+    if index <> 0 then return
+    granting = m.pendingAdminToggle
+    m.pendingAdminToggle = invalid
+    if granting = invalid then return
     if m.pendingOp <> invalid then return
     if m.userId = "" then return
 
     m.pendingOp = "setUserAdmin"
     SetStatus("Working…")
-    m.apiTask.request = { op: "setUserAdmin", userId: m.userId, isAdmin: (not m.currentIsAdmin) }
+    m.apiTask.request = { op: "setUserAdmin", userId: m.userId, isAdmin: granting }
     m.apiTask.control = "run"
 end sub
 

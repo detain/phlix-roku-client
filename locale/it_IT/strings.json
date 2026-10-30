@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.12.0",
+    "version": "1.13.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -192,6 +192,7 @@
     "play": "Riproduci",
     "pause": "Pausa",
     "cancel": "Annulla",
+    "confirm": "Conferma",
     "refresh": "Aggiorna",
     "search": "Cerca",
     "settings": "Impostazioni",
@@ -427,6 +428,8 @@
   },
   "profileactions": {
     "clear_pin": "Cancella PIN",
+    "confirm_message": "Rimuovere il PIN parentale da {name}? I controlli per classificazione non si applicheranno più immediatamente.",
+    "confirm_title": "Cancellare il PIN del profilo?",
     "rating_prefix": "Valutazione: {rating}"
   },
   "profiles": {
@@ -456,6 +459,9 @@
   },
   "useradminactions": {
     "approve": "Approva",
+    "confirm_make_message": "Concedere i diritti di amministratore a {name}? Potrà gestire l'intero server.",
+    "confirm_remove_message": "Rimuovere i diritti di amministratore a {name}?",
+    "confirm_title": "Modificare i diritti di amministratore?",
     "disable": "Disattiva",
     "make_admin": "Rendi admin",
     "remove_admin": "Rimuovi admin",

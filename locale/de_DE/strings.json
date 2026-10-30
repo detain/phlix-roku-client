@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.12.0",
+    "version": "1.13.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -192,6 +192,7 @@
     "play": "Wiedergeben",
     "pause": "Pause",
     "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
     "refresh": "Aktualisieren",
     "search": "Suchen",
     "settings": "Einstellungen",
@@ -427,6 +428,8 @@
   },
   "profileactions": {
     "clear_pin": "PIN löschen",
+    "confirm_message": "Eltern-PIN von {name} entfernen? Altersfreigabe-Kontrollen gelten dann sofort nicht mehr.",
+    "confirm_title": "Profil-PIN löschen?",
     "rating_prefix": "Bewertung: {rating}"
   },
   "profiles": {
@@ -456,6 +459,9 @@
   },
   "useradminactions": {
     "approve": "Freigeben",
+    "confirm_make_message": "{name} Admin-Rechte erteilen? Die Person kann dann den gesamten Server verwalten.",
+    "confirm_remove_message": "{name} die Admin-Rechte entziehen?",
+    "confirm_title": "Admin-Rechte ändern?",
     "disable": "Deaktivieren",
     "make_admin": "Zum Admin machen",
     "remove_admin": "Admin entfernen",

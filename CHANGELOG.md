@@ -51,6 +51,81 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — W-min95 minors cluster (5 cured, 1 stale-verified, 1 honest-blocked) — 2026-10-30
+
+- **M-ROKU-24 (cured, half stale).** The parse-frame half of the ask was
+  already dead: W-min93 (`12a2181`) rewired `SyncPlayProtocol.ParseFrames` to
+  reject declared lengths beyond the sane frame maximum and to refuse 64-bit
+  headers whose high word is nonzero — no blind trust, no silent four-byte
+  truncation. This lane closed the live halves: BOTH WS handshake loops
+  (`SyncPlayTask`, `HubCommandTask`) now cap the pre-terminator `headerBytes`
+  accumulator at the canonical `MaxHandshakeHeaderBytes` and refuse the dial
+  past it (the tries loop alone let a drip-fed garbage stream buffer ~400KB),
+  and the hub-command socket — which W-min93's rejection consumption skipped —
+  now honours `rejectedOversize` like its room-task sibling. Before this leg,
+  a rejection on the hub path was a permanent head-of-line wedge: no frames,
+  `consumed` 0, socket alive forever.
+- **M-ROKU-39 (cured).** The same estate-frame-max law on the other
+  accumulator: the post-consumption `m.buffer` residual is capped at
+  `MaxFrameBytes` + one receive chunk + headroom on both sockets, and the
+  connection drops beyond it (the slow-drip vector was a never-completing
+  extended header — ParseFrames bounds declared lengths, not arrival volume,
+  and a residual under the cap is exactly the honest one-incomplete-frame
+  ceiling, so no legitimate stream is convicted). Both ceilings now live once
+  as named constants on the protocol object; `ParseFrames` was re-inlined
+  with them, its two magic literals retired.
+- **M-ROKU-27 (cured, half stale).** The missing-serialization half was
+  already dead — both scenes have shipped the `m.pendingOp` single-task guard
+  since their birth commits (`41438cf`/`dfa6e38`). The live half: `setUserAdmin`
+  flipped another account's privileges, and `clearProfilePin` DELETED a
+  parental PIN, both on one press
+  of repeats-on-hold buttons with the target's name nowhere in the gesture.
+  Both now ride the repo's own consent idiom (the ConnectScene cleartext
+  precedent): intent stashed at press, a named dialog quoting `{name}` via
+  `TranslateWithParams`, default-deny callback — index 0 or nothing. The
+  confirmed admin send carries the STASHED direction, not a recompute from
+  possibly-stale local state. Six confirm keys entered all seven catalogs;
+  `_metadata.version` bumped as a set 1.12.0 → 1.13.0 per the CHECK48 R3
+  rotation law (disclosed with this batch).
+- **M-ROKU-31 (stale-verified).** The paused-transport-key dead-arm was cured
+  before this batch was filed: the PlayerScene `"paused"` arm calls
+  `ShowControls(true)` behind the panel-open test — `11136e2` (2026-10-29,
+  "control surface shows on intended input", review roku__gameux) shipped the
+  ask verbatim, its in-code comment citing the review's own
+  "one ShowControls(true) call away" line. Ancestor-proven at this base.
+- **M-ROKU-35 (honest-blocked).** Device-render geometry on legacy-overscan
+  targets — unverifiable in this venue (no hardware; the repo's headless
+  harness executes logic, not pixels), and the review itself concedes the
+  current plane is "acceptable on modern digital-output Rokus". The ask also
+  rests on a premise that drifted: `manifest` ships `ui_resolutions=hd`
+  (CHECK38 pins that choice against the 1280×720 design plane), not the
+  `hd,full` the review cites, and CHECK64's R4 containment legs already watch
+  the y=20 header-row buttons it names. The SD/FHD re-layout it wants is a
+  design
+  decision + hardware sweep, not a code cure; left open with this evidence
+  rather than re-flowing chrome coordinates blind.
+- **M-ROKU-48 (cured).** `settings.button_caption_instant_replay` was the one
+  Title-Case option in a sentence-case radio group — and it disagreed with
+  the OS wire value's own casing (`GetCaptionsModeWireValues()` ships
+  `"Instant replay"`). en_US-only cure to `"Instant replay"`; the other six
+  locales render their own translated nouns and never had the split. Labels
+  are bound by index, never by string equality, so the move is render-only —
+  `CaptionsMode.test.brs`'s index-pairing assertion is untouched and stayed
+  green.
+- **M-ROKU-49 (cured).** `login.button` "Login" (noun-as-verb) → "Log In",
+  pairing `settings.button_log_out` "Log Out" and the verb in
+  `desc_user_email`'s "log out". The `LoginScene.xml` fallback literal moved
+  in lockstep — CHECK25 requires the markup literal to byte-match the catalog
+  with its `findNode`+`Translate("login_button")` override path, which is
+  unchanged.
+- **Gate.** New `verify-runtime.sh` Check 66 pins every shipped shape above
+  (handshake caps ×2, residual caps ×2, hub rejection consumption, constant
+  single-source, both default-deny consent callbacks with the old ungated
+  send shapes convicted ABSENT by function-body windows, the copy pair in
+  catalog AND markup, the confirm key family speakable ×7 with its `{name}`
+  token) plus three detector self-probes against vacuity. CHECK21 census:
+  363 flattened keys (357 + the six confirm entries).
+
 ### Fixed — CHECK19 TARGETS expanded to PlayerScene.brs (R-ROKU-08 rider) — 2026-10-30
 
 - **R-ROKU-08 (landed, not parked).** M-ROKU-20 gated this expansion on its

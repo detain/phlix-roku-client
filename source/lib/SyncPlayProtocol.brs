@@ -56,6 +56,21 @@ function SyncPlayProtocol() as Object
         OP_PING: 9
         OP_PONG: 10
 
+        ' [minors W-min95 M-ROKU-24/M-ROKU-39, review roku__exploiter m3 /
+        ' roku__secnet m3] the two accumulator ceilings, canonical here so
+        ' BOTH WS consumers (SyncPlayTask, HubCommandTask) and this module's
+        ' own ParseFrames quote ONE source of truth:
+        '   MaxHandshakeHeaderBytes - the HTTP 101 handshake must terminate
+        '     within this many bytes; more pre-terminator data is a drip-fed
+        '     garbage stream and the dial is refused.
+        '   MaxFrameBytes - the estate frame maximum. A declared payload
+        '     beyond it is rejected (W-min93, review roku__crossfe m8); an
+        '     INCOMPLETE accumulator that grows past frame-max + headroom
+        '     can never complete honestly, so the socket is dropped instead
+        '     of buffering forever.
+        MaxHandshakeHeaderBytes: 65536
+        MaxFrameBytes: 1048576
+
         ' Bearer credential carrier law: the marker subprotocol offered FIRST in
         ' the two-entry Sec-WebSocket-Protocol handshake (["bearer", <jwt>]).
         ' Mirrors SyncPlayAuthMiddleware::BEARER_SUBPROTOCOL on the server.
@@ -227,7 +242,7 @@ function SyncPlayProtocol() as Object
                             payLen = (buffer[cur + 2] * 256) + buffer[cur + 3]
                             ' [W-min93 M-ROKU-16 (part), review roku__crossfe m8]
                             ' RFC6455 minimality + sane SyncPlay maximum bound.
-                            if payLen < 126 or payLen > 1048576 then
+                            if payLen < 126 or payLen > m.MaxFrameBytes then
                                 rejected = true
                             end if
                         else if len = 127 then
@@ -240,7 +255,7 @@ function SyncPlayProtocol() as Object
                                 rejected = true
                             else
                                 payLen = (buffer[cur + 6] * 16777216) + (buffer[cur + 7] * 65536) + (buffer[cur + 8] * 256) + buffer[cur + 9]
-                                if payLen > 1048576 then
+                                if payLen > m.MaxFrameBytes then
                                     rejected = true
                                 end if
                             end if

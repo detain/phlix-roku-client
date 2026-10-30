@@ -215,6 +215,12 @@ function WaitForConnect(host as String, port as Integer, path as String, bearerT
             n = m.sock.Receive(chunk, 0, 4096)
             if n > 0 then
                 headerBytes.Append(chunk)
+                ' [minors W-min95 M-ROKU-24, review roku__exploiter m3] a peer
+                ' that drip-feeds without ever sending "\r\n\r\n" used to inflate
+                ' this accumulator for the whole tries budget (~400KB). No
+                ' honest 101 response exceeds the canonical header cap; refuse
+                ' the dial beyond it instead of waiting the loop out.
+                if headerBytes.Count() > m.proto.MaxHandshakeHeaderBytes then return false
                 termIdx = FindHeaderTerminator(headerBytes)
                 if termIdx >= 0 then exit while
             else if n = 0 then
@@ -329,6 +335,20 @@ function HandleSocketEvent() as Boolean
     end if
     if res.consumed > 0 then
         m.buffer = m.proto.RemainderBuffer(m.buffer, res.consumed)
+    end if
+    ' [minors W-min95 M-ROKU-39, review roku__secnet m3] a peer that declares an
+    ' honest-looking frame then slow-drips it (or dribbles fewer bytes than a
+    ' full 126/127 extended header, which ParseFrames cannot even reject yet)
+    ' grew this accumulator WITHOUT bound between receives — ParseFrames bounds
+    ' declared lengths, not arrival volume. The post-consumption residual of an
+    ' honest stream is one incomplete frame (<= MaxFrameBytes + 14-byte header)
+    ' plus at most one already-sent follow-on chunk; anything beyond that cap
+    ' can never complete legitimately, so drop the socket. The scene's
+    ' closed-arm reconnect ladder already covers the UX.
+    if m.buffer.Count() > m.proto.MaxFrameBytes + 4096 + 64 then
+        SetState("closed")
+        EmitEvent({ kind: "closed" })
+        return false
     end if
 
     ' A single Receive can yield MULTIPLE complete frames. Rapid same-field writes

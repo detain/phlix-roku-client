@@ -281,6 +281,12 @@ function WaitForConnect(host as String, port as Integer, path as String, relayTo
             n = m.sock.Receive(chunk, 0, 4096)
             if n > 0 then
                 headerBytes.Append(chunk)
+                ' [minors W-min95 M-ROKU-24, review roku__exploiter m3] same
+                ' handshake-cap law as SyncPlayTask: a peer that never sends
+                ' "\r\n\r\n" used to inflate this accumulator for the whole
+                ' tries budget (~400KB). Refuse the dial past the canonical
+                ' header cap instead of waiting the loop out.
+                if headerBytes.Count() > m.proto.MaxHandshakeHeaderBytes then return false
                 termIdx = FindHeaderTerminator(headerBytes)
                 if termIdx >= 0 then exit while
             else if n = 0 then
@@ -320,11 +326,28 @@ function HandleSocketEvent() as Boolean
     m.buffer.Append(chunk)
 
     parsed = m.proto.ParseFrames(m.buffer)
+    ' [minors W-min95 M-ROKU-39 parity, review roku__exploiter m3 / secnet m3]
+    ' SyncPlayTask already drops on a rejected declared length (W-min93); this
+    ' hub-command socket was missing the same guard, so a hostile/compromised
+    ' relay could wedge a garbage frame header here forever without the socket
+    ' ever closing. Mirror the room-task law: rejection means desynced/hostile
+    ' peer -> drop; Run()'s BackoffAndCheckSpent handles the reconnect.
+    if parsed <> invalid and parsed.rejectedOversize = true then
+        return false
+    end if
     if parsed <> invalid and parsed.consumed > 0 then
         m.buffer = m.proto.RemainderBuffer(m.buffer, parsed.consumed)
         for each frame in parsed.frames
             HandleFrame(frame)
         end for
+    end if
+    ' [minors W-min95 M-ROKU-39, review roku__secnet m3] post-consumption residual
+    ' of an honest stream is one incomplete frame (<= MaxFrameBytes + 14-byte
+    ' header) plus at most one already-sent follow-on chunk; anything beyond the
+    ' canonical estate bound can never complete, so drop rather than buffer an
+    ' unbounded slow-drip.
+    if m.buffer.Count() > m.proto.MaxFrameBytes + 4096 + 64 then
+        return false
     end if
     return true
 end function

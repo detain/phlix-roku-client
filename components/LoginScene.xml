@@ -62,7 +62,7 @@
 
             <!-- Login Button -->
             <Button height="60" width="460" translation="[20,310]"
-                    title="Login"
+                    title="Log In"
                     id="loginButton" />
 
             <!-- Error Label (distinct failure messages, shown below button) -->

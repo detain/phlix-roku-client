@@ -5915,9 +5915,10 @@ echo "=== Check 48: connect/pair credential custody - redirect law + cleartext c
 #       (NormalizeServerUrl delegates - re-rolled octet logic is how
 #       "10th-street.example.com" was once misclassified); the
 #       redirect_refused bucket carries its classifier arm, transport guard,
-#       ladder line and catalog message x7; catalogs bump as a set (1.12.0 —
-#       rotated by W-min90: nine new/cured keys entered the set, disclosed
-#       with the batch per this arm's own law).
+#       ladder line and catalog message x7; catalogs bump as a set (1.13.0 —
+#       rotated by W-min95: six confirm-dialog keys entered the set with the
+#       M-ROKU-27 admin/PIN confirmations plus an en_US-only copy pair
+#       (M-ROKU-48/49), disclosed with the batch per this arm's own law).
 #   R4  the device harness pins the law: tests/unit/RedirectCustody.test.brs
 #       and all seven Test subs.
 PYRET=0
@@ -6082,8 +6083,8 @@ for L in LOCALES:
     for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
         if cat.get("connect", {}).get(key, "") == "":
             problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
-    if cat.get("_metadata", {}).get("version") != "1.12.0":
-        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.12.0 — the catalogs bump as a set with this law (rotated by W-min92 with the queue_limit_exceeded promotion, disclosed)")
+    if cat.get("_metadata", {}).get("version") != "1.13.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.13.0 — the catalogs bump as a set with this law (rotated by W-min95 with the M-ROKU-27 confirm-dialog key family, disclosed)")
 
 # ---- R4 the device harness pins the law -----------------------------------
 test = read(TEST)
@@ -9030,6 +9031,189 @@ print("  CHECK65: no forbidden string member (.Lower/.Upper/.UCase/.Left/.Mid/.R
 print("           .padz/.Repl) survives in source/, components/ or tests/, no 3-arg")
 print("           SortBy, the detector self-probes convict, LCase presence keeps the")
 print("           sweep honest, and the headless brs gate is wired into CI + Makefile")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo ""
+echo "=== Check 66: WS accumulator caps, destructive-op consent, en_US copy pair (minors W-min95) ==="
+# NUMBERING (disclosed, CHECK62 renumbering-precedent style): collision probe at
+# composition time — grep -c '^=== Check' over this script listed 65 legs, highest
+# header Check 65; the one-fixer law leaves no sibling rok FIXER mid-flight, so 66
+# is claimed clean.
+# WHAT THIS LEG PINS (three shapes the W-min95 minors review named, none of which
+# any earlier leg could see):
+#   R1  both WS handshakes cap the pre-\r\n\r\n accumulator at the canonical
+#       MaxHandshakeHeaderBytes and refuse the dial beyond it (M-ROKU-24, review
+#       roku__exploiter m3 — the tries loop alone bounded it at ~400KB of junk).
+#   R2  both frame paths cap the POST-consumption buffer residual at frame-max +
+#       one chunk + headroom (M-ROKU-39, review roku__secnet m3 — ParseFrames
+#       bounds declared lengths, not arrival volume; a never-completing extended
+#       header used to grow m.buffer forever).
+#   R3  the hub-command socket HONOURS ParseFrames' rejectedOversize flag —
+#       W-min93 shipped the flag + SyncPlayTask consumption, and this file's
+#       silence was the surviving half of the same hostile-desync class.
+#   R4  the protocol owns both ceilings as named constants and ParseFrames
+#       compares through them (no re-inlined magic bytes; two bound sites).
+#   R5  setUserAdmin and clearProfilePin each ride the ConnectScene consent
+#       idiom: stash-re-armed-at-press, default-deny callback (index 0 first),
+#       and the OLD ungated send shapes are convicted ABSENT (negative guards).
+#   R6  the en_US copy pair is sentence-case (M-ROKU-48/49): caption label
+#       matches its own wire casing, login button reads "Log In" in catalog and
+#       XML together (the CHECK25 pairing survives only because both moved).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json
+import os
+import re
+import sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK66: unreadable: {err}")
+        return None
+
+
+SYNC = read("components/SyncPlayTask.brs")
+HUB = read("components/HubCommandTask.brs")
+PROTO = read("source/lib/SyncPlayProtocol.brs")
+UAA = read("components/UserAdminActionsScene.brs")
+PAS = read("components/ProfileActionsScene.brs")
+LXML = read("components/LoginScene.xml")
+
+HEADER_CAP = re.compile(r"headerBytes\.Count\(\) > m\.proto\.MaxHandshakeHeaderBytes then return false")
+RESIDUAL_CAP = re.compile(r"m\.buffer\.Count\(\) > m\.proto\.MaxFrameBytes \+ 4096 \+ 64")
+
+# ---- R1 handshake header cap, both dialers ---------------------------------
+for name, src in (("components/SyncPlayTask.brs", SYNC), ("components/HubCommandTask.brs", HUB)):
+    if src is None:
+        continue
+    if not HEADER_CAP.search(src):
+        problems.append(f"  {name} - CHECK66 R1: handshake loop no longer caps headerBytes at m.proto.MaxHandshakeHeaderBytes (M-ROKU-24)")
+
+# ---- R2 post-consumption residual cap, both frame paths -------------------
+for name, src in (("components/SyncPlayTask.brs", SYNC), ("components/HubCommandTask.brs", HUB)):
+    if src is None:
+        continue
+    m = RESIDUAL_CAP.search(src)
+    if not m:
+        problems.append(f"  {name} - CHECK66 R2: frame path no longer caps the post-consumption m.buffer residual (M-ROKU-39)")
+    elif name == "components/SyncPlayTask.brs" and "rejectedOversize" not in src[max(0, m.start() - 2500):m.start()]:
+        # honesty: the syncplay residual cap must live in HandleSocketEvent,
+        # i.e. in the same body that consumes rejectedOversize.
+        problems.append("  components/SyncPlayTask.brs - CHECK66 R2: residual cap drifted out of HandleSocketEvent")
+
+# ---- R3 hub honours the parse rejection flag ------------------------------
+if HUB is not None and "rejectedOversize" not in HUB:
+    problems.append("  components/HubCommandTask.brs - CHECK66 R3: parsed.rejectedOversize is ignored again — a rejected head-of-line frame would wedge the buffer forever (M-ROKU-24/39 parity)")
+
+# ---- R4 constants owned once, comparisons rewired -------------------------
+if PROTO is not None:
+    if not re.search(r"MaxHandshakeHeaderBytes: 65536", PROTO):
+        problems.append("  source/lib/SyncPlayProtocol.brs - CHECK66 R4: MaxHandshakeHeaderBytes constant vanished")
+    if not re.search(r"MaxFrameBytes: 1048576", PROTO):
+        problems.append("  source/lib/SyncPlayProtocol.brs - CHECK66 R4: MaxFrameBytes constant vanished")
+    if len(re.findall(r"payLen > m\.MaxFrameBytes", PROTO)) != 2:
+        problems.append("  source/lib/SyncPlayProtocol.brs - CHECK66 R4: ParseFrames must compare BOTH extended-length arms against m.MaxFrameBytes (a re-inlined magic byte splits the source of truth)")
+    if re.search(r"payLen > 1048576", PROTO):
+        problems.append("  source/lib/SyncPlayProtocol.brs - CHECK66 R4: raw 1048576 literal re-appeared beside the constant")
+
+# ---- R5 consent gates ------------------------------------------------------
+if UAA is not None:
+    if "OnToggleAdmin" not in UAA or "OnSetAdminChoice" not in UAA:
+        problems.append("  components/UserAdminActionsScene.brs - CHECK66 R5: the admin-toggle consent callback vanished (M-ROKU-27)")
+    else:
+        if not re.search(r'ShowErrorDialog\(m\.top, Translate\("useradminactions_confirm_title"\)', UAA):
+            problems.append("  components/UserAdminActionsScene.brs - CHECK66 R5: OnToggleAdmin no longer renders the named confirm dialog")
+        if not re.search(r"sub OnSetAdminChoice\(index as Integer\)\s*\n\s*if index <> 0 then return", UAA):
+            problems.append("  components/UserAdminActionsScene.brs - CHECK66 R5: OnSetAdminChoice lost its default-deny first arm (M-ROKU-27)")
+        cbbody = UAA[UAA.find("sub OnSetAdminChoice"):UAA.find("end sub", UAA.find("sub OnSetAdminChoice"))] if "sub OnSetAdminChoice" in UAA else ""
+        if "isAdmin: granting" not in cbbody:
+            problems.append("  components/UserAdminActionsScene.brs - CHECK66 R5: the confirmed send must use the STASHED intent (isAdmin: granting), not a recompute (the review's stale-local-state half)")
+    if re.search(r"isAdmin: \(not m\.currentIsAdmin\)", UAA):
+        problems.append("  components/UserAdminActionsScene.brs - CHECK66 R5: ungated one-press admin toggle reappeared (M-ROKU-27)")
+if PAS is not None:
+    if not re.search(r"sub OnClearPinChoice\(index as Integer\)\s*\n\s*if index <> 0 then return", PAS):
+        problems.append("  components/ProfileActionsScene.brs - CHECK66 R5: OnClearPinChoice lost its default-deny consent arm (M-ROKU-27)")
+    # The pre-fix defect: OnClearPin itself fired the DELETE. Body-window
+    # conviction — a loose send-shape regex would re-match the identical,
+    # now-consent-gated send inside OnClearPinChoice and false-convict.
+    pin_body = re.search(r"sub OnClearPin\(event as Object\)(.*?)end sub", PAS, re.DOTALL)
+    if pin_body is None:
+        problems.append("  components/ProfileActionsScene.brs - CHECK66 R5: OnClearPin vanished")
+    elif 'control = "run"' in pin_body.group(1):
+        problems.append("  components/ProfileActionsScene.brs - CHECK66 R5: Clear PIN is one-press-gated again — the DELETE must only fire from the consent callback (M-ROKU-27)")
+    elif "ShowErrorDialog" not in pin_body.group(1):
+        problems.append("  components/ProfileActionsScene.brs - CHECK66 R5: OnClearPin no longer routes through the consent dialog (M-ROKU-27)")
+
+# ---- R6 en_US copy pair ----------------------------------------------------
+try:
+    en = json.load(open("locale/en_US/strings.json", encoding="utf-8"))
+except (OSError, ValueError) as err:
+    problems.append(f"  locale/en_US/strings.json - CHECK66 R6: unreadable: {err}")
+    en = None
+if en is not None:
+    if en.get("settings", {}).get("button_caption_instant_replay") != "Instant replay":
+        problems.append("  locale/en_US/strings.json - CHECK66 R6: caption label drifted from sentence case again (M-ROKU-48 — the split with the OS wire value's own casing is the defect)")
+    if en.get("login", {}).get("button") != "Log In":
+        problems.append("  locale/en_US/strings.json - CHECK66 R6: login.button is not the verb pair 'Log In' (M-ROKU-49)")
+    if LXML is not None and 'title="Log In"' not in LXML:
+        problems.append("  components/LoginScene.xml - CHECK66 R6: XML fallback literal no longer byte-matches the catalog (CHECK25 pairing; both must move together)")
+    if LXML is not None and re.search(r'title="Login"\s*\n\s*id="loginButton"', LXML):
+        problems.append("  components/LoginScene.xml - CHECK66 R6: the noun-as-verb 'Login' literal was reintroduced")
+
+# ---- R7 cross-locale presence of the consent key family -------------------
+for loc in ("en_US", "de_DE", "es_ES", "fr_FR", "it_IT", "ja_JP", "pt_BR"):
+    path = f"locale/{loc}/strings.json"
+    try:
+        cat = json.load(open(path, encoding="utf-8"))
+    except (OSError, ValueError) as err:
+        problems.append(f"  {path} - CHECK66 R7: unreadable: {err}")
+        continue
+    for section, key in (("common", "confirm"),
+                         ("useradminactions", "confirm_title"),
+                         ("useradminactions", "confirm_make_message"),
+                         ("useradminactions", "confirm_remove_message"),
+                         ("profileactions", "confirm_title"),
+                         ("profileactions", "confirm_message")):
+        if cat.get(section, {}).get(key, "") == "":
+            problems.append(f"  {path} - CHECK66 R7: {section}.{key} missing — the consent dialog must be SPEAKABLE in every shipped locale")
+    for section, key in (("useradminactions", "confirm_make_message"),
+                         ("useradminactions", "confirm_remove_message"),
+                         ("profileactions", "confirm_message")):
+        if cat.get(section, {}).get(key, "").count("{name}") != 1:
+            problems.append(f"  {path} - CHECK66 R7: {section}.{key} must carry exactly one {{name}} token (the review's person-with-the-remote cure)")
+
+# ---- self-probe: the regexes must convict the OLD shapes ------------------
+if not HEADER_CAP.search("if headerBytes.Count() > m.proto.MaxHandshakeHeaderBytes then return false"):
+    problems.append("  CHECK66 self-probe: R1 regex failed to convict its planted positive")
+if RESIDUAL_CAP.search("n = m.sock.Receive(chunk, 0, 4096)"):
+    problems.append("  CHECK66 self-probe: R2 regex matches non-cap text (vacuous detector)")
+if re.search(r"isAdmin: \(not m\.currentIsAdmin\)", 'm.apiTask.request = { op: "setUserAdmin", userId: m.userId, isAdmin: (not m.currentIsAdmin) }') is None:
+    problems.append("  CHECK66 self-probe: R5 negative guard cannot convict the planted ungated send")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK66: %d conviction(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK66: both WS handshakes cap their header accumulator, both frame paths")
+print("           cap the post-consumption residual, the hub socket honours the parse")
+print("           rejection, the protocol owns both ceilings once, admin+PIN changes")
+print("           require a default-deny named consent, and the en_US copy pair sits")
+print("           in sentence case in catalog AND markup together")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
