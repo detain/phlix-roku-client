@@ -432,7 +432,9 @@ function BuildSceneEvent(jsonText as String) as Object
         ' line; the server message is only the debug fallback for unknown codes.
         ' Utilities.brs is in this component's script closure (SyncPlayTask.xml).
         localized = LocalizeSyncPlayError(codeStr, ReadStr(msg, "message", ""))
-        if localized = "" then localized = "SyncPlay error"
+        ' M-ROKU-20: even the unknown-code fallback rides the catalog - the
+        ' party banner is user-visible UI copy, not a debug line.
+        if localized = "" then localized = Translate("player_party_error_fallback")
         return { kind: "error", message: localized }
     end if
 

@@ -6254,6 +6254,10 @@ echo "=== Check 50: watch-party attribution banner - scene-level, panel-independ
 #   R4  event coverage: HandleSyncEvent banners open/info/host_elect(x2)/error/
 #       closed (the closed arm gated on m.syncUserStopped) and the suppression
 #       flag is wired at >=5 sites across the file.
+# M-ROKU-20 (Check 51) localized the party copy: the R3/R4 needles below anchor
+# the banner call at its Translate() call shape. The attribution semantics are
+# unchanged (one banner per arm, panel-independent); Check 51 owns the law that
+# the strings themselves ride the catalog.
 PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
@@ -6357,8 +6361,9 @@ if brs is not None:
     if arp is None:
         problems.append(f"  {BRS} - CHECK50 R3: ApplyRemotePlayback vanished — the host-follow path has no home")
     else:
-        for needle in ('NotifyPartyEvent("Host resumed"', 'NotifyPartyEvent("Host paused"',
-                       'NotifyPartyEvent("Host changed position"'):
+        for needle in ('NotifyPartyEvent(Translate("player_party_host_resumed")',
+                       'NotifyPartyEvent(Translate("player_party_host_paused")',
+                       'NotifyPartyEvent(Translate("player_party_host_position")'):
             if needle not in arp:
                 problems.append(f"  {BRS} - CHECK50 R3: {needle} is gone — a mid-playback transport change with no on-screen attribution is precisely the invisible-event defect (gameux M4)")
 
@@ -6367,11 +6372,11 @@ if brs is not None:
     if hse is None:
         problems.append(f"  {BRS} - CHECK50 R4: HandleSyncEvent vanished")
     else:
-        for needle in ('ShowPartyNotice("Connected to watch party"',
+        for needle in ('ShowPartyNotice(Translate("player_party_connected")',
                        'NotifyPartyEvent(msg, 4.0!)',
-                       'NotifyPartyEvent("You are now host"',
-                       'NotifyPartyEvent("Host changed"',
-                       'ShowPartyNotice("Watch party disconnected"',
+                       'NotifyPartyEvent(Translate("player_party_you_are_host")',
+                       'NotifyPartyEvent(Translate("player_party_host_changed")',
+                       'ShowPartyNotice(Translate("player_party_disconnected")',
                        "if not m.syncUserStopped"):
             if needle not in hse:
                 problems.append(f"  {BRS} - CHECK50 R4: HandleSyncEvent lost the banner arm [{needle}] — party events would fall back to panel-only visibility")
@@ -6397,45 +6402,98 @@ echo "$PYOUT"
 
 # ============================================================================
 echo ""
-echo "=== Check 51: live playback error copy rides the locale catalog (M-ROKU-20) ==="
-# LIVE-ERROR I18N LAW (M-ROKU-20, review roku__gameux M5): the three highest-
-# stakes messages a player can see — session-expired (progress saving is dead),
-# access-schedule block (403) and stream-limit (429) — shipped as raw English
-# inside PlayerScene's error-overlay subs while the localized watch-party
-# catalog family sat half-dead (SyncPlayScene is never instantiated). Cure: the
-# three Show*Error subs write Translate("player_err_*") into the overlay label
-# and every catalog grew the three keys x7 locales (v1.8.0 -> v1.9.0, the
-# set-bump law CHECK48 R3 pins). Pinned statically:
-#   R1  each of the three subs exists in components/PlayerScene.brs and its body
-#       carries the exact m.errorMessageLabel.text = Translate("player_err_*")
-#       write (a silently re-planted raw literal, a renamed key, or the write
-#       retargeted off the overlay label all break this arm);
-#   R2  the three cured English sentences appear as raw literals in NO .brs file
-#       under components/ or source/ (comment-masked whole-tree scan — red-on-
-#       parent measurement: at 9ba7c9d the three fragments sit in
-#       PlayerScene.brs and this leg fires on them);
-#   R3  the three keys exist, non-empty and string-typed, in ALL SEVEN shipped
-#       catalogs (the CHECK48 "SPEAKABLE in every shipped locale" idiom; Check 21
-#       keeps the full mirror parity).
-# The {token}-concat law (Check 24) does not apply by construction: none of the
-# three catalog values carries a placeholder, so plain Translate is the lawful
-# consumption path.
+echo "=== Check 51: live playback & party copy rides the locale catalog (M-ROKU-20) ==="
+# LIVE-COPY LAW (M-ROKU-20 r2; review roku__gameux M5 + the M-ROKU-19 disclosed
+# residual): every player-surface string that renders on the TV is catalog copy —
+# the three P5-S5 error-overlay messages, every SetSyncStatus panel label, the
+# whole ShowPartyNotice/NotifyPartyEvent banner family, the hub-mode notice, the
+# playback dialogs and the SyncPlayTask unknown-code fallback. The pin follows
+# the Check 25 zero-literals idiom: it CONVICTS reintroduced English file:line,
+# never merely asserts key presence. Legs:
+#   R1  the three Show*Error subs write Translate("player_err_*") into
+#       m.errorMessageLabel.text.
+#   R2  zero-literals: each swept English sentence, quote-anchored, is a
+#       violation in the comment-masked code view of every *.brs under
+#       components/ and source/ — plus the call-shape law: SetSyncStatus(" /
+#       ShowPartyNotice(" / NotifyPartyEvent(" may never open a raw string
+#       literal (a Translate()/TranslateWithParams() call or a variable is the
+#       legal shape; the pre-existing syncplay_status_tls_refused arm already
+#       rides Translate() and passes by shape).
+#   R3  SPEAKABLE: the 29 new player_* keys are non-empty strings in ALL SEVEN
+#       shipped catalogs (Check 21 owns full parity; this leg names the family).
+#   R0  unreadable inputs fail loud — the pin cannot run vacuously.
+# CHECK50's R3/R4 needles rotated with this sweep (they anchor the banner call
+# at its localized call shape; the M19 attribution semantics are unchanged).
+# CROSSING DISCLOSURE (r2): the sibling landing ab050d5 grew a narrower
+# Check 51 (overlay trio only) from an older brief WHILE this sweep was in
+# flight; this block supersedes it — same number, same law family, strictly
+# stronger legs (the trio's ab050d5 catalog keys and call sites are kept
+# untouched; R1's needles are compatible). Their portable CHECK51 plant leg
+# stays armed against this block (assert strings retargeted to these prints).
 PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
-import json, os, re, sys
+import glob, json, os, re, sys
 
 repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
 os.chdir(repo)
 
 BRS = "components/PlayerScene.brs"
-LOCALES = ["de_DE", "en_US", "es_ES", "fr_FR", "it_IT", "ja_JP", "pt_BR"]
 
-# arm: (sub name, flattened key, fragment unique to the cured English sentence)
-ARMS = [
-    ("ShowProgressAuthError", "player_err_session_expired", "continue saving progress"),
-    ("ShowAccessError", "player_err_access_schedule", "blocked by access schedule"),
-    ("ShowStreamLimitError", "player_err_stream_limit", "Stop another stream"),
+ERR_TRIO = {
+    "ShowProgressAuthError": 'm.errorMessageLabel.text = Translate("player_err_session_expired")',
+    "ShowAccessError": 'm.errorMessageLabel.text = Translate("player_err_access_schedule")',
+    "ShowStreamLimitError": 'm.errorMessageLabel.text = Translate("player_err_stream_limit")',
+}
+
+# The swept sentences (en_US catalog values / former literals), quote-anchored.
+# "Host changed" also covers the "Host changed position" prefix by design: both
+# sentences were swept. Ambiguous single words ride the exact-quote form, which
+# is the form a reintroduced render assignment would take.
+SENTENCES = [
+    '"Your session has expired. Please sign in again to continue saving progress."',
+    '"Playback blocked by access schedule. Try again during allowed hours."',
+    '"Stream limit reached. Stop another stream to continue watching."',
+    '"Playback failed. Please try again."',
+    '"Transcode produced no stream URL."',
+    '"Transcode timed out."',
+    '"Watch Together isn\'t available in hub mode yet"',
+    '"Connected to watch party"',
+    '"Watch party disconnected"',
+    '"You are now host"',
+    '"Host changed position"',
+    '"Host changed"',
+    '"Host resumed"',
+    '"Host paused"',
+    '"No groups - create one to start"',
+    '"Select a group to join, or Create"',
+    '"SyncPlay unavailable"',
+    '"SyncPlay error"',
+    '"Left the group"',
+    '" in group"',
+    '" joined"',
+    '"Loading groups…"',
+    '"Creating group…"',
+    '"Connecting…"',
+    '"Joining…"',
+    '"In sync"',
+    '"Connected"',
+    '"Disconnected"',
+]
+
+CALL_SHAPE = re.compile(r'(SetSyncStatus|ShowPartyNotice|NotifyPartyEvent)\(\s*"')
+
+PLAYER_KEYS = [
+    "err_access_schedule", "err_playback_failed", "err_session_expired",
+    "err_stream_limit", "err_transcode_no_stream", "err_transcode_timeout",
+    "party_connected", "party_disconnected", "party_error_fallback",
+    "party_host_changed", "party_host_paused", "party_host_position",
+    "party_host_resumed", "party_member_joined", "party_you_are_host",
+    "sync_hub_unavailable", "sync_members_in_group", "sync_status_connected",
+    "sync_status_connecting", "sync_status_creating", "sync_status_disconnected",
+    "sync_status_group", "sync_status_in_sync", "sync_status_joining",
+    "sync_status_left", "sync_status_loading", "sync_status_no_groups",
+    "sync_status_select_group", "sync_status_unavailable",
 ]
 
 problems = []
@@ -6451,6 +6509,7 @@ def read(path):
 
 
 def mask(text):
+    # Check 20/23/24/50 masker: code view with comment runs cut.
     out = []
     for line in text.split("\n"):
         in_string = False
@@ -6470,62 +6529,69 @@ def sub_body(text, name):
     return m.group(0) if m else None
 
 
-# ---- R1 the three overlay subs translate -----------------------------------
+# ---- R1 the P5-S5 overlay trio is catalog copy ---------------------------
 brs = read(BRS)
 if brs is not None:
     code = mask(brs)
-    for name, key, _frag in ARMS:
+    for name, needle in ERR_TRIO.items():
         body = sub_body(code, name)
         if body is None:
-            problems.append(f"  {BRS} - CHECK51 R1: sub {name}() vanished — the overlay arm lost its home")
-            continue
-        needle = 'm.errorMessageLabel.text = Translate("%s")' % key
-        if needle not in body:
-            problems.append(f'  {BRS} - CHECK51 R1: {name} no longer writes Translate("{key}") to m.errorMessageLabel.text — live error copy back on raw English (or a retargeted write) is the M-ROKU-20 defect re-grown')
+            problems.append(f"  {BRS} - CHECK51 R1: sub {name}() is gone — the error-overlay family lost its home")
+        elif needle not in body:
+            problems.append(f"  {BRS} - CHECK51 R1: {name} no longer writes [{needle}] — the overlay would render a raw string again")
 
-    # ---- R2 the cured sentences are gone from every .brs --------------------
-    scan_files = []
-    for scan_dir in ("components", "source"):
-        for root, dirs, names in os.walk(scan_dir):
-            dirs.sort()
-            for name in sorted(names):
-                if name.endswith(".brs"):
-                    scan_files.append(os.path.join(root, name))
-    for path in scan_files:
-        text = read(path)
-        if text is None:
-            continue
-        for lineno, line in enumerate(mask(text).split("\n"), 1):
-            for _name, _key, frag in ARMS:
-                if frag in line:
-                    problems.append(f'  {path}:{lineno} - CHECK51 R2: raw English fragment "{frag}" re-grown as a literal outside the catalog — this copy must ride Translate (Checks 20/21 keep it speakable)')
+# ---- R2 zero-literals + call-shape law over the whole runtime ------------
+for scan_dir in ("components", "source"):
+    for root, dirs, names in os.walk(scan_dir):
+        dirs.sort()
+        for name in sorted(names):
+            if not name.endswith(".brs"):
+                continue
+            p = os.path.join(root, name)
+            text = read(p)
+            if text is None:
+                continue
+            for lineno, line in enumerate(mask(text).split("\n"), 1):
+                for frag in SENTENCES:
+                    if frag in line:
+                        problems.append(f'  {p}:{lineno} - CHECK51 R2: reintroduced English UI copy {frag} — live player/party copy rides the locale catalog (M-ROKU-20 law, Check 25 idiom)')
+                mo = CALL_SHAPE.search(line)
+                if mo:
+                    problems.append(f'  {p}:{lineno} - CHECK51 R2: {mo.group(1)}( opens a raw string literal — status/banner copy must flow through Translate()/TranslateWithParams() (M-ROKU-20)')
 
-# ---- R3 every shipped locale speaks the three keys --------------------------
-for L in LOCALES:
-    path = f"locale/{L}/strings.json"
-    try:
-        with open(path, encoding="utf-8") as f:
-            cat = json.load(f)
-    except (OSError, ValueError) as err:
-        problems.append(f"  {path} - CHECK51: unreadable: {err}")
+# ---- R3 the 29-key family is SPEAKABLE in every shipped catalog ----------
+locale_files = sorted(glob.glob("locale/*/strings.json"))
+if len(locale_files) < 7:
+    problems.append(f"  locale/*/strings.json - CHECK51 R3: found {len(locale_files)} catalogs, expected 7 — the pin cannot run vacuously")
+for path in locale_files:
+    raw = read(path)
+    if raw is None:
         continue
-    player = cat.get("player", {})
-    for _name, key, _frag in ARMS:
-        bare = key[len("player_"):]
-        value = player.get(bare)
-        if not isinstance(value, str) or value.strip() == "":
-            problems.append(f"  {path} - CHECK51 R3: {key} missing — live playback errors must be SPEAKABLE in every shipped locale")
+    try:
+        doc = json.loads(raw)
+    except ValueError as err:
+        problems.append(f"  {path} - CHECK51 R3: unparsable: {err}")
+        continue
+    player = doc.get("player") if isinstance(doc, dict) else None
+    if not isinstance(player, dict):
+        problems.append(f"  {path} - CHECK51 R3: no player section — the live-copy family has no home")
+        continue
+    for bare in PLAYER_KEYS:
+        v = player.get(bare)
+        if not isinstance(v, str) or v == "":
+            problems.append(f"  {path} - CHECK51 R3: player.{bare} missing/empty — live copy must be SPEAKABLE in every shipped locale")
 
 if problems:
     for prob in problems:
         print(prob)
-    print("  CHECK51: %d live-error i18n pin(s) broken" % len(problems))
+    print("  CHECK51: %d live-copy pin(s) broken" % len(problems))
     sys.exit(1)
 
-print("  CHECK51: session-expired, access-schedule and stream-limit overlay copy")
-print("           rides Translate(\"player_err_*\") through the shipped loader; the")
-print("           three English sentences exist nowhere as raw literals in .brs")
-print("           code, and all seven catalogs speak the three keys")
+print("  CHECK51: the error-overlay trio, every sync panel status, the party")
+print("           banner family (both choke points + the task-side fallback) and")
+print("           the playback dialogs are catalog copy — 29 player_* keys ride")
+print("           all seven locales, reintroduced English is convicted file:line")
+print("           and raw-literal calls into the status/banner choke points are rejected")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

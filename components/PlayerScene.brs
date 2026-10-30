@@ -463,7 +463,7 @@ sub OnPlayerStateChange(event as Object)
                 m.apiTask.control = "run"
             end if
         else
-            ShowErrorDialog(m.top, "Error", "Playback failed. Please try again.", ["Retry", "Cancel"], OnPlaybackRetry)
+            ShowErrorDialog(m.top, Translate("common_error"), Translate("player_err_playback_failed"), [Translate("common_retry"), Translate("common_cancel")], OnPlaybackRetry)
         end if
     else if state = "playing" then
         m.isPlaying = true
@@ -571,7 +571,7 @@ sub OnApiResponse(event as Object)
 
     if resp.op = "startTranscode" then
         if not resp.ok or resp.data = invalid then
-            ShowErrorDialog(m.top, "Error", GetErrorMessage(resp.error), ["Retry", "Cancel"], OnStartTranscodeRetry)
+            ShowErrorDialog(m.top, Translate("common_error"), GetErrorMessage(resp.error), [Translate("common_retry"), Translate("common_cancel")], OnStartTranscodeRetry)
             return
         end if
         data = resp.data
@@ -619,13 +619,13 @@ sub OnTranscodePollResponse(event as Object)
         PlayPreferredOrMaster()
     else if data.status = "failed" then
         stopTranscodePollTimer()
-        ShowErrorDialog(m.top, "Error", GetErrorMessage(resp.error), ["Retry", "Cancel"], OnTranscodeFailedRetry)
+        ShowErrorDialog(m.top, Translate("common_error"), GetErrorMessage(resp.error), [Translate("common_retry"), Translate("common_cancel")], OnTranscodeFailedRetry)
     end if
 end sub
 
 sub PlayHls(url as Object)
     if url = invalid or url = "" then
-        ShowErrorDialog(m.top, "Error", "Transcode produced no stream URL.", ["Retry", "Cancel"], OnTranscodeNoStreamRetry)
+        ShowErrorDialog(m.top, Translate("common_error"), Translate("player_err_transcode_no_stream"), [Translate("common_retry"), Translate("common_cancel")], OnTranscodeNoStreamRetry)
         return
     end if
 
@@ -1326,7 +1326,7 @@ sub OnTranscodePollFire()
     elapsed = GetTranscodePollElapsed()
     if elapsed >= 120.0 then  ' TIME_BUDGET
         stopTranscodePollTimer()
-        ShowErrorDialog(m.top, "Error", "Transcode timed out.", ["Retry", "Cancel"], OnTranscodeTimeoutRetry)
+        ShowErrorDialog(m.top, Translate("common_error"), Translate("player_err_transcode_timeout"), [Translate("common_retry"), Translate("common_cancel")], OnTranscodeTimeoutRetry)
         return
     end if
 
@@ -1358,7 +1358,7 @@ sub RescheduleTranscodePoll()
     elapsed = GetTranscodePollElapsed()
     if elapsed >= 120.0 then  ' TIME_BUDGET
         stopTranscodePollTimer()
-        ShowErrorDialog(m.top, "Error", "Transcode timed out.", ["Retry", "Cancel"], OnTranscodeTimeoutRetry)
+        ShowErrorDialog(m.top, Translate("common_error"), Translate("player_err_transcode_timeout"), [Translate("common_retry"), Translate("common_cancel")], OnTranscodeTimeoutRetry)
         return
     end if
 
@@ -1742,13 +1742,13 @@ sub ToggleSyncPanel()
 
     ' Hub mode: no WS relay path (hub SP1 pending) -> disabled with a message.
     if GetConnectionKind() = "hub" then
-        ShowErrorDialog(m.top, "Notice", "Watch Together isn't available in hub mode yet")
+        ShowErrorDialog(m.top, Translate("syncplay_title"), Translate("player_sync_hub_unavailable"))
         return
     end if
 
     m.syncPanelOpen = true
     if m.syncPanel <> invalid then m.syncPanel.visible = true
-    SetSyncStatus("Loading groups…")
+    SetSyncStatus(Translate("player_sync_status_loading"))
 
     ' Lazily create the REST group-list ApiTask + its observer on first open, so
     ' the default playback path never spins up an extra node/observer.
@@ -1792,7 +1792,7 @@ sub ConnectSyncTask()
         if SyncPlayWsRefusedForOrigin(GetServerUrl()) then
             SetSyncStatus(Translate("syncplay_status_tls_refused"))
         else
-            SetSyncStatus("SyncPlay unavailable")
+            SetSyncStatus(Translate("player_sync_status_unavailable"))
         end if
         return
     end if
@@ -1817,7 +1817,7 @@ sub ConnectSyncTask()
     ' un guarded: call site gates with "if m.syncTask = invalid then" so this only
     ' fires once per session (ConnectSyncTask is never called again after init).
     m.syncTask.control = "run"
-    SetSyncStatus("Connecting…")
+    SetSyncStatus(Translate("player_sync_status_connecting"))
 end sub
 
 ' Derive { host, port:8097, path:"/syncplay", token } from GetServerUrl().
@@ -1905,9 +1905,9 @@ sub OnSyncListResponse(event as Object)
     if m.syncGroupList <> invalid then m.syncGroupList.content = content
 
     if m.syncGroupIds.Count() = 0 then
-        SetSyncStatus("No groups - create one to start")
+        SetSyncStatus(Translate("player_sync_status_no_groups"))
     else
-        SetSyncStatus("Select a group to join, or Create")
+        SetSyncStatus(Translate("player_sync_status_select_group"))
     end if
 end sub
 
@@ -1946,7 +1946,7 @@ sub OnSyncGroupSelected(event as Object)
     if m.syncTask = invalid then ConnectSyncTask()
     if m.syncTask = invalid then return
 
-    SetSyncStatus("Joining…")
+    SetSyncStatus(Translate("player_sync_status_joining"))
     m.syncTask.command = { kind: "join", group_id: gid }
 end sub
 
@@ -1959,7 +1959,7 @@ sub OnSyncCreatePressed()
 
     deviceName = GetStorage().get("device_name")
     if deviceName = invalid or deviceName = "" then deviceName = "Roku"
-    SetSyncStatus("Creating group…")
+    SetSyncStatus(Translate("player_sync_status_creating"))
     m.syncTask.command = { kind: "create", group_name: deviceName + "'s Room" }
 end sub
 
@@ -1971,11 +1971,11 @@ sub OnSyncLeavePressed()
     m.syncFollowing = false
     m.syncIsHost = false
     m.syncGroupId = ""
-    SetSyncStatus("Left the group")
+    SetSyncStatus(Translate("player_sync_status_left"))
 
     ' Stop the task thread now that the group session is over.
     ' M-ROKU-19: intentional stop — suppress the disconnect banner (we just said
-    ' "Left the group" in the panel label ourselves).
+    ' the left-group status in the panel label ourselves).
     m.syncUserStopped = true
     m.syncTask.control = "stop"
     m.syncTask = invalid
@@ -2010,8 +2010,8 @@ sub HandleSyncEvent(ev as Object)
     kind = ev.kind
 
     if kind = "open" then
-        SetSyncStatus("Connected")
-        ShowPartyNotice("Connected to watch party", 4.0!)
+        SetSyncStatus(Translate("player_sync_status_connected"))
+        ShowPartyNotice(Translate("player_party_connected"), 4.0!)
 
     else if kind = "group_state" then
         group = invalid
@@ -2030,10 +2030,10 @@ sub HandleSyncEvent(ev as Object)
             gname = ""
             if group.DoesExist("group_name") and type(group.group_name) = "roString" and group.group_name <> "" then gname = group.group_name
             count = ""
-            if group.DoesExist("member_count") and group.member_count <> invalid then count = str(Int(group.member_count)).Trim() + " in group"
-            role = "Guest"
-            if m.syncIsHost then role = "Host"
-            SetSyncStatus(gname + " - " + count + " - " + role)
+            if group.DoesExist("member_count") and group.member_count <> invalid then count = TranslateWithParams("player_sync_members_in_group", { count: Int(group.member_count) })
+            role = Translate("syncplay_role_guest")
+            if m.syncIsHost then role = Translate("syncplay_role_host")
+            SetSyncStatus(TranslateWithParams("player_sync_status_group", { group: gname, members: count, role: role }))
         end if
 
     else if kind = "playback" then
@@ -2043,7 +2043,7 @@ sub HandleSyncEvent(ev as Object)
         msg = ""
         if ev.DoesExist("message") and type(ev.message) = "roString" then msg = ev.message
         if ev.DoesExist("member_name") and type(ev.member_name) = "roString" and ev.member_name <> "" then
-            msg = ev.member_name + " joined"
+            msg = TranslateWithParams("player_party_member_joined", { member: ev.member_name })
         end if
         ' M-ROKU-19: join/leave info must be visible while watching (panel closed).
         if msg <> "" then NotifyPartyEvent(msg, 4.0!)
@@ -2053,9 +2053,9 @@ sub HandleSyncEvent(ev as Object)
         if ev.DoesExist("elected_id") and ev.elected_id <> invalid then electedId = ev.elected_id
         m.syncIsHost = (electedId <> "" and electedId = m.yourId)
         if m.syncIsHost then
-            NotifyPartyEvent("You are now host", 4.0!)
+            NotifyPartyEvent(Translate("player_party_you_are_host"), 4.0!)
         else
-            NotifyPartyEvent("Host changed", 4.0!)
+            NotifyPartyEvent(Translate("player_party_host_changed"), 4.0!)
         end if
 
     else if kind = "timesync" then
@@ -2064,22 +2064,22 @@ sub HandleSyncEvent(ev as Object)
         stable = false
         if ev.DoesExist("stable") and (type(ev.stable) = "Boolean" or type(ev.stable) = "roBoolean") then stable = ev.stable
         if stable then
-            SetSyncStatus("In sync")
+            SetSyncStatus(Translate("player_sync_status_in_sync"))
         end if
 
     else if kind = "error" then
-        msg = "SyncPlay error"
+        msg = Translate("player_party_error_fallback")
         if ev.DoesExist("message") and type(ev.message) = "roString" and ev.message <> "" then msg = ev.message
         NotifyPartyEvent(msg, 6.0!)
         m.syncFollowing = false
         m.syncIsHost = false
 
     else if kind = "closed" then
-        SetSyncStatus("Disconnected")
+        SetSyncStatus(Translate("player_sync_status_disconnected"))
         ' M-ROKU-19: a socket drop mid-playback is exactly the invisible event the
         ' item names. Banner it UNLESS we closed the socket ourselves (panel close
         ' or Leave already explained it in the panel label).
-        if not m.syncUserStopped then ShowPartyNotice("Watch party disconnected", 6.0!)
+        if not m.syncUserStopped then ShowPartyNotice(Translate("player_party_disconnected"), 6.0!)
         m.syncFollowing = false
         m.syncIsHost = false
         m.syncActive = false
@@ -2114,15 +2114,15 @@ sub ApplyRemotePlayback(ev as Object)
         m.isPlaying = true
         ' M-ROKU-19: the picture changed with no explanation before this leg —
         ' attribute host-driven transport changes on screen while watching.
-        NotifyPartyEvent("Host resumed", 2.5!)
+        NotifyPartyEvent(Translate("player_party_host_resumed"), 2.5!)
     else if t = "syncplay_playback_pause" then
         m.videoPlayer.seek = seconds#
         m.videoPlayer.control = "pause"
         m.isPlaying = false
-        NotifyPartyEvent("Host paused", 2.5!)
+        NotifyPartyEvent(Translate("player_party_host_paused"), 2.5!)
     else if t = "syncplay_playback_seek" then
         m.videoPlayer.seek = seconds#
-        NotifyPartyEvent("Host changed position", 2.5!)
+        NotifyPartyEvent(Translate("player_party_host_position"), 2.5!)
     end if
 
     m.applyingRemote = false

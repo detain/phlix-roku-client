@@ -2,6 +2,48 @@
 
 ## [Unreleased]
 
+### Fixed — the FULL live player/party surface rides the locale catalog (M-ROKU-20 r2) — 2026-10-29
+
+- **The defect (review roku__gameux M5 + r1 issues=5).** r1 closed with a
+  PHANTOM commit (sha `1510912` never existed) and a pin claimed as "Check 50"
+  — a number already held by M-ROKU-19 (r1 finding 5). By the time this fresh
+  r2 clone swept the surface, a crossing sibling landing (`ab050d5`) had
+  localized the three P5-S5 `errorMessageLabel` overlay texts (its own
+  narrower Check 51; trio keys + CHECK48's 1.9.0 rotation are its landing,
+  untouched here). Still raw English on every non-English device: the 13
+  `SetSyncStatus` panel labels (incl. the `"{group} - {n} in group - {role}"`
+  composition), the whole `ShowPartyNotice`/`NotifyPartyEvent` banner family
+  (the `{member} joined` concat, elections, drops, host transport attribution),
+  the playback/transcode dialogs, the hub-mode notice and the `SyncPlayTask`
+  unknown-code fallback feeding the error banner.
+- **The cure (r2).** 26 more `player_*` keys (29 with the trio's three) in all
+  SEVEN locales — 319 → 345 flattened keys per locale (v1.9.0 held; sentences
+  kept verbatim — a translation refactor, not a copy rewrite). Dialog
+  titles/buttons ride the existing `common_error`/`common_retry`/
+  `common_cancel` vocabulary; roles reuse `syncplay_role_host`/
+  `syncplay_role_guest`; the three token keys (`player_sync_status_group`,
+  `player_sync_members_in_group`, `player_party_member_joined`) compose only
+  through `TranslateWithParams` (Check 24 law; 32 token-bearing values total).
+  `SyncPlayScene`'s dead-room disposition is documented in `docs/i18n.md`
+  (keys parity-guarded; wire-vs-retire an owner call).
+- **The teeth.** Check 51 superseded IN PLACE into the full M-ROKU-20 law
+  (same number, strictly stronger legs; trio needles compatible): R1 the three
+  overlay render sites; R2 every swept sentence convicted quote-anchored in
+  the comment-masked code view of all `*.brs` under `components/` + `source/`,
+  file:line named — PLUS the call-shape law: `SetSyncStatus("/ShowPartyNotice("/
+  NotifyPartyEvent("` may never open a raw literal; R3 all 29 keys SPEAKABLE
+  x7; R0 fail-loud. CHECK50's R3/R4 needles rotated to the localized call
+  shapes (disclosed in-commit; attribution semantics unchanged), and its
+  portable plant needle with them.
+- **Verified:** `make lint` diagnostic census identical to parent (22 lines,
+  exit 0); `scripts/verify-runtime.sh` 51/51 legs exit 0;
+  `tests/scripts/verify-runtime-portable.sh` exit 0 (CHECK51 plant leg —
+  shared with `ab050d5` — asserts R1+R2 named red with CHECK20/CHECK50 gate
+  independence, restore green; ja_JP resolution leg green on all 345 keys);
+  ad-hoc second probe reverting the connected-banner + task fallback to raw
+  literals -> exit 1 with three named CHECK51 pins (CHECK50 R4 jointly red);
+  seven-catalog flattened-key + token-multiset parity identical.
+
 ### Fixed — the toast dispatch rides the proven observed-field channel; CHECK49 R7 re-pinned around the mechanism (M-ROKU-17 r2, superseding the 689b475 dispatch door) — 2026-10-29
 
 - **The defect (review roku__gameux M17r1 CRITICAL-1).** The r1 round re-based
