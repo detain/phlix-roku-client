@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Docs — i18n.md Future Work no longer advertises the closed `{token}` concat defect (M-ROKU-27) — 2026-10-29
+
+- **The hole.** Review `roku__writer` M3. `docs/i18n.md:499` (Future Work)
+  still listed the `{token}` raw-concat defect as live — "Two pre-existing
+  call sites concatenate ... rendering literal `{email}` / `{url}` / `{count}`
+  text; flagged for a follow-up lane" — directly contradicting line 480 of
+  the same document, which records the 2026-09 token-defect lane closing the
+  class. The code settled it: all three named sites substitute via
+  `TranslateWithParams` (`SettingsScene.brs:120`/`:146`,
+  `DetailScene.brs:299`, shipped in e010a4e, guarded by Check 24). Reader
+  harm: a follow-up lane "fixes" a dead bug or files a false report.
+- **The cure.** The bullet is struck and dated closed in the file's own
+  closed-item convention (mirroring the adjacent XML-chrome bullet), with the
+  landing commit and the Check 24 law named. Historical Notes :480 already
+  carries the full shipped truth; no code, catalog, or check touched.
+
 ### Fixed — the hub relay stops downgrading a minted token to cleartext behind https origins (M-ROKU-23) — 2026-10-29
 
 - **The defect (review roku__secnet M2).** `StartHubCommandConsumer` stripped
