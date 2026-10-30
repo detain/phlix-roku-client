@@ -1844,3 +1844,37 @@ function SyncPlayWsRefusedForOrigin(serverUrl as String) as Boolean
     if s = "" then return false
     return Left(s, 8) = "https://"
 end function
+
+' ===========================================
+' HUB RELAY PLAINTEXT-ORIGIN LAW (M-ROKU-23, review roku__secnet M2)
+' ===========================================
+
+' True when the configured hub origin is TLS (https://) and the plaintext
+' :8804 hub-relay command consumer MUST therefore be refused. The consumer
+' socket is roStreamSocket — plaintext TCP, no TLS — and its handshake carries
+' a hub MINTED relay token (Authorization: Bearer) that lets whoever holds it
+' push "Alexa, play X" commands into the user's session. Behind an https hub
+' that token was established over TLS; replaying it across a cleartext socket
+' to the same identity lets a passive path sniffer capture a live credential
+' AND inject playback — the scheme mismatch itself is the exploitable class,
+' so we refuse instead of silently downgrading (the SyncPlayWsRefusedForOrigin
+' doctrine of M-ROKU-14, applied to the hub relay leg). The wss arm via
+' roSecureSocket is DEFERRED with disclosure, NOT declared impossible: the
+' managed hub front-end already routes GET /syncplay/ to the relay worker
+' (phlix-hub docs/websockets.md), so `wss://<hub-domain>/syncplay/{server_id}`
+' exists server-side today; the client leg awaits on-device verification of
+' roSecureSocket's surface (the estate's platform-API verification floor —
+' see edbbd8a's law on the :8097 leg). http:// / scheme-less legacy origins
+' keep dialling 8804 exactly as before: their REST lane is already cleartext,
+' so the dial adds no NEW exposure class. Pure: string in, boolean out.
+' GLOBAL string functions only — member .Mid/.Lower are OFF-LIMITS in this
+' family (ifStringOps indices are 0-based and .Lower() does not exist on Roku
+' strings; see the M-ROKU-23 fixlog Observations).
+' @param hubUrl String - the persisted hub origin (GetServerUrl())
+' @return Boolean - true ONLY for an https:// origin
+function HubRelayCleartextRefusedForOrigin(hubUrl as String) as Boolean
+    if hubUrl = invalid then return false
+    s = LCase(hubUrl.Trim())
+    if s = "" then return false
+    return Left(s, 8) = "https://"
+end function

@@ -144,6 +144,22 @@ connect + login flow is the same for both. The client decides which it is talkin
    the server picker; otherwise → login. Logging out clears `connection_kind`,
    `active_server_id`, and `active_server_name` but keeps `server_url`, so you return to the
    login screen on the same hub/server.
+5. **Command-consumer origin law (M-ROKU-23).** The "Alexa, play X" surface is a second,
+   separate use of the hub's relay: while the app is open in hub mode it keeps a long-lived
+   socket to the relay worker on the fixed plaintext port **8804**, carrying a hub-**minted**
+   relay token on the raw `ws://` handshake (`components/HubCommandTask.brs`). That socket is
+   `roStreamSocket` — plaintext TCP. **Refusal law:** when the persisted hub origin is
+   `https://`, the client **refuses** the cleartext `:8804` dial outright
+   (`HubRelayCleartextRefusedForOrigin`, checked before the token is even read, at both the
+   scene and the task — CHECK55) — a credential minted over a TLS lane never rides cleartext
+   behind the hub's own TLS identity; "Alexa, play X" stays closed on https hubs. `http://`
+   and legacy scheme-less hubs keep the consumer exactly as before (their REST lane is
+   already cleartext, so the dial adds no NEW exposure class). The **wss** arm via
+   `roSecureSocket` is **deferred**, not impossible: the managed hub's TLS front-end already
+   routes `GET /syncplay/` to the relay worker (`phlix-hub docs/websockets.md`), so a
+   `wss://<hub-domain>/syncplay/{server_id}` route exists server-side today; the client leg
+   awaits on-device verification of `roSecureSocket`'s surface (the platform-API
+   verification floor — same posture as the :8097 SyncPlay lane above).
 
 #### Hub mode storage keys
 
@@ -692,7 +708,7 @@ phlix-roku/
 │   ├── SeriesRulesScene.brs  # Admin Live TV series-rules list (one-shot LabelList; read-only, selection inert)
 │   ├── PlayerScene.brs     # Video player (+ additive "Watch Together" SyncPlay overlay, opened with the "*"/Options key; gated, hub-disabled, ws:// only) (+ additive video-quality picker, opened with the Up key; server-A7-dependent, no-ops without a ladder) (+ additive Audio/Subtitles Settings panel, opened with the Down key; persists preferred_audio_track / preferred_subtitle_track)
 │   ├── SyncPlayTask.{xml,brs} # Long-lived Task running the SyncPlay ws:// socket off the render thread (roStreamSocket; RunSocket loop; flat syncplay_* frames)
-│   ├── HubCommandTask.{xml,brs} # Long-lived Task consuming hub relay pending_command / play_media frames (mints a relay token, Bearer on the RFC6455 handshake)
+│   ├── HubCommandTask.{xml,brs} # Long-lived Task consuming hub relay pending_command / play_media frames (mints a relay token, Bearer on the RFC6455 handshake; the plaintext :8804 dial is REFUSED behind https hubs — M-ROKU-23, wss deferred)
 │   ├── ToastScene.xml      # Toast overlay — Dialog-derived node shown via the current surface's dialog field (M-ROKU-17; queue/dismiss owned by the PhlixApp root coordinator, no script)
 │   ├── ConnectScene.brs    # First-run "Connect to server" screen (normalizes + probes /health, persists server_url, then proceeds to login)
 │   ├── LoginScene.brs      # Login screen (username/password only); after login probes GET /me/servers to detect hub vs direct

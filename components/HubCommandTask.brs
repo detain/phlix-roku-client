@@ -9,8 +9,9 @@
 ' The hub's SyncPlay relay (`ws://<hub>:8804/syncplay/{server_id}`) is the ONLY
 ' surface that can receive the "Alexa, play X" push (S93's pending_command). It
 ' validates a per-user, server-scoped RELAY TOKEN on the upgrade request — never
-' the hub JWT, never a query string (S237). The Roku roStreamSocket is plaintext
-' TCP with NO TLS and NO WebSocket layer, so this task:
+' the hub JWT, never a query string (S237). This leg rides roStreamSocket —
+' plaintext TCP, no WebSocket layer — and behind an https:// hub origin a
+' minted relay token must never cross cleartext, so this task:
 '
 '   1. MINTS a relay token: POST {apiBase}/api/v1/me/servers/{serverId}/relay-token
 '      with the hub access JWT (the hub's own S2a mint endpoint).
@@ -26,6 +27,16 @@
 '      reconnect ladder (5 attempts, 1s/2s/4s/8s/16s) that RE-MINTS on every
 '      attempt because relay tokens expire hourly. A { kind: "close" } command
 '      stops the ladder.
+'   5. ORIGIN LAW (M-ROKU-23, review roku__secnet M2): an https:// hub origin
+'      REFUSES this plaintext dial — at the scene choke (StartHubCommand
+'      Consumer) and again here (defense in depth) — so a token minted over a
+'      TLS lane can never silently ride cleartext. Plaintext :8804 serves
+'      http/legacy hubs, whose REST lane is already cleartext (no NEW exposure
+'      class). The wss variant via roSecureSocket is DEFERRED with disclosure,
+'      not a platform impossibility (the hub's TLS front-end routes GET
+'      /syncplay/ to the worker today — phlix-hub docs/websockets.md; the
+'      client leg awaits on-device API verification, mirroring the
+'      :8097-leg law as of edbbd8a).
 '
 ' THREAD RULE: this code runs on the task thread. It may ONLY read m.top.config,
 ' observe m.top.command, and write m.top.event / m.top.connectionState. The
@@ -67,6 +78,14 @@ sub RunConsumer()
     if cfg.DoesExist("token") and cfg.token <> invalid then token = cfg.token
 
     if host = "" or apiBase = "" or serverId = "" or token = "" then
+        SetState("closed")
+        return
+    end if
+
+    ' M-ROKU-23 task-side origin choke (defense in depth — the scene refuses
+    ' first): a config whose hub origin is https:// must never dial this
+    ' plaintext socket. No mint, no ladder, no cleartext bearer.
+    if HubRelayCleartextRefusedForOrigin(apiBase) then
         SetState("closed")
         return
     end if

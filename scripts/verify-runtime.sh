@@ -6967,6 +6967,195 @@ PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+echo "=== Check 55: the hub relay refuses the plaintext :8804 dial behind https origins (M-ROKU-23) ==="
+# HUB RELAY PLAINTEXT-ORIGIN LAW (M-ROKU-23, review roku__secnet M2):
+# StartHubCommandConsumer stripped the hub URL's scheme and dialled the FIXED
+# plaintext :8804 relay listener regardless of the hub origin — a raw
+# roStreamSocket handshake carrying the hub MINTED relay token
+# (Authorization: Bearer; the holder can push "Alexa, play X" commands into
+# the user's session) across cleartext while the hub's own identity was TLS.
+# A passive path sniffer could capture a live credential AND inject playback
+# behind the advertised TLS. The cure applies the M-ROKU-14 doctrine
+# (4240ad2, :8097 leg) to the relay leg: the pure predicate
+# HubRelayCleartextRefusedForOrigin refuses the cleartext dial for https
+# origins at the scene choke BEFORE the credential is read and again at the
+# task before any mint (defense in depth); http/legacy origins keep
+# byte-identical behavior (their REST lane is already cleartext — no NEW
+# exposure class). The wss arm via roSecureSocket is DEFERRED with disclosure
+# (the hub's TLS front-end already routes GET /syncplay/ to the worker —
+# phlix-hub docs/websockets.md), NOT declared platform-impossible (the
+# edbbd8a doctrine on the sibling leg). The dial needs registry + live hub
+# nodes, so these statement-presence legs are the gate (CHECK50-53
+# precedent; device honesty disclosed in the fixlog). They also pin the
+# device-safety lesson this lane learned the hard way: the law predicate body
+# uses ONLY the 1-based global string surface — member .Mid (0-based on the
+# platform) and member .Lower (NOT a Roku string member at all) are convicted
+# in this family's law code.
+#   R1 Utilities: the predicate exists with its Boolean signature and the
+#      exact `return Left(s, 8) = "https://"` shape, and its body contains no
+#      `.Mid(` and no `.Lower(` (device-safe globals only);
+#   R2 PhlixApp: StartHubCommandConsumer refuses hubUrl via the predicate
+#      BEFORE `token = GetStorage().get("auth_token")` (refuse-before-
+#      credential order, M-ROKU-14 doctrine) and the stale
+#      "(http://host[:port])" comment that papered over the scheme-strip is
+#      extinct;
+#   R3 HubCommandTask: RunConsumer refuses apiBase via the predicate before
+#      `MintAndConnect(`; the plaintext arm stays wired for http hubs
+#      (CreateObject("roStreamSocket") present); NO roSecureSocket
+#      instantiation ships (the deferred arm stays unbuilt — zero unverified
+#      platform calls); the task XML must script-include Utilities.brs — a
+#      component scope does NOT auto-include pkg:/source, so without the
+#      include the predicate call is an unresolved symbol (bsc BS1140; the
+#      SyncPlayTask.xml Storage+Utilities+Protocol closure is the twin);
+#   R4 docs law: the README names the fixed :8804, the refusal and the
+#      deferred arm; the task header keeps REFUSES + DEFERRED and never
+#      re-grows the plaintext-by-assertion phrase;
+#   R5 CHANGELOG names M-ROKU-23 (measured forward-only law).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+UTIL = "source/lib/Utilities.brs"
+APP = "components/PhlixApp.brs"
+TASK = "components/HubCommandTask.brs"
+README = "README.md"
+CHANGE = "CHANGELOG.md"
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK55: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(text):
+    out = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
+def func_body(text, name):
+    m = re.search(r"(?ms)^(function|sub) %s\(.*?^(end function|end sub)" % re.escape(name), text)
+    return m.group(0) if m else None
+
+
+def require(haystack, where, needle, why):
+    if haystack is None:
+        return
+    if needle not in haystack:
+        problems.append(f"  {where} - CHECK55: {needle!r} missing — {why}")
+
+
+util = read(UTIL)
+app = read(APP)
+task = read(TASK)
+readme = read(README)
+change = read(CHANGE)
+
+# ---- R1 the predicate: exact shape, device-safe globals only ----------------
+if util is not None:
+    ucode = mask(util)
+    pred = func_body(ucode, "HubRelayCleartextRefusedForOrigin")
+    if pred is None:
+        problems.append(f"  {UTIL} - CHECK55 R1: function HubRelayCleartextRefusedForOrigin() vanished — the hub-relay origin law has no home")
+    else:
+        require(pred, UTIL, "as Boolean", "the predicate must return a Boolean")
+        require(pred, UTIL, 'return Left(s, 8) = "https://"', "the refusal must be exactly the documented https:// shape (global Left, 1-based)")
+        if ".Mid(" in pred:
+            problems.append(f"  {UTIL} - CHECK55 R1: the predicate body calls the member .Mid — ifStringOps indices are 0-based while the globals are 1-based; law code uses the global Mid only (M-ROKU-23 device-safety law)")
+        if ".Lower(" in pred:
+            problems.append(f"  {UTIL} - CHECK55 R1: the predicate body calls the member .Lower — Roku strings have NO Lower member (ifStringOps lists none); the call is a device runtime error; use the global LCase (M-ROKU-23 device-safety law)")
+
+# ---- R2 scene choke: refuse BEFORE the credential is read -------------------
+if app is not None:
+    acode = mask(app)
+    shc = func_body(acode, "StartHubCommandConsumer")
+    if shc is None:
+        problems.append(f"  {APP} - CHECK55 R2: sub StartHubCommandConsumer() vanished — nothing gates the relay dial at the scene")
+    else:
+        require(shc, APP, "HubRelayCleartextRefusedForOrigin(hubUrl)", "the scene must refuse the cleartext relay dial for https hub origins")
+        gate = shc.find("HubRelayCleartextRefusedForOrigin(hubUrl)")
+        cred = shc.find('GetStorage().get("auth_token")')
+        if gate != -1 and cred != -1 and not gate < cred:
+            problems.append(f"  {APP} - CHECK55 R2: the refusal no longer PRECEDES the auth_token read — the credential must stay unreached on an origin whose dial is doomed to be refused (M-ROKU-14 order doctrine)")
+    if app is not None and "(http://host[:port])" in app:
+        problems.append(f"  {APP} - CHECK55 R2: the stale '(http://host[:port])' parse comment is back — it papered over the scheme-strip this cure convicted (docs-truth law)")
+
+# ---- R3 task choke + plaintext arm present + no fabricated TLS --------------
+if task is not None:
+    tcode = mask(task)
+    rc = func_body(tcode, "RunConsumer")
+    if rc is None:
+        problems.append(f"  {TASK} - CHECK55 R3: sub RunConsumer() vanished — the task-side defense in depth is gone")
+    else:
+        require(rc, TASK, "HubRelayCleartextRefusedForOrigin(apiBase)", "the task must refuse an https-origin config before anything mints or dials")
+        gate = rc.find("HubRelayCleartextRefusedForOrigin(apiBase)")
+        mint = rc.find("MintAndConnect(")
+        if gate != -1 and mint != -1 and not gate < mint:
+            problems.append(f"  {TASK} - CHECK55 R3: the task-side refusal no longer PRECEDES MintAndConnect — a cleartext socket could re-mint a token before refusal")
+    require(tcode, TASK, 'CreateObject("roStreamSocket")', "the http/legacy plaintext arm must stay wired — the refusal narrows its origins, it does not retire the arm")
+    if 'CreateObject("roSecureSocket"' in tcode:
+        problems.append(f"  {TASK} - CHECK55 R3: a roSecureSocket instantiation appeared — the wss relay arm is DEFERRED pending on-device API verification; zero unverified platform calls ship (M-ROKU-23 floor, edbbd8a doctrine)")
+    xml = read("components/HubCommandTask.xml")
+    if xml is None:
+        problems.append("  components/HubCommandTask.xml - CHECK55 R3: unreadable/missing — the task scope pin cannot run vacuously")
+    elif "pkg:/source/lib/Utilities.brs" not in xml:
+        problems.append(f"  components/HubCommandTask.xml - CHECK55 R3: the Utilities.brs script-include is gone — the task scope cannot resolve HubRelayCleartextRefusedForOrigin; component scopes do NOT auto-include pkg:/source (SyncPlayTask.xml is the twin)")
+
+# ---- R4 docs law -------------------------------------------------------------
+if readme is not None:
+    rl = readme.lower()
+    for needle, why in [
+        ("command-consumer origin law", "the README hub section must carry the named M-ROKU-23 command-consumer origin law paragraph (the fixed plaintext :8804 dial, its refusal and the deferred wss arm)"),
+        ("refus", "the README must state the https-origin refusal (M-ROKU-23 law)"),
+        ("deferred", "the README must disclose the wss roSecureSocket arm as DEFERRED, not impossible (edbbd8a doctrine)"),
+    ]:
+        if needle not in rl:
+            problems.append(f"  {README} - CHECK55 R4: {needle!r} missing — {why}")
+if task is not None:
+    if "NO TLS and NO WebSocket" in task:
+        problems.append(f"  {TASK} - CHECK55 R4: the plaintext-by-assertion header is back ('NO TLS and NO WebSocket') — transport reality ships WITH the refusal law and the deferred wss arm, never as a bare limitation (M-ROKU-22 doctrine applies to this leg too)")
+    for needle, why in [("REFUSES", "the task header must name the https-origin refusal law (M-ROKU-23)"), ("DEFERRED", "the task header must disclose the wss arm as deferred")]:
+        if needle not in task:
+            problems.append(f"  {TASK} - CHECK55 R4: {needle!r} missing — {why}")
+
+# ---- R5 CHANGELOG names the item --------------------------------------------
+if change is not None:
+    require(change, CHANGE, "M-ROKU-23", "the measured CHANGELOG law: the landing names its item")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK55: %d hub-relay origin-law pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK55: the hub relay refuses the plaintext :8804 dial behind https")
+print("           origins — the scene choke precedes the auth_token read, the")
+print("           task choke precedes the mint, http/legacy hubs keep their")
+print("           exact pre-cure behavior, and the wss arm is DEFERRED-")
+print("           DISCLOSED (never fabricated, never declared impossible)")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
 # ============================================================================
 echo ""

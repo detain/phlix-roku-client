@@ -43,8 +43,12 @@
 
     <!-- Transitive closure: a component scope does NOT auto-include pkg:/source.
          The consumer loop is driven entirely by the `config`/`command` fields
-         (the scene builds the config), so it needs only SyncPlayProtocol
-         (framing/handshake) + own .brs. -->
+         (the scene builds the config), so it needs SyncPlayProtocol
+         (framing/handshake) plus the M-ROKU-23 origin-law predicate, which
+         lives canonically in Utilities (Storage is Utilities' own closure,
+         mirroring SyncPlayTask.xml) + own .brs. -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/SyncPlayProtocol.brs" />
     <script type="text/brightscript" uri="pkg:/components/HubCommandTask.brs" />
 </component>

@@ -2,6 +2,73 @@
 
 ## [Unreleased]
 
+### Fixed — the hub relay stops downgrading a minted token to cleartext behind https origins (M-ROKU-23) — 2026-10-29
+
+- **The defect (review roku__secnet M2).** `StartHubCommandConsumer` stripped
+  the persisted hub URL's scheme and dialled the FIXED plaintext relay
+  listener `ws://<hub>:8804` regardless of the origin — `components/PhlixApp
+  .brs` carried the stale parse comment "(http://host[:port])" as its only
+  nod at the shape — and `components/HubCommandTask.brs` then minted a relay
+  token over the hub's (possibly TLS) REST lane and carried it,
+  `Authorization: Bearer` on a raw `roStreamSocket` handshake, across
+  cleartext. Behind an `https://` hub that means a passive path sniffer can
+  capture a live push-into-the-session credential and inject "Alexa, play X"
+  commands behind the very TLS identity the hub advertises — the scheme
+  mismatch itself is the exploitable class (same doctrine M-ROKU-14/4240ad2
+  used for the :8097 account-JWT leg: refuse, never silently downgrade).
+- **The cure.** New pure predicate `HubRelayCleartextRefusedForOrigin`
+  (`source/lib/Utilities.brs`, global string functions ONLY — see the
+  device-safety note below) refuses the cleartext dial for `https://` origins;
+  it is enforced at the scene choke BEFORE `auth_token` is read and again at
+  the task (`RunConsumer`) before any mint or connect — defense in depth.
+  `http://`/legacy scheme-less hubs keep byte-identical behavior (their REST
+  lane is already cleartext; no NEW exposure class is created or removed
+  there). CHECK55 pins the predicate shape, the refuse-before-credential and
+  refuse-before-mint orders, the survival of the plaintext arm, the docs law,
+  and (R3) that NO `roSecureSocket` instantiation ships from this lane. R3
+  also pins `components/HubCommandTask.xml`'s Utilities.brs script-include:
+  a component scope does NOT auto-include pkg:/source, and the first honest
+  full `make lint` caught exactly that — the task-side choke had been written
+  against a symbol outside its scope (BS1140); the twin closure is
+  `SyncPlayTask.xml` (Storage + Utilities + SyncPlayProtocol + own), now
+  mirrored here with its stale "needs only SyncPlayProtocol" comment
+  rewritten to truth.
+- **The wss arm: DEFERRED with disclosure, not impossible.** The managed
+  hub's TLS front-end already routes `GET /syncplay/` to the relay worker
+  (phlix-hub `docs/websockets.md`), so `wss://<hub-domain>/syncplay/{id}`
+  exists server-side today. The client leg needs on-device verification of
+  `roSecureSocket`'s method surface, which this venue could not reach (the
+  docs restructure 404s); shipping blind platform calls is exactly the
+  convicted class (below), so the refusal law lands now and the wss migration
+  rides the same disclosed-deferred posture edbbd8a ratified for :8097. Cost
+  stated honestly: "Alexa, play X" stays CLOSED on https hubs until the wss
+  arm lands.
+- **Device-safety law learned mid-lane (rider findings, REPORTED).** The
+  predicate family avoids member `.Mid`/`.Lower` because this lane PROVED both
+  are landmines: `ifStringOps` indices are 0-based while the globals are
+  1-based, and `.Lower()` is not a Roku string member at all (roString
+  implements ifString + ifStringOps + ifToStr only). At this tip 14 `.Lower()`
+  member calls ship in `source/` (main.brs x2, Utilities.brs x12) — each is a
+  device runtime error, which renders the M-ROKU-15 custody family
+  (`HostOfUrl`/`OriginOfUrl`/`NormalizeServerUrl` et al.) device-dead, on top
+  of two off-by-one member-`.Mid` scheme/port strips in `HostOfUrl`/
+  `OriginOfUrl`; `tests/unit/RedirectCustody.test.brs` encodes expectations
+  that cannot pass as written and never runs in CI (hardware skip). CHECK55
+  R1 pins the globals-only law on THIS family's new code; the estate-wide
+  sweep is queued for its own item (see `.reviews/fixlog/M-ROKU-23__fix.md`
+  Observations).
+- **No new user-facing strings** — catalogs untouched (the refusal is silent,
+  the posture state is the already-existing `closed`); locale 7-family
+  key-set parity re-verified read-only in the fixlog.
+- **Gates.** `make lint` (bsc) zero new; `scripts/verify-runtime.sh` FULL
+  green with the new Check 55 leg (this lane numbered it 54 mid-work; the
+  M-ROKU-22 residual `0f0d42b` took Check 54 from origin under the lane and the
+  rebase re-numbered this leg to 55 — CHECK50-line precedent, disclosed); portable harness gains a CHECK55
+  plant-and-restore leg (scene choke, task choke, predicate rename, README
+  prose — each named red, CHECK53 gate independence, restore -> 0); device
+  suite `tests/unit/HubRelayOriginLaw.test.brs` (truth table, also executed
+  under the brs interpreter in-lane for real-behavior proof — output in the
+  fixlog).
 ### Fixed — the SyncPlay dial posture gets its composition census and survival pins: Check 54 (M-ROKU-22 residual)
 
 - **What landed where (disclosed double-lane).** Review roku__secnet M1

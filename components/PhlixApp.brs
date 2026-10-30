@@ -627,6 +627,9 @@ end sub
 ' consumer socket therefore opens whenever the app is open in hub mode with a
 ' picked server, independently of any watch-together session. Direct mode has
 ' no hub relay session at all (no hub token, no server id), so nothing opens.
+' M-ROKU-23 adds the origin law: an https:// hub REFUSES this plaintext dial
+' (minted relay token never crosses cleartext behind a TLS origin); http/legacy
+' hubs keep it; the wss arm is DEFERRED with disclosure, not impossible.
 ' =============================================================================
 
 ' Start (or replace) the HubCommandTask for the current hub context.
@@ -639,7 +642,22 @@ sub StartHubCommandConsumer()
     hubUrl = GetServerUrl()
     if hubUrl = "" then return
 
-    ' Parse the hub host out of the persisted hub URL (http://host[:port]).
+    ' HUB RELAY PLAINTEXT-ORIGIN LAW (M-ROKU-23, review roku__secnet M2): the
+    ' consumer socket below is plaintext (roStreamSocket, fixed :8804 listener)
+    ' and its handshake carries the hub MINTED relay token. Behind an https://
+    ' hub origin that token must never ride cleartext, so the dial is refused
+    ' BEFORE the credential is even read (the M-ROKU-14 doctrine on the hub
+    ' relay leg). The wss arm via roSecureSocket is DEFERRED-DISCLOSED, not
+    ' impossible — the hub's TLS front-end already routes GET /syncplay/ to the
+    ' relay worker; the client leg awaits on-device API verification. http://
+    ' and scheme-less legacy hubs keep dialling: their REST lane is already
+    ' cleartext, so the dial adds no NEW exposure class.
+    if HubRelayCleartextRefusedForOrigin(hubUrl) then return
+
+    ' Parse the hub host out of the persisted hub URL. Only http/legacy origins
+    ' reach here (https origins were refused above), and the relay port is the
+    ' fixed plaintext listener — the URL's own port belongs to the hub API
+    ' server, not to :8804.
     host = hubUrl
     schemeIdx = Instr(1, host, "://")
     if schemeIdx > 0 then host = Mid(host, schemeIdx + 3)
