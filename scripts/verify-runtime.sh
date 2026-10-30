@@ -5744,7 +5744,7 @@ echo "=== Check 48: connect/pair credential custody - redirect law + cleartext c
 #       (NormalizeServerUrl delegates - re-rolled octet logic is how
 #       "10th-street.example.com" was once misclassified); the
 #       redirect_refused bucket carries its classifier arm, transport guard,
-#       ladder line and catalog message x7; catalogs bump as a set (1.9.0).
+#       ladder line and catalog message x7; catalogs bump as a set (1.10.0).
 #   R4  the device harness pins the law: tests/unit/RedirectCustody.test.brs
 #       and all seven Test subs.
 PYRET=0
@@ -5909,8 +5909,8 @@ for L in LOCALES:
     for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
         if cat.get("connect", {}).get(key, "") == "":
             problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
-    if cat.get("_metadata", {}).get("version") != "1.9.0":
-        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.9.0 — the catalogs bump as a set with this law")
+    if cat.get("_metadata", {}).get("version") != "1.10.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.10.0 — the catalogs bump as a set with this law")
 
 # ---- R4 the device harness pins the law -----------------------------------
 test = read(TEST)
@@ -6592,6 +6592,222 @@ print("           banner family (both choke points + the task-side fallback) and
 print("           the playback dialogs are catalog copy — 29 player_* keys ride")
 print("           all seven locales, reintroduced English is convicted file:line")
 print("           and raw-literal calls into the status/banner choke points are rejected")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+# ============================================================================
+echo ""
+echo "=== Check 52: a failed read never renders as emptiness (M-ROKU-21) ==="
+# FAILURE-VS-EMPTY LAW (M-ROKU-21, review roku__gameux M6): DashboardScene's
+# ExtractData collapsed !ok / 401 / 403 / malformed into [] and RenderDashboard
+# drew those failures as "(none)" rows; HomeScene's OnLibrariesResponse had no
+# failure branch at all (empty grid, description still "Select a library") and
+# OnContinueWatchingResponse silently returned on !ok. A user with a wiped token
+# or an unreachable server saw a confidently-empty app with no recovery path.
+# Cure: ExtractData yields invalid (never []) on failure; each scene keeps a
+# per-read failure flag, renders localized failure copy instead of "(none)",
+# and reveals a focusable Retry button (the M16 boot-retry idiom, Check 47).
+# Pinned statically:
+#   R1  DashboardScene: ExtractData's failure arms return invalid (the four
+#       exact lines — re-growing a collapsed `return []` branch breaks the
+#       matching arm), OnApiResponse records the classification
+#       (m.nowPlayingFailed/m.storageFailed/m.activityFailed), RenderDashboard
+#       writes Translate("dashboard_failed_row") per failed section x3 and
+#       Translate("dashboard_failed_status") into the status label, and the
+#       retry wiring exists (buttonSelected observer + StartLoadChain defined
+#       and called from both Init and the retry handler);
+#   R2  HomeScene: OnLibrariesResponse and OnContinueWatchingResponse each own
+#       a failure branch that sets its flag and calls ShowHomeRailFailure, the
+#       success paths call HideHomeRailFailureIfHealthy, the retry handler
+#       re-fires exactly the failed loads, and ApplyXmlChrome localizes both
+#       retryButton titles (CHECK25's override-path law);
+#   R3  both XMLs carry id="retryButton" focusable="true" — the recovery path
+#       is a pressable control, not prose (Check 47's lesson);
+#   R4  the three cured English sentences appear as raw literals in NO .brs
+#       file under components/ or source/ (comment-masked whole-tree scan —
+#       CHECK51 R2's idiom);
+#   R5  the three keys (home.rail_failed, dashboard.failed_row,
+#       dashboard.failed_status) exist, non-empty and string-typed, in ALL
+#       SEVEN shipped catalogs (CHECK48 R3 keeps the set-bump honest).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+DASH = "components/DashboardScene.brs"
+HOME = "components/HomeScene.brs"
+DASH_XML = "components/DashboardScene.xml"
+HOME_XML = "components/HomeScene.xml"
+LOCALES = ["de_DE", "en_US", "es_ES", "fr_FR", "it_IT", "ja_JP", "pt_BR"]
+
+# (section, bare key) pairs the cure rides (CHECK51 R3's idiom)
+CAT_KEYS = [("home", "rail_failed"), ("dashboard", "failed_row"), ("dashboard", "failed_status")]
+# fragments unique to each cured English sentence (CHECK51 R2's idiom)
+FRAGMENTS = ["Couldn't load", "press OK to retry", "reads failed"]
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK52: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(text):
+    out = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
+def func_body(text, name):
+    m = re.search(r"(?ms)^(function|sub) %s\(.*?^(end function|end sub)" % re.escape(name), text)
+    return m.group(0) if m else None
+
+
+def require(haystack, where, needle, why):
+    if haystack is None:
+        return
+    if needle not in haystack:
+        problems.append(f"  {where} - CHECK52: {needle!r} missing — {why}")
+
+
+dash = read(DASH)
+home = read(HOME)
+
+# ---- R1 the dashboard classifies failure instead of collapsing to [] -------
+if dash is not None:
+    dcode = mask(dash)
+    body = func_body(dcode, "ExtractData")
+    if body is None:
+        problems.append(f"  {DASH} - CHECK52 R1: function ExtractData() vanished — the classification has no home")
+    else:
+        for arm in (
+            "if resp = invalid then return invalid",
+            "if not resp.ok then return invalid",
+            "if resp.data = invalid then return invalid",
+            "if resp.data.data = invalid then return invalid",
+            'if type(resp.data.data) <> "roArray" then return invalid',
+        ):
+            require(body, DASH, arm, "ExtractData's failure arm back to collapsing into [] — a failed read rendering as '(none)' is the M-ROKU-21 defect re-grown")
+        if "return []" in body:
+            problems.append(f"  {DASH} - CHECK52 R1: ExtractData still returns [] on some path — failure must be invalid, [] must mean honest-empty")
+    for flag in ("m.nowPlayingFailed", "m.storageFailed", "m.activityFailed"):
+        oabody = func_body(dcode, "OnApiResponse")
+        require(oabody, DASH, flag + " = (", "OnApiResponse does not classify this read — the section's failure state is unsaid")
+    rbody = func_body(dcode, "RenderDashboard")
+    if rbody is None:
+        problems.append(f"  {DASH} - CHECK52 R1: sub RenderDashboard() vanished")
+    else:
+        n = rbody.count('Translate("dashboard_failed_row")')
+        if n != 3:
+            problems.append(f'  {DASH} - CHECK52 R1: RenderDashboard writes Translate("dashboard_failed_row") {n}x, expected 3x — every failed section must render failure copy, not "(none)"')
+        require(rbody, DASH, 'SetStatus(Translate("dashboard_failed_status"))', "the status label never reports the failed reads")
+    require(dcode, DASH, 'ObserveField("buttonSelected", "OnRetryPressed")', "the dashboard retry button has no handler — recovery path unwired")
+    require(dcode, DASH, "sub StartLoadChain()", "the dashboard cannot restart its read chain")
+    if func_body(dcode, "Init") is not None and "StartLoadChain()" not in func_body(dcode, "Init"):
+        problems.append(f"  {DASH} - CHECK52 R1: Init no longer routes through StartLoadChain — the retry restart shape is drifting from the boot shape")
+    if func_body(dcode, "OnRetryPressed") is not None and "StartLoadChain()" not in func_body(dcode, "OnRetryPressed"):
+        problems.append(f"  {DASH} - CHECK52 R1: OnRetryPressed does not call StartLoadChain — the OK press would be theater")
+
+# ---- R2 the home screen owns its failure branches ---------------------------
+if home is not None:
+    hcode = mask(home)
+    lb = func_body(hcode, "OnLibrariesResponse")
+    if lb is None:
+        problems.append(f"  {HOME} - CHECK52 R2: sub OnLibrariesResponse() vanished")
+    else:
+        require(lb, HOME, "m.librariesFailed = true", "the libraries handler is back to swallowing failure into an empty grid")
+        require(lb, HOME, "ShowHomeRailFailure()", "a failed libraries read never reaches the user — the confidently-empty app re-grown")
+        require(lb, HOME, "m.librariesFailed = false", "the success path never clears the failure flag — a recovered load would keep retry copy")
+    cb = func_body(hcode, "OnContinueWatchingResponse")
+    if cb is None:
+        problems.append(f"  {HOME} - CHECK52 R2: sub OnContinueWatchingResponse() vanished")
+    else:
+        require(cb, HOME, "m.continueFailed = true", "the continue-watching handler is back to silently returning on !ok")
+        require(cb, HOME, "ShowHomeRailFailure()", "a failed continue-watching read never reaches the user")
+        require(cb, HOME, "m.continueFailed = false", "the success path never clears the failure flag")
+    require(hcode, HOME, "sub HideHomeRailFailureIfHealthy()", "nothing ever retracts the failure state once both reads are healthy")
+    rb = func_body(hcode, "OnRetryPressed")
+    if rb is None:
+        problems.append(f"  {HOME} - CHECK52 R2: sub OnRetryPressed() vanished — the Retry control would be theater")
+    else:
+        require(rb, HOME, "if m.librariesFailed then LoadLibrariesAsync()", "retry never re-fires the failed libraries load")
+        require(rb, HOME, "if m.continueFailed then LoadContinueWatchingAsync()", "retry never re-fires the failed continue-watching load")
+    ac = func_body(hcode, "ApplyXmlChrome")
+    require(ac, HOME, 'Translate("common_retry")', "the home retryButton title never gets its programmatic chrome override (CHECK25's law)")
+    if dash is not None:
+        dac = func_body(mask(dash), "ApplyXmlChrome")
+        require(dac, DASH, 'Translate("common_retry")', "the dashboard retryButton title never gets its programmatic chrome override (CHECK25's law)")
+
+# ---- R3 the recovery path is a pressable control ----------------------------
+for x, label in ((DASH_XML, "DashboardScene.xml"), (HOME_XML, "HomeScene.xml")):
+    xt = read(x)
+    if xt is not None:
+        m = re.search(r'(?s)<Button[^>]*id="retryButton"[^>]*>', xt)
+        if m is None:
+            problems.append(f'  {x} - CHECK52 R3: no <Button id="retryButton"> — prose without a control is not a recovery path (Check 47\'s lesson)')
+        elif 'focusable="true"' not in m.group(0):
+            problems.append(f"  {x} - CHECK52 R3: retryButton is not focusable — the retry cannot be reached with the remote")
+
+# ---- R4 the cured sentences live only in the catalog ------------------------
+scan_files = []
+for scan_dir in ("components", "source"):
+    for root, dirs, names in os.walk(scan_dir):
+        dirs.sort()
+        for name in sorted(names):
+            if name.endswith(".brs"):
+                scan_files.append(os.path.join(root, name))
+for path in scan_files:
+    text = read(path)
+    if text is None:
+        continue
+    for lineno, line in enumerate(mask(text).split("\n"), 1):
+        for frag in FRAGMENTS:
+            if frag in line:
+                problems.append(f'  {path}:{lineno} - CHECK52 R4: raw English fragment "{frag}" re-grown as a literal outside the catalog — this copy must ride Translate (Checks 20/21 keep it speakable)')
+
+# ---- R5 every shipped locale speaks the three keys --------------------------
+for L in LOCALES:
+    path = f"locale/{L}/strings.json"
+    try:
+        with open(path, encoding="utf-8") as f:
+            cat = json.load(f)
+    except (OSError, ValueError) as err:
+        problems.append(f"  {path} - CHECK52: unreadable: {err}")
+        continue
+    for section, bare in CAT_KEYS:
+        value = cat.get(section, {}).get(bare)
+        if not isinstance(value, str) or value.strip() == "":
+            problems.append(f"  {path} - CHECK52 R5: {section}.{bare} missing — failure copy must be SPEAKABLE in every shipped locale")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK52: %d failure-vs-emptiness pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print('  CHECK52: a failed read yields invalid (never "(none)"), both home rails own their')
+print('           failure branches, the recovery path is a focusable Retry button, the')
+print('           three English sentences exist nowhere as raw literals in .brs code, and')
+print('           all seven catalogs speak home.rail_failed + the dashboard failed pair')
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

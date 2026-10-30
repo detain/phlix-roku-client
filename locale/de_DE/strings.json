@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -313,7 +313,12 @@
   },
   "home": {
     "continue_watching": "Weiter schauen",
-    "select_library": "Mediathek auswählen"
+    "select_library": "Mediathek auswählen",
+    "rail_failed": "Startinhalte konnten nicht geladen werden — OK zum Wiederholen"
+  },
+  "dashboard": {
+    "failed_row": "Konnte nicht geladen werden — OK zum Wiederholen",
+    "failed_status": "Einige Admin-Daten konnten nicht geladen werden — OK zum Wiederholen"
   },
   "connect": {
     "anyway": "Trotzdem verbinden",

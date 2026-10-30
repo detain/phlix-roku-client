@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -313,7 +313,12 @@
   },
   "home": {
     "continue_watching": "続きを見る",
-    "select_library": "ライブラリを選択してください"
+    "select_library": "ライブラリを選択してください",
+    "rail_failed": "ホームコンテンツを読み込めませんでした — OKで再試行"
+  },
+  "dashboard": {
+    "failed_row": "読み込めませんでした — OKで再試行",
+    "failed_status": "一部の管理者データを読み込めませんでした — OKで再試行"
   },
   "connect": {
     "anyway": "とにかく接続",

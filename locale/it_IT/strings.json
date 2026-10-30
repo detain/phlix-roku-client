@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -313,7 +313,12 @@
   },
   "home": {
     "continue_watching": "Continua a guardare",
-    "select_library": "Seleziona una biblioteca"
+    "select_library": "Seleziona una biblioteca",
+    "rail_failed": "Impossibile caricare i contenuti della home — premi OK per riprovare"
+  },
+  "dashboard": {
+    "failed_row": "Impossibile caricare — premi OK per riprovare",
+    "failed_status": "Alcune letture admin non sono riuscite — premi OK per riprovare"
   },
   "connect": {
     "anyway": "Connetti comunque",

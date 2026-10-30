@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -313,7 +313,12 @@
   },
   "home": {
     "continue_watching": "Reprendre la lecture",
-    "select_library": "Sélectionnez une bibliothèque"
+    "select_library": "Sélectionnez une bibliothèque",
+    "rail_failed": "Échec du chargement du contenu d'accueil — appuyez sur OK pour réessayer"
+  },
+  "dashboard": {
+    "failed_row": "Échec du chargement — appuyez sur OK pour réessayer",
+    "failed_status": "Certaines lectures admin ont échoué — appuyez sur OK pour réessayer"
   },
   "connect": {
     "anyway": "Se connecter quand même",

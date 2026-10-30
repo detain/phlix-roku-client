@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "es_ES",
     "language_name": "Español (España)",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -313,7 +313,12 @@
   },
   "home": {
     "continue_watching": "Seguir viendo",
-    "select_library": "Selecciona una biblioteca"
+    "select_library": "Selecciona una biblioteca",
+    "rail_failed": "No se pudo cargar el contenido de inicio — pulsa OK para reintentar"
+  },
+  "dashboard": {
+    "failed_row": "No se pudo cargar — pulsa OK para reintentar",
+    "failed_status": "Algunas lecturas de administración fallaron — pulsa OK para reintentar"
   },
   "connect": {
     "anyway": "Conectar de todos modos",

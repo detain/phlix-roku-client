@@ -101,6 +101,14 @@
         <Label id="loadingLabel" text="Loading…"
                translation="[640, 340]"
                horizAlign="center" color="#888888" visible="false" />
+        <!-- M-ROKU-21 recovery control: hidden until a home rail read fails,
+             then revealed + focused (the M16 boot-retry idiom, Check 47) so
+             "the fetch failed" carries a pressable way back. It rides the right
+             end of the description strip and never overlays populated grid
+             content. ApplyXmlChrome overrides the title via
+             Translate("common_retry"). -->
+        <Button id="retryButton" translation="[1100,682]" width="160" height="36"
+                title="Retry" focusable="true" visible="false" />
     </children>
 </component>
 

@@ -2,6 +2,52 @@
 
 ## [Unreleased]
 
+### Fixed — a failed read never renders as emptiness again (M-ROKU-21) — 2026-10-29
+
+- **The defect (review roku__gameux M6).** Failure and emptiness were rendered
+  identically on both home surfaces. `DashboardScene`'s `ExtractData` collapsed
+  `!ok` (401/403), a missing or malformed envelope and an honest empty `[]` into
+  the SAME `[]` — its own docblock advertised the collapse — and
+  `RenderDashboard` printed "(none)" rows, so an admin with a cleared token read
+  "you have nothing" from a server that had actually refused. `HomeScene`'s
+  `OnLibrariesResponse` had no failure branch at all (empty grid, description
+  still "Select a library", no retry), and `OnContinueWatchingResponse` just
+  `return`ed on `!ok` — indistinguishable from "you have not watched anything".
+  A wiped token or an unreachable server produced a confidently-empty app with
+  no recovery path.
+- **The cure.** `ExtractData` now yields `invalid` on every failure arm and
+  `[]` only on honest emptiness; `OnApiResponse` classifies each section into
+  `m.nowPlayingFailed/m.storageFailed/m.activityFailed`. A failed section
+  renders `Translate("dashboard_failed_row")` instead of "(none)", the status
+  strip switches to `Translate("dashboard_failed_status")`, and a
+  `focusable="true"` Retry button (the device-proven M-ROKU-16 boot-retry
+  idiom) is revealed and takes focus; `buttonSelected` re-runs the whole
+  serialized chain through the same `StartLoadChain` boot uses. On `HomeScene`,
+  both rail handlers own explicit failure branches (`m.librariesFailed`,
+  `m.continueFailed`) that light the description bar with
+  `Translate("home_rail_failed")` and reveal the same focused Retry control;
+  pressing it re-fires exactly the failed loads and nothing else, and success
+  restores "Select a library" only when the bar still shows the failure copy.
+  Honest emptiness stays honest: the dashboard still prints "(none)" when the
+  server genuinely has nothing, and the continue rail keeps its
+  hidden-when-empty shared-slot design (Check 32 law untouched).
+- **Copy law.** All three sentences ride the locale catalog ×7 (new `home` +
+  two-key `dashboard` keys, `_metadata.version` 1.9.0 → 1.10.0 as a set under
+  CHECK48 R3's bump law, 348 keys per locale after this lane's set-bump joined the live-copy lane's twenty-six); the Retry label reuses the
+  existing `common.retry` key through both `ApplyXmlChrome` subs. The three
+  English sentences appear as raw literals in no `.brs` anywhere.
+- **Teeth.** Check 52 in `scripts/verify-runtime.sh` pins the five
+  `return invalid` arms (and bans any surviving `return []` in the body), the
+  per-section classification, the three localized failure writes, both scenes'
+  failure branches and retry re-fire arms, the XML focusability, and
+  per-locale speakability — red-on-unfixed-source measured at 47 pins; the
+  portable twin reverts ONE branch (`!ok` arm back to `return []`) in a scratch
+  copy and requires CHECK52 to name both the lost arm and the collapse
+  detector while CHECK48/CHECK51 stay green.
+- **Numbers.** 16 files, 547+/39− in this commit (rebased onto the mid-lane `2dd8b76` + `a5dad23` landings);
+  `make lint`/`bslint`/`validate-xml.sh` (48 files) clean, full
+  `verify-runtime.sh` battery and `verify-runtime-portable.sh` exit 0.
+
 ### Fixed — the FULL live player/party surface rides the locale catalog (M-ROKU-20 r2) — 2026-10-29
 
 - **The defect (review roku__gameux M5 + r1 issues=5).** r1 closed with a

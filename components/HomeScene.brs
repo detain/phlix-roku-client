@@ -74,6 +74,19 @@ sub Init()
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
     m.loadingLabel = m.top.FindNode("loadingLabel")
 
+    ' M-ROKU-21 [review roku__gameux M6]: failure and emptiness must be distinct
+    ' states. Each parallel home-rail load records whether its read FAILED (as
+    ' opposed to coming back honestly empty); any failure shows localized copy in
+    ' the description strip + reveals the focusable Retry button riding the
+    ' strip's right end (the M16 boot-retry idiom, Check 47). The two flags and
+    ' the sub pair below are the single source of that truth.
+    m.librariesFailed = false
+    m.continueFailed = false
+    m.retryButton = m.top.FindNode("retryButton")
+    if m.retryButton <> invalid then
+        m.retryButton.ObserveField("buttonSelected", "OnRetryPressed")
+    end if
+
     ' Route all data access through a SINGLE observed ApiTask node (off the
     ' render thread). Every op is serialized through this one task so two
     ' control="run" are never outstanding at once.
@@ -227,6 +240,7 @@ end sub
 
 sub OnLibrariesResponse(resp as Object)
     if resp.ok and resp.data <> invalid then
+        m.librariesFailed = false
         m.libraries = resp.data
 
         ' Build the grid from each library's canonical name/id.
@@ -245,9 +259,52 @@ sub OnLibrariesResponse(resp as Object)
         end for
         m.libraryContent = content
         m.libraryGrid.content = content
+
+        HideHomeRailFailureIfHealthy()
+    else
+        ' M-ROKU-21 [review roku__gameux M6]: the failure branch the era lacked.
+        ' A wiped token / unreachable server must NOT read as "you have no
+        ' libraries": show localized failure copy + the focusable Retry control
+        ' instead of leaving an empty grid under "Select a library".
+        m.librariesFailed = true
+        ShowHomeRailFailure()
     end if
     ' NOTE: no chain to continue-watching here - it's now launched in parallel
     ' from OnMeResponse via LoadContinueWatchingAsync()
+end sub
+
+' One choke for the failure state of the parallel home rails: localized copy in
+' the description strip (never raw English - Checks 20/21 keep it speakable) and
+' the Retry button revealed + focused (the M16 boot-retry idiom: a pressable
+' control, not prose [Check 47's lesson]).
+sub ShowHomeRailFailure()
+    if m.loadingLabel <> invalid then m.loadingLabel.visible = false
+    if m.descriptionLabel <> invalid then m.descriptionLabel.text = Translate("home_rail_failed")
+    if m.retryButton <> invalid then
+        m.retryButton.visible = true
+        m.retryButton.SetFocus(true)
+    end if
+end sub
+
+' Retract the failure state only when BOTH rails are healthy again: on a partial
+' recovery the other rail's failure copy legitimately stands. When it does
+' stand down, hand the strip back to its default chrome only if it still shows
+' the failure copy - never overwrite an item caption the user focused meanwhile.
+sub HideHomeRailFailureIfHealthy()
+    if m.librariesFailed or m.continueFailed then return
+    if m.retryButton <> invalid then m.retryButton.visible = false
+    if m.descriptionLabel <> invalid and m.descriptionLabel.text = Translate("home_rail_failed") then
+        m.descriptionLabel.text = Translate("home_select_library")
+    end if
+end sub
+
+' OK press on the revealed Retry control: re-fire EXACTLY the failed loads and
+' show an honest loading state until they answer.
+sub OnRetryPressed(event as Object)
+    if m.retryButton <> invalid then m.retryButton.visible = false
+    if m.descriptionLabel <> invalid then m.descriptionLabel.text = Translate("common_loading")
+    if m.librariesFailed then LoadLibrariesAsync()
+    if m.continueFailed then LoadContinueWatchingAsync()
 end sub
 
 ' Shared-slot law (review roku__casualgamer M6): the Continue Watching and
@@ -262,10 +319,23 @@ function ContinueRailVisible() as Boolean
 end function
 
 sub OnContinueWatchingResponse(resp as Object)
-    if not resp.ok or resp.data = invalid then return
+    if not resp.ok or resp.data = invalid then
+        ' M-ROKU-21 [review roku__gameux M6]: the era silently returned here -
+        ' a failed read and a healthy app looked identical. Failure now owns a
+        ' branch; hiding stays reserved for the honest-empty case below (the
+        ' rail is optional chrome, emptiness is its designed hidden state).
+        m.continueFailed = true
+        ShowHomeRailFailure()
+        return
+    end if
+
+    m.continueFailed = false
 
     items = resp.data.items
-    if items = invalid or items.Count() = 0 then return
+    if items = invalid or items.Count() = 0 then
+        HideHomeRailFailureIfHealthy()
+        return
+    end if
 
     m.continueItems = items
 
@@ -299,6 +369,10 @@ sub OnContinueWatchingResponse(resp as Object)
         m.currentRail = "continue"
         m.continueGridFirstLoaded = true
     end if
+
+    ' This rail answered healthy: if it was the last failed read, retract the
+    ' failure chrome (a still-broken libraries read keeps its copy standing).
+    HideHomeRailFailureIfHealthy()
 end sub
 
 ' R7.2: Handle getNextUp response — populate the Up Next rail.
@@ -880,4 +954,6 @@ sub ApplyXmlChrome()
     if n <> invalid then n.text = Translate("home_select_library")
     n = m.top.findNode("loadingLabel")
     if n <> invalid then n.text = Translate("common_loading")
+    n = m.top.findNode("retryButton")
+    if n <> invalid then n.title = Translate("common_retry")
 end sub

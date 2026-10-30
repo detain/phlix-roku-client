@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -313,7 +313,12 @@
   },
   "home": {
     "continue_watching": "Continue Watching",
-    "select_library": "Select a library"
+    "select_library": "Select a library",
+    "rail_failed": "Couldn't load home content — press OK to retry"
+  },
+  "dashboard": {
+    "failed_row": "Couldn't load — press OK to retry",
+    "failed_status": "Some admin reads failed — press OK to retry"
   },
   "connect": {
     "anyway": "Connect anyway",

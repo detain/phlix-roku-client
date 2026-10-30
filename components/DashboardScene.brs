@@ -14,8 +14,11 @@
 '
 ' All /admin/* reads require is_admin+active (AdminMiddleware -> 401/403). A 403
 ' returns an {error,code} body (resp.ok=true but no .data key); a cleared-token 401
-' yields invalid. Either way ExtractData yields [] and the chain still completes to
-' an empty render (no crash). Selection is a no-op (read-only).
+' yields invalid. Either way ExtractData yields INVALID - never [] - and the
+' section renders localized failure copy + a focusable Retry button instead of
+' the honest-empty "(none)" row [review roku__gameux M6]. "You have nothing" and
+' "the fetch failed" are distinguishable states here. Selection is a no-op
+' (read-only rows).
 '
 ' Numeric JSON fields (progress_percent, item_count) are coerced via str(Int(...))
 ' - NEVER compared with "" (Integer<>String raises a runtime type-mismatch).
@@ -37,21 +40,48 @@ sub Init()
 
     m.statusLabel = m.top.FindNode("statusLabel")
 
+    ' Recovery control (M-ROKU-21): hidden until a read fails, then revealed +
+    ' focused - the M16 boot-retry idiom (Check 47), a pressable control rather
+    ' than prose.
+    m.retryButton = m.top.FindNode("retryButton")
+    if m.retryButton <> invalid then
+        m.retryButton.ObserveField("buttonSelected", "OnRetryPressed")
+    end if
+
     ' Route all data access through a SINGLE observed ApiTask node (off the render
     ' thread). The three reads are serialized strictly: each fires the next from
     ' OnApiResponse, so two control="run" are never outstanding at once.
     m.apiTask = CreateObject("roSGNode", "ApiTask")
     m.apiTask.ObserveField("response", "OnApiResponse")
 
+    StartLoadChain()
+end sub
+
+' Boot AND retry share one entry point: clear every section value + failure
+' flag, retract the recovery control, and fire the first read. Extracting it is
+' what makes the Retry button honest - pressing it re-runs the very chain that
+' booted the scene [review roku__gameux M6].
+sub StartLoadChain()
     m.nowPlaying = []
     m.storage = []
     m.activity = []
+    m.nowPlayingFailed = false
+    m.storageFailed = false
+    m.activityFailed = false
 
-    SetStatus("Loading…")
+    if m.retryButton <> invalid then m.retryButton.visible = false
+    SetStatus(Translate("common_loading"))
 
-    ' Fire the FIRST read; storage + activity chain from OnApiResponse.
+    ' Fire the FIRST read of the serialized chain: each read fires the next from
+    ' OnApiResponse, so two control="run" are never outstanding at once (the
+    ' same boot shape the Retry press replays).
     m.apiTask.request = { op: "getAdminNowPlaying" }
     m.apiTask.control = "run"
+end sub
+
+' OK press on the revealed Retry control: restart the whole serialized chain.
+sub OnRetryPressed(event as Object)
+    StartLoadChain()
 end sub
 
 sub OnApiResponse(event as Object)
@@ -59,39 +89,63 @@ sub OnApiResponse(event as Object)
     if resp = invalid then return
 
     if resp.op = "getAdminNowPlaying" then
-        m.nowPlaying = ExtractData(resp)
+        data = ExtractData(resp)
+        m.nowPlayingFailed = (data = invalid)
+        if data = invalid then
+            m.nowPlaying = []
+        else
+            m.nowPlaying = data
+        end if
         m.apiTask.request = { op: "getAdminStorage" }
         m.apiTask.control = "run"
     else if resp.op = "getAdminStorage" then
-        m.storage = ExtractData(resp)
+        data = ExtractData(resp)
+        m.storageFailed = (data = invalid)
+        if data = invalid then
+            m.storage = []
+        else
+            m.storage = data
+        end if
         m.apiTask.request = { op: "getAdminActivity", limit: 20 }
         m.apiTask.control = "run"
     else if resp.op = "getAdminActivity" then
-        m.activity = ExtractData(resp)
+        data = ExtractData(resp)
+        m.activityFailed = (data = invalid)
+        if data = invalid then
+            m.activity = []
+        else
+            m.activity = data
+        end if
         RenderDashboard()
     end if
 end sub
 
 ' Pull the `.data` array out of an admin envelope ({success,data,count}). Returns
-' resp.data.data when present and an roArray, else [] (covers !ok / 401 / 403 /
-' malformed). Never raises.
+' resp.data.data ONLY when present and an roArray - an honest empty [] means "no
+' rows". Every failure (invalid resp / !ok / 401 / 403 shape / malformed body)
+' yields INVALID, never []: RenderDashboard must be able to tell "you have
+' nothing" from "the fetch failed" [review roku__gameux M6]. Never raises.
 function ExtractData(resp as Object) as Object
-    if resp = invalid then return []
-    if not resp.ok then return []
-    if resp.data = invalid then return []
-    if resp.data.data = invalid then return []
-    if type(resp.data.data) <> "roArray" then return []
+    if resp = invalid then return invalid
+    if not resp.ok then return invalid
+    if resp.data = invalid then return invalid
+    if resp.data.data = invalid then return invalid
+    if type(resp.data.data) <> "roArray" then return invalid
     return resp.data.data
 end function
 
 ' Build ONE ContentNode: each section header is always emitted, followed by its
-' data rows or a single "(none)" row when the section is empty.
+' data rows, a localized failure row when that read FAILED, or a single "(none)"
+' row only when the section is honestly empty. Any failure additionally swaps
+' the status copy and reveals the focusable Retry control.
 sub RenderDashboard()
     content = CreateObject("roSGNode", "ContentNode")
 
     ' --- Now Playing ---
     content.AddChild({ title: "— Now Playing —" })
-    if m.nowPlaying = invalid or m.nowPlaying.Count() = 0 then
+    if m.nowPlayingFailed then
+        content.AddChild({ title: Translate("dashboard_failed_row") })
+    else if m.nowPlaying.Count() = 0 then
         content.AddChild({ title: "(none)" })
     else
         for each row in m.nowPlaying
@@ -103,7 +157,9 @@ sub RenderDashboard()
 
     ' --- Storage ---
     content.AddChild({ title: "— Storage —" })
-    if m.storage = invalid or m.storage.Count() = 0 then
+    if m.storageFailed then
+        content.AddChild({ title: Translate("dashboard_failed_row") })
+    else if m.storage.Count() = 0 then
         content.AddChild({ title: "(none)" })
     else
         for each row in m.storage
@@ -115,7 +171,9 @@ sub RenderDashboard()
 
     ' --- Recent Activity ---
     content.AddChild({ title: "— Recent Activity —" })
-    if m.activity = invalid or m.activity.Count() = 0 then
+    if m.activityFailed then
+        content.AddChild({ title: Translate("dashboard_failed_row") })
+    else if m.activity.Count() = 0 then
         content.AddChild({ title: "(none)" })
     else
         for each row in m.activity
@@ -127,7 +185,15 @@ sub RenderDashboard()
 
     if m.dashboardList <> invalid then m.dashboardList.content = content
 
-    SetStatus("Admin data")
+    if m.nowPlayingFailed or m.storageFailed or m.activityFailed then
+        SetStatus(Translate("dashboard_failed_status"))
+        if m.retryButton <> invalid then
+            m.retryButton.visible = true
+            m.retryButton.SetFocus(true)
+        end if
+    else
+        SetStatus("Admin data")
+    end if
 end sub
 
 ' "<username> — <media_title> (<progress_percent>%)". progress_percent is numeric
@@ -211,6 +277,7 @@ end sub
 sub Teardown()
     if m.dashboardList <> invalid then m.dashboardList.UnObserveField("itemFocused")
     if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
+    if m.retryButton <> invalid then m.retryButton.UnObserveField("buttonSelected")
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean
@@ -238,4 +305,6 @@ sub ApplyXmlChrome()
     if n <> invalid then n.text = Translate("common_dashboard")
     n = m.top.findNode("statusLabel")
     if n <> invalid then n.text = Translate("common_loading")
+    n = m.top.findNode("retryButton")
+    if n <> invalid then n.title = Translate("common_retry")
 end sub

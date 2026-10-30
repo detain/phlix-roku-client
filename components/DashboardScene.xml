@@ -33,5 +33,11 @@
                    color="#AAAAAA"
                    id="statusLabel" />
         </Rectangle>
+        <!-- M-ROKU-21 recovery control: hidden until a read fails, then revealed
+             + focused so "the fetch failed" carries a pressable way back (the
+             M16 boot-retry idiom). Chrome text is the en-fallback default;
+             ApplyXmlChrome overrides the title via Translate("common_retry"). -->
+        <Button id="retryButton" translation="[980,22]" width="260"
+                title="Retry" focusable="true" visible="false" />
     </children>
 </component>

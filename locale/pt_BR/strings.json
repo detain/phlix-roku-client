@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "pt_BR",
     "language_name": "Português (Brasil)",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -313,7 +313,12 @@
   },
   "home": {
     "continue_watching": "Continuar assistindo",
-    "select_library": "Selecione uma biblioteca"
+    "select_library": "Selecione uma biblioteca",
+    "rail_failed": "Não foi possível carregar o conteúdo inicial — pressione OK para tentar novamente"
+  },
+  "dashboard": {
+    "failed_row": "Falha ao carregar — pressione OK para tentar novamente",
+    "failed_status": "Algumas leituras administrativas falharam — pressione OK para tentar novamente"
   },
   "connect": {
     "anyway": "Conectar mesmo assim",
