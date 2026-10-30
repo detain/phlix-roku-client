@@ -40,6 +40,18 @@ sub Init()
     m.apiTask = CreateObject("roSGNode", "ApiTask")
     m.apiTask.ObserveField("response", "OnApiResponse")
 
+    ' M-ROKU-11 (review roku__crossfe): the account line used to read
+    ' GetApiClient().user.email - the ApiClient is rebuilt bare on every boot
+    ' (AppContext.GetApiClient never restores the login-time user object), so
+    ' the dialog said "Logged in as " forever. Fetch the address where
+    ' HomeScene gets it: the auth-gated getMe op over this scene's own task.
+    ' Deliberately NOT a new Storage key - CHECK33's six-key wipe law stays
+    ' whole and nothing new leaks into plaintext storage.
+    m.userEmail = ""
+    m.apiTask.request = { op: "getMe" }
+    m.apiTask.state = "run"
+    m.apiTask.control = "run"
+
     m.settingsList.observeField("itemSelected", "OnItemSelected")
     m.settingsList.observeField("itemFocused", "OnItemFocused")
 
@@ -115,8 +127,18 @@ sub OnItemFocused(event as Object)
     end if
 end sub
 
+function CurrentAccountLabel() as String
+    ' M-ROKU-11 label law: fresh getMe value first; then the username
+    ' LoginScene persists for the connect prefill; then the honest "Unknown"
+    ' (settings.about_device_id_unknown, cataloged x7). Never an empty hole.
+    if type(m.userEmail) = "String" and m.userEmail <> "" then return m.userEmail
+    stored = GetStorage().get("username")
+    if type(stored) = "String" and stored <> "" then return stored
+    return Translate("settings_about_device_id_unknown")
+end function
+
 sub ShowAccount()
-    userEmail = GetApiClient().user.email
+    userEmail = CurrentAccountLabel()
     m.statusLabel.text = TranslateWithParams("settings_status_logged_in_as", { email: userEmail })
 
     dialog = CreateObject("roSGNode", "Dialog")
@@ -124,12 +146,14 @@ sub ShowAccount()
     dialog.message = TranslateWithParams("settings_dialog_account_message", { email: userEmail })
     dialog.buttons = [Translate("settings_button_cancel"), Translate("settings_button_log_out")]
     dialog.observeField("buttonSelected", "OnLogoutConfirmed")
+    m.accountDialog = dialog
     m.top.dialog = dialog
 end sub
 
 sub OnLogoutConfirmed(index as Integer)
     if m.top.dialog = invalid then return
     m.top.dialog = invalid
+    m.accountDialog = invalid
 
     if index = 1 then
         ' R1.3: Route through PhlixApp.OnLogout — it wipes the six
@@ -213,6 +237,26 @@ sub OnApiResponse(event as Object)
         else
             RecordDiagnosticsError("settingsHistory", "reason=" + DiagnosticText(resp.error))
             m.statusLabel.text = Translate("settings_status_history_clear_failed")
+        end if
+    else if resp.op = "getMe" then
+        ' M-ROKU-11: /auth/me answers with the unwrapped user object (the same
+        ' payload HomeScene gates admin on). email labels the account row,
+        ' username is the server-side fallback; both are WIRE text and ride the
+        ' type-guarded path (CHECK43 law). A silent failure is fine here - the
+        ' label falls back through CurrentAccountLabel - but it is recorded.
+        if resp.ok and resp.data <> invalid then
+            if resp.data.DoesExist("email") and type(resp.data.email) = "String" and resp.data.email <> "" then
+                m.userEmail = resp.data.email
+            else if resp.data.DoesExist("username") and type(resp.data.username) = "String" and resp.data.username <> "" then
+                m.userEmail = resp.data.username
+            end if
+        else
+            RecordDiagnosticsError("settingsMe", "reason=" + DiagnosticText(resp.error))
+        end if
+        ' If Account was opened before the answer landed, refresh the live
+        ' dialog so the placeholder never strands on screen.
+        if m.accountDialog <> invalid then
+            m.accountDialog.message = TranslateWithParams("settings_dialog_account_message", { email: CurrentAccountLabel() })
         end if
     end if
 end sub

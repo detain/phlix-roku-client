@@ -48,7 +48,7 @@ sub LoadStream(streamUrl as String, title as String)
     if m.titleLabel <> invalid then m.titleLabel.text = name
 
     if streamUrl = invalid or streamUrl = "" then
-        SetStatus("No stream URL available")
+        SetStatus(Translate("player_err_no_stream"))
         return
     end if
 
@@ -70,7 +70,7 @@ end sub
 sub OnPlayerStateChange(event as Object)
     state = event.getData()
     if state = "error" then
-        SetStatus("Playback failed")
+        SetStatus(Translate("player_err_playback_failed"))
     else if state = "playing" then
         SetStatus("")
     end if

@@ -463,7 +463,7 @@ end sub
 ' ---------------------------------------------------------------------
 sub ShowCollectionPicker()
     if m.collections.count() = 0 then
-        ShowErrorDialog(m.top, Translate("common_error"), "No collections available.")
+        ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_no_collections_available"))
         return
     end if
 
@@ -473,7 +473,7 @@ sub ShowCollectionPicker()
     if firstCollection.DoesExist("id") then
         AddItemToCollection(firstCollection.id)
     else
-        ShowErrorDialog(m.top, Translate("common_error"), "Collection has no ID")
+        ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_collection_no_id"))
     end if
 end sub
 

@@ -17,22 +17,28 @@
                    text="Phlix"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF" />
-            <Button height="60" width="180" translation="[300,20]"
+            <!-- M-ROKU-30 (review roku__gameux): the row used to run off the
+                 canvas - adminButton sat at x=1240 with w=180, ending 140px
+                 past the 1280 edge (visible only for admins, so the overflow
+                 hid behind the isAdmin gate). Repacked inside 1280; the
+                 x-ORDER and names are untouched (CHECK29 walks edges by
+                 x-order), heights/gap rhythm kept. -->
+            <Button height="60" width="160" translation="[300,20]"
                     title="Search"
                     id="searchButton" />
-            <Button height="60" width="180" translation="[490,20]"
+            <Button height="60" width="160" translation="[470,20]"
                     title="For You"
                     id="forYouButton" />
-            <Button height="60" width="190" translation="[680,20]"
+            <Button height="60" width="170" translation="[640,20]"
                     title="Favorites"
                     id="favoritesButton" />
-            <Button height="60" width="220" translation="[880,20]"
+            <Button height="60" width="190" translation="[820,20]"
                     title="Collections"
                     id="collectionsButton" />
-            <Button height="60" width="120" translation="[1110,20]"
+            <Button height="60" width="120" translation="[1020,20]"
                     title="Settings"
                     id="settingsButton" />
-            <Button height="60" width="180" translation="[1240,20]"
+            <Button height="60" width="110" translation="[1150,20]"
                     title="Admin"
                     visible="false"
                     id="adminButton" />

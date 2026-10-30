@@ -63,7 +63,7 @@ sub OnApiResponse(event as Object)
         if m.collectionsList <> invalid then m.collectionsList.content = content
 
         if m.collections.Count() = 0 then
-            SetStatus("No collections")
+            SetStatus(Translate("collections_empty"))
         else
             SetStatus("")
         end if

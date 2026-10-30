@@ -40,7 +40,7 @@ The following features are not currently available:
 
 ### Development Tools
 - **Roku SDK**: For packaging and deployment ( rokupkg )
-- **BrightScript Editor**: VS Code extension "BrightScript" by彩虹 (or any editor)
+- **BrightScript Editor**: the VS Code extension *BrightScript Language* by RokuDeveloper (the canonical marketplace extension) or any editor
 - **curl**: For direct device communication
 - **zip**: For creating packages
 
@@ -807,7 +807,7 @@ phlix-roku/
 1. Verify Phlix Media Server is running
 2. Check network connectivity from Roku
 3. Verify the server URL entered on the first-run Connect screen is correct (the
-   `/health` probe surfaces "Couldn't reach that server" when it is wrong/unreachable)
+   `/health` probe surfaces "Can't reach the server. Check its address and your network." when it is wrong/unreachable)
 4. Check server logs for connection attempts
 
 ### Video Playback Issues

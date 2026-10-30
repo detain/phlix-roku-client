@@ -51,6 +51,68 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — W-min90 minors cluster (7 cured, 1 stale-verified) — 2026-10-30
+
+- **M-ROKU-01 (stale-verified, zero diff).** The "five names" finding no
+  longer describes the live surface: "watch parties"/"the sync server" copy
+  left the catalogs at `4cb7a84`, "watch room" at `ef5b619` (the co-watch
+  one-name law later pinned by Check 57), and the error taxonomy at
+  `d252b17` — all ancestors of this commit. Live overlays speak Watch
+  Together + group consistently. The residual `syncplay.*_room` values ride
+  only the DEAD room-scene key set (Check 56 R3 provenance law) whose
+  delete-or-re-home disposition is the same open owner decision as
+  M-ROKU-09; touching them here would preempt it.
+- **M-ROKU-02 (cured, partial-stale disclosed).** `errors.unknown_message`
+  says what to do next in all seven locales ("... Please try again." +
+  sibling translations) — the review convicted dead-end prose.
+  `PhlixApp.ShowContentNotFoundDialog` shipped a hardcoded
+  `"Content Not Available"` + a subscription fiction ("check your
+  subscription") — now `app.content_unavailable_title` /
+  `app.content_unavailable_message` x7, honest server copy. The "hub mode"
+  phrase survives on purpose: it is README/docs shipped vocabulary and the
+  value is cataloged (the review's own PlayerScene:1587 exhibit was already
+  localized at `a5dad23`), so it is NOT-CHANGED with rationale.
+- **M-ROKU-04 (cured, partial-stale disclosed).** Nine hardcoded runtime
+  strings now ride the catalog: ServerPickerScene load-failure caption +
+  "No servers", CollectionsScene "No collections", DetailScene's two
+  collection errors, "No stream URL available" x2 (LivePlayerScene +
+  PlayerScene), LivePlayerScene "Playback failed" (adopting the existing
+  fuller `player.err_playback_failed` copy) and PlayerScene's raw `"Error"`
+  dialog title → `Translate("common_error")`. Eight keys added to all
+  seven catalogs; CHECK64 R1/R2 pin extinction + the roster. Connect/
+  Login/PlayerScene-dialog legs of the finding were already cured at
+  `d252b17`/`a5dad23`.
+- **M-ROKU-11 (cured).** SettingsScene's account email read
+  `GetApiClient().user.email` — a field never restored across scene
+  launches, so the dialog stranded on "Logged in as ". The scene now
+  dispatches the auth-gated `getMe` op through its own ApiTask (HomeScene
+  semantics), type-guards the wire payload, and falls back
+  email → username → persisted login name → cataloged "Unknown". No new
+  Storage key — CHECK33's six-key wipe law stays whole. CHECK64 R5 pins
+  the extinction and the replacement mechanism together.
+- **M-ROKU-30 (cured).** `adminButton` sat at x=1240 w=180 — ending 140px
+  past the 1280 design plane (the isAdmin gate hid the overflow). The
+  header row repacked inside the canvas preserving x-ORDER, y=20 and
+  `visible="false"` (CHECK29's walk is name-paired, untouched); CHECK64
+  R4 pins x+width <= 1280 for every row member.
+- **M-ROKU-42 (cured).** The prerequisites bullet credited the editor to
+  "BrightScript by彩虹"; the canonical marketplace extension is
+  *BrightScript Language* by RokuDeveloper. README corrected.
+- **M-ROKU-47 (cured).** Five "..."-typed values per catalog (settings
+  loading/clearing, syncplay status trio) became the U+2026 house glyph
+  across all seven locales (35 values); CHECK64 R6 convicts any
+  three-dot ellipsis returning to a catalog VALUE.
+- **M-ROKU-50 (cured, code-side stale).** README's troubleshooting quote
+  still surfaced "Couldn't reach that server" — copy the client stopped
+  shipping at `d252b17`; the quote now names the real cataloged sentence
+  (`connect.err_unreachable`). The PlayerScene hub-mode string it also
+  flagged was already localized at `a5dad23`; README:221's quoted value
+  stays verbatim (the adjudicated hub-mode copy) — no rot.
+- **Catalog set-bump (disclosed).** `_metadata.version` 1.10.0 → 1.11.0
+  as a set x7 for the eight new keys; CHECK48 R3's version pin rotated in
+  the same commit per its own bump-as-a-set law. CHECK63 (W-min89) and
+  CHECK64 leg rows landed in `docs/static-checks.md`.
+
 ### Fixed — W-min89 minors cluster (4 cured, 1 honest-blocked) — 2026-10-30
 
 - **M-ROKU-03 (cured).** `GetErrorMessage`'s default arm echoed the raw

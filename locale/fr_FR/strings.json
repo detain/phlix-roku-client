@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.10.0",
+    "version": "1.11.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -73,9 +73,9 @@
     "desc_version": "Version de l'application et informations de l'appareil",
     "status_logged_in_as": "Connecté en tant que : {email}",
     "status_server": "Serveur : {url}",
-    "status_loading_preferences": "Chargement des préférences de lecture...",
+    "status_loading_preferences": "Chargement des préférences de lecture…",
     "status_unable_to_load_preferences": "Impossible de charger les préférences de lecture",
-    "status_clearing_history": "Effacement de l'historique de lecture...",
+    "status_clearing_history": "Effacement de l'historique de lecture…",
     "status_history_cleared": "Historique de lecture effacé",
     "status_history_clear_failed": "Impossible d'effacer l'historique de lecture",
     "status_watch_history_options": "Options de l'historique de lecture",
@@ -144,7 +144,9 @@
     "row_cast": "Distribution",
     "row_extras": "Bonus",
     "row_trailers": "Bandes-annonces et promos",
-    "row_crew": "Équipe"
+    "row_crew": "Équipe",
+    "no_collections_available": "Aucune collection disponible.",
+    "collection_no_id": "La collection n’a pas d’ID"
   },
   "utilities": {
     "photo_album_undated": "Sans date",
@@ -158,10 +160,10 @@
     "iso_prefix": "ISO "
   },
   "syncplay": {
-    "status_loading_groups": "Chargement des groupes...",
+    "status_loading_groups": "Chargement des groupes…",
     "status_no_public_groups": "Aucun groupe public disponible. Créez-en un pour commencer !",
-    "status_creating_group": "Création du groupe...",
-    "status_joining_group": "Connexion au groupe...",
+    "status_creating_group": "Création du groupe…",
+    "status_joining_group": "Connexion au groupe…",
     "status_connected": "Connecté au groupe",
     "status_tls_refused": "Regarder ensemble ne peut pas utiliser une adresse de serveur sécurisée (HTTPS).",
     "default_group_name": "Groupe",
@@ -240,7 +242,7 @@
     "not_authenticated": "Connectez-vous avant d’utiliser les soirées synchronisées.",
     "not_in_group": "Vous ne faites pas partie d’un groupe synchronisé.",
     "not_host": "Seul l’hôte du groupe peut faire cela.",
-    "unknown_message": "Le serveur a rejeté une demande non reconnue.",
+    "unknown_message": "Le serveur a rejeté une demande non reconnue. Veuillez réessayer.",
     "handler_error": "Une erreur est survenue sur le serveur de synchronisation.",
     "protocol_version_mismatch": "Cette application est incompatible avec la version du serveur.",
     "invalid_new_host": "Le nouvel hôte demandé n’est pas valide.",
@@ -309,7 +311,8 @@
     "sync_status_unavailable": "SyncPlay indisponible",
     "up_next_in": "À suivre dans",
     "up_next_title": "À suivre : {title}",
-    "video_quality": "Qualité vidéo"
+    "video_quality": "Qualité vidéo",
+    "err_no_stream": "Aucune URL de flux disponible"
   },
   "home": {
     "continue_watching": "Reprendre la lecture",
@@ -360,7 +363,9 @@
     "expired_message": "Votre session a expiré. Veuillez vous reconnecter."
   },
   "serverpicker": {
-    "choose": "Choisissez un serveur"
+    "choose": "Choisissez un serveur",
+    "load_failed": "Impossible de charger les serveurs",
+    "no_servers": "Aucun serveur"
   },
   "search": {
     "hint": "Saisissez votre recherche…",
@@ -373,13 +378,18 @@
   "app": {
     "boot_cannot_reach": "Impossible de joindre le serveur",
     "boot_unable": "Connexion impossible après plusieurs tentatives",
-    "server_problem_message": "Le serveur a rencontré un problème lors de la vérification de votre session. Veuillez vous reconnecter."
+    "server_problem_message": "Le serveur a rencontré un problème lors de la vérification de votre session. Veuillez vous reconnecter.",
+    "content_unavailable_title": "Contenu non disponible",
+    "content_unavailable_message": "Ce contenu n’est pas disponible sur votre serveur. Veuillez réessayer plus tard."
   },
   "favorites": {
     "empty": "Pas encore de favoris"
   },
   "collection": {
     "empty": "Cette collection est vide"
+  },
+  "collections": {
+    "empty": "Aucune collection"
   },
   "recommendations": {
     "empty": "Pas encore de recommandations"

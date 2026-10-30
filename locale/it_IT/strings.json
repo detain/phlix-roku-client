@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.10.0",
+    "version": "1.11.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -73,9 +73,9 @@
     "desc_version": "Versione dell'app e informazioni sul dispositivo",
     "status_logged_in_as": "Accesso effettuato come: {email}",
     "status_server": "Server: {url}",
-    "status_loading_preferences": "Caricamento delle preferenze di riproduzione...",
+    "status_loading_preferences": "Caricamento delle preferenze di riproduzione…",
     "status_unable_to_load_preferences": "Impossibile caricare le preferenze di riproduzione",
-    "status_clearing_history": "Cancellazione della cronologia di visualizzazione...",
+    "status_clearing_history": "Cancellazione della cronologia di visualizzazione…",
     "status_history_cleared": "Cronologia di visualizzazione cancellata",
     "status_history_clear_failed": "Impossibile cancellare la cronologia di riproduzione",
     "status_watch_history_options": "Opzioni cronologia di visualizzazione",
@@ -144,7 +144,9 @@
     "row_cast": "Cast",
     "row_extras": "Extra",
     "row_trailers": "Trailer e promo",
-    "row_crew": "Crew"
+    "row_crew": "Crew",
+    "no_collections_available": "Nessuna collezione disponibile.",
+    "collection_no_id": "La collezione non ha un ID"
   },
   "utilities": {
     "photo_album_undated": "Senza data",
@@ -158,10 +160,10 @@
     "iso_prefix": "ISO "
   },
   "syncplay": {
-    "status_loading_groups": "Caricamento gruppi...",
+    "status_loading_groups": "Caricamento gruppi…",
     "status_no_public_groups": "Nessun gruppo pubblico disponibile. Creane uno per iniziare!",
-    "status_creating_group": "Creazione del gruppo...",
-    "status_joining_group": "Ingresso nel gruppo...",
+    "status_creating_group": "Creazione del gruppo…",
+    "status_joining_group": "Ingresso nel gruppo…",
     "status_connected": "Connesso al gruppo",
     "status_tls_refused": "Guarda insieme non può utilizzare un indirizzo del server sicuro (HTTPS).",
     "default_group_name": "Gruppo",
@@ -240,7 +242,7 @@
     "not_authenticated": "Accedi prima di usare le sale di visione.",
     "not_in_group": "Non fai parte di un gruppo di visione.",
     "not_host": "Solo l’ospite del gruppo può farlo.",
-    "unknown_message": "Il server ha rifiutato una richiesta non riconosciuta.",
+    "unknown_message": "Il server ha rifiutato una richiesta non riconosciuta. Riprova.",
     "handler_error": "Qualcosa è andato storto sul server di sincronizzazione.",
     "protocol_version_mismatch": "Questa app non è compatibile con la versione del server.",
     "invalid_new_host": "Il nuovo ospite richiesto non è valido.",
@@ -309,7 +311,8 @@
     "sync_status_unavailable": "SyncPlay non disponibile",
     "up_next_in": "Prossimo tra",
     "up_next_title": "Prossimo: {title}",
-    "video_quality": "Qualità video"
+    "video_quality": "Qualità video",
+    "err_no_stream": "Nessun URL di streaming disponibile"
   },
   "home": {
     "continue_watching": "Continua a guardare",
@@ -360,7 +363,9 @@
     "expired_message": "La tua sessione è scaduta. Accedi di nuovo."
   },
   "serverpicker": {
-    "choose": "Scegli un server"
+    "choose": "Scegli un server",
+    "load_failed": "Impossibile caricare i server",
+    "no_servers": "Nessun server"
   },
   "search": {
     "hint": "Scrivi per cercare…",
@@ -373,13 +378,18 @@
   "app": {
     "boot_cannot_reach": "Impossibile raggiungere il server",
     "boot_unable": "Impossibile connettersi dopo numerosi tentativi",
-    "server_problem_message": "Il server ha riscontrato un problema nel verificare l'accesso. Accedi di nuovo."
+    "server_problem_message": "Il server ha riscontrato un problema nel verificare l'accesso. Accedi di nuovo.",
+    "content_unavailable_title": "Contenuto non disponibile",
+    "content_unavailable_message": "Questo contenuto non è disponibile sul tuo server. Riprova più tardi."
   },
   "favorites": {
     "empty": "Ancora nessun preferito"
   },
   "collection": {
     "empty": "Questa collezione è vuota"
+  },
+  "collections": {
+    "empty": "Nessuna collezione"
   },
   "recommendations": {
     "empty": "Ancora nessun consiglio"

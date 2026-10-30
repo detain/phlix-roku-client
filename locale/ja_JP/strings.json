@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.10.0",
+    "version": "1.11.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -73,9 +73,9 @@
     "desc_version": "アプリのバージョンと端末情報",
     "status_logged_in_as": "ログイン中: {email}",
     "status_server": "サーバー: {url}",
-    "status_loading_preferences": "再生設定を読み込んでいます...",
+    "status_loading_preferences": "再生設定を読み込んでいます…",
     "status_unable_to_load_preferences": "再生設定を読み込めません",
-    "status_clearing_history": "視聴履歴を消去しています...",
+    "status_clearing_history": "視聴履歴を消去しています…",
     "status_history_cleared": "視聴履歴を消去しました",
     "status_history_clear_failed": "視聴履歴を削除できませんでした",
     "status_watch_history_options": "視聴履歴のオプション",
@@ -144,7 +144,9 @@
     "row_cast": "キャスト",
     "row_extras": "エクストラ",
     "row_trailers": "予告編＆プロモ",
-    "row_crew": "スタッフ"
+    "row_crew": "スタッフ",
+    "no_collections_available": "利用可能なコレクションがありません。",
+    "collection_no_id": "コレクションにIDがありません"
   },
   "utilities": {
     "photo_album_undated": "日付なし",
@@ -158,10 +160,10 @@
     "iso_prefix": "ISO "
   },
   "syncplay": {
-    "status_loading_groups": "グループを読み込んでいます...",
+    "status_loading_groups": "グループを読み込んでいます…",
     "status_no_public_groups": "公開中のグループがありません。作成して始めましょう！",
-    "status_creating_group": "グループを作成しています...",
-    "status_joining_group": "グループに参加しています...",
+    "status_creating_group": "グループを作成しています…",
+    "status_joining_group": "グループに参加しています…",
     "status_connected": "グループに接続しました",
     "status_tls_refused": "いっしょに視聴は安全な（HTTPS）サーバーアドレスには接続できません。",
     "default_group_name": "グループ",
@@ -240,7 +242,7 @@
     "not_authenticated": "ウォッチパーティを使う前にサインインしてください。",
     "not_in_group": "現在グループに参加していません。",
     "not_host": "この操作はグループのホストだけが行えます。",
-    "unknown_message": "サーバーが認識できないリクエストを拒否しました。",
+    "unknown_message": "サーバーが認識できないリクエストを拒否しました。もう一度お試しください。",
     "handler_error": "同期サーバーで問題が発生しました。",
     "protocol_version_mismatch": "このアプリはサーバーのバージョンと互換性がありません。",
     "invalid_new_host": "要求された新しいホストは有効ではありません。",
@@ -309,7 +311,8 @@
     "sync_status_unavailable": "SyncPlay は利用できません",
     "up_next_in": "次回まで",
     "up_next_title": "次の動画: {title}",
-    "video_quality": "画質"
+    "video_quality": "画質",
+    "err_no_stream": "利用可能なストリームURLがありません"
   },
   "home": {
     "continue_watching": "続きを見る",
@@ -360,7 +363,9 @@
     "expired_message": "セッションの有効期限が切れました。もう一度サインインしてください"
   },
   "serverpicker": {
-    "choose": "サーバーを選択してください"
+    "choose": "サーバーを選択してください",
+    "load_failed": "サーバーを読み込めません",
+    "no_servers": "サーバーなし"
   },
   "search": {
     "hint": "入力して検索…",
@@ -373,13 +378,18 @@
   "app": {
     "boot_cannot_reach": "サーバーに接続できません",
     "boot_unable": "複数の試行後に接続できませんでした",
-    "server_problem_message": "サーバーでサインインの確認中に問題が発生しました。もう一度サインインしてください"
+    "server_problem_message": "サーバーでサインインの確認中に問題が発生しました。もう一度サインインしてください",
+    "content_unavailable_title": "コンテンツは利用できません",
+    "content_unavailable_message": "このコンテンツはサーバーで利用できません。後でもう一度お試しください。"
   },
   "favorites": {
     "empty": "お気に入りがまだありません"
   },
   "collection": {
     "empty": "このコレクションは空です"
+  },
+  "collections": {
+    "empty": "コレクションなし"
   },
   "recommendations": {
     "empty": "おすすめがまだありません"

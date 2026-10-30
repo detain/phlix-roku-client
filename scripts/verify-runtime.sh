@@ -5891,7 +5891,9 @@ echo "=== Check 48: connect/pair credential custody - redirect law + cleartext c
 #       (NormalizeServerUrl delegates - re-rolled octet logic is how
 #       "10th-street.example.com" was once misclassified); the
 #       redirect_refused bucket carries its classifier arm, transport guard,
-#       ladder line and catalog message x7; catalogs bump as a set (1.10.0).
+#       ladder line and catalog message x7; catalogs bump as a set (1.11.0 —
+#       rotated by W-min90: nine new/cured keys entered the set, disclosed
+#       with the batch per this arm's own law).
 #   R4  the device harness pins the law: tests/unit/RedirectCustody.test.brs
 #       and all seven Test subs.
 PYRET=0
@@ -6056,8 +6058,8 @@ for L in LOCALES:
     for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
         if cat.get("connect", {}).get(key, "") == "":
             problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
-    if cat.get("_metadata", {}).get("version") != "1.10.0":
-        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.10.0 — the catalogs bump as a set with this law")
+    if cat.get("_metadata", {}).get("version") != "1.11.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.11.0 — the catalogs bump as a set with this law (rotated by W-min90, disclosed)")
 
 # ---- R4 the device harness pins the law -----------------------------------
 test = read(TEST)
@@ -8642,6 +8644,234 @@ print("           picker detail print-only), toasts carry no spoken severity tag
 print("           info at the 4000ms floor, every word-bearing PlayerScene label rides")
 print("           Medium-or-larger, and the README alias census is clean with the")
 print("           SyncPlay section on its top-level home")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+# CHECK 64 (W-min90: M-ROKU-01/02/04/11/30/42/47/50 batch): catalog discipline,
+# spoken-copy extinction, header containment and the account-label mechanism.
+# NUMBERING (disclosed, CHECK54/55/62 rebase-precedent): composed against tip
+# e7d6b97, whose highest header is Check 63 (this campaign's own W-min89 leg);
+# collision probe re-run at write time, this leg takes 64.
+#   R1 (M-ROKU-04/-02) the swept hardcoded dialog/status sentences stay extinct as
+#       RAW STRING LITERALS in every components/ + source/ .brs (comment-masked
+#       view, CHECK51/52 idiom): "No servers", "No collections", "No collections
+#       available.", "Collection has no ID", "No stream URL available", "Playback
+#       failed", "Content Not Available", "Unable to load servers" and the
+#       subscription-fiction message the ask convicted. They now ride catalog
+#       keys, so seven shipped locales finally speak these states.
+#   R2 (M-ROKU-02/-04/-11) SPEAKABLE roster: the eight keys this batch introduced
+#       or adopted exist non-empty string-typed in ALL SEVEN catalogs (CHECK21
+#       owns set-parity; this arm owns the named roster - a deleted member reddens
+#       here by name).
+#   R3 (M-ROKU-02) errors.unknown_message carries its next step: the old bare
+#       one-sentence copy "The server rejected an unrecognized request." is
+#       convicted (the review's dead-end prose), and every locale's value stays
+#       non-empty.
+#   R4 (M-ROKU-30) header containment: every HomeScene.xml y=20 header Button
+#       (CHECK29's own parse shape) satisfies x + width <= 1280 - the admin step
+#       ran off the 1280 canvas before this batch; a row that re-grows past the
+#       edge reddens. Fail-loud: fewer than six parsed header buttons is itself
+#       red (the law may not run vacuously).
+#   R5 (M-ROKU-11) the account label never returns to the bare-client read: the
+#       convicted expression "GetApiClient().user.email" is extinct in every
+#       .brs (comment-masked), and SettingsScene carries the getMe dispatch
+#       that replaced it (anti-vacuity pair).
+#   R6 (M-ROKU-47) no value in any of the seven catalogs contains a three-dot
+#       "..." ellipsis - the house glyph is U+2026 (common.loading already
+#       shipped it); keys are exempt, string VALUES are not.
+#   R7 (M-ROKU-42/-50) README extinct phrases: the misattributed editor credit
+#       "by彩虹", the stale quote "Couldn't reach that server", and any lingering
+#       "check your subscription" fiction.
+#   R0  unreadable inputs and empty rosters fail loud - the pin cannot run
+#       vacuously.
+# No unit suite: pure presence legs over shipped statics (CHECK50/52/62/63 precedent).
+echo "=== Check 64: catalog discipline, spoken-copy extinction, header containment, account label (W-min90) ==="
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import glob
+import json
+import os
+import re
+import sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+FAMILIES = ("en_US", "de_DE", "es_ES", "fr_FR", "it_IT", "ja_JP", "pt_BR")
+README = "README.md"
+problems = []
+
+
+def mask_brs_comments(text):
+    # Same contract as Check 20's masker: a single quote outside a double-quoted
+    # string opens a comment that runs to end of line; comment runs become spaces.
+    out = []
+    for line in text.splitlines(keepends=True):
+        in_str = False
+        chars = list(line)
+        i = 0
+        while i < len(chars):
+            c = chars[i]
+            if c == '"':
+                in_str = not in_str
+            elif c == "'" and not in_str:
+                for j in range(i, len(chars)):
+                    if chars[j] not in ("\n", "\r"):
+                        chars[j] = " "
+                break
+            i += 1
+        out.append("".join(chars))
+    return "".join(out)
+
+
+def load_catalog(fam):
+    path = f"locale/{fam}/strings.json"
+    try:
+        with io_open(path) as f:
+            return json.load(f)
+    except (OSError, ValueError) as err:
+        problems.append(f"  {path} - CHECK64 R0: unreadable: {err} - the pin cannot run vacuously")
+        return None
+
+
+def io_open(path):
+    return open(path, encoding="utf-8")
+
+
+# ---- R1 raw spoken-copy extinction across the client .brs graph --------------
+CONVICTED = (
+    '"No servers"',
+    '"No collections"',
+    '"No collections available."',
+    '"Collection has no ID"',
+    '"No stream URL available"',
+    '"Playback failed"',
+    '"Content Not Available"',
+    '"Unable to load servers"',
+    '"This content is not available in your library. Please check your subscription or try again later."',
+)
+brs_files = sorted(glob.glob("components/*.brs") + glob.glob("source/**/*.brs", recursive=True))
+if not brs_files:
+    problems.append("  components/ + source/ - CHECK64 R0: no .brs files discovered - the extinction scan cannot run vacuously")
+for path in brs_files:
+    try:
+        masked = mask_brs_comments(io_open(path).read())
+    except OSError as err:
+        problems.append(f"  {path} - CHECK64 R0: unreadable: {err}")
+        continue
+    for lit in CONVICTED:
+        if lit in masked:
+            problems.append(f"  {path} - CHECK64 R1: raw dialog copy {lit} is back outside the catalog - these states are SPEAKABLE in seven locales (review roku__casualgamer m4/M-ROKU-04, m2/M-ROKU-02)")
+
+# ---- R2 the SPEAKABLE roster x7 -----------------------------------------------
+ROSTER = (
+    ("serverpicker", "load_failed"),
+    ("serverpicker", "no_servers"),
+    ("collections", "empty"),
+    ("detail", "no_collections_available"),
+    ("detail", "collection_no_id"),
+    ("player", "err_no_stream"),
+    ("app", "content_unavailable_title"),
+    ("app", "content_unavailable_message"),
+)
+cats = {}
+for fam in FAMILIES:
+    cat = load_catalog(fam)
+    if cat is not None:
+        cats[fam] = cat
+    for section, key in ROSTER:
+        val = (cat or {}).get(section, {}).get(key) if cat else None
+        if not isinstance(val, str) or val.strip() == "":
+            where = f"locale/{fam}/strings.json"
+            problems.append(f"  {where} - CHECK64 R2: {section}.{key} is missing or empty - the W-min90 roster must be speakable in all seven shipped locales")
+
+# ---- R3 unknown_message carries its next step ----------------------------------
+OLD_UNKNOWN = "The server rejected an unrecognized request."
+for fam, cat in cats.items():
+    val = cat.get("errors", {}).get("unknown_message")
+    where = f"locale/{fam}/strings.json"
+    if not isinstance(val, str) or val.strip() == "":
+        problems.append(f"  {where} - CHECK64 R3: errors.unknown_message vanished or is empty")
+    elif val == OLD_UNKNOWN:
+        problems.append(f"  {where} - CHECK64 R3: errors.unknown_message is back to the dead-end one-sentence copy - the review convicted telling the user what failed without ever saying what to do (M-ROKU-02)")
+
+# ---- R4 header containment -----------------------------------------------------
+try:
+    xml = io_open("components/HomeScene.xml").read()
+except OSError as err:
+    xml = None
+    problems.append(f"  components/HomeScene.xml - CHECK64 R0: unreadable: {err}")
+if xml is not None:
+    xclean = re.sub(r"<!--.*?-->", " ", xml, flags=re.S)
+    row = []
+    for m in re.finditer(r'<Button[^>]*?translation="\[(\d+),20\]"[^>]*?id="(\w+)"', xclean):
+        tag_full = re.search(r'<Button[^>]*?id="' + m.group(2) + r'"[^>]*/?>', xclean, re.S)
+        w = re.search(r'width="(\d+)"', tag_full.group(0)) if tag_full else None
+        if w is None:
+            problems.append(f"  components/HomeScene.xml - CHECK64 R4: header Button id={m.group(2)} has no parsable width - containment cannot be proven")
+            continue
+        row.append((int(m.group(1)), int(w.group(1)), m.group(2)))
+    if len(row) < 6:
+        problems.append(f"  components/HomeScene.xml - CHECK64 R4: only {len(row)} header-row (y=20) Buttons parsed - the containment law lost its subjects (six ship)")
+    for x, w, nid in row:
+        if x + w > 1280:
+            problems.append(f"  components/HomeScene.xml - CHECK64 R4: {nid} spans x={x}..{x + w} - past the 1280 design plane (M-ROKU-30: the admin step ran off-canvas; the plane is fixed, the OS upscales)")
+
+# ---- R5 the account-label mechanism ---------------------------------------------
+for path in brs_files:
+    try:
+        masked = mask_brs_comments(io_open(path).read())
+    except OSError:
+        continue
+    if "GetApiClient().user.email" in masked:
+        problems.append(f"  {path} - CHECK64 R5: the bare-client email read is back - GetApiClient is rebuilt without a user object on every boot, so the account line would strand blank again (M-ROKU-11: the answer comes from the getMe op)")
+try:
+    settings = io_open("components/SettingsScene.brs").read()
+except OSError as err:
+    settings = None
+    problems.append(f"  components/SettingsScene.brs - CHECK64 R0: unreadable: {err}")
+if settings is not None and 'op: "getMe"' not in settings:
+    problems.append('  components/SettingsScene.brs - CHECK64 R5: the getMe dispatch vanished - SettingsScene no longer fetches the account label it renders (anti-vacuity pair of the extinction arm)')
+
+# ---- R6 no three-dot ellipsis in catalog values -----------------------------------
+def walk_values(obj, path):
+    for k, v in obj.items():
+        if isinstance(v, dict):
+            walk_values(v, f"{path}.{k}")
+        elif isinstance(v, str) and "..." in v:
+            problems.append(f"  {path}.{k} - CHECK64 R6: value carries a three-dot ellipsis - the shipped house glyph is U+2026 (review roku__writer M-ROKU-47)")
+for fam, cat in cats.items():
+    walk_values({k: v for k, v in cat.items() if isinstance(v, dict) and k != "_metadata"}, f"locale/{fam}/strings.json")
+
+# ---- R7 README extinct phrases ----------------------------------------------------
+try:
+    readme = io_open(README).read()
+except OSError as err:
+    readme = None
+    problems.append(f"  {README} - CHECK64 R0: unreadable: {err}")
+if readme is not None:
+    for phrase, why in (
+        ("by\u5f69\u8679", "the editor credit named a look-alike marketplace entry; the canonical Roku extension is *BrightScript Language* by RokuDeveloper (M-ROKU-42)"),
+        ("Couldn't reach that server", "the README quoted copy the client stopped shipping at d252b17; the /health probe now surfaces the cataloged connect.err_unreachable sentence (M-ROKU-50)"),
+        ("check your subscription", "Phlix has no subscription concept a TV dialog should blame - the content-unavailable copy now says server (M-ROKU-02)"),
+    ):
+        if phrase in readme:
+            problems.append(f"  README.md - CHECK64 R7: {phrase!r} is re-grown - {why}")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK64: %d W-min90 conviction(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK64: the swept dialog sentences live only in the catalogs (all eight")
+print("           roster keys speakable x7, unknown_message says what to do next),")
+print("           the header row stands inside the 1280 plane, the account label")
+print("           rides getMe with the bare-client read extinct, no value in any")
+print("           catalog types '...', and the README prose convictions hold")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

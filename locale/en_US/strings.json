@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.10.0",
+    "version": "1.11.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -73,9 +73,9 @@
     "desc_version": "App version and device information",
     "status_logged_in_as": "Logged in as: {email}",
     "status_server": "Server: {url}",
-    "status_loading_preferences": "Loading playback preferences...",
+    "status_loading_preferences": "Loading playback preferences…",
     "status_unable_to_load_preferences": "Unable to load playback preferences",
-    "status_clearing_history": "Clearing watch history...",
+    "status_clearing_history": "Clearing watch history…",
     "status_history_cleared": "Watch history cleared",
     "status_history_clear_failed": "Unable to clear watch history",
     "status_watch_history_options": "Watch history options",
@@ -144,7 +144,9 @@
     "row_cast": "Cast",
     "row_extras": "Extras",
     "row_trailers": "Trailers & Promo",
-    "row_crew": "Crew"
+    "row_crew": "Crew",
+    "no_collections_available": "No collections available.",
+    "collection_no_id": "Collection has no ID"
   },
   "utilities": {
     "photo_album_undated": "Undated",
@@ -158,10 +160,10 @@
     "iso_prefix": "ISO "
   },
   "syncplay": {
-    "status_loading_groups": "Loading groups...",
+    "status_loading_groups": "Loading groups…",
     "status_no_public_groups": "No public groups available. Create one to start!",
-    "status_creating_group": "Creating group...",
-    "status_joining_group": "Joining group...",
+    "status_creating_group": "Creating group…",
+    "status_joining_group": "Joining group…",
     "status_connected": "Connected to group",
     "status_tls_refused": "Watch Together can't use a secure (HTTPS) server address.",
     "default_group_name": "Group",
@@ -240,7 +242,7 @@
     "not_authenticated": "Sign in before using Watch Together.",
     "not_in_group": "You are not in a watch group.",
     "not_host": "Only the group host can do that.",
-    "unknown_message": "The server rejected an unrecognized request.",
+    "unknown_message": "The server rejected an unrecognized request. Please try again.",
     "handler_error": "Something went wrong on the server.",
     "protocol_version_mismatch": "This app is not compatible with the server version.",
     "invalid_new_host": "The requested new host is not valid.",
@@ -309,7 +311,8 @@
     "sync_status_unavailable": "Watch Together unavailable",
     "up_next_in": "Up Next in",
     "up_next_title": "Up Next: {title}",
-    "video_quality": "Video Quality"
+    "video_quality": "Video Quality",
+    "err_no_stream": "No stream URL available"
   },
   "home": {
     "continue_watching": "Continue Watching",
@@ -360,7 +363,9 @@
     "expired_message": "Your session has expired. Please log in again."
   },
   "serverpicker": {
-    "choose": "Choose a server"
+    "choose": "Choose a server",
+    "load_failed": "Unable to load servers",
+    "no_servers": "No servers"
   },
   "search": {
     "hint": "Type to search…",
@@ -373,13 +378,18 @@
   "app": {
     "boot_cannot_reach": "Can't reach the server",
     "boot_unable": "Unable to connect after multiple attempts",
-    "server_problem_message": "The server had a problem checking your sign-in. Please log in again."
+    "server_problem_message": "The server had a problem checking your sign-in. Please log in again.",
+    "content_unavailable_title": "Content Not Available",
+    "content_unavailable_message": "This content is not available on your server. Please try again later."
   },
   "favorites": {
     "empty": "No favorites yet"
   },
   "collection": {
     "empty": "This collection is empty"
+  },
+  "collections": {
+    "empty": "No collections"
   },
   "recommendations": {
     "empty": "No recommendations yet"

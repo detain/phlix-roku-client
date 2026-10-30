@@ -355,7 +355,7 @@ sub Show(itemId as String, args as Object)
     streamUrl = invalid
     if m.item <> invalid then streamUrl = m.item.stream_url
     if streamUrl = invalid or streamUrl = "" then
-        ShowErrorDialog(m.top, "Error", "No stream URL available")
+        ShowErrorDialog(m.top, Translate("common_error"), Translate("player_err_no_stream"))
         return
     end if
 

@@ -72,7 +72,7 @@ sub OnApiResponse(event as Object)
             ' value before the print (the M-ROKU-12 non-String law holds).
             detail = SafeErrorMessage(resp.error, "")
             if detail <> "" then print "ServerPicker load failed: " detail
-            ShowErrorDialog(m.top, "Error", "Unable to load servers")
+            ShowErrorDialog(m.top, Translate("common_error"), Translate("serverpicker_load_failed"))
             m.servers = []
         else
             m.servers = []
@@ -91,7 +91,7 @@ sub OnApiResponse(event as Object)
         if m.serverList <> invalid then m.serverList.content = content
 
         if m.servers.Count() = 0 then
-            SetStatus("No servers")
+            SetStatus(Translate("serverpicker_no_servers"))
         else
             SetStatus("")
         end if

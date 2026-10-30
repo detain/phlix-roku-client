@@ -962,7 +962,7 @@ end sub
 ' does not exist in the catalog (404 / item not found), rather than a blank screen.
 ' After the user dismisses the dialog they are returned to the home screen.
 sub ShowContentNotFoundDialog()
-    ShowErrorDialog(m.top, "Content Not Available", "This content is not available in your library. Please check your subscription or try again later.")
+    ShowErrorDialog(m.top, Translate("app_content_unavailable_title"), Translate("app_content_unavailable_message"))
     ' After dialog, return to home
     ShowHome()
 end sub
