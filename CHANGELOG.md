@@ -51,6 +51,52 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the battery can read a locale VALUE now (R-ROKU-11 rider) — 2026-10-30
+
+- **R-ROKU-11 (cured; a new gate, because this rider's ask IS the gate).** The
+  M-ROKU-20 r4 review recorded the hole in its own words: "no CI leg guards
+  locale VALUES — my re-strip plant sailed through 54 checks green," and
+  recommended "a future value-family consistency leg (e.g. accent-strip /
+  misplaced-accent / pre-reform-glyph scan of it/es/ja against each file's own
+  canonical family forms)". The battery reads the catalogs through six legs and
+  not one asks how a value is SPOKEN: Check 21 pins the key set and order, 48 R3
+  pins `_metadata.version`, 51 pins player-family speakability, 57 pins the
+  co-watch vocabulary. That blindness is why a copy ticket needed four review
+  rounds to land five sentences. Check 67 closes it — R0 refuses a thin catalog
+  (the seven families, at least 300 values and 4,000 tokens each corpus-wide, so
+  a value gate can never pass on a stub); R1 is the automated arm, convicting any
+  phrase a catalog repeats when it is spelled in two diacritic families, keyed on
+  three-token skeletons after NFD with combining marks dropped; R2/R3 carry the
+  curated rows R1 structurally cannot reach — the misplaced acute (`Intentélo`,
+  where moving the mark moves a LETTER of the skeleton, so there is no collision
+  to find) and the ja pre-reform / wrong-kanji family (`帶`, `聽`, `継ける` AND
+  `継けて`, `繼`, `續`); R4 requires each row's canonical form to be present as
+  well, so a ban cannot rot into a vacuous pin the day its copy is reworded; R5
+  makes every detector self-probe against its own plant in-script (CHECK65 R4 /
+  CHECK66 precedent), so a leg that goes blind reddens the battery instead of
+  guarding nothing.
+- **Measured, not assumed.** Zero convictions across the seven cured catalogs
+  (370 values per locale, 8,572 tokens). TWELVE against the three pre-cure
+  catalogs at `dc362df870^`, and the same twelve through the full battery as a
+  five-value targeted plant — reddening **Check 67 alone** among 67 legs, with
+  Checks 21, 48 and 51 green over the very files they had slept through on the
+  reviewer's plant. The 3-token window is itself a measurement: at n=2 the rule
+  convicts the legitimate pt_BR homograph pair `não pode` (cannot) against
+  `não pôde` (could-not), and at n=3 the shipped corpus is clean. Curated rows
+  apply per-locale only — a first draft that matched every row against every
+  catalog measured 42 bogus convictions before it shipped.
+- **Scope discipline.** No catalog key was minted or reworded, so
+  `_metadata.version` holds at **1.15.0 x7** and CHECK48 R3 did not rotate: this
+  rider moves no value bytes. `docs/static-checks.md` gains a Check 67 row and a
+  disclosed **row-66 gap** — the W-min95 leg shipped without a ledger row, and
+  this lane records that rather than back-writing another lane's semantics. The
+  portable harness gains the CHECK67 red-plant / green-restore twin leg plus its
+  PASS-echo clause. NUMBERING claimed by collision probe at tip `ef67001`
+  (highest header Check 66, `Check 67`/`CHECK67` absent from scripts/, tests/,
+  docs/ and README — CHECK62/66 precedent). R-ROKU-12, the it:277 agreement
+  polish from the same r4 observation list, is a different rider and is untouched
+  here.
+
 ### Fixed — the generic Notice dialog title rides the catalog (R-ROKU-10 rider) — 2026-10-30
 
 - **R-ROKU-10 (cured; minted, not reverted).** The M-ROKU-20 r3 review's N1

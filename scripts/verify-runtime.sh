@@ -9252,4 +9252,292 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo ""
+echo "=== Check 67: locale VALUES keep one canonical family form (R-ROKU-11) ==="
+# NUMBERING (disclosed, CHECK62/CHECK66 collision-probe precedent): at composition
+# time the highest header in this script is Check 66, and neither 'Check 67' nor
+# 'CHECK67' appears anywhere in scripts/, tests/, docs/ or README.md — 67 is clean.
+#
+# WHY THE LEG EXISTS (R-ROKU-11, filed from fixlog/M-ROKU-20__r4.md observation N2).
+# The r4 reviewer re-planted the stripped copula into it_IT at the CURED anchor and
+# ran the whole battery: "no CI leg guards locale VALUES — my re-strip plant sailed
+# through 54 checks green". That was true, and it is the reason M-ROKU-20 needed
+# four review rounds to get five sentences right: Check 21 pins the key SET and
+# ORDER, Check 48 R3 pins _metadata.version, Check 51 R3 pins player-family
+# speakability, Checks 23/24/57 ask structural questions. Not one leg asks HOW a
+# value is spelled, so all three defect classes the ticket had to be reviewed into
+# existence (r3/r4 ask D1 the stripped copula, D2 the misplaced acute, D3 the
+# pre-reform glyphs) were invisible at authoring. The leg is the review's own
+# remedy, quoted: "a future value-family consistency leg (e.g. accent-strip/
+# misplaced-accent/pre-reform-glyph scan of it/es/ja against each file's own
+# canonical family forms)".
+#
+# WHAT IT PINS — locale VALUES only. It reads no keys, no version field, no code
+# surface, so it is gate-independent of Checks 21/22/23/48/51 and this commit
+# rotates none of them.
+#   R0  ANTI-VACUITY. Exactly the seven shipped catalogs (the family law Check 61
+#       enumerates), each parsable, each carrying MIN_VALUES string values. A value
+#       gate scanning a stub catalog proves nothing, so a thin catalog reddens here
+#       instead of passing quietly.
+#   R1  ACCENT-STRIP — the automated, general arm. Inside ONE catalog, a phrase the
+#       catalog repeats keeps ONE diacritic family. Key = three token skeletons with
+#       combining marks dropped after NFD; two distinct surfaces on one key therefore
+#       differ only in their marks. The 3-token window is MEASURED, not taste: at
+#       n=2 the rule convicts pt_BR ('não','pode') against ('não','pôde') — cannot
+#       versus could-not, both correct Portuguese — while n=3 leaves all seven shipped
+#       catalogs clean (measured zero). It convicts this ticket's real D1 defect at
+#       its pre-cure bytes (dc362df870^), naming both value keys:
+#       player.err_session_expired [e scaduta] against login.expired_message
+#       [è scaduta]. Disclosed limit: R1 needs a second witness, which is exactly why
+#       the it row stands in the curated table too.
+#   R2  MISPLACED ACCENT — curated, because R1 structurally cannot see it: moving an
+#       acute moves a LETTER of the skeleton (Intentelo versus Intentalo), so there is
+#       no collision to find. 'Intentélo' is banned and its family form 'Inténtalo' is
+#       required.
+#   R3  PRE-REFORM / WRONG-KANJI GLYPHS — curated, for the ja family the review named:
+#       帶 U+5E36 (Kyūjitai of 帯 U+5E2C), 聽 U+807D (Kyūjitai; the modern word 視聴
+#       writes 聞 U+805E), 継ける AND 継けて (継 U+7D99 'inherit' standing in for 続
+#       U+7D9A 'continue' — the ticket cured both forms, so the leg bans both; a lone
+#       te-form revert otherwise stays invisible while 続ける survives in another value),
+#       plus the old forms 繼 U+7E7C and 續 U+7E8C. Disclosed shape:
+#       Japanese is not space-tokenized (ja_JP yields ~452 whitespace tokens against
+#       ~1,200 for the Latin families), so glyph substitution is out of R1's reach by
+#       construction and ja's value hygiene rides these rows.
+#   R4  TEETH. Every family row is pinned on BOTH sides — ban absent AND canonical
+#       present — so a row cannot rot into a vacuous ban the day its copy is reworded;
+#       rewording the family is legal work that rotates the table in the same commit
+#       (Check 48 R3 / Check 66 R6 rotation precedent). And the detectors self-probe
+#       in-script (CHECK65 R4 / CHECK66 precedent, no file writes): R1 must convict a
+#       planted è/e pair and must NOT convict identical copy; each family row must
+#       convict its own plant and must not trip on its own canonical form. A detector
+#       that has gone blind reddens the battery instead of guarding nothing.
+#
+# MEASURED AT COMPOSITION. Against the seven cured catalogs: zero convictions, exit
+# 0 (370 values per locale, 8,572 tokens). Against the three pre-cure catalogs at
+# dc362df870^, and against an equivalent five-value targeted plant of the same three
+# classes: twelve convictions each, covering every row r4 cured — 3 R1 phrase
+# divergences + the it ban row (D1), the es ban row (D2), and for D3 the 帶, 聽,
+# 継ける and 継けて bans plus three canonical-gone convictions where the parent file
+# carried the old forms in place of the family forms (時間帶, no 続ける, no 続けて).
+# The same plant through the FULL battery (scripts/verify-runtime.sh, scratch clone)
+# reddens Check 67 ALONE at 67 legs — Checks 21, 48 and 51 read these very files and
+# stay green exactly as they did on the r4 reviewer's plant, which is the gate
+# independence this leg was missing from.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import collections
+import glob
+import json
+import os
+import sys
+import unicodedata
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+LOCALES = ("de_DE", "en_US", "es_ES", "fr_FR", "it_IT", "ja_JP", "pt_BR")
+MIN_VALUES = 300      # 370 per locale at the composition anchor
+MIN_TOKENS = 4000     # 8,572 across the seven at the composition anchor
+
+# Curated family rows: (locale, forbidden form, required canonical form, why).
+# R1's phrase-context arm is the general detector; these rows are the classes it
+# structurally cannot see — a moved accent changes the skeleton, so there is no
+# collision to find — and they name this ticket's exact five cured values.
+FAMILY = (
+    ("es_ES", "Intentélo", "Inténtalo",
+     "misplaced accent: the acute sits on another vowel of the same verb, so the "
+     "de-accented skeleton itself moves and R1 has no witness pair (r4 ask D2)"),
+    ("it_IT", "sessione e scaduta", "sessione è scaduta",
+     "stripped copula. R1 convicts it today only while a second witness survives "
+     "(login.expired_message); this row holds the law after a reword (r4 ask D1)"),
+    ("ja_JP", "帶", "時間帯",
+     "pre-reform glyph: Kyūjitai 帶 U+5E36 for post-reform 帯 U+5E2C (r4 ask D3)"),
+    ("ja_JP", "聽", "視聴",
+     "pre-reform glyph: Kyūjitai 聽 U+807D; the modern word 視聴 writes 聞 U+805E (r4 ask D3)"),
+    ("ja_JP", "継ける", "続ける",
+     "wrong-kanji sibling of that family: 継 U+7D99 (継承, 'inherit') standing in "
+     "for 続 U+7D9A (連続, 'continue') (r4 ask D3)"),
+    ("ja_JP", "継けて", "続けて",
+     "the same wrong kanji in the te-form the ticket actually cured (r4 ask D3): "
+     "without this row a lone 続けて -> 継けて revert stays invisible, because 続ける "
+     "still survives in another value and R1 sees no Latin-style accent witness"),
+    ("ja_JP", "繼", "続",
+     "pre-reform glyph: Kyūjitai 繼 U+7E7C for 継 U+7D99"),
+    ("ja_JP", "續", "続",
+     "pre-reform glyph: Kyūjitai 續 U+7E8C for 続 U+7D9A"),
+)
+
+
+def skeleton(word):
+    """Base letters: NFD-decompose, then drop the combining marks."""
+    return "".join(c for c in unicodedata.normalize("NFD", word)
+                   if unicodedata.category(c) != "Mn")
+
+
+def flat_values(doc):
+    """Flat 'section.key' -> value map. _metadata is Check 21/48 territory."""
+    out = {}
+
+    def walk(node, prefix):
+        for key, val in node.items():
+            if key == "_metadata":
+                continue
+            if isinstance(val, dict):
+                walk(val, prefix + key + ".")
+            elif isinstance(val, str):
+                out[prefix + key] = val
+
+    if not isinstance(doc, dict):
+        raise ValueError("top level is not an object")
+    walk(doc, "")
+    return out
+
+
+def read_catalog(path):
+    try:
+        with open(path, encoding="utf-8") as handle:
+            doc = json.load(handle)
+    except (OSError, ValueError) as err:
+        problems.append("  %s - CHECK67 R0: unreadable: %s — a value gate cannot run "
+                        "vacuously on a catalog it cannot read" % (path, err))
+        return None
+    try:
+        vals = flat_values(doc)
+    except ValueError as err:
+        problems.append("  %s - CHECK67 R0: %s" % (path, err))
+        return None
+    if len(vals) < MIN_VALUES:
+        problems.append("  %s - CHECK67 R0: only %d string values, the floor is %d — "
+                        "scanning a stub catalog proves nothing" % (path, len(vals), MIN_VALUES))
+        return None
+    return vals
+
+
+def trigram_divergences(vals):
+    """R1: a phrase one catalog repeats must be spelled one way.
+
+    Key = three de-accented token skeletons. Two surfaces for one key therefore
+    differ ONLY in diacritics: that is the accent-strip family this ticket had
+    to be reviewed into. Three (not two) tokens is measured, not taste: at n=2
+    the rule convicts pt_BR ('não','pode') against ('não','pôde') — cannot vs
+    could not, both correct Portuguese — while n=3 leaves the seven shipped
+    catalogs clean. Genuine homographs need a matching two-token neighbourhood
+    to collide, and that is a copy question a human should see anyway.
+    """
+    seen = collections.defaultdict(lambda: collections.defaultdict(list))
+    for vkey in sorted(vals):
+        tokens = vals[vkey].split()
+        for i in range(len(tokens) - 2):
+            window = tuple(tokens[i:i + 3])
+            seen[tuple(skeleton(t) for t in window)][window].append(vkey)
+    out = []
+    for key in sorted(seen):
+        if len(seen[key]) > 1:
+            out.append((key, sorted(seen[key].items())))
+    return out
+
+
+def family_convictions(loc, text):
+    """R2/R3 on ONE locale's copy: its ban absent, its canonical present.
+
+    Both sides are load-bearing. A ban with no canonical anchor rots the day the
+    family copy is reworded — the row would then guard nothing while reporting
+    green — so a vanished canonical form reddens the leg and the table rotates
+    deliberately in the same commit (Check 48 R3 / Check 66 R6 precedent).
+    """
+    out = []
+    for row_loc, forbidden, canonical, why in FAMILY:
+        if row_loc != loc:
+            continue
+        if forbidden in text:
+            out.append(("ban", row_loc, forbidden, why))
+        if canonical not in text:
+            out.append(("canonical", row_loc, canonical, why))
+    return out
+
+
+# ---- R0 the seven catalogs are present, parse and carry real volume -------
+paths = sorted(glob.glob("locale/*/strings.json"))
+if len(paths) != len(LOCALES):
+    problems.append("  locale/*/strings.json - CHECK67 R0: found %d catalogs, expected "
+                    "%d — the value scan cannot cover a partial locale tree"
+                    % (len(paths), len(LOCALES)))
+
+parsed = {}
+for path in paths:
+    vals = read_catalog(path)
+    if vals is not None:
+        parsed[path] = vals
+
+# ---- R1 the automated accent-strip arm ------------------------------------
+token_volume = 0
+for path in sorted(parsed):
+    vals = parsed[path]
+    token_volume += sum(len(text.split()) for text in vals.values())
+    for key, surfaces in trigram_divergences(vals):
+        who = "; ".join("%s = [%s]" % (vkeys[0], " ".join(surface))
+                        for surface, vkeys in surfaces)
+        problems.append("  %s - CHECK67 R1: the phrase [%s] is spelled %d different ways in "
+                        "one catalog (%s) — a repeated phrase keeps ONE diacritic family; "
+                        "this is the M-ROKU-20 accent-strip class the value-blind battery "
+                        "let through (r4 N2)" % (path, " ".join(key), len(surfaces), who))
+if token_volume < MIN_TOKENS:
+    problems.append("  locale/*/strings.json - CHECK67 R1: only %d tokens in the witness "
+                    "pool, the floor is %d — the phrase-consistency arm would run vacuously"
+                    % (token_volume, MIN_TOKENS))
+
+# ---- R2/R3 the curated family arms ----------------------------------------
+for path in sorted(parsed):
+    loc = path.split(os.sep)[1]
+    text = "\n".join(parsed[path].values())
+    for kind, _row_loc, form, why in family_convictions(loc, text):
+        if kind == "ban":
+            problems.append("  %s - CHECK67: [%s] is back in the copy — %s" % (path, form, why))
+        else:
+            problems.append("  %s - CHECK67: the canonical family form [%s] is gone — %s; a "
+                            "ban whose family has left the catalog guards nothing, so rotate "
+                            "this row with the reword in the same commit" % (path, form, why))
+
+# ---- R4 self-probe: every arm must convict its plant and spare its cure ---
+PLANT_IT = {"a": "La tua sessione e scaduta. Accedi di nuovo.",
+            "b": "Login scaduto: la tua sessione è scaduta. Accedi ora."}
+CURE_IT = {"a": "La tua sessione è scaduta. Accedi di nuovo.",
+           "b": "Login scaduto: la tua sessione è scaduta. Accedi ora."}
+if not trigram_divergences(PLANT_IT):
+    problems.append("  CHECK67 R4 self-probe: the accent-strip arm did not convict its "
+                    "planted è/e pair — R1 is a toothless gate")
+if trigram_divergences(CURE_IT):
+    problems.append("  CHECK67 R4 self-probe: the accent-strip arm convicted identical "
+                    "copy — R1 over-convicts and would redden legitimate work")
+for loc, forbidden, canonical, _why in FAMILY:
+    if ("ban", loc, forbidden, _why) not in family_convictions(loc, forbidden):
+        problems.append("  CHECK67 R4 self-probe: planting [%s] into %s did not name its own "
+                        "ban row — the family row cannot fire" % (forbidden, loc))
+    if any(kind == "ban" for kind, _row, form, _w in family_convictions(loc, canonical)
+           if form == forbidden):
+        problems.append("  CHECK67 R4 self-probe: the canonical form [%s] still trips the ban "
+                        "on [%s] — the table would redden the copy it defends"
+                        % (canonical, forbidden))
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK67: %d locale-value pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK67: locale VALUES are guarded, not only keys — any phrase a catalog")
+print("           repeats keeps one diacritic family (the arm that could not see")
+print("           M-ROKU-20 r4's re-strip plant now convicts by file and value key),")
+print("           the misplaced-accent and pre-reform-glyph families are pinned on")
+print("           BOTH sides so no row can rot into a vacuous ban, the volume floors")
+print("           stop a stub catalog passing the leg, and every detector self-probes")
+print("           against its own plant, so the battery cannot silently go blind")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
