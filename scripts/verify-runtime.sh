@@ -4907,12 +4907,19 @@ echo "=== Check 43: wire error text is type-guarded before it meets string ops (
 #       is DERIVED from the tree's own function/sub signatures, so the guard
 #       family self-exempts while `IsTransportReason(resp.error)`-style
 #       String-sink calls convict, or (e) be lifted/returned raw into a
-#       variable. Guard-token lines (SafeErrorMessage/WireErrorPresent/
-#       WireErrorText/the "roString"/"String" type-gate literals) are exempt
-#       - arms (a)-(d) test the token on the CODE-MASKED text (a comment
-#       naming a guard cannot buy exemption, review r1 minor), (e) keeps the
-#       raw-line token (the sanctioned choke-lift allowance). `.top`-
-#       prefixed reads are RSG-typed and exempt.
+#       variable. Arms (a)-(d) run on a GUARD-SPAN-MASKED code view (R-ROKU-
+#       03): a SafeErrorMessage/WireErrorPresent/WireErrorText call is
+#       blanked together with its balanced argument span, so a guard token
+#       on the line can no longer exempt a SECOND raw operand sitting
+#       outside it (`WireErrorPresent(x.error) and x.error <> ""` - the
+#       line-coarse slip r3 named). Only the "roString"/"String" type-gate
+#       literals keep the whole-line exemption, guarding the sanctioned
+#       PlayerScene idiom; per-operand treatment of that family would
+#       convict `type(ev.message) = "roString" and ev.message <> ""`, an
+#       accepted, named residual. A comment naming a guard still buys
+#       nothing (code-mask law, review r1 minor). (e) keeps the raw-line
+#       token (the sanctioned choke-lift allowance). `.top`-prefixed reads
+#       are RSG-typed and exempt.
 #   R2  the cure artifacts are live: Utilities defines SafeErrorMessage
 #       (value as Object) and WireErrorMessageMax() returning the pinned 300;
 #       ApiTask defines WireErrorPresent and routes DeriveResponseError
@@ -4940,6 +4947,15 @@ repo = os.environ["REPO"]
 # type-gate literals survive the code mask below precisely so they stay
 # visible to this check.
 GUARDED = re.compile(r'SafeErrorMessage\(|WireErrorPresent\(|WireErrorText\(|"roString"|"String"')
+# R-ROKU-03: the guard-call spans, masked out of the code view so one guard
+# token cannot exempt a second raw operand on the same line. One nesting
+# level of balanced argument parens is consumed (real tree shapes include
+# e.g. SafeErrorMessage(str(st).trim(), "")). Unbalanced/continued calls
+# simply do not match and keep the pre-R-ROKU-03 whole-line exemption.
+GUARD_CALL = re.compile(
+    r'(?:SafeErrorMessage|WireErrorPresent|WireErrorText)\s*\('
+    r'[^()]*(?:\([^()]*\)[^()]*)*\)'
+)
 # A wire-controlled member. `.top` reads (m.top.* RSG fields) are exempt:
 # the node server coerces on write, so a read off them can never hand a
 # non-String to a string op. (This lookbehind is placed BEFORE the dot -
@@ -5019,18 +5035,21 @@ for path in paths:
             code = code_only(line)
             if not code.strip():
                 continue
+            masked = GUARD_CALL.sub("", code)
             why = None
-            if not GUARDED.search(code):
-                # Arms (a)-(d): the guard token must live in CODE, not in a
-                # comment on the line (review r1 minor - code-mask hardening).
-                if RAW_COMPARE.search(code):
+            if not GUARDED.search(masked):
+                # Arms (a)-(d): the token must live in CODE, not in a comment
+                # (review r1 minor - code-mask hardening), and NOT inside a
+                # guard-call span (R-ROKU-03 - span mask; after blanking the
+                # spans only the type-gate literals still exempt the line).
+                if RAW_COMPARE.search(masked):
                     why = "compares wire .error/.message against a string literal"
-                elif RAW_STRINGOP.search(code):
+                elif RAW_STRINGOP.search(masked):
                     why = "string operation on a raw wire .error/.message value"
-                elif RAW_CONCAT.search(code):
+                elif RAW_CONCAT.search(masked):
                     why = "concatenates a raw wire .error/.message value via + (into/out of a string)"
                 else:
-                    match = CALL_ARG.search(code)
+                    match = CALL_ARG.search(masked)
                     if match:
                         callee = re.search(r'([A-Za-z_]\w*)\s*\(\s*[\w.]*$', match.group(0)).group(1)
                         if callee not in object_sinks:

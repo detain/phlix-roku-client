@@ -51,6 +51,28 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — CHECK43's guard exemption becomes guard-SPAN-masked: a second raw operand on a guard-call line no longer rides the token (R-ROKU-03 rider) — 2026-10-30
+
+- **The looseness.** Review r3 named it: arms (a)-(d) skipped any line whose
+  CODE carried a guard token, so `WireErrorPresent(x.error) and x.error <> ""`
+  — the predicate guarded on the left, the raw compare ungarded on the right —
+  slipped CHECK43 entirely. Per-operand exemptions were refused (they would
+  convict the sanctioned `type(ev.message) = "roString"` idiom family), so
+  the tradeoff had been accepted and carried forward for a cure that keeps
+  the family whole.
+- **The cure.** Arms (a)-(d) now run on a guard-SPAN-masked view: each
+  `SafeErrorMessage`/`WireErrorPresent`/`WireErrorText` call is blanked with
+  its balanced argument span (one nesting level), and only the "roString"/
+  "String" type-gate literals keep a whole-line exemption. The mixed line
+  convicts; a concat of an already-guarded value (`SafeErrorMessage(x.error,
+  "") + "!"`) stays clean because the raw read sat inside the span. The
+  sanctioned family is byte-unchanged law — PlayerScene:2072's mixed literal
+  residual stays accepted and named. Mutation-proven red-then-green against
+  the live checker (planted mixed line convicted only post-cure), and the
+  hardened leg passes the whole tree with zero new convictions (58 files);
+  `make lint` + the route-manifest self-test + all 62 verify-runtime legs
+  green. Arm (e)'s raw-line choke-lift allowance untouched (r1-ratified).
+
 ### Fixed — §1a/row-39 attribution tightened: the channel-manifest page names 1.0/1.2/1.3; 1.1's authority is the vendored RSG_VERSIONS map (R-ROKU-02 rider) — 2026-10-30
 
 - **The looseness.** M-ROKU-07 review m2: both truth surfaces attributed the
