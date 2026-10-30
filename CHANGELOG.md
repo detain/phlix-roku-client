@@ -128,7 +128,7 @@ claim below re-checkable the same way:
   CHECK56-r2 precedent), so the 55–58 numbering race with sibling lanes
   cannot touch this cure.
 
-### Fixed — README Project Structure regenerated from the shipped tree + CHECK 59 self-pins the map (M-ROKU-32) — 2026-10-30
+### Fixed — README Project Structure regenerated from the shipped tree + CHECK 60 self-pins the map (M-ROKU-32) — 2026-10-30
 
 - **The hole.** The block a newcomer navigates the codebase by shipped four
   phantom landmarks and missed a cohort of real ones. `source/lib/` listed
@@ -137,23 +137,25 @@ claim below re-checkable the same way:
   `source/data/Theme.brs` under directories that never existed here. Conversely
   `AppContext.brs` — the hub/connection-state core — was absent from the map,
   and so were the entire music/photos/favorites/search/settings/recommendations/
-  ApiTask/DiscoveryTask component cohorts (21 `.brs` files), six of the seven
+  ApiTask/DiscoveryTask component cohorts (22 `.brs` files), six of the seven
   locale catalogs, three of the six `scripts/` tools, and `docs/`, `tools/`,
   the npm/bsc config quartet, `LICENSE` and `CHANGELOG.md` at the root. Review
   roku__writer M8; the item survived the C33 9ff4a6d README pass, which cured
   endpoint fictions in other sections and left this block untouched.
-- **The cure.** The fenced block regenerated from the live tree at `e1d04b8f`:
+- **The cure.** The fenced block regenerated from the live tree at `c4b39af`:
   every `.brs` under `source/` + `components/` listed with a truthful one-line
   role sampled from the file's own docblock (the SyncPlayManager/SyncPlayScene
   DEAD PATH rows preserved byte-ident — Check 56 greps them), full locale/scripts
   lists, and a complete root roster.
-- **The pin.** CHECK 59 (scripts/verify-runtime.sh) makes the map self-pinning:
+- **The pin.** CHECK 60 (scripts/verify-runtime.sh) makes the map self-pinning:
   the set of `*.brs` names inside the block must equal, bidirectionally, the
   basenames on disk under `source/` + `components/` — R1 convicts phantoms,
   R2 convicts misses, a vanished/unbalanced block convicts alone. Basename
   equality is deliberate (a tree, not a manifest; the legit `SkipButton.brs`
-  double-residence passes both sides). RED at base measured: exactly the four
-  phantoms + the miss cohort fire; GREEN at cure: 57 names both sides.
+  double-residence passes both sides). RED at base measured at `c4b39af`:
+  exactly 27 convictions — 4 phantoms (R1) + 23 misses (R2, the 22-file
+  component cohort above plus `AppContext.brs`); GREEN at cure: 57 names
+  both sides.
   Portable staging completed for the walk (AuthManager + the two player files
   join the stage list); the plant/restore leg re-grows one phantom + drops one
   landmark, convicts both arms by name, holds CHECK 56/58 green (gate

@@ -2276,7 +2276,6 @@ set -e
 [ "$GREEN60_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after the structure-map plants are removed (got $GREEN60_RC): $(grep -B1 -A6 '^  CHECK' <<<"$GREEN60_OUT" | tail -30)"
 assert_contains "CHECK60: the Project Structure map lists exactly the 57 shipped .brs" "$GREEN60_OUT"
 
-
 # --- CHECK54 plant (M-ROKU-22 residual): three DELETION/NEUTRALIZATION shapes
 # that no sibling conviction arm owns — the hub choke bypassed in
 # ToggleSyncPanel, the scoped ws-only heading truncated away, and the
