@@ -1186,8 +1186,16 @@ function GetErrorMessage(apiError as Object) as String
         if code = "502" or code = "503" then return "Server is temporarily unavailable."
         return "An error occurred. Please try again."
     end if
-    ' Specific server error message - use it (already type-guarded + capped)
-    if len(safeError) > 0 then return safeError
+    ' M-ROKU-03 (review roku__webux): the former default arm echoed the raw
+    ' wire string straight into spoken dialogs ("if len(safeError) > 0 then
+    ' return safeError"). Server prose is not user copy. Transport-reason
+    ' codes (the connect buckets minted client-side) get their cataloged
+    ' friendly translation; anything else is printed for diagnostics and
+    ' replaced by the generic caption.
+    if len(safeError) > 0 then
+        if IsTransportReason(safeError) then return TranslateTransportReason(safeError)
+        print "GetErrorMessage suppressed wire detail: " safeError
+    end if
     return "An error occurred. Please try again."
 end function
 

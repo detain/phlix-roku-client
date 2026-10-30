@@ -66,8 +66,13 @@ sub OnApiResponse(event as Object)
             ' ShowErrorDialog - a non-String wire value is a runtime
             ' type-mismatch on the render thread. SafeErrorMessage types it
             ' (with the generic caption as fallback) before the dialog call.
-            errorMsg = SafeErrorMessage(resp.error, "Unable to load servers")
-            ShowErrorDialog(m.top, "Error", errorMsg)
+            ' M-ROKU-03 (review roku__webux): the dialog no longer prefers the
+            ' raw wire value - it shows the friendly caption and the detail is
+            ' printed for diagnostics only. SafeErrorMessage still types the
+            ' value before the print (the M-ROKU-12 non-String law holds).
+            detail = SafeErrorMessage(resp.error, "")
+            if detail <> "" then print "ServerPicker load failed: " detail
+            ShowErrorDialog(m.top, "Error", "Unable to load servers")
             m.servers = []
         else
             m.servers = []

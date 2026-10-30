@@ -8476,4 +8476,175 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+# CHECK 63 (W-min89: M-ROKU-03, -29, -34, -57): one leg owns four prose/legibility
+# convictions cured by this batch.
+# NUMBERING (disclosed, CHECK54/55/62 rebase-precedent): composed against tip
+# b30b7f2, whose highest header is Check 62 (collision probe: grep -n '=== Check'
+# at own tip); this leg takes 63.
+#   R1 (M-ROKU-03) GetErrorMessage's convicted raw-wire echo "if len(safeError) > 0
+#       then return safeError" stays extinct (comment-masked view), and the
+#       transport-translation arm (IsTransportReason -> TranslateTransportReason
+#       on safeError) is PRESENT: internal reason codes land on catalog copy and
+#       any other wire detail is printed for diagnostics, replaced in speech by
+#       the generic caption.
+#   R2 (M-ROKU-03) ServerPickerScene's convicted preference of the raw wire error
+#       ("errorMsg = SafeErrorMessage(resp.error") stays extinct — the load
+#       failure dialog shows the friendly caption; the detail rides the print
+#       channel only.
+#   R3 (M-ROKU-29) ToastManager splices no bracket severity tags into the spoken
+#       toast text (convicted concatenations "[ERROR] " and "[WARNING] ",
+#       comment-masked view) and showInfo's dwell sits at the 4000ms legibility
+#       floor (the parsed literal must be >= 4000).
+#   R4 (M-ROKU-34) the word-bearing PlayerScene labels never regress to
+#       SmallSystemFont on a 10-foot TV: sleepTimerLabel, syncStatusLabel,
+#       qualityStatusLabel, settingsStatusLabel, trackListStatusLabel,
+#       sleepTimerStatusLabel and upNextCardCountdown are enumerated (a vanished
+#       label is itself a red — the law loses its subjects); timeLabel keeps the
+#       Small face by the review's own digits-only carve-out and is deliberately
+#       NOT pinned either way.
+#   R5 (M-ROKU-57) the README internal-alias extinction holds: server-A7, F12a,
+#       F7a, F13, F9, F10, S280, "server SP5", "mobile E5 slice" and the
+#       "unscouted" typo stay gone, the demoted top-level "## SyncPlay (Watch
+#       Together)" home exists, and the fake Installation "### 6." step shape
+#       stays extinct (a section heading masquerading as a numbered step).
+#   R0  unreadable inputs fail loud — the pin cannot run vacuously.
+# No unit suite: pure presence legs over shipped files (CHECK50/52/56/57/62 precedent).
+echo "=== Check 63: spoken-error floor, tag-free toasts, legible player labels, alias-free README (W-min89) ==="
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os
+import re
+import sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+UTILITIES = "source/lib/Utilities.brs"
+PICKER = "components/ServerPickerScene.brs"
+TOASTS = "source/lib/ToastManager.brs"
+PLAYER_XML = "components/PlayerScene.xml"
+README = "README.md"
+problems = []
+
+
+def read(path):
+    try:
+        return open(path, encoding="utf-8").read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK63 R0: unreadable: {err} - the pin cannot run vacuously")
+        return None
+
+
+def mask_brs_comments(text):
+    # Same contract as Check 20's masker: a single quote outside a double-quoted
+    # string opens a comment that runs to end of line; comment runs become spaces
+    # of identical length. Prose that QUOTES a convicted shape can never convict.
+    out = []
+    for line in text.splitlines(keepends=True):
+        in_str = False
+        chars = list(line)
+        i = 0
+        while i < len(chars):
+            c = chars[i]
+            if c == '"':
+                in_str = not in_str
+            elif c == "'" and not in_str:
+                for j in range(i, len(chars)):
+                    if chars[j] not in ("\n", "\r"):
+                        chars[j] = " "
+                break
+            i += 1
+        out.append("".join(chars))
+    return "".join(out)
+
+
+util = read(UTILITIES)
+if util is not None:
+    masked = mask_brs_comments(util)
+    if re.search(r"len\(safeError\)\s*>\s*0\s+then\s+return\s+safeError", masked):
+        problems.append('  source/lib/Utilities.brs - CHECK63 R1: the raw-wire echo arm "if len(safeError) > 0 then return safeError" is re-grown in GetErrorMessage - server prose is not user copy (review roku__webux M-ROKU-03)')
+    if "IsTransportReason(safeError)" not in masked or "TranslateTransportReason(safeError)" not in masked:
+        problems.append("  source/lib/Utilities.brs - CHECK63 R1: the transport-translation arm vanished from GetErrorMessage - reason codes must land on the TranslateTransportReason ladder, not on printed wire prose")
+
+picker = read(PICKER)
+if picker is not None:
+    pmask = mask_brs_comments(picker)
+    if re.search(r"errorMsg\s*=\s*SafeErrorMessage\(\s*resp\.error", pmask):
+        problems.append('  components/ServerPickerScene.brs - CHECK63 R2: the load-failure dialog is fed SafeErrorMessage(resp.error, ...) again - the raw wire value regains the spoken seat (review roku__webux M-ROKU-03)')
+
+toast = read(TOASTS)
+if toast is not None:
+    tmask = mask_brs_comments(toast)
+    for tag in ('"[ERROR] " +', '"[WARNING] " +'):
+        if tag in tmask:
+            problems.append(f'  source/lib/ToastManager.brs - CHECK63 R3: the bracket severity concatenation {tag[:-2]} + "..." is re-grown - severity belongs to the channel (color/duration), not to the SPOKEN text (review roku__writer M-ROKU-29)')
+    dwell = re.search(r"showInfo:\s*function.*?m\.show\(\s*message\s*,\s*(\d+)\s*\)", tmask, re.S)
+    if dwell is None:
+        problems.append("  source/lib/ToastManager.brs - CHECK63 R3: the showInfo dwell literal is unparseable - the 4000ms legibility floor lost its subject")
+    elif int(dwell.group(1)) < 4000:
+        problems.append(f"  source/lib/ToastManager.brs - CHECK63 R3: showInfo dwell regressed to {dwell.group(1)}ms - below the 4000ms floor this batch set (info notices must be readable, review roku__writer M-ROKU-29)")
+
+xmltext = read(PLAYER_XML)
+if xmltext is not None:
+    xclean = re.sub(r"<!--.*?-->", " ", xmltext, flags=re.S)
+    labels = {}
+    for tag_m in re.finditer(r"<Label\b[^>]*>", xclean, re.S):
+        tag = tag_m.group(0)
+        id_m = re.search(r'id="([^"]+)"', tag)
+        if id_m is None:
+            continue
+        labels.setdefault(id_m.group(1), []).append(tag)
+    WORD_BEARING = (
+        "sleepTimerLabel", "syncStatusLabel", "qualityStatusLabel",
+        "settingsStatusLabel", "trackListStatusLabel", "sleepTimerStatusLabel",
+        "upNextCardCountdown",
+    )
+    for label_id in WORD_BEARING:
+        hits = labels.get(label_id)
+        if not hits:
+            problems.append(f"  components/PlayerScene.xml - CHECK63 R4: word-bearing label id={label_id} vanished - the legibility law lost its subject (M-ROKU-34)")
+            continue
+        for tag in hits:
+            font_m = re.search(r'font="font:([A-Za-z]+)"', tag)
+            if font_m is not None and font_m.group(1) == "SmallSystemFont":
+                problems.append(f"  components/PlayerScene.xml - CHECK63 R4: id={label_id} carries SmallSystemFont again - word-bearing TV labels ride Medium-or-larger (review roku__crossfe M-ROKU-34)")
+
+readme = read(README)
+if readme is not None:
+    for pat, why in (
+        (r"server-A7", "internal work-item alias"),
+        (r"\bF12a\b", "internal epic alias"),
+        (r"\bF7a\b", "internal epic alias"),
+        (r"\bF13\b", "internal epic alias"),
+        (r"\bF9\b", "internal epic alias"),
+        (r"\bF10\b", "internal epic alias"),
+        (r"\bS280\b", "internal ticket alias"),
+        (r"server SP5", "internal ticket alias"),
+        (r"mobile E5 slice", "internal epic alias"),
+        (r"unscouted", "typo the review named"),
+    ):
+        if re.search(pat, readme):
+            problems.append(f"  README.md - CHECK63 R5: {pat!r} ({why}) is re-grown in the README - users met these codes nowhere (review roku__writer M-ROKU-57)")
+    if not re.search(r"^## SyncPlay \(Watch Together\)$", readme, re.M):
+        problems.append('  README.md - CHECK63 R5: the top-level "## SyncPlay (Watch Together)" heading is not the section\'s home anymore')
+    if re.search(r"^### 6\. SyncPlay", readme, re.M):
+        problems.append('  README.md - CHECK63 R5: the fake Installation "### 6." step heading is back - a feature section does not continue the numbered install list (M-ROKU-57)')
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK63: %d W-min89 conviction(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK63: GetErrorMessage echoes no wire prose (transport codes translated,")
+print("           picker detail print-only), toasts carry no spoken severity tags with")
+print("           info at the 4000ms floor, every word-bearing PlayerScene label rides")
+print("           Medium-or-larger, and the README alias census is clean with the")
+print("           SyncPlay section on its top-level home")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

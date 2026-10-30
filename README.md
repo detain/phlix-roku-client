@@ -19,7 +19,7 @@ A native Roku application for the Phlix Media Server platform. Stream your media
 - **Hub / Multi-Server Mode**: Point the Connect screen at a Phlix Hub instead of a single server — after login the client detects the hub (`GET /api/v1/me/servers`), shows a server picker, and routes all media requests to the chosen server through the hub's relay proxy (the hub Bearer is the relay auth). The hub relay supports all HTTP verbs (GET, PUT, DELETE, PATCH, POST). See "Hub / multi-server mode" below.
 - **Skip Intro/Outro**: Automatically displayed skip buttons when playback enters marker ranges defined by the server (intro start/end, outro start/end)
 - **SyncPlay / Watch Together** *(device-unverifiable — see the LIMITATIONS box under "SyncPlay (Watch Together)")*: a hand-rolled RFC6455 WebSocket client (`source/lib/SyncPlayProtocol.brs` + `components/SyncPlayTask.{xml,brs}`) lets several devices watch the same content in sync. Open the **Watch Together** overlay in the player (the `*`/Options key), pick a group from the list (or Create), and playback follows the host (play/pause/seek) with NTP-style drift correction. **Direct mode only** (disabled in hub mode), and **`ws://` only** because Roku's `roStreamSocket` has no TLS.
-- **Manual quality selection** *(server-A7-dependent; the transient content-swap-while-playing behavior needs an on-device smoke test — see the CHANGELOG)*: press **Up** in the player to open a quality picker listing **Auto** (server-driven ABR, the multi-variant master) plus each rung the active transcode advertises, highest first, read from the server's `variants[]` ladder. Picking a rung swaps to that rung's own signed playlist and resumes at the same position; picking Auto hands playback back to native ABR. The choice is remembered (`Storage` key `preferred_quality`) and re-applied on the next transcode. With no ladder (direct-play or a legacy job) the picker shows Auto only and no-ops gracefully.
+- **Manual quality selection** *(the transient content-swap-while-playing behavior needs an on-device smoke test — see the CHANGELOG)*: press **Up** in the player to open a quality picker listing **Auto** (server-driven ABR, the multi-variant master) plus each rung the active transcode advertises, highest first, read from the server's `variants[]` ladder. Picking a rung swaps to that rung's own signed playlist and resumes at the same position; picking Auto hands playback back to native ABR. The choice is remembered (`Storage` key `preferred_quality`) and re-applied on the next transcode. With no ladder (direct-play or a legacy job) the picker shows Auto only and no-ops gracefully.
 - **Audio & subtitle track selection**: press **Down** in the player to open a **Settings** panel (Audio / Subtitles). The tracks are read from playback info (`audio_tracks` / `subtitle_tracks`); picking a subtitle track applies it to the `Video` node (`currentSubtitleTrack`, with "Off" to disable) and picking an audio track records the preference. The choice is remembered (`Storage` keys `preferred_audio_track` / `preferred_subtitle_track`). Additive: the panel is hidden by default, so the default playback path is unchanged when it is never opened, and it degrades gracefully to an empty-state message when no tracks are present.
 - **Profile Management (admin)**: View a user's profiles and adjust the parental-control rating or clear a forgotten PIN — button-driven, no keyboard. Reached via `Admin → Users → (select user) → Profiles`
 
@@ -132,7 +132,7 @@ connect + login flow is the same for both. The client decides which it is talkin
      (`ServerPickerScene`).
    - A **direct server** has no such route (404 / no `servers` array). The client persists
      `connection_kind = "direct"` and goes straight to Home, exactly as before. Direct mode
-     is unchanged from F12a.
+     is unchanged.
 2. **Pick a server.** The picker lists each claimed server with its name, online/offline
    status, and library count. Selecting one persists `active_server_id` (and
    `active_server_name` for display) and proceeds to Home.
@@ -178,7 +178,7 @@ connect + login flow is the same for both. The client decides which it is talkin
 | `active_server_id` | The hub server chosen in the picker; appended to the relay proxy base. |
 | `active_server_name` | Display name of the chosen server. |
 
-### 6. SyncPlay (Watch Together)
+## SyncPlay (Watch Together)
 
 SyncPlay lets several devices watch the same content together, staying in sync without manual
 timestamp coordination. It is a **TV-friendly, button-driven overlay inside the player** — there is
@@ -274,10 +274,10 @@ node (socket I/O off the render thread).
   `Sec-WebSocket-Protocol: bearer` on accepted offered handshakes — the client's 101 check is
   status-line-only, so the echo is tolerated by design.)
 
-The 19 canonical message types (F13 implements the TV-friendly subset shown below; chat / typing /
+The 19 canonical message types (the TV client implements the subset shown below; chat / typing /
 host_transfer / queue / sync are deferred):
 
-| Type (`syncplay_*`) | Direction | F13 | Notes |
+| Type (`syncplay_*`) | Direction | On TV | Notes |
 |---|---|---|---|
 | `syncplay_group_create` | Client → Server | ✅ | `group_name`, `member_name?` (sent on Create) |
 | `syncplay_group_join` | Client → Server | ✅ | `group_id`, `member_name?` (sent on Join) |
@@ -420,7 +420,7 @@ Integration tests in `tests/integration/` test API client against a live server.
 # Deploy tests to device and run via developer portal
 ```
 
-### Route Manifest Gate (S280)
+### Route Manifest Gate
 
 Every URL the client can put on the wire is pinned **tuple-exact** against a vendored copy of the
 phlix-server route manifest. It is device-free (static scan + exact compare) and runs in CI via
@@ -470,7 +470,7 @@ tests/
 ├── integration/
 │   └── ApiIntegration.test.brs            # API client against a live server
 ├── fixtures/
-│   └── server-route-manifest.json         # vendored phlix-server route manifest (S280)
+│   └── server-route-manifest.json         # vendored phlix-server route manifest (route gate)
 └── scripts/
     ├── verify-route-manifest.mjs          # make validate-routes
     └── verify-runtime-portable.sh         # verify-runtime.sh portability regression
@@ -531,7 +531,7 @@ deliberately absent from the server manifest.
 |--------|----------|-------------|
 | GET | `/api/v1/collections` | List collections (read-only). Returns `{collections:[...]}`. Currently unauthenticated server-side. |
 | GET | `/api/v1/collections/{id}` | Get one collection with its items (read-only). Returns `{collection, items, total}`; `items` are raw DB rows normalized client-side. Currently unauthenticated server-side. |
-| GET | `/api/v1/syncplay/groups` | SyncPlay group-list snapshot (read-only; server SP5). Returns the whole `{groups:[{id, name, member_count, has_password, current_media, is_playing}]}` envelope (NOT unwrapped) — note the list uses `id`/`name`, **not** `group_id`/`group_name`. Used to populate the Watch Together overlay without typing a group id on the TV; group create/join/leave go over the WebSocket, not REST. See "SyncPlay (Watch Together)". |
+| GET | `/api/v1/syncplay/groups` | SyncPlay group-list snapshot (read-only). Returns the whole `{groups:[{id, name, member_count, has_password, current_media, is_playing}]}` envelope (NOT unwrapped) — note the list uses `id`/`name`, **not** `group_id`/`group_name`. Used to populate the Watch Together overlay without typing a group id on the TV; group create/join/leave go over the WebSocket, not REST. See "SyncPlay (Watch Together)". |
 | GET | `/api/v1/auth/me` | Get the current user (auth-gated). Returns the unwrapped `{user}`, which carries `is_admin` (TINYINT 0/1) and `status`. The Home screen calls this on init to gate the admin entry. In **hub mode** the boot session-validation hits this against the **hub directly** (not over the relay), because `/auth/me` over the relay returns the hub-user perspective on the server and is unreliable. |
 | GET | `/api/v1/me/servers` | Hub-only. Returns `{servers:[ … ]}` (**camelCase** rows: `serverId`, `userId`, `serverName`, `version`, `lastSeenAt`, `status` `"online"`/`"offline"`/`"claiming"`/`"disabled"`, `hostnameCandidates:[url]`, `relayActive` (bool), `libraryCount`). A **direct** server has no such route → 404 / no `servers` array. The client calls this right after login to detect hub vs direct, and the server picker reads the whole `{servers}` envelope. |
 | GET, PUT, DELETE, PATCH, POST | `/api/v1/servers/{serverId}/proxy/{path:.*}` | Hub relay proxy (the **only** registered relay route). In hub mode, after a server is picked, the media `ApiClient` is bound to `{hub}/api/v1/servers/{serverId}/proxy` and sends the **hub** Bearer; the hub strips client auth, verifies server ownership (403 `server.not_owned` otherwise), injects `X-Phlix-Relay-User`, and tunnels the request to the server (which trusts the tunnel). All HTTP verbs are supported over the relay. |
@@ -550,7 +550,7 @@ deliberately absent from the server manifest.
 | POST | `/api/v1/admin/users/{id}/reset-password` | Admin-gated (AdminMiddleware). Resets the user's password. Bodyless POST. `{message, new_password}` on success (the new password is shown once); 404 `{error}`. |
 | GET | `/api/v1/admin/users/{userId}/profiles` | Admin-gated (AdminMiddleware). Lists a user's profiles. Returns the whole `{profiles:[...]}` envelope (admin getters do not unwrap). Each profile row carries `id` (UUID), `user_id`, `name`, `avatar_url`\|null, `is_active` (bool/TINYINT), `is_admin` (bool/TINYINT), `rating` (computed **Integer** 0-6: `G=0, PG=1, PG-13=2, R=3, NC-17=4, X=5, UNRATED=6`), `created_at`, `updated_at`, and an optional `settings` object (`content_rating` label string, `pin_required_for_admin` bool, `max_daily_watch_time`, `allow_unrated`, …). 404 `{error}` if the user is not found. |
 | GET | `/api/v1/admin/profiles/{id}` | Admin-gated (AdminMiddleware). Returns one profile: `{profile}` (whole envelope). 404 `{error}` if not found. |
-| PUT | `/api/v1/admin/profiles/{id}` | Admin-gated (AdminMiddleware). Updates a profile; F10 sends `{rating: <int 0-6>}` only (name/PIN edits deferred). `{message}` on success; 400 `{error, field_errors?}` / 404 `{error}`. |
+| PUT | `/api/v1/admin/profiles/{id}` | Admin-gated (AdminMiddleware). Updates a profile; the TV client sends `{rating: <int 0-6>}` only (name/PIN edits deferred). `{message}` on success; 400 `{error, field_errors?}` / 404 `{error}`. |
 | DELETE | `/api/v1/admin/profiles/{id}/pin` | Admin-gated (AdminMiddleware). Clears (removes) the profile's PIN. Bodyless DELETE. `{message}` on success; 404 `{error}`. |
 | GET | `/api/v1/admin/livetv/channels` | Admin-gated (AdminMiddleware). Lists Live TV channels. Returns the whole `{success, channels:[...]}` envelope (admin getters do not unwrap). Each channel row carries `id` (== `channel_id`, the UUID used for `/stream`), `name`, `number` (**Integer**), `type`, `frequency` (Integer), `tuner_id`, `service_id`, `visual_id`, `description`, `icon_url`, `visibility`, `created_at`, `updated_at`. AdminMiddleware → 401 (no/invalid token) / 403 (non-admin). **If Live TV is not configured the route group is not registered → 404**; configured-but-no-tuner returns `{success, channels:[]}`. |
 | GET | `/api/v1/admin/livetv/channels/{id}/stream` | Admin-gated (AdminMiddleware, Bearer). **Returns a 302 redirect** (`Location` header) to the actual stream URL. The redirect target is an **unauthenticated** tuner/HLS URL (HDHomeRun: a direct `http://<host>:5004/auto/vN` raw MPEG-TS URL; IPTV: may be an `.m3u8`). Because the Roku `Video` node cannot carry the `Authorization` header, the client resolves this 302 with Bearer and hands the final (unauthenticated) URL to the player. See the Live TV caveat below. |
@@ -571,7 +571,7 @@ deliberately absent from the server manifest.
 | Replay (Instant Replay) | Seek backward 10 seconds and briefly flash captions if they are off. Standard Roku behavior per [remote control UX guidance](https://developer.roku.com/docs/references/scenegraph/remote-control-events.md). |
 | Info | Show item title and current playback position for 3 seconds. |
 | Options (`*`) | Open/close the **Watch Together** (SyncPlay) overlay (direct mode only; shows a disabled message in hub mode). While the overlay is open, Back/Options close it. |
-| Up | Open/close the **video quality picker** (Auto + each ABR rung the current transcode advertises, server-A7-dependent; shows Auto-only when there's no ladder). While the overlay is open, Back/Up close it and the list owns Up/Down/Select. |
+| Up | Open/close the **video quality picker** (Auto + each ABR rung the current transcode advertises, server-advertised; shows Auto-only when there's no ladder). While the overlay is open, Back/Up close it and the list owns Up/Down/Select. |
 | Down | Open/close the **Settings** panel (**Audio** / **Subtitles** track selection). Selecting a row opens the track list (or an empty-state message); Back/Down close the panel. |
 | Skip Button | Skip intro/outro section (shown automatically during marker ranges) |
 
@@ -645,7 +645,7 @@ at the ends — never wraps):
       forgotten PIN") is the genuinely useful button-driven slice for a 10-foot remote.
 
       > **Upstream gap.** There is **no user-facing profile route** — profile management is
-      > admin-gated only (the same gap the mobile E5 slice flagged). A self-service on-TV profile
+      > admin-gated only (the same gap flagged for the mobile client). A self-service on-TV profile
       > switcher would need a `/users/me/profiles` route plus a profile-context request header.
   - **Live TV** — a channels list + channel playback surface:
     `Admin → Live TV (LabelList of channels) → select a channel → live player`. The list is a
@@ -691,10 +691,9 @@ at the ends — never wraps):
     read. **Selection is inert.** Empty → "No rules"; missing key / unregistered route → "Live TV
     unavailable".
 
-    With these three views, **F9 (live TV) is complete**. **Deferred / future work:** a guide
+    With these three views, **live TV is complete**. **Deferred / future work:** a guide
     channel-filter picker, recording create / delete + recording playback, series-rule CRUD, and
-    channel edit (PUT) are intentionally not shipped — they need on-screen pickers / keyboard (or an
-    unscouted route), so all four Live TV admin surfaces remain read-only.
+    channel edit (PUT) are intentionally not shipped — they need on-screen pickers / keyboard (or a route we have not yet scouted), so all four Live TV admin surfaces remain read-only.
 
 ## Project Structure
 
@@ -721,7 +720,7 @@ phlix-roku/
 │   ├── SeriesScene.brs           # One series: seasons grid (flat episodes for single-season shows)
 │   ├── SeasonScene.brs           # One season's episodes grid
 │   ├── EpisodeListTask.brs       # Episode/season list loader off the render thread
-│   ├── PlayerScene.brs           # Video player (+ additive "Watch Together" SyncPlay overlay, opened with the "*"/Options key; gated, hub-disabled, ws:// only) (+ additive video-quality picker, opened with the Up key; server-A7-dependent, no-ops without a ladder) (+ additive Audio/Subtitles Settings panel, opened with the Down key; persists preferred_audio_track / preferred_subtitle_track)
+│   ├── PlayerScene.brs           # Video player (+ additive "Watch Together" SyncPlay overlay, opened with the "*"/Options key; gated, hub-disabled, ws:// only) (+ additive video-quality picker, opened with the Up key; server-advertised, no-ops without a ladder) (+ additive Audio/Subtitles Settings panel, opened with the Down key; persists preferred_audio_track / preferred_subtitle_track)
 │   ├── SkipButton.brs            # Skip intro/outro button node (Group; owns its button, exposes skipRequested)
 │   ├── DetailScene.brs           # Item detail view
 │   ├── RatingBadge.brs           # Rating star/score badge (Rectangle overlay shown on poster/detail chrome)
@@ -737,7 +736,7 @@ phlix-roku/
 │   ├── AudiobookPlayerScene.brs  # Audiobook player (Audio node; chapter navigation + progress write-back; R7.6)
 │   ├── PhotosScene.brs           # Photo date-album grid (entry point of a photo library)
 │   ├── PhotoAlbumScene.brs       # One date album's thumbnail grid (signed thumbnail_urls)
-│   ├── PhotoViewerScene.brs      # Full-screen photo viewer (F7a; caption/info chrome)
+│   ├── PhotoViewerScene.brs      # Full-screen photo viewer (caption/info chrome)
 │   ├── SettingsScene.brs         # Settings, 6 sections (Account / Server / Playback / Captions / Watch History / About; R7.1)
 │   ├── ParentalControlsScene.brs # Parental controls, 3 sections (access Schedules / blocked Tags / Stream Limits; P5-S5)
 │   ├── LiveTvScene.brs           # Admin Live TV channels list (one-shot LabelList; row-select resolves stream → live player)
@@ -766,7 +765,7 @@ phlix-roku/
 ├── tests/
 │   ├── unit/                     # BrightScript unit tests (Storage/ApiClient/AuthManager/SyncPlay/WireGuard/…)
 │   ├── integration/              # BrightScript integration tests (ApiIntegration)
-│   ├── fixtures/                 # Vendored server-route-manifest.json (S280 route gate)
+│   ├── fixtures/                 # Vendored server-route-manifest.json (route gate)
 │   └── scripts/                  # verify-route-manifest.mjs, verify-runtime-portable.sh
 ├── scripts/                      # verify-runtime.sh (static-check legs), validate-xml.sh, verify-package.sh, package-signed.sh, derive-version.sh, add-headers.py
 ├── locale/                       # Seven catalogs, same flattened key set (Check 21 parity; see docs/i18n.md)

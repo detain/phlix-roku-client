@@ -51,6 +51,57 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — W-min89 minors cluster (4 cured, 1 honest-blocked) — 2026-10-30
+
+- **M-ROKU-03 (cured).** `GetErrorMessage`'s default arm echoed the raw
+  wire string into spoken dialogs (`if len(safeError) > 0 then return
+  safeError`). Transport reason codes now land on the
+  `TranslateTransportReason` catalog ladder; any other wire detail is
+  printed for diagnostics and replaced in speech by the generic caption.
+  `ServerPickerScene`'s load-failure dialog no longer prefers
+  `resp.error` — friendly caption in the dialog, detail on the print
+  channel (the SafeErrorMessage type-guard law of M-ROKU-12 holds).
+  `LoginScene`'s "Server error: {detail}" frame is NOT reverted: it is
+  the d252b17-era honest taxonomy shipping a bounded reason inside a
+  friendly, cataloged frame (CHECK24-staged `login_err_server`), a
+  different shape from an unframed raw echo.
+- **M-ROKU-29 (cured).** `ToastManager` spliced `[ERROR]`/`[WARNING]`
+  severity tags into the SPOKEN toast text; severity already rides the
+  channel (color/duration), so the tags are dropped and `showInfo` is
+  lifted from 3000ms to the 4000ms legibility floor. The claimed
+  ToastScene label clip (`width=1280`) was stale: the overlay was
+  re-based onto the Dialog node by `7942e66` (M-ROKU-17) with no such
+  markup.
+- **M-ROKU-34 (cured).** Word-bearing player labels rode
+  `SmallSystemFont` on a 10-foot TV: `sleepTimerLabel`,
+  `syncStatusLabel`, `qualityStatusLabel`, `settingsStatusLabel`,
+  `trackListStatusLabel`, `sleepTimerStatusLabel` and the Up-Next
+  countdown now ride `MediumSystemFont` (countdown height 20→30).
+  `timeLabel` keeps Small by the review's own digits-only carve-out.
+  Partial stale: the five status labels already wrap since the
+  M-ROKU-20 era; HomeScene's description band is canvas-budget-locked
+  (grid ends 684 / canvas 720 — CHECK32) and Labels ellipsize at
+  truncation by firmware default; SettingsScene's single-line status
+  bar is the CHECK42 R6 adjudicated headline law (detail rides the
+  540px `detailLabel`). All three adjudications disclosed, CHECK63 R4
+  pins the font floor.
+- **M-ROKU-57 (cured).** The README's internal-alias layer is gone:
+  `server-A7`→server-advertised (or dropped), `F12a`/`F7a`/`F13`/`F9`/
+  `F10`→plain-truth phrasings, `S280`→route gate, `server SP5`/
+  `mobile E5 slice` dropped, and the `unscouted` typo fixed. The fake
+  Installation "### 6. SyncPlay" step heading is demoted to its proper
+  top-level section. CHECK63 R5 convicts any re-growth. The API-table
+  blank-line fragmentation leg was stale-verified: the table is
+  contiguous at tip (cured by the `9ff4a6d` docs-truth sweep).
+- **M-ROKU-09 (honest-blocked).** The dead SyncPlayScene/
+  SyncPlayManager pair and its render-thread `wait()` pattern still
+  ship — deliberately. Delete-or-re-home is an OPEN owner decision
+  recorded in the README "Room-scene retention" note and docs/i18n.md
+  (the pair demoted to shipped truth by `fa67902`, M-ROKU-26); Check
+  56 pins that dead-truth in both directions. Curing this item means
+  exercising the pending ruling, which no fix lane owns; the block
+  rationale and raws ride W-min89's report.
+
 ### Fixed — W-min88 minors cluster (3 cured, 1 stale-verified) — 2026-10-30
 
 - **M-ROKU-45 (cured).** README's manifest bullet claimed

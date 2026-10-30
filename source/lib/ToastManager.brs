@@ -89,16 +89,21 @@ function GetToastManager()
                 m.deliver(message, durationMs)
             end function,
 
+            ' M-ROKU-29 (review roku__writer): bracket severity tags were spliced
+            ' into the SPOKEN toast text - a screen reader and the user both read
+            ' "[ERROR]" aloud. Severity rides the channel itself (color and
+            ' duration already differentiate); the tags are dropped and info is
+            ' lifted to the 4000ms legibility floor.
             showError: function(message as String) as Void
-                m.show("[ERROR] " + message, 5000)
+                m.show(message, 5000)
             end function,
 
             showWarning: function(message as String) as Void
-                m.show("[WARNING] " + message, 4000)
+                m.show(message, 4000)
             end function,
 
             showInfo: function(message as String) as Void
-                m.show(message, 3000)
+                m.show(message, 4000)
             end function
         }
     end if
