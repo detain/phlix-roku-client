@@ -23,7 +23,9 @@
 #                          truth, root-back exit law, surgical-wipe logout
 #                          law),
 #                          components/SettingsScene.brs + DetailScene.brs
-#                          (Check 19's fixed target list) + SyncPlayTask.brs
+#                          + PlayerScene.brs (Check 19's fixed target list;
+#                          PlayerScene joined via R-ROKU-08, rides the
+#                          whole-components cp -a) + SyncPlayTask.brs
 #                          (Checks 22/23's wire-in) + SyncPlayScene.brs
 #                          (Check 24's only syncplay_members_count consumer -
 #                          without it the dead-copy leg would false-red) +

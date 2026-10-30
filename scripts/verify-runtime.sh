@@ -698,6 +698,10 @@ TARGETS = [
     'components/SettingsScene.brs',
     'components/DetailScene.brs',
     'source/lib/Utilities.brs',
+    # R-ROKU-08 (riders W8): PlayerScene joined once the M-ROKU-20 backlog
+    # cleared — the overlay trio and the ShowErrorDialog error/retry/cancel
+    # family ride Translate() at tip (measured 2026-10-30: zero convictions).
+    'components/PlayerScene.brs',
 ]
 
 # Allow-list: patterns that are NOT user-facing hardcoded i18n strings.

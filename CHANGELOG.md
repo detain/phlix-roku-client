@@ -51,6 +51,31 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — CHECK19 TARGETS expanded to PlayerScene.brs (R-ROKU-08 rider) — 2026-10-30
+
+- **R-ROKU-08 (landed, not parked).** M-ROKU-20 gated this expansion on its
+  ShowErrorDialog-family backlog ("25-violation census if PlayerScene joined
+  CHECK19 TARGETS"). The backlog has since landed — the overlay trio, the
+  playback/transcode dialog family (Error/Retry/Cancel + the three failure
+  sentences) all ride `Translate(...)` call sites at tip. Disk re-measure at
+  this commit's parent: the shipped Check 19 heuristic convicts ZERO lines in
+  `components/PlayerScene.brs`, so the gate was no longer gated and the file
+  joined TARGETS. Surfaces moved together: `scripts/verify-runtime.sh` TARGETS
+  + comment, `tests/scripts/verify-runtime-portable.sh` staged-file note
+  (PlayerScene rides the whole-components `cp -a`; the red19 plant leg stays on
+  SettingsScene, and the `N19==1` expectation holds because PlayerScene joins
+  clean), `docs/static-checks.md` row 19, `docs/i18n.md` currency bullet.
+  Disclosed limit: joining is not cleansing — the chapter-picker
+  `ShowErrorDialog(m.top, "Notice", "No chapters available for this content")`
+  pair (:2617/:2623) still escapes Check 19's ShowErrorDialog clause (>= 3
+  string literals per line); it remains on the documented-residuals list and
+  its copy mint (a `common_notice` x7 decision) belongs to R-ROKU-10/the owner
+  reel, not to a gate-shape rider.
+- Tooth re-proven at the expansion: planting `m.syncStatusLabel.text =
+  "Chapter refresh pending"` into a scratch PlayerScene.brs reddens CHECK19
+  naming `components/PlayerScene.brs:NNNN`; the un-planted gate runs the full
+  65-check suite exit 0 before and after (Check 20 untouched — no new keys).
+
 ### Fixed — W-min94 minors cluster (3 cured, 3 stale-verified, 2 honest-blocked) — 2026-10-30
 
 - **M-ROKU-25 (cured, half stale).** The observer-stack half was already dead:
