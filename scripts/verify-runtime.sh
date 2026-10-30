@@ -5510,6 +5510,14 @@ if task is not None:
             problems.append(f"  {TASK} - CHECK46 R2: local.ws_accept_invalid is not emitted under the m.wsAcceptFailed gate")
 
 # ---- R2-prose: the era's skip claims are extinct ------------------------
+# M-ROKU-22 rotation: the same extinct-claims family also convicts the
+# platform-misclaim assertions this item's review named ("`wss://` is
+# impossible", "Roku can't do TLS"). They are FALSE as stated —
+# roSecureSocket is the platform's TLS client socket and this very channel
+# does TLS for REST on https origins — and the claim-shape mattered: it
+# framed the M14 refusal law as the only conceivable posture. The shipped
+# truth is: ws:// only because THIS BUILD rides roStreamSocket; wss is a
+# deferred option; custody rests on refusal + consent + accept-proof.
 for path in (PROTO, TASK, README):
     text = read(path)
     if text is None:
@@ -5518,6 +5526,10 @@ for path in (PROTO, TASK, README):
         problems.append(f"  {path} - CHECK46 R2: the era's \"do NOT verify the Sec-WebSocket-Accept\" claim is back")
     if "deferred - see worklog" in text and "Sec-WebSocket-Accept" in text.split("deferred - see worklog")[1][:120]:
         problems.append(f"  {path} - CHECK46 R2: accept verification is described as deferred again")
+    if re.search(r"`wss://`\s+is\s+impossible", text):
+        problems.append(f"  {path} - CHECK46 R2: the M-ROKU-22 platform-misclaim (wss stated as impossible) is back — wss is UNIMPLEMENTED (a deferred roSecureSocket arm), not impossible; scoped-true transport sentences (\"roStreamSocket has no TLS\") are unaffected")
+    if re.search(r"Roku\s+can(?:'?t|not)\s+do\s+TLS", text):
+        problems.append(f"  {path} - CHECK46 R2: the M-ROKU-22 platform-misclaim (Roku stated unable to do TLS) is back — this channel does TLS via roUrlTransfer + ca-bundle on every https origin")
 
 # ---- R3 census membership + all seven catalogs -------------------------
 if util is not None:
@@ -5556,7 +5568,8 @@ print("  CHECK46: https origins refuse the plaintext :8097 dial BEFORE the JWT i
 print("           (ordered choke + honest status line); the 101 is additionally proof-checked")
 print("           against the RFC6455 Sec-WebSocket-Accept hash (fail-closed trio, ordering")
 print("           pinned); local.ws_accept_invalid is census'd and speakable in all seven")
-print("           catalogs; the era's unverified-accept claims are extinct in code and prose")
+print("           catalogs; the era's unverified-accept claims AND the wss-impossibility")
+print("           platform-misclaims (M-ROKU-22 rotation) are extinct in code and prose")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

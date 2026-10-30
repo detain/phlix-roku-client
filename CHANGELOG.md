@@ -2,6 +2,55 @@
 
 ## [Unreleased]
 
+### Fixed — the SyncPlay transport stops asserting a false platform limit: wss is DEFERRED, not impossible (M-ROKU-22) — 2026-10-29
+
+- **The defect (review roku__secnet M1, the "plaintext-by-assertion" item).**
+  The mechanical halves of this finding were cured earlier in the campaign:
+  M-ROKU-14 (4240ad2 + 93b1ab8) refuses the plaintext `:8097` dial on `https://`
+  origins BEFORE the account JWT is read and fail-closed-verifies the
+  RFC6455 `Sec-WebSocket-Accept` proof (CHECK46), M-ROKU-15 (7541a10) consent-
+  gates off-LAN `http://` custody (CHECK48), M-ROKU-24 (dda19ea) wipes old-host
+  tokens at the persist choke (CHECK53). The finding's named assertion half
+  survived them: shipped prose still claimed the platform could not do TLS at
+  all — README "…`wss://` is impossible", README "since Roku can't do TLS", and
+  the SyncPlayTask header's "Roku platform: … (never wss://)". That is false on
+  this repo's own evidence: every https REST origin here does TLS
+  (`SetCertificatesFile("common:/certs/ca-bundle.crt")` ×4 in `ApiClient.brs`),
+  and `roSecureSocket` is the platform's TLS client socket (named in the
+  Check-46 scope note as the deferred migration). A false impossibility frames
+  the refusal law as the only conceivable posture and shuts down the mitigation
+  — the exact harm the review charged. The header also carried DEAD pointers
+  ("See worklog §2", "(worklog §1)") — no worklog exists in-repo.
+- **The cure (docs-truth, no behavior change).** README, the SyncPlayTask
+  header, and the Check-46 row now state the shipped truth: this BUILD rides
+  the plaintext `roStreamSocket` and ships no wss path; the platform CAN do TLS;
+  the wss migration is a deferred option; custody rests on the refusal law, the
+  M15 consent gate, the fail-closed accept proof — never on a transport that
+  "cannot do TLS". The Check-46 row's wrong cross-pointer (wss migration filed
+  under "secnet M2" — that is the hub-relay `:8804` leg, queue M-ROKU-23) is
+  corrected to this item's own deferred arm. Scoped-true sentences stay
+  verbatim (README "roStreamSocket has no TLS", Utilities.brs "impossible on
+  THIS transport"); CHANGELOG history stays verbatim per house law. The
+  roSecureSocket wss migration itself is NOT shipped here: a hand-rolled
+  TLS-socket WebSocket client is a device-unverifiable feature the M14 lane
+  explicitly deferred, and no vendored RokuOS socket docs exist in-repo to
+  build against — the honest posture is refusal (shipped) with the option named
+  truthfully, not a fabricated migration nor a false impossibility.
+- **Law (CHECK46 R2-prose rotation — no new check number).** The extinct-
+  claims arm now also convicts the two misclaim shapes (`wss://` stated
+  impossible, Roku stated unable to do TLS) across README, SyncPlayTask and
+  SyncPlayProtocol; the wording of the cure cannot re-trigger it (scoped-true
+  forms probe-verified green). Portable plant-and-restore leg re-grows both
+  forms in a scratch README — both arms fire naming README.md, CHECK44/CHECK45
+  stay green (gate independence), restore returns exit 0.
+- **Per-path truth at landing:** https origins — refused (never dialled);
+  `http://` origins — cleartext `ws://` dial with the account JWT, ratified as
+  no-new-exposure-class (their REST lane already rides the same bearer in
+  cleartext; off-LAN `http://` cannot even persist without the M15 consent
+  dialog); hub relay `:8804` — scoped 1-hour mint token, its own TLS posture
+  rides queue M-ROKU-23; wss via roSecureSocket — deferred, now named as
+  deferred.
+
 ### Fixed — a server-URL change no longer carries the old host's tokens (M-ROKU-24) — 2026-10-29
 
 - **The defect (review roku__secnet M3).** `PersistAndGo` — the single

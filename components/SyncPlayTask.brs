@@ -21,16 +21,20 @@
 ' m.top.command and WRITE m.top.event / m.top.connectionState. It must NEVER
 ' touch UI/parent nodes. Only assocarray/string/number cross the boundary.
 '
-' Roku platform: roStreamSocket is PLAINTEXT TCP - no TLS - so this speaks ws://
-' only (never wss://). See worklog §2 + README. That is exactly why an https
+' Transport law (claims rotated to truth by M-ROKU-22): this component rides
+' roStreamSocket - PLAINTEXT TCP, no TLS - so it speaks ws:// only and never
+' dials wss://. That is a BUILD limitation, not a platform one: Roku's TLS
+' client socket roSecureSocket exists and a wss migration stays a deferred
+' option (docs/static-checks.md, Check 46 scope note). Custody therefore rests
+' on the shipped law, never on the transport being unable to do TLS: an https
 ' server origin is refused UPSTREAM (PlayerScene.SyncPlayWsRefusedForOrigin —
 ' M-ROKU-14): the account JWT must never be offered on a cleartext handshake
 ' behind a TLS-restored origin. Once dialled, the 101 alone proves nothing:
 ' every session here additionally requires the RFC6455 Sec-WebSocket-Accept
 ' hash to match our offered key (SyncPlayProtocol.VerifyHandshakeAccept,
 ' fail-closed). Built to the canonical FLAT
-' syncplay_* wire (worklog §1) against the MERGED + shipped :8097 SyncPlay WS
-' worker. Server law since phlix-server 424c14d0: dual-carrier handshake, the
+' syncplay_* wire (README "Wire contract") against the MERGED + shipped :8097
+' SyncPlay WS worker. Server law since phlix-server 424c14d0: dual-carrier handshake, the
 ' two-entry ['bearer', jwt] subprotocol preferred and the legacy ?token= query
 ' retiring. This task offers the bearer pair via the BearerSubprotocolOffer law
 ' in source/lib/SyncPlayProtocol.brs (carrier flip landed at 07eef68).

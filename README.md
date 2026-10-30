@@ -172,10 +172,14 @@ never opened the player path is byte-identical to a non-SyncPlay build.
 >   `src/Server/WebSocket/Workers/SyncPlayWorker.php` on `origin/master`. The two-entry
 >   bearer-subprotocol auth law landed in phlix-server `424c14d0`; this client flipped to it
 >   in `07eef68` (`BearerSubprotocolOffer`, `source/lib/SyncPlayProtocol.brs:309`).
-> - **`ws://` only — `wss://` is impossible.** Roku's `roStreamSocket` is plaintext TCP with **no
->   TLS**, so the hand-rolled WebSocket can speak `ws://` only. On a TLS-fronted production box
->   (HAProxy terminating TLS) SyncPlay connects **only if the server's plaintext `:8097` is reachable
->   from the Roku** (same LAN, or a documented plaintext exposure). The client derives a plaintext
+> - **`ws://` only — this build ships no `wss://` path.** The WebSocket rides Roku's
+>   `roStreamSocket`, which is plaintext TCP with **no TLS**, so this hand-rolled client can speak
+>   `ws://` only. That is a BUILD limitation, not a platform one: Roku's TLS client socket
+>   `roSecureSocket` exists, and a wss migration stays a deferred option (docs/static-checks.md,
+>   Check 46 scope note) — the credential is guarded by the refusal law below, not by a transport
+>   that cannot do TLS. On a TLS-fronted production box (HAProxy terminating TLS) SyncPlay connects
+>   **only if the server's plaintext `:8097` is reachable from the Roku** (same LAN, or a documented
+>   plaintext exposure). The client derives a plaintext
 >   `ws://<host>:8097/syncplay` URL from the connected server origin; the JWT rides the
 >   two-entry bearer subprotocol handshake header, not the URL query. **Refusal law (M-ROKU-14,
 >   review roku__exploiter M3):** when the connected server origin is `https://`, the client
@@ -231,9 +235,10 @@ node (socket I/O off the render thread).
 - **Auth + URL:** the WS connection is authenticated on the upgrade via the **two-entry bearer
   subprotocol** request header `Sec-WebSocket-Protocol: bearer, <access_token>` (the same access
   token the REST client holds in Storage `auth_token`); unauthenticated sockets are rejected before
-  any frame. The canonical URL is `wss://<host>/syncplay` → server **`:8097`**, but since Roku can't
-  do TLS the client connects to the derived plaintext `ws://<host>:8097/syncplay` — **no token in
-  the URL**. (Estate policy `WEBSOCKET_URL_QUERY_REFUSED`, flipped for this client by phlix-server
+  any frame. The canonical URL is `wss://<host>/syncplay` → server **`:8097`**; this build's client
+  rides the plaintext `roStreamSocket` (no wss path implemented — see the LIMITATIONS box: TLS-origin
+  dials are refused outright), so it connects to the derived plaintext
+  `ws://<host>:8097/syncplay` — **no token in the URL**. (Estate policy `WEBSOCKET_URL_QUERY_REFUSED`, flipped for this client by phlix-server
   `424c14d0`; the server still accepts the legacy `?token=` query carrier *transitionally* for
   older builds but refuses a handshake whose two carriers disagree, and echoes
   `Sec-WebSocket-Protocol: bearer` on accepted offered handshakes — the client's 101 check is
