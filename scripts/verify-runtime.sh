@@ -9062,6 +9062,14 @@ echo "=== Check 66: WS accumulator caps, destructive-op consent, en_US copy pair
 #   R6  the en_US copy pair is sentence-case (M-ROKU-48/49): caption label
 #       matches its own wire casing, login button reads "Log In" in catalog and
 #       XML together (the CHECK25 pairing survives only because both moved).
+#   R7  the consent key family is speakable in all seven locales and each
+#       named message carries exactly one {name} token.
+#   R8  the W-min94 batch shapes, completing that lane's rider (a) ("CHECK66
+#       pin-leg covers BOTH batches"): auth-check DETACH (both Start* sites
+#       RemoveChild the replaced task AND timer), the screenStack depth cap +
+#       named-reference bootstrap removals (the "whatever is last child"
+#       positional invariant stays extinct), and SearchScene's keyboard-to-
+#       results down-binding.
 PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
@@ -9195,6 +9203,28 @@ for loc in ("en_US", "de_DE", "es_ES", "fr_FR", "it_IT", "ja_JP", "pt_BR"):
         if cat.get(section, {}).get(key, "").count("{name}") != 1:
             problems.append(f"  {path} - CHECK66 R7: {section}.{key} must carry exactly one {{name}} token (the review's person-with-the-remote cure)")
 
+# ---- R8 W-min94 batch shapes (rider (a) completion) ----------------------
+APP = read("components/PhlixApp.brs")
+Srch = read("components/SearchScene.brs")
+if APP is not None:
+    for fn in ("StartAuthCheck", "StartHubAuthCheck"):
+        body = re.search(r"(?:function |sub )" + fn + r"\(.*?\)(.*?)end (?:function|sub)", APP, re.DOTALL)
+        if body is None:
+            problems.append(f"  components/PhlixApp.brs - CHECK66 R8: {fn} vanished (M-ROKU-25)")
+            continue
+        if "RemoveChild(m.authTask)" not in body.group(1) or "RemoveChild(m.authTimer)" not in body.group(1):
+            problems.append(f"  components/PhlixApp.brs - CHECK66 R8: {fn} re-grows orphaned auth tasks — retry-mashing must DETACH the replaced task AND timer (M-ROKU-25)")
+    if "m.screenStack.Count() >= 12" not in APP:
+        problems.append("  components/PhlixApp.brs - CHECK66 R8: the screenStack depth cap vanished — deep-link floods must stay bounded (M-ROKU-28)")
+    named = len(re.findall(r"m\.top\.RemoveChild\(m\.(connectScene|loginScene|pickerScene)\)", APP))
+    if named < 4:
+        problems.append(f"  components/PhlixApp.brs - CHECK66 R8: only {named}/4 named-reference bootstrap removals survive — the last-child positional invariant must not return (M-ROKU-28)")
+    if re.search(r"RemoveChild\(m\.top\.GetChild\(m\.screenStack\.Count\(\)\s*-\s*1", APP):
+        problems.append("  components/PhlixApp.brs - CHECK66 R8: positional last-child removal reappeared in a bootstrap transition (M-ROKU-28)")
+if Srch is not None:
+    if 'key = "down" and m.zone = "keyboard" and m.results.Count() > 0' not in Srch:
+        problems.append("  components/SearchScene.brs - CHECK66 R8: the keyboard-to-results down binding vanished — the results rail must be reachable from the keyboard (M-ROKU-32)")
+
 # ---- self-probe: the regexes must convict the OLD shapes ------------------
 if not HEADER_CAP.search("if headerBytes.Count() > m.proto.MaxHandshakeHeaderBytes then return false"):
     problems.append("  CHECK66 self-probe: R1 regex failed to convict its planted positive")
@@ -9212,8 +9242,11 @@ if problems:
 print("  CHECK66: both WS handshakes cap their header accumulator, both frame paths")
 print("           cap the post-consumption residual, the hub socket honours the parse")
 print("           rejection, the protocol owns both ceilings once, admin+PIN changes")
-print("           require a default-deny named consent, and the en_US copy pair sits")
-print("           in sentence case in catalog AND markup together")
+print("           require a default-deny named consent, the en_US copy pair sits")
+print("           in sentence case in catalog AND markup together, the consent family")
+print("           is speakable x7 with its {name} tokens, and the W-min94 batch")
+print("           shapes (auth detach, screenStack cap, named removals, search")
+print("           down-binding) hold the rider (a) cross-batch duty")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

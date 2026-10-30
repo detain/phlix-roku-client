@@ -123,8 +123,11 @@ claim below re-checkable the same way:
   single-source, both default-deny consent callbacks with the old ungated
   send shapes convicted ABSENT by function-body windows, the copy pair in
   catalog AND markup, the confirm key family speakable ×7 with its `{name}`
-  token) plus three detector self-probes against vacuity. CHECK21 census:
-  363 flattened keys (357 + the six confirm entries).
+  token) plus three detector self-probes against vacuity — and its R8 arm
+  completes the W-min94 rider (a) duty, pinning that batch's shipped shapes
+  too (auth-task DETACH ×2, the screenStack depth cap with the positional
+  last-child removal convicted absent, the SearchScene down-binding).
+  CHECK21 census: 363 flattened keys (357 + the six confirm entries).
 
 ### Fixed — CHECK19 TARGETS expanded to PlayerScene.brs (R-ROKU-08 rider) — 2026-10-30
 
