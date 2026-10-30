@@ -51,6 +51,37 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — CHECK43's bare-"String" whole-line exemption tightens to the wire-bound gate shape (R-ROKU-04 rider) — 2026-10-30
+
+- **The looseness.** R-ROKU-03's own note named this leftover: `"String"`
+  sat in GUARDED as a bare literal, so ANY line carrying it for unrelated
+  reasons — the non-wire `Type(req.base_url) = "String"` validation gates
+  at components/ApiTask.brs:792/:794/:797 are the living shapes — exempted
+  arms (a)-(d) on that line; and because the code mask kept the literal
+  verbatim, `x.error <> "String"` (a wire member compared to string TEXT)
+  never even reached arm (a)'s `<> ""` eyes. Zero exploitable sites today
+  (measured at tip: of the 32 code-bearing lines carrying the literal, the
+  three bare-token lines match no arm and the rest pair a roString/function
+  guard — zero convictions under the strict token, so the tightening ships
+  with the whole tree unchanged).
+- **The cure.** `"String"` now counts as a guard token ONLY in the
+  wire-bound gate shape — the line type-gating a wire member itself,
+  `Type(x.error)/Type(x.message) =/<> "String"` (the single-sided analogue
+  of the sanctioned roString idiom family). GUARDED gained the
+  `WIRE_GATE_HEAD` alternative; the code mask renders an unrelated
+  `"String"` as `""` like any other text, closing the invisibility hole in
+  the same motion (arm (e)'s raw-line allowance follows the precise token
+  automatically). The `"roString"` whole-line exemption — the accepted,
+  named PlayerScene residual — is byte-unchanged law.
+- **The teeth.** The portable Check43 leg plants both cover shapes
+  (`Type(kind) = "String" and resp04cover.error <> ""`;
+  `resp04hole.message <> "String"`) — both measured GREEN under the old
+  coarse token at 349933e, both name-convicted under the new one — and a
+  sanctioned-gate green leg plants ONLY the wire-bound `="String"` shapes
+  (bare and compare-sharing) and asserts exit 0, so an over-tighten in
+  either direction reddens CI. `make lint`, the route-manifest self-test,
+  all 62 verify-runtime legs, and the full portable harness green.
+
 ### Fixed — CHECK43's guard exemption becomes guard-SPAN-masked: a second raw operand on a guard-call line no longer rides the token (R-ROKU-03 rider) — 2026-10-30
 
 - **The looseness.** Review r3 named it: arms (a)-(d) skipped any line whose

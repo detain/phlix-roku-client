@@ -1316,7 +1316,11 @@ set -e
 # the original three (raw lift / literal compare / lcase) plus the two the
 # r1/r2 reviews proved invisible to the first gate generation (concat-into-
 # string and the bare-argument typed sink — r2's own plant ran green at the
-# pre-r3 tip). Each must be named, sibling gates (CHECK26 envelope law,
+# pre-r3 tip) — plus the two R-ROKU-04 covers (an unrelated `"String"`
+# literal silencing the arms on a raw-compare line, and the `<> "String"`
+# compare the verbatim mask-keep hid from arm (a); both ran GREEN under the
+# coarse token, measured at 349933e before the tightening landed). Each
+# must be named, sibling gates (CHECK26 envelope law,
 # CHECK41 signing honesty) stay green, and the restore must return the whole
 # script to exit 0 (falsifiability).
 RED43_ROOT="$TEST_ROOT/red43"
@@ -1337,6 +1341,9 @@ plant = (
     "    x = \"Server error: \" + resp.error\n"
     "    if IsTransportReason(resp.error) then\n"
     "    end if\n"
+    "    if Type(kind) = \"String\" and resp04cover.error <> \"\" then\n"
+    "    end if\n"
+    "    holeText = resp04hole.message <> \"String\"\n"
     "end sub\n"
 )
 text = text + plant
@@ -1362,6 +1369,10 @@ sed -n '/=== Check 43:/,$p' <<<"$RED43_OUT" | grep -qF 'concatenates a raw wire 
 	fail "CHECK43 red must fire the concat arm on the planted string concatenation (got: $RED43_OUT)"
 sed -n '/=== Check 43:/,$p' <<<"$RED43_OUT" | grep -qF 'to a call sink not proven to take Object (IsTransportReason)' ||
 	fail "CHECK43 red must fire the typed-sink arm on the planted IsTransportReason argument (got: $RED43_OUT)"
+sed -n '/=== Check 43:/,$p' <<<"$RED43_OUT" | grep -qF 'resp04cover' ||
+	fail "CHECK43 red must convict the R-ROKU-04 bare-String cover line (got: $RED43_OUT)"
+sed -n '/=== Check 43:/,$p' <<<"$RED43_OUT" | grep -qF 'resp04hole' ||
+	fail "CHECK43 red must convict the R-ROKU-04 <>-String compare line (got: $RED43_OUT)"
 sed -n '/=== Check 26:/,/=== Check 27:/p' <<<"$RED43_OUT" | grep -q "CHECK26: all" ||
 	fail "Check 26 must stay PASS while Check 43 is red (gate independence)"
 sed -n '/=== Check 41:/,/=== Check 43:/p' <<<"$RED43_OUT" | grep -qF "CHECK41: no phantom password-secret claim" ||
@@ -1373,6 +1384,40 @@ GREEN43_RC=$?
 set -e
 [ "$GREEN43_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after the planted wire leak is removed (got $GREEN43_RC)"
 assert_contains "CHECK43: all wire" "$GREEN43_OUT"
+
+# --- Check 43 sanctioned-gate green proof (R-ROKU-04): the tightened
+# whole-line type-gate token must keep exempting the single-sided WIRE-BOUND
+# shape `type(x.error) = "String"` (convicting it would over-tighten past
+# the ask — the sanctioned roString family's single-sided analogue), both
+# bare and sharing a line with a `<> "text"` compare the gate governs. A
+# scratch copy planted with ONLY that shape must return exit 0.
+GREEN43S_ROOT="$TEST_ROOT/green43s"
+mkdir -p "$GREEN43S_ROOT"
+cp -a "$TEST_ROOT/repo" "$GREEN43S_ROOT/repo"
+cp -a "$TEST_ROOT/phlix-server" "$GREEN43S_ROOT/phlix-server"
+python3 - "$GREEN43S_ROOT/repo/components/DetailScene.brs" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+plant = (
+    "\nsub Check43SanctionedStringGates()\n"
+    "    if type(plant04resp.error) = \"String\" then\n"
+    "    end if\n"
+    "    if plant04resp.message <> \"x\" and type(plant04resp.message) = \"String\" then\n"
+    "    end if\n"
+    "end sub\n"
+)
+text = text + plant
+with open(path, "w", encoding="utf-8") as f:
+    f.write(text)
+PYEOF
+set +e
+GREEN43S_OUT=$(bash "$GREEN43S_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
+GREEN43S_RC=$?
+set -e
+[ "$GREEN43S_RC" -eq 0 ] || fail "CHECK43 must stay green on the sanctioned wire-bound =\"String\" gate shape (got $GREEN43S_RC): $(sed -n '/=== Check 43:/,$p' <<<"$GREEN43S_OUT" | head -20)"
+assert_contains "CHECK43: all wire" "$GREEN43S_OUT"
 
 # --- Check 45 red proof + restore (M-ROKU-13, review roku__exploiter M2): the
 # path-injection class — a plaintext-relay or ECP-settable mediaId shaped like
@@ -2396,7 +2441,6 @@ GREEN61_RC=$?
 set -e
 [ "$GREEN61_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after all four CHECK61 plants are removed (got $GREEN61_RC)"
 assert_contains "CHECK61: the family set is the directory" "$GREEN61_OUT"
-
 
 # --- CHECK54 plant (M-ROKU-22 residual): three DELETION/NEUTRALIZATION shapes
 # that no sibling conviction arm owns — the hub choke bypassed in

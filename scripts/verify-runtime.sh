@@ -4912,11 +4912,25 @@ echo "=== Check 43: wire error text is type-guarded before it meets string ops (
 #       blanked together with its balanced argument span, so a guard token
 #       on the line can no longer exempt a SECOND raw operand sitting
 #       outside it (`WireErrorPresent(x.error) and x.error <> ""` - the
-#       line-coarse slip r3 named). Only the "roString"/"String" type-gate
-#       literals keep the whole-line exemption, guarding the sanctioned
-#       PlayerScene idiom; per-operand treatment of that family would
-#       convict `type(ev.message) = "roString" and ev.message <> ""`, an
-#       accepted, named residual. A comment naming a guard still buys
+#       line-coarse slip r3 named). The "roString" type-gate literal keeps
+#       the whole-line exemption, guarding the sanctioned PlayerScene
+#       idiom; per-operand treatment of that family would convict
+#       `type(ev.message) = "roString" and ev.message <> ""`, an accepted,
+#       named residual. The bare "String" literal no longer exempts by
+#       itself (R-ROKU-04, the r3 note's coarse-token ask): it counts ONLY
+#       in the wire-bound gate shape - the line type-gating a wire member
+#       itself, `Type(x.error) =/<> "String"` - the single-sided analogue
+#       of the sanctioned roString idiom. An unrelated `"String"` (the
+#       non-wire `Type(req.base_url) = "String"` gates at
+#       components/ApiTask.brs:792/:794/:797 are the living shapes) buys
+#       nothing, and the code mask closes with it: outside that gate the
+#       literal renders `""`, so `x.error <> "String"` - a wire member
+#       compared to string TEXT, the shape the verbatim keep hid from the
+#       arm-(a) `<> ""` eyes - now convicts instead of sliding past.
+#       Measured at tip before the tightening: zero convictions - every
+#       `"String"` line pairs a roString/function guard or carries no wire
+#       member (the three bare-token gates at ApiTask match no arm even
+#       with the token removed). A comment naming a guard still buys
 #       nothing (code-mask law, review r1 minor). (e) keeps the raw-line
 #       token (the sanctioned choke-lift allowance). `.top`-prefixed reads
 #       are RSG-typed and exempt.
@@ -4944,9 +4958,13 @@ repo = os.environ["REPO"]
 # completion) joins the set here because the exemption list above was
 # deleted in the same commit: the cured lines must survive by the token,
 # never by a path hole (review M-ROKU-12 r2, Ask-1 coupled detail). The
-# type-gate literals survive the code mask below precisely so they stay
-# visible to this check.
-GUARDED = re.compile(r'SafeErrorMessage\(|WireErrorPresent\(|WireErrorText\(|"roString"|"String"')
+# "roString" type-gate literal survives the code mask below precisely so
+# it stays visible to this check; the "String" literal survives ONLY as
+# the right-hand side of a WIRE-BOUND gate (WIRE_GATE_HEAD) - R-ROKU-04,
+# replacing the former bare-token alternative that let any line carrying
+# the literal for unrelated reasons exempt arms (a)-(d).
+WIRE_GATE_HEAD = r'\b[Tt]ype\s*\([^)]*\.(?:error|message)\b[^)]*\)\s*(?:<>|==|=)\s*'
+GUARDED = re.compile(r'SafeErrorMessage\(|WireErrorPresent\(|WireErrorText\(|"roString"|' + WIRE_GATE_HEAD + r'"String"')
 # R-ROKU-03: the guard-call spans, masked out of the code view so one guard
 # token cannot exempt a second raw operand on the same line. One nesting
 # level of balanced argument parens is consumed (real tree shapes include
@@ -5008,13 +5026,22 @@ object_sinks -= unsafe_sinks
 def code_only(line):
     """Strip double-quoted strings; drop full-line and inline ' comments.
 
-    The type-gate guard literals ("roString"/"String") are KEPT verbatim:
-    they are themselves GUARDED tokens and masking them away would make
-    the r1 code-mask hardening blind the type-guard idiom it audits
-    (PlayerScene's `type(ev.message) = "roString"` family)."""
+    The "roString" type-gate literal is KEPT verbatim: it is itself a
+    GUARDED token and masking it away would make the r1 code-mask
+    hardening blind the type-guard idiom it audits (PlayerScene's
+    `type(ev.message) = "roString"` family). The "String" literal keeps
+    that visibility ONLY in the wire-bound gate shape (WIRE_GATE_HEAD,
+    R-ROKU-04): elsewhere it masks to "" like any other text, which both
+    strips its whole-line exemption power and renders the formerly
+    invisible `x.error <> "String"` compare to the arm-(a) `<> ""` eyes."""
+    wire_gate_prefix = re.compile(WIRE_GATE_HEAD + r'$')
     def mask(match):
         literal = match.group(0)
-        return literal if literal in ('"roString"', '"String"') else '""'
+        if literal == '"roString"':
+            return literal
+        if literal == '"String"' and wire_gate_prefix.search(match.string[:match.start()]):
+            return literal
+        return '""'
     code = re.sub(r'"[^"]*"', mask, line)
     if code.lstrip().startswith("'"):
         return ""
