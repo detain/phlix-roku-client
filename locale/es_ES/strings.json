@@ -271,7 +271,7 @@
   "player": {
     "audio_tracks": "Pistas de audio",
     "create_group": "Crear grupo",
-    "err_access_schedule": "Reproducción bloqueada por el horario de acceso. Intentélo de nuevo durante las horas permitidas.",
+    "err_access_schedule": "Reproducción bloqueada por el horario de acceso. Inténtalo de nuevo durante las horas permitidas.",
     "err_playback_failed": "Error de reproducción. Inténtalo de nuevo.",
     "err_session_expired": "Tu sesión ha caducado. Inicia sesión de nuevo para seguir guardando el progreso.",
     "err_stream_limit": "Se alcanzó el límite de streams. Detén otro stream para seguir viendo.",

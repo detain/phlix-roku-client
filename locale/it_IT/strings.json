@@ -273,7 +273,7 @@
     "create_group": "Crea gruppo",
     "err_access_schedule": "Riproduzione bloccata dalla pianificazione di accesso. Riprova durante le ore consentite.",
     "err_playback_failed": "Riproduzione non riuscita. Riprova.",
-    "err_session_expired": "La tua sessione e scaduta. Accedi di nuovo per continuare a salvare i progressi.",
+    "err_session_expired": "La tua sessione è scaduta. Accedi di nuovo per continuare a salvare i progressi.",
     "err_stream_limit": "Limite di stream raggiunta. Interrompi un altro stream per continuare a guardare.",
     "err_transcode_no_stream": "La transcodifica non ha prodotto alcun URL di stream.",
     "err_transcode_timeout": "Tempo di transcodifica scaduto.",
