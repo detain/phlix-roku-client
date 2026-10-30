@@ -76,7 +76,14 @@ cd phlix-roku-client
 
 ### 3. Install Dependencies
 
-No external dependencies required. BrightScript is natively supported by Roku devices.
+Nothing is required **on the device** — BrightScript is natively supported by Roku OS.
+The **development toolchain** is not: `make lint` runs `npx bsc`, and all three CI
+workflows (`lint.yml`, `test.yml`, `package.yml`) run `npm ci` against `package.json`'s
+devDependencies first. From a fresh checkout:
+
+```bash
+npm ci    # devDependencies: brighterscript, @rokucommunity/bslint, rooibos-roku
+```
 
 ### 4. Configure Server Connection
 
@@ -328,12 +335,6 @@ The version triple is **not** edited here: `make package` derives
 drift, and store submissions require a version bump — see
 `docs/publishing.md` "Version Discipline").
 
-### BrightScript Configuration
-
-The app uses these configurable constants (in source files):
-
-
-
 ## Building the App
 
 ### Standard Build
@@ -392,18 +393,17 @@ curl -v -u rokudev:password -X POST \
 
 ### Unit Tests
 
-Unit tests are located in `tests/unit/` and use BrightScript's testing patterns.
+Unit tests live in `tests/unit/` — **22 rooibos unit suites** at time of writing, one
+`*.test.brs` file per module. The full listing is the **Test Structure** block below;
+Check 62 pins this count and the listing to the shipped tree, so a re-drift reddens CI.
 
 ```bash
 # Run the unit suite (rooibos) - requires a device
 ROKU_HOST=192.168.1.100 make test-unit
 
-# Without ROKU_HOST the target lists the files it would run and exits 2:
-# Tests require hardware - skipping
-# Unit test files present:
-#   ApiClient.test.brs
-#   Storage.test.brs
-#   Utilities.test.brs
+# Without ROKU_HOST the target prints "Tests require hardware — skipping" followed by
+# the first 10 unit-test files `find` turns up (filesystem order — the target does not
+# sort), then exits 2. The suites that WOULD run are exactly what tests/unit/ holds.
 ```
 
 ### Running Tests on Device
@@ -439,19 +439,41 @@ Re-vendoring `tests/fixtures/server-route-manifest.json` also moves the `PROVENA
 
 ### Test Structure
 
+The `tests/` tree as shipped — regenerated from the directory (Check 62 reds CI the
+moment this block and the tree disagree, in either direction):
+
 ```
 tests/
-├── unit/
-│   ├── ApiClient.test.brs      # API client unit tests
-│   ├── Storage.test.brs         # Storage unit tests
-│   └── Utilities.test.brs       # Utilities unit tests
+├── unit/                                  # 22 rooibos suites, one *.test.brs per module
+│   ├── ApiClient.test.brs
+│   ├── ApiEnvelope.test.brs
+│   ├── AppContext.test.brs
+│   ├── AuthManager.test.brs
+│   ├── CaptionsMode.test.brs
+│   ├── ContentIdGuard.test.brs
+│   ├── Discovery.test.brs
+│   ├── HubRelayOriginLaw.test.brs
+│   ├── PhlixApp.test.brs
+│   ├── RedirectCustody.test.brs
+│   ├── SkipButton.test.brs
+│   ├── SleepTimer.test.brs
+│   ├── Storage.test.brs
+│   ├── SyncPlayErrors.test.brs
+│   ├── SyncPlayManager.test.brs
+│   ├── SyncPlayProtocol.test.brs
+│   ├── SyncPlayWsTls.test.brs
+│   ├── Theme.test.brs
+│   ├── TranslateWithParams.test.brs
+│   ├── Utilities.test.brs
+│   ├── Utilities2.test.brs
+│   └── WireGuard.test.brs
 ├── integration/
-│   └── ApiIntegration.test.brs  # API integration tests
+│   └── ApiIntegration.test.brs            # API client against a live server
 ├── fixtures/
-│   └── server-route-manifest.json   # vendored phlix-server route manifest (S280)
+│   └── server-route-manifest.json         # vendored phlix-server route manifest (S280)
 └── scripts/
-    ├── verify-route-manifest.mjs    # make validate-routes
-    └── verify-runtime-portable.sh   # verify-runtime.sh portability regression
+    ├── verify-route-manifest.mjs          # make validate-routes
+    └── verify-runtime-portable.sh         # verify-runtime.sh portability regression
 ```
 
 ## Deployment to Roku

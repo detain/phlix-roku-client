@@ -51,6 +51,60 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — README test inventories + dependency truth cured to shipped-tree reality; Check 62 (M-ROKU-31) — 2026-10-30
+
+- **The hole.** Review roku__writer M7: four README claims had detached from
+  the tree. `### BrightScript Configuration` promised "these configurable
+  constants (in source files)" followed by nothing — born empty in
+  `367c48a`'s restructure (never lost content; nothing was ever written) with
+  zero named configurable constants in `source/` (tunables are inline
+  call-site literals like `http.SetTimeout(30000)`). The Unit Tests section
+  echoed a three-file `make test-unit` listing while `tests/unit/` held
+  **22** rooibos suites, and the Test Structure tree repeated the same
+  fiction; neither shape matched the target's real behavior either (the
+  Makefile prints `Tests require hardware — skipping` then the first 10
+  `find` hits in filesystem order, exit 2). §3 "Install Dependencies — No
+  external dependencies required" was device-true and dev-false: `make lint`
+  runs `npx bsc`, and all three CI workflows (`lint.yml`, `test.yml`,
+  `package.yml`) run `npm ci` against `package.json`'s
+  brighterscript/@rokucommunity/bslint/rooibos-roku devDependencies. Rider:
+  `docs/debugging.md`'s register pointer hardcoded "all 42 checks" — a count
+  guaranteed to rot. (The queue's `cured-by: C33 9ff4a6d` stamp names a real
+  commit but a different writer-lane cure; every M7 defect was re-verified
+  LIVE at `e1d04b8f` and again at `f56793f8` before this lane touched it, and
+  the earlier fix-lane claimed shas d16711d1/31b296d/c883230/927238b are all
+  phantoms.)
+- **The cure.** Docs truth, every section earns content or goes: the empty
+  `### BrightScript Configuration` section is deleted (the review's sanctioned
+  "(or delete the heading)" arm; no repo reference named it); the Unit Tests
+  section now states the measured census — **22 rooibos unit suites** — and
+  describes the target's real echo instead of a hand-typed fiction; the Test
+  Structure block was regenerated from the shipped `tests/` tree (all 23
+  `*.test.brs` by name, no invented per-file prose); §3 now splits the truth
+  (device: nothing; toolchain: `npm ci` + the named devDependencies).
+  `docs/debugging.md` says "every check leg" — a claim that cannot rot.
+  `docs/static-checks.md` gains row 62.
+- **The teeth.** `scripts/verify-runtime.sh` **Check 62** — README ↔ tree,
+  both directions: R1 the Test Structure block names no phantom suites; R2 no
+  shipped suite is unlisted; R3 the `**N rooibos unit suites**` literal equals
+  the census; R4 the Install-Dependencies section keeps
+  `npm ci`/devDependencies/brighterscript/rooibos-roku and the convicted
+  phrase "No external dependencies required" stays extinct; R5 the born-empty
+  constants lead-in stays deleted. Portable twin: one README plant re-grows
+  the era block plus a phantom `SessionManager.test.brs`, the stale count, the
+  dev-false sentence and the empty-section lead-in — CHECK62 R1/R2/R3/R4/R5
+  fire naming each plant, CHECK52/56/58/60/61 stay green (gate independence),
+  restore exits 0. Red-on-parent MEASURED at `f56793f8`: exactly 8 named
+  CHECK62 convictions, all other legs PASS, exit 1. NUMBERING (disclosed,
+  CHECK54/55 rebasing precedent): the stalled sibling lane composed this leg
+  as 59 against raw tip `e1d04b8f`; Checks 59/60/61 LANDED (M-ROKU-33/32/37)
+  before this takeover, so the collision probe at `f56793f8` renumbers the leg
+  to 62. No unit suite — pure docs-vs-tree presence legs (CHECK50/52/56/57/58
+  precedent). Salvage: the README cure texts and the leg were re-adopted from
+  the stalled M-ROKU-31f lane's surviving WIP tree, re-verified hunk-by-hunk
+  against `f56793f8` and renumbered; this commit carries that lane's work to
+  landed state.
+
 ### Fixed — the docs' locale-family inventories enumerate the shipped directory; Check 61 (M-ROKU-37) — 2026-10-30
 
 - **The hole.** No leg anywhere bound the docs' locale-family claims to the

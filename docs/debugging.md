@@ -242,7 +242,7 @@ end if
 
 ## Static check coverage
 
-The full register (all 42 checks, defect class, audit source, leg-by-leg
+The full register (every check leg, defect class, audit source, leg-by-leg
 description, and the red-proof each one carries) lives in
 [docs/static-checks.md](static-checks.md). Representative entries:
 

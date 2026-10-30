@@ -8299,4 +8299,131 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+# CHECK 62 (M-ROKU-31, review roku__writer M7): the README's test inventories and its
+# dependency truth mirror the SHIPPED tree, in both directions.
+# NUMBERING (disclosed, CHECK54/55 rebasing precedent): this leg was composed as "59"
+# against raw origin tip e1d04b8f (highest header Check 58); the collision probe then
+# the sibling fixlanes then LANDED Checks 59 (M-ROKU-33), 60 (M-ROKU-32) and 61
+# (M-ROKU-37) atop it, so the collision probe at f56793f8 (grep -n '=== Check',
+# highest header 61) renumbers this leg to 62 — the header census stays globally
+# unique however the lanes interleave.
+# THE HOLE THE REVIEW NAMED: the README listed THREE unit files while tests/unit/
+# held sixteen (twenty-two today); the make test-unit sample echo was hand-typed
+# rather than the target's real output; §3 "Install Dependencies — No external
+# dependencies required" was device-true but dev-false (make lint runs npx bsc,
+# every CI workflow runs npm ci against package.json devDependencies); and
+# "### BrightScript Configuration" promised "these configurable constants"
+# followed by nothing — a heading born empty in 367c48a's restructure, with no
+# named configurable constants anywhere in source/ (tunables are inline call-site
+# literals), so the section was deleted per the review's own "(or delete the
+# heading)" arm. Every inventory claim in the cured block is RE-DERIVED from the
+# tree; this leg keeps the cure from decaying back into fiction — the exact drift
+# class CHECK56 (docs-vs-instantiation) and CHECK57 (spelling census) pin, on the
+# tests/ axis.
+#   R1  every *.test.brs basename named in the "### Test Structure" fenced block
+#       exists somewhere under tests/ (phantom-landmark catcher);
+#   R2  every *.test.brs on disk under tests/ is named in that block (silent-
+#       addition catcher) — the block and the tree are set-equal by basename;
+#   R3  the Unit Tests section's "**N rooibos unit suites**" literal exists and
+#       N equals the tests/unit/ census (the prose count cannot rot);
+#   R4  the "### 3. Install Dependencies" section carries `npm ci` and names the
+#       devDependencies truth, and the convicted phrase "No external dependencies
+#       required" stays extinct (a lie returning is convicted, CHECK54 R2 idiom);
+#   R5  the empty-section lead-in "configurable constants (in source files)" stays
+#       extinct (survive-by-deletion arm, CHECK56 R2 precedent);
+#   R0  unreadable inputs fail loud — the pin cannot run vacuously.
+# No unit suite: pure docs-vs-tree presence legs (CHECK50/52/56/57/58 precedent).
+echo "=== Check 62: README test inventories + dependency truth mirror the shipped tree (M-ROKU-31) ==="
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import glob
+import os
+import re
+import sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+README = "README.md"
+problems = []
+
+try:
+    text = open(README, encoding="utf-8").read()
+except OSError as err:
+    print(f"  {README} - CHECK62 R0: unreadable: {err} — the pin cannot run vacuously")
+    sys.exit(1)
+
+# ---- disk truth --------------------------------------------------------------
+unit_disk = sorted(os.path.basename(p) for p in glob.glob("tests/unit/*.test.brs"))
+all_disk = sorted(os.path.basename(p) for p in glob.glob("tests/**/*.test.brs", recursive=True))
+if not unit_disk or not all_disk:
+    problems.append(f"  tests/ - CHECK62 R0: the suite census is empty (unit={len(unit_disk)} all={len(all_disk)}) — the pin cannot run vacuously")
+
+# ---- the Test Structure fenced block ------------------------------------------
+idx = text.find("### Test Structure")
+if idx == -1:
+    problems.append("  README.md - CHECK62 R1: the '### Test Structure' heading vanished — the pinned inventory has no home")
+    block = ""
+else:
+    fence = re.search(r"```[^\n]*\n(.*?)```", text[idx:], re.S)
+    if fence is None:
+        problems.append("  README.md - CHECK62 R1: no fenced code block under '### Test Structure' — nothing to compare the tree against")
+        block = ""
+    else:
+        block = fence.group(1)
+listed = sorted(set(re.findall(r"([A-Za-z0-9_]+\.test\.brs)", block)))
+
+phantoms = [n for n in listed if n not in all_disk]
+if phantoms:
+    problems.append(f"  README.md - CHECK62 R1: the Test Structure block names phantom suites {phantoms} — no such *.test.brs exists under tests/ (review M7: a map whose landmarks are gone makes readers distrust every list)")
+missing = [n for n in all_disk if n not in listed]
+if missing:
+    problems.append(f"  README.md - CHECK62 R2: {len(missing)} shipped suite(s) are absent from the Test Structure block {missing} — the inventory decays silently again (review M7 listed 3 of 16; the drift class this pin owns)")
+
+# ---- R3 the prose count ------------------------------------------------------
+count = re.search(r"\*\*(\d+) rooibos unit suites\*\*", text)
+if count is None:
+    problems.append("  README.md - CHECK62 R3: the '**N rooibos unit suites**' census literal vanished from the Unit Tests section — the count the review re-derived is no longer stated")
+elif len(unit_disk) and int(count.group(1)) != len(unit_disk):
+    problems.append(f"  README.md - CHECK62 R3: the Unit Tests section claims {count.group(1)} rooibos unit suites but tests/unit/ holds {len(unit_disk)} — stale inventory re-grown")
+
+# ---- R4 install-dependency truth ---------------------------------------------
+dep = re.search(r"### 3\. Install Dependencies\s*\n(.*?)(?=\n#{2,3} )", text, re.S)
+if dep is None:
+    problems.append("  README.md - CHECK62 R4: the '### 3. Install Dependencies' section vanished — the dependency truth it carries has no home")
+else:
+    body = dep.group(1)
+    if "No external dependencies required" in body:
+        problems.append('  README.md - CHECK62 R4: "No external dependencies required" is back — dev-false: make lint runs npx bsc and lint.yml/test.yml/package.yml all run npm ci against package.json devDependencies (review M7)')
+    for needle, why in (
+        ("npm ci", "the section no longer tells fresh checkouts to run it"),
+        ("devDependencies", "the section no longer names where the toolchain lives"),
+        ("brighterscript", "the devDependency census (brighterscript) left the section"),
+        ("rooibos-roku", "the devDependency census (rooibos-roku) left the section"),
+    ):
+        if needle not in body:
+            problems.append(f"  README.md - CHECK62 R4: Install Dependencies lost {needle!r} — {why}")
+
+# ---- R5 the born-empty section stays deleted -----------------------------------
+if "configurable constants (in source files)" in text:
+    problems.append('  README.md - CHECK62 R5: the "BrightScript Configuration" empty-section lead-in is re-grown — a promise with nothing behind it (born empty in 367c48a, deleted by M-ROKU-31; there are no configurable constants in source/)')
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK62: %d README-truth pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK62: the Test Structure block and tests/ are set-equal by basename")
+print(f"           ({len(all_disk)} shipped suites, {len(unit_disk)} unit), the stated suite count")
+print("           matches the census, Install Dependencies carries the npm ci +")
+print("           devDependencies truth with the convicted phrase extinct, and the")
+print("           born-empty constants lead-in stays deleted — the README test")
+print("           inventories can no longer drift from the shipped tree silently")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
