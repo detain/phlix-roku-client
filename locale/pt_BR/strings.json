@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "pt_BR",
     "language_name": "Português (Brasil)",
-    "version": "1.14.0",
+    "version": "1.15.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -225,6 +225,7 @@
     "for_you": "Para você",
     "select_item": "Selecione um item",
     "up_next": "A seguir",
+    "notice": "Aviso",
     "no_photos": "Nenhuma foto",
     "parental_controls": "Controle dos pais",
     "days": "Dias:",

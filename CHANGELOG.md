@@ -51,6 +51,32 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the generic Notice dialog title rides the catalog (R-ROKU-10 rider) — 2026-10-30
+
+- **R-ROKU-10 (cured; minted, not reverted).** The M-ROKU-20 r3 review's N1
+  named the silent widening: the hub-mode Watch Together dialog title rode the
+  `a5dad23` catalog sweep onto `Translate("syncplay_title")` — the sweep's
+  verbatim-sentences law held for the body, but the title's meaning moved from
+  a generic Notice to the feature name. This rider is the owner's generic
+  answer, so `common_notice` entered the catalog instead of reverting to a raw
+  literal (Check 20/21 keep dialog labels cataloged, never inline): the
+  `ToggleSyncPanel` hub choke's title now rides `Translate("common_notice")`,
+  and the `player_sync_hub_unavailable` body sentence stays verbatim across
+  the seven locales. Disclosed class-completion, the same mint the R-ROKU-08
+  gate-shape rider explicitly handed to this lane: the two `ToggleChapterPicker`
+  dialogs — `ShowErrorDialog(m.top, "Notice", ...)` pair surviving Check 19's
+  >=3-literal heuristic — now ride the same key; their message bodies ("No
+  chapters available for this content") stay on the documented-residual list,
+  minting those is a separate player-key decision. Catalog: one key ×7 locales
+  (v1.14.0 → v1.15.0 set-bump; CHECK48 R3's version pin rotated with the set,
+  the pre-rotation battery measured exactly 7 R3 convictions — the arm's teeth
+  — and all other 65 legs green), 370 keys per locale; `syncplay_title` keeps
+  its two genuine feature-title consumers (the sync panel's `syncHeaderLabel`,
+  the dead room scene's header), so no dead-key drift. No new verify leg
+  (rider discipline); Check 21's mirror parity, Check 51 R3's player-family
+  speakability, Check 54 R1's hub-choke gate literal and Check 57 R3's
+  room/party key census were each verified non-colliding before the cure.
+
 ### Fixed — dashboard + stream-limit copy rides the catalog (R-ROKU-09 rider) — 2026-10-30
 
 - **R-ROKU-09 (cured; one named site stale-verified).** The M-ROKU-20 minors

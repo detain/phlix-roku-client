@@ -5915,10 +5915,10 @@ echo "=== Check 48: connect/pair credential custody - redirect law + cleartext c
 #       (NormalizeServerUrl delegates - re-rolled octet logic is how
 #       "10th-street.example.com" was once misclassified); the
 #       redirect_refused bucket carries its classifier arm, transport guard,
-#       ladder line and catalog message x7; catalogs bump as a set (1.14.0 —
-#       rotated by R-ROKU-09 (riders W9): six catalog keys entered the set —
-#       the dashboard header trio, the honest-empty row and the
-#       ParentalControls stream-limit pair — disclosed per this arm's own law).
+#       ladder line and catalog message x7; catalogs bump as a set (1.15.0 —
+#       rotated by R-ROKU-10 (riders W10): one generic-notice catalog key
+#       entered the set — the hub-mode dialog title plus the chapter-picker
+#       pair now ride common_notice x7 — disclosed per this arm's own law).
 #   R4  the device harness pins the law: tests/unit/RedirectCustody.test.brs
 #       and all seven Test subs.
 PYRET=0
@@ -6083,8 +6083,8 @@ for L in LOCALES:
     for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
         if cat.get("connect", {}).get(key, "") == "":
             problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
-    if cat.get("_metadata", {}).get("version") != "1.14.0":
-        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.14.0 — the catalogs bump as a set with this law (rotated by R-ROKU-09 with the dashboard/parental-controls six-key set, disclosed)")
+    if cat.get("_metadata", {}).get("version") != "1.15.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.15.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, disclosed)")
 
 # ---- R4 the device harness pins the law -----------------------------------
 test = read(TEST)

@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.14.0",
+    "version": "1.15.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -225,6 +225,7 @@
     "for_you": "Pour vous",
     "select_item": "Sélectionnez un élément",
     "up_next": "À suivre",
+    "notice": "Avis",
     "no_photos": "Aucune photo",
     "parental_controls": "Contrôle parental",
     "days": "Jours :",

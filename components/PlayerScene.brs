@@ -1772,7 +1772,7 @@ sub ToggleSyncPanel()
 
     ' Hub mode: no WS relay path (hub SP1 pending) -> disabled with a message.
     if GetConnectionKind() = "hub" then
-        ShowErrorDialog(m.top, Translate("syncplay_title"), Translate("player_sync_hub_unavailable"))
+        ShowErrorDialog(m.top, Translate("common_notice"), Translate("player_sync_hub_unavailable"))
         return
     end if
 
@@ -2614,13 +2614,13 @@ sub ToggleChapterPicker()
 
     ' Chapters come from playbackInfo.chapters: [{start_seconds, end_seconds, title}, ...]
     if m.playbackInfo = invalid or m.playbackInfo.chapters = invalid then
-        ShowErrorDialog(m.top, "Notice", "No chapters available for this content")
+        ShowErrorDialog(m.top, Translate("common_notice"), "No chapters available for this content")
         return
     end if
 
     chapters = m.playbackInfo.chapters
     if type(chapters) <> "roArray" or chapters.Count() = 0 then
-        ShowErrorDialog(m.top, "Notice", "No chapters available for this content")
+        ShowErrorDialog(m.top, Translate("common_notice"), "No chapters available for this content")
         return
     end if
 

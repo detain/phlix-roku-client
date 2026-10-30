@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.14.0",
+    "version": "1.15.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -225,6 +225,7 @@
     "for_you": "おすすめ",
     "select_item": "アイテムを選択してください",
     "up_next": "次に再生",
+    "notice": "お知らせ",
     "no_photos": "写真がありません",
     "parental_controls": "ペアレンタルコントロール",
     "days": "曜日:",
