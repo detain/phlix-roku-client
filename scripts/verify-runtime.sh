@@ -4048,7 +4048,8 @@ echo "=== Check 39: manifest rsg_version legal value space + cert posture (M-ROK
 #   R4  the contiguous ' comment block directly above the key carries the
 #       words "cert" and "observer" (case-insensitive) — the rationale stays
 #       visible where the next editor decides (CHECK38 R3 idiom)
-#   R5  Eval() is extinct in shipped .brs — Roku's docs state Eval() "cannot
+#   R5  Eval() is extinct in shipped .brs (case-insensitively — BrightScript
+#       ids ignore case) — Roku's docs state Eval() "cannot
 #       be used with rsg_version=1.2", so the declaration and the code may
 #       never contradict each other (string-aware line-comment masking)
 PYRET=0
@@ -4103,7 +4104,10 @@ if idx is not None:
 
 # R5: Eval() extinction keeps the >=1.2 declaration honest. Line-comment
 # masking cuts at the first ' outside a double-quoted string (Check 19's
-# code_view idiom, scoped to this leg).
+# code_view idiom, scoped to this leg). BrightScript identifiers are
+# case-INsensitive (M-ROKU-07 review m1), so the scan is too — a future
+# eval(/EVAL( must not slip past a case-sensitive leg while contradicting
+# the rsg_version>=1.2 declaration.
 def code_view(line):
     out, in_str = [], False
     for ch in line:
@@ -4124,7 +4128,7 @@ for root in ("source", "components"):
 for p in brs_files:
     try:
         for i, line in enumerate(open(p, encoding="utf-8").read().splitlines(), 1):
-            if re.search(r'\bEval\s*\(', code_view(line)):
+            if re.search(r'\bEval\s*\(', code_view(line), re.IGNORECASE):
                 problems.append(f"  {p}:{i} - CHECK39 R5: Eval() call contradicts the declared "
                                 "rsg_version>=1.2 law (Roku: 'Eval() cannot be used with "
                                 "rsg_version=1.2') — remove the call (M-ROKU-07)")

@@ -51,6 +51,26 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — CHECK39 R5 scans Eval() case-INsensitively, matching BrightScript's own identifier law (R-ROKU-01 rider) — 2026-10-30
+
+- **The hole.** M-ROKU-07 review m1: the R5 leg searched `\bEval\s*\(` with a
+  case-SENSITIVE regex while BrightScript identifiers are case-INsensitive — a
+  future `eval(`/`EVAL(` call would have bypassed the leg while contradicting
+  the declared `rsg_version>=1.2` law (Roku: "Eval() cannot be used with
+  rsg_version=1.2"). No current violation existed (the case-insensitive census
+  was already 0), so the leg's PASS narration was honest but its teeth were
+  narrower than the language it guards.
+- **The cure.** `re.IGNORECASE` on the R5 `re.search` (the Check 19 `code_view`
+  line-comment masking is untouched), the leg's header comment and
+  `docs/static-checks.md` row 39 R5 state the case-insensitivity law where the
+  next reader sees it.
+- **Proof.** Tip `1f37fd5`: `scripts/verify-runtime.sh` exit 0, 62 checks
+  (no numbering moved — this is a within-leg forward fix). Mutation probe: a
+  planted `source/` file carrying `eval(`, `EVAL ` and `eval ` call arms exited
+  1 with exactly three CHECK39 R5 convictions (pre-cure the leg saw none);
+  probe removed, tree clean. `make lint` exit 0 (pre-existing BS1013 baseline
+  unchanged); `verify-route-manifest.mjs --self-test` green.
+
 ### Fixed — README test inventories + dependency truth cured to shipped-tree reality; Check 62 (M-ROKU-31) — 2026-10-30
 
 - **The hole.** Review roku__writer M7: four README claims had detached from
