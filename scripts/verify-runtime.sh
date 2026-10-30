@@ -8121,4 +8121,182 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+# ============================================================================
+echo ""
+echo "=== Check 61: the docs' locale-family inventories enumerate locale/ (M-ROKU-37) ==="
+# LOCALE-FAMILY ENUMERATION LAW (M-ROKU-37, review roku__docmaint-class): the
+# locale/ directory is the family set — docs only describe it. The review lane
+# recorded readers taking "plus six shipped sibling catalogs" as a SIX-family
+# claim while seven families ship, and the README Project Structure tree
+# under-enumerated the locale/ families (the tree's own exhaustive convention;
+# the M-ROKU-32 regen already lists all seven rows — the R3 arm pins them).
+# CHECK21 derives directories dynamically and never reads the docs; CHECK48
+# carries its own hardcoded seven-list; CHECK60 (M-ROKU-32) mirrors the .brs
+# landmarks. Nothing pinned docs locale claims to the directory until this leg
+# (numbering note: 60 was claimed by the M32 lane mid-flight — renumbered per
+# the collision law):
+#   R1  i18n.md OVERVIEW states the total in words ("Seven locale families"),
+#       the base-excluded sibling count in words, and enumerates every
+#       directory tag on disk
+#   R2  i18n.md Directory-Structure tree enumerates every locale directory
+#       exactly once, no ghosts, no duplicates (survive-delete conviction)
+#   R3  README Project-Structure tree enumerates every locale directory
+#       exactly once, no ghost folder (M-ROKU-32's regen made this arm
+#       green-at-base; its teeth are proven by plant P1)
+#   R4  every folder's _metadata.locale equals the folder name — an inventory
+#       line cannot point at a catalog that identifies itself as another family
+# Fail-loud throughout: an unreadable locale/ or missing base convicts; the
+# arms cannot run vacuously on an empty tree. CHECK60's .brs-mirror and
+# CHECK21's content parity stay its gate-independent siblings.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+I18N = "docs/i18n.md"
+README = "README.md"
+problems = []
+
+WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+         7: "seven", 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve"}
+
+# ---- fail-loud ground truth -------------------------------------------------
+try:
+    folders = sorted(d for d in os.listdir("locale")
+                     if os.path.isdir(os.path.join("locale", d)))
+except OSError as err:
+    print(f"  locale/ - CHECK61: unreadable: {err} — the family-enumeration arms cannot run vacuously")
+    sys.exit(1)
+if not folders:
+    print("  locale/ - CHECK61: zero locale directories — every docs family claim is false against an empty directory")
+    sys.exit(1)
+if "en_US" not in folders:
+    problems.append("  locale/ - CHECK61 R0: no en_US directory — the docs' base-locale/fallback law cannot be true of this tree")
+if len(folders) not in WORDS:
+    print(f"  locale/ - CHECK61: {len(folders)} families on disk — outside the word-map; rotate WORDS deliberately with the set")
+    sys.exit(1)
+total_word, sib_word = WORDS[len(folders)], WORDS[len(folders) - 1]
+
+
+def read(path):
+    try:
+        return open(path, encoding="utf-8").read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK61: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def fenced_blocks(text):
+    return re.findall(r"```[^\n]*\n.*?```", text, flags=re.S)
+
+
+def tree_tags(block):
+    """locale tags enumerated in a tree block — one-line (tag/strings.json) and
+    split-glyph (tag/ + a child strings.json line) forms both carry 'tag/'"""
+    return re.findall(r"\b([a-z]{2}_[A-Z]{2})/", block)
+
+
+i18n_text = read(I18N)
+readme_text = read(README)
+want = set(folders)
+
+# ---- R1 the Overview headline counts in words and enumerates the set --------
+if i18n_text is not None:
+    head = [l for l in i18n_text.split("\n") if "locale famil" in l.lower() and "ship" in l.lower()]
+    if not head:
+        problems.append(
+            f"  {I18N} - CHECK61 R1: no Overview line states the total number of locale "
+            f"families — a bare sibling count reads as the family total (the review M37 "
+            f"misread class: '{total_word.capitalize()} locale families ship' must be on the record)")
+    else:
+        line = head[0]
+        collapsed = re.sub(r"\s+", " ", line)
+        m = re.search(r"\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+locale\s+famil",
+                      collapsed, flags=re.I)
+        if not m or m.group(1).lower() != total_word:
+            problems.append(
+                f"  {I18N} - CHECK61 R1: the Overview total does not read '{total_word} locale "
+                f"families' against {len(folders)} directories on disk: {line!r}")
+        m = re.search(r"\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+shipped\s+sibling\s+catalog",
+                      collapsed, flags=re.I)
+        if not m or m.group(1).lower() != sib_word:
+            problems.append(
+                f"  {I18N} - CHECK61 R1: the Overview sibling count does not read "
+                f"'{sib_word} shipped sibling catalogs' (base excluded) against {folders}: {line!r}")
+        enumerated = set(re.findall(r"`([a-z]{2}_[A-Z]{2})`", line))
+        if enumerated != want:
+            missing, ghost = sorted(want - enumerated), sorted(enumerated - want)
+            problems.append(
+                f"  {I18N} - CHECK61 R1: the Overview enumeration drifts from locale/ — "
+                f"missing {missing}, not-a-directory {ghost}")
+
+    # ---- R2 the Directory-Structure tree enumerates the set -------------------
+    tree_block = next((b for b in fenced_blocks(i18n_text) if "└── locale/" in b), None)
+    if tree_block is None:
+        problems.append(
+            f"  {I18N} - CHECK61 R2: no fenced Directory-Structure tree naming 'locale/' — "
+            "the enumeration this document ships with was deleted (CHECK56 survive-delete precedent)")
+    else:
+        tags = tree_tags(tree_block)
+        for ghost in sorted(set(t for t in tags if t not in want)):
+            problems.append(f"  {I18N} - CHECK61 R2: tree lists locale/{ghost}/strings.json — no such directory")
+        for miss in sorted(want - set(tags)):
+            problems.append(f"  {I18N} - CHECK61 R2: locale/{miss}/ ships but the Directory-Structure tree omits it")
+        dupes = sorted(t for t in set(tags) if tags.count(t) > 1)
+        if dupes:
+            problems.append(f"  {I18N} - CHECK61 R2: tree enumerates {dupes} more than once")
+
+# ---- R3 the README inventory enumerates the set ------------------------------
+if readme_text is not None:
+    tree_block = next((b for b in fenced_blocks(readme_text) if "├── locale/" in b), None)
+    if tree_block is None:
+        problems.append(
+            f"  {README} - CHECK61 R3: no fenced Project-Structure tree naming 'locale/' — "
+            "the shipped channel packages locale/, the inventory may not go silent about it")
+    else:
+        tags = tree_tags(tree_block)
+        for ghost in sorted(set(t for t in tags if t not in want)):
+            problems.append(f"  {README} - CHECK61 R3: tree lists locale/{ghost}/strings.json — no such directory")
+        for miss in sorted(want - set(tags)):
+            problems.append(
+                f"  {README} - CHECK61 R3: locale/{miss}/ ships (packaged by the Makefile, "
+                f"parity-guarded by Check 21) but the Project-Structure tree omits it — "
+                f"the one-row locale/ block under-enumerated {len(folders)} families as one (M37 class)")
+        dupes = sorted(t for t in set(tags) if tags.count(t) > 1)
+        if dupes:
+            problems.append(f"  {README} - CHECK61 R3: tree enumerates {dupes} more than once")
+
+# ---- R4 folder identity: _metadata.locale names its own family ----------------
+for folder in folders:
+    path = os.path.join("locale", folder, "strings.json")
+    try:
+        meta = json.load(open(path, encoding="utf-8")).get("_metadata", {})
+    except (OSError, ValueError) as err:
+        problems.append(f"  {path} - CHECK61 R4: unreadable: {err} — folder identity cannot be verified")
+        continue
+    claimed = meta.get("locale") if isinstance(meta, dict) else None
+    if claimed != folder:
+        problems.append(
+            f"  {path} - CHECK61 R4: _metadata.locale is {claimed!r} but the directory is "
+            f"{folder!r} — a docs inventory line pointing here mislabels the family")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK61: %d locale-family pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK61: the family set is the directory — %d locale families on disk," % len(folders))
+print("           stated in words and enumerated by tag in the i18n.md Overview,")
+print("           in the i18n.md Directory-Structure tree and in the README")
+print("           Project-Structure tree (no ghosts, no omissions, no duplicates),")
+print("           and every catalog's _metadata.locale names its own folder")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

@@ -51,6 +51,57 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the docs' locale-family inventories enumerate the shipped directory; Check 61 (M-ROKU-37) — 2026-10-30
+
+- **The hole.** No leg anywhere bound the docs' locale-family claims to the
+  `locale/` directory. The review lane recorded readers taking the Overview
+  headline "plus six shipped sibling catalogs" as a SIX-family claim while
+  seven families ship (VERIFY-FIRST: 348 keys × 7 directories — parity
+  itself has always been true and the writer review lists it verified-true),
+  and the README Project Structure tree — which exhaustively enumerates
+  every scene file — showed `locale/` with a SINGLE row,
+  under-enumerating seven shipped families as one. CHECK21 derives folders
+  from disk and never reads the docs; CHECK48 carries its own hardcoded
+  seven-list. Claim-vs-directory drift was invisible to every gate.
+- **The cure.** Docs + harness only. `docs/i18n.md` Overview: the total is
+  now on the record — "Seven locale families ship: a single base locale
+  (`en_US`) plus six shipped sibling catalogs …". The README one-row
+  locale block was cured mid-lane by M-ROKU-32's Project-Structure
+  regeneration (disclosed: that tree landed at `1e0c565` before this push;
+  this lane's README cure is subsumed, and its enumeration is now pinned by
+  both CHECK60 and CHECK61). CHECK61: R1 the Overview states the family total
+  in words, the base-excluded sibling count, and enumerates every on-disk tag;
+  R2 the i18n.md Directory-Structure tree enumerates every directory exactly
+  once, no ghosts/dupes (survive-delete); R3 the README Project-Structure tree
+  enumerates every directory exactly once; R4 every catalog's
+  `_metadata.locale` names its own folder. Fail-loud R0: unreadable/empty
+  `locale/`, a missing base, or a count outside the word-map exit red — no
+  arm runs vacuously. docs/static-checks.md gains row 61. Numbering note per
+  the collision law: the leg was cut as 60 against `c4b39af7`; M-ROKU-32
+  claimed 60 at `1e0c565` mid-flight, so after an `ls-remote` re-read this
+  lane took the next-free number, 61, before push.
+- **Measured.** Red-at-base measured at the push parent
+  `5d83dac`, and pre-rebase at `1e0c565` (new leg, untouched parent docs,
+  identical both runs):
+  exactly 1 named CHECK61 conviction — R1 on the bare-count headline —
+  the other 60 legs green including CHECK60, exit 1. R2/R3 were directory-true
+  at this base because the M-ROKU-32 regen enumerated the shipped families
+  first; all four arms are proven non-vacuous by their plants (the README
+  one-row era re-planted fires R3 ×6 — the CHECK56 R1/R3 asymmetry
+  precedent). After the cure: `make lint` 0; `bash scripts/verify-runtime.sh`
+  exit 0 across all 61 legs (server-migrations sibling staged — a venue
+  fact, CHECK14 needs a sibling phlix-server, as in every prior lane);
+  portable exit 0 with four new plant-and-restore legs (README one-row era
+  → R3 ×6; bare-count headline → R1; stripped tree sibling →
+  R2; mislabeled `_metadata.locale` → R4), each red with
+  CHECK21/CHECK56/CHECK60 gate independence, restore → exit 0 green.
+  Disclosed: the row-59 landing
+  debt this entry originally reported was retired concurrently by
+  `5d83dac` mid-rebase — the table now runs 59–61 complete; the i18n.md tree and the
+  image-asset family claims were re-measured this lane and are already true;
+  the review headline's "six families" defect class is fully covered by R1's
+  total-in-words law.
+
 ### Docs — writer M9's ask list completes: retroactive quality-picker entry + Check 59's table row recovered (M-ROKU-33 follow-through) — 2026-10-30
 
 - **The hole.** The `[latest]` cure landed its header, model block and
