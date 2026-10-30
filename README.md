@@ -679,64 +679,97 @@ at the ends — never wraps):
 ```
 phlix-roku/
 ├── source/
-│   ├── main.brs                 # Main entry point
+│   ├── main.brs                  # Main entry point
 │   ├── lib/
-│   │   ├── ApiClient.brs       # API client (communication layer)
-│   │   ├── Storage.brs        # Persistent storage (registry)
-│   │   ├── AuthManager.brs     # Authentication manager
-│   │   ├── SessionManager.brs  # Session management
-│   │   ├── LibraryManager.brs  # Library browsing logic
-│   │   ├── TaskManager.brs     # Background task management
-│   │   ├── SyncPlayProtocol.brs # SyncPlay: pure RFC6455 WS framing + flat syncplay_* codec + NTP TimeSync (no I/O / no UI)
-│   │   ├── SyncPlayManager.brs  # SyncPlay DEAD PATH — not wired into the shipped UI: REST group snapshot + WS session-state coordinator for the abandoned standalone room; its ONLY caller is the never-instantiated components/SyncPlayScene.brs; retained for room revival (see §6 + Check 56)
-│   │   ├── ToastManager.brs     # Toast/notification singleton for background errors (GetToastManager())
-│   │   └── Utilities.brs        # Helper functions
-│   ├── player/
-│   │   ├── SkipButton.brs      # Skip intro/outro button
-│   │   └── SleepTimer.brs      # Sleep timer
-│   └── data/
-│       └── Theme.brs           # Theme constants
-├── components/                  # SceneGraph scenes + Task nodes (each .brs paired with its .xml)
-│   ├── PhlixApp.brs       # Main app controller
-│   ├── HomeScene.brs       # Home screen
-│   ├── LibraryScene.brs    # Library browser
-│   ├── DetailScene.brs     # Item detail view
-│   ├── CollectionsScene.brs # Collections list (LabelList of collection names, read-only)
-│   ├── CollectionScene.brs  # One collection's items (poster grid; raw rows normalized client-side)
-│   ├── AdminScene.brs       # Admin menu (LabelList; is_admin-gated entry; rows: Dashboard, Libraries, Users, Live TV, TV Guide, Recordings, Series Rules)
-│   ├── DashboardScene.brs   # Read-only admin dashboard (now-playing / storage / activity in one list)
-│   ├── LibraryAdminScene.brs # Admin libraries list (LabelList; drills into per-library actions)
+│   │   ├── ApiClient.brs         # API client (communication layer)
+│   │   ├── AppContext.brs        # Hub/connection-state core (active server, relay routing, server_url custody)
+│   │   ├── AuthManager.brs       # Authentication manager
+│   │   ├── Storage.brs           # Persistent storage (registry)
+│   │   ├── SyncPlayProtocol.brs  # SyncPlay: pure RFC6455 WS framing + flat syncplay_* codec + NTP TimeSync (no I/O / no UI)
+│   │   ├── SyncPlayManager.brs   # SyncPlay DEAD PATH — not wired into the shipped UI: REST group snapshot + WS session-state coordinator for the abandoned standalone room; its ONLY caller is the never-instantiated components/SyncPlayScene.brs; retained for room revival (see §6 + Check 56)
+│   │   ├── ToastManager.brs      # Toast/notification singleton for background errors (GetToastManager())
+│   │   └── Utilities.brs         # Helper functions (locale loader + Translate, SyncPlay error law)
+│   └── player/
+│       ├── SkipButton.brs        # Skip intro/outro button (shared logic behind components/SkipButton)
+│       └── SleepTimer.brs        # Sleep timer
+├── components/                   # SceneGraph nodes — each .brs pairs with its .xml (the exception is ToastScene: xml-only, no script)
+│   ├── PhlixApp.brs              # Root app controller (boot loop, scene coordination, toast queue/dismiss)
+│   ├── HomeScene.brs             # Home screen (continue-watching / next-up rails, retry recovery chrome)
+│   ├── LibraryScene.brs          # One library's poster grid
+│   ├── SeriesScene.brs           # One series: seasons grid (flat episodes for single-season shows)
+│   ├── SeasonScene.brs           # One season's episodes grid
+│   ├── EpisodeListTask.brs       # Episode/season list loader off the render thread
+│   ├── PlayerScene.brs           # Video player (+ additive "Watch Together" SyncPlay overlay, opened with the "*"/Options key; gated, hub-disabled, ws:// only) (+ additive video-quality picker, opened with the Up key; server-A7-dependent, no-ops without a ladder) (+ additive Audio/Subtitles Settings panel, opened with the Down key; persists preferred_audio_track / preferred_subtitle_track)
+│   ├── SkipButton.brs            # Skip intro/outro button node (Group; owns its button, exposes skipRequested)
+│   ├── DetailScene.brs           # Item detail view
+│   ├── RatingBadge.brs           # Rating star/score badge (Rectangle overlay shown on poster/detail chrome)
+│   ├── PosterMetaTask.brs        # Fetches poster image dimensions (width/height/aspect) off the render thread
+│   ├── CollectionsScene.brs      # Collections list (LabelList of collection names, read-only)
+│   ├── CollectionScene.brs       # One collection's items (poster grid; raw rows normalized client-side)
+│   ├── SearchScene.brs           # Search keyboard + results grid (GET /media?search= via ApiTask)
+│   ├── FavoritesScene.brs        # Favorites browse (one-shot PosterGrid of GET /users/me/favorites)
+│   ├── RecommendationsScene.brs  # Recommendations list (GET /me/recommendations via ApiTask)
+│   ├── MusicScene.brs            # Music browser (Artists / Albums / Tracks — text LabelLists; music ships no artwork)
+│   ├── MusicAlbumScene.brs       # One album's track list (LabelList; serialized playback launch through ApiTask)
+│   ├── AudiobookScene.brs        # Audiobook library grid (infinite-scroll paging; R7.6)
+│   ├── AudiobookPlayerScene.brs  # Audiobook player (Audio node; chapter navigation + progress write-back; R7.6)
+│   ├── PhotosScene.brs           # Photo date-album grid (entry point of a photo library)
+│   ├── PhotoAlbumScene.brs       # One date album's thumbnail grid (signed thumbnail_urls)
+│   ├── PhotoViewerScene.brs      # Full-screen photo viewer (F7a; caption/info chrome)
+│   ├── SettingsScene.brs         # Settings, 6 sections (Account / Server / Playback / Captions / Watch History / About; R7.1)
+│   ├── ParentalControlsScene.brs # Parental controls, 3 sections (access Schedules / blocked Tags / Stream Limits; P5-S5)
+│   ├── LiveTvScene.brs           # Admin Live TV channels list (one-shot LabelList; row-select resolves stream → live player)
+│   ├── LivePlayerScene.brs       # Dedicated lightweight live Video player (no sessions/progress/transcode/markers)
+│   ├── ListTask.brs              # Unified Live TV list loader off the render thread
+│   ├── GuideScene.brs            # Admin Live TV guide/EPG list (one-shot LabelList; read-only, selection inert)
+│   ├── RecordingsScene.brs       # Admin Live TV recordings list (one-shot LabelList; read-only, selection inert)
+│   ├── SeriesRulesScene.brs      # Admin Live TV series-rules list (one-shot LabelList; read-only, selection inert)
+│   ├── AdminScene.brs            # Admin menu (LabelList; is_admin-gated entry; rows: Dashboard, Libraries, Users, Live TV, TV Guide, Recordings, Series Rules)
+│   ├── DashboardScene.brs        # Read-only admin dashboard (now-playing / storage / activity in one list)
+│   ├── LibraryAdminScene.brs     # Admin libraries list (LabelList; drills into per-library actions)
 │   ├── LibraryAdminActionsScene.brs # Per-library admin actions (Scan / Rescan / Match Metadata / Refresh Status + scan-status line)
-│   ├── UserAdminScene.brs    # Admin users list (LabelList of all users; drills into per-user actions)
+│   ├── UserAdminScene.brs        # Admin users list (LabelList of all users; drills into per-user actions)
 │   ├── UserAdminActionsScene.brs # Per-user admin actions (Approve / Disable / Make-or-Remove Admin / Reset Password / Profiles / Refresh + user detail line)
-│   ├── ProfilesScene.brs     # Per-user profile list (one-shot LabelList; read-only; drills into per-profile actions)
-│   ├── ProfileActionsScene.brs # Per-profile admin actions (7 Rating buttons / Clear PIN / Refresh + profile detail line)
-│   ├── LiveTvScene.brs       # Admin Live TV channels list (one-shot LabelList; row-select resolves stream → live player)
-│   ├── LivePlayerScene.brs   # Dedicated lightweight live Video player (no sessions/progress/transcode/markers)
-│   ├── GuideScene.brs        # Admin Live TV guide/EPG list (one-shot LabelList; read-only, selection inert)
-│   ├── RecordingsScene.brs   # Admin Live TV recordings list (one-shot LabelList; read-only, selection inert)
-│   ├── SeriesRulesScene.brs  # Admin Live TV series-rules list (one-shot LabelList; read-only, selection inert)
-│   ├── PlayerScene.brs     # Video player (+ additive "Watch Together" SyncPlay overlay, opened with the "*"/Options key; gated, hub-disabled, ws:// only) (+ additive video-quality picker, opened with the Up key; server-A7-dependent, no-ops without a ladder) (+ additive Audio/Subtitles Settings panel, opened with the Down key; persists preferred_audio_track / preferred_subtitle_track)
-│   ├── SyncPlayTask.{xml,brs} # Long-lived Task running the SyncPlay ws:// socket off the render thread (roStreamSocket; RunSocket loop; flat syncplay_* frames)
-│   ├── SyncPlayScene.{xml,brs} # DEAD PATH — not wired into the shipped UI: abandoned P8-S4 room UI (public-room list / create / join); zero instantiation sites repo-wide; retained for a possible room revival, owner wire-vs-retire decision open (§6, Check 56)
-│   ├── HubCommandTask.{xml,brs} # Long-lived Task consuming hub relay pending_command / play_media frames (mints a relay token, Bearer on the RFC6455 handshake; the plaintext :8804 dial is REFUSED behind https hubs — M-ROKU-23, wss deferred)
-│   ├── ToastScene.xml      # Toast overlay — Dialog-derived node shown via the current surface's dialog field (M-ROKU-17; queue/dismiss owned by the PhlixApp root coordinator, no script)
-│   ├── ConnectScene.brs    # First-run "Connect to server" screen (normalizes + probes /health, persists server_url, then proceeds to login)
-│   ├── LoginScene.brs      # Login screen (username/password only); after login probes GET /me/servers to detect hub vs direct
-│   └── ServerPickerScene.brs # Hub mode: "Choose a server" list (one-shot GET /me/servers); pick persists active_server_id → relay routing
+│   ├── ProfilesScene.brs         # Per-user profile list (one-shot LabelList; read-only; drills into per-profile actions)
+│   ├── ProfileActionsScene.brs   # Per-profile admin actions (7 Rating buttons / Clear PIN / Refresh + profile detail line)
+│   ├── ApiTask.brs               # Generic one-operation API Task — the render-thread network choke (§5.3: every scene's blocking HTTP runs here)
+│   ├── DiscoveryTask.brs         # One-shot LAN discovery Task (SSDP via the documented socket surface, task thread; drives ConnectScene's server pick — M-ROKU-04)
+│   ├── SyncPlayTask.brs          # Long-lived Task running the SyncPlay ws:// socket off the render thread (roStreamSocket; RunSocket loop; flat syncplay_* frames)
+│   ├── SyncPlayScene.brs         # DEAD PATH — not wired into the shipped UI: abandoned P8-S4 room UI (public-room list / create / join); zero instantiation sites repo-wide; retained for a possible room revival, owner wire-vs-retire decision open (§6, Check 56)
+│   ├── HubCommandTask.brs        # Long-lived Task consuming hub relay pending_command / play_media frames (mints a relay token, Bearer on the RFC6455 handshake; the plaintext :8804 dial is REFUSED behind https hubs — M-ROKU-23, wss deferred)
+│   ├── ToastScene.xml            # Toast overlay — Dialog-derived node shown via the current surface's dialog field (M-ROKU-17; queue/dismiss owned by the PhlixApp root coordinator, no script)
+│   ├── ConnectScene.brs          # First-run "Connect to server" screen (normalizes + probes /health, persists server_url, then proceeds to login)
+│   ├── LoginScene.brs            # Login screen (username/password only); after login probes GET /me/servers to detect hub vs direct
+│   └── ServerPickerScene.brs     # Hub mode: "Choose a server" list (one-shot GET /me/servers); pick persists active_server_id → relay routing
 ├── tests/
-│   ├── unit/                   # Unit tests
-│   ├── integration/            # Integration tests
-│   ├── fixtures/               # Vendored server-route-manifest.json (S280 route gate)
-│   └── scripts/                # verify-route-manifest.mjs, verify-runtime-portable.sh
-├── scripts/                     # verify-runtime.sh, derive-version.sh, package-signed.sh
-├── locale/
-│   └── en_US/strings.json      # Base-locale user-facing strings (see docs/i18n.md)
-├── images/                      # App icons and splash screens
-├── manifest                    # App manifest
-├── Makefile                    # Build automation
-├── README.md                   # This file
-└── DEVELOPER.md                # Developer documentation
+│   ├── unit/                     # BrightScript unit tests (Storage/ApiClient/AuthManager/SyncPlay/WireGuard/…)
+│   ├── integration/              # BrightScript integration tests (ApiIntegration)
+│   ├── fixtures/                 # Vendored server-route-manifest.json (S280 route gate)
+│   └── scripts/                  # verify-route-manifest.mjs, verify-runtime-portable.sh
+├── scripts/                      # verify-runtime.sh (static-check legs), validate-xml.sh, verify-package.sh, package-signed.sh, derive-version.sh, add-headers.py
+├── locale/                       # Seven catalogs, same flattened key set (Check 21 parity; see docs/i18n.md)
+│   ├── de_DE/strings.json
+│   ├── en_US/strings.json        # Base locale — the fallback + comparison source
+│   ├── es_ES/strings.json
+│   ├── fr_FR/strings.json
+│   ├── it_IT/strings.json
+│   ├── ja_JP/strings.json
+│   └── pt_BR/strings.json
+├── docs/                         # architecture-apitask, api-envelope, navigation, i18n, static-checks, device-verification, debugging, publishing, certification, bif_thumbs, image_generation_info, BLOCKED_R0.1/R0.8
+├── tools/                        # gen_channel_art.py (channel-art generator)
+├── images/                       # App icons and splash screens
+├── manifest                      # Roku channel manifest
+├── Makefile                      # Build automation (lint, tests, package)
+├── package.json                  # npm scripts (route-manifest gate tool deps) + version pin
+├── package-lock.json             # npm lockfile
+├── bsconfig.json                 # brighterscript compiler config
+├── bslint.json                   # bslint config
+├── LICENSE                       # MIT
+├── README.md                     # This file
+├── CHANGELOG.md                  # Release history (Keep-a-Changelog format)
+├── DEVELOPER.md                  # Developer documentation
+├── CLAUDE.md                     # Agent-context entry file
+└── CALIBER_LEARNINGS.md          # Agent-context learnings (caliber)
 ```
 
 ## Troubleshooting

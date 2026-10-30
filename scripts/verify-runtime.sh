@@ -8055,4 +8055,70 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 60: README Project Structure mirrors the shipped .brs tree (M-ROKU-32) ==="
+# STRUCTURE-MAP TRUTH LAW (M-ROKU-32, review roku__writer M8): the Project
+# Structure block is the map a new developer navigates the codebase by, and it
+# shipped four phantom landmarks (SessionManager/LibraryManager/TaskManager.brs —
+# deleted in R7.5 per PhlixApp.xml's removal note — plus a source/data/Theme.brs
+# that never existed here) while missing a real one (AppContext.brs) and the
+# entire music/photos/favorites/search/settings/ApiTask component cohort. Every
+# prior cure patched prose rows by hand; this leg makes the map SELF-PINNING:
+# the set of *.brs names listed inside the block must equal, BIDIRECTIONALLY,
+# the set of *.brs basenames on disk under source/ + components/ (the writer's
+# own regeneration law: find source components -name '*.brs'). R1 kills phantoms
+# (a listed name with no file); R2 kills misses (a shipped file the map omits).
+# Basename equality is deliberate: the block is a tree, not a manifest, and the
+# one legit collision (SkipButton.brs in source/player + components/) exists on
+# both sides. Comment-only docblocks inside .brs files are irrelevant here —
+# this scans the README, so the fenced block moving/closing unbalanced is itself
+# a red (the map vanished). Re-add a deleted file under a stale name, ship a new
+# .brs without listing it, or rename one without editing the map, and CI stops.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+text = open("README.md", encoding="utf-8").read()
+m = re.search(r"^## Project Structure\s*\n\n```\n(.*?)\n```", text, re.S | re.M)
+if m is None:
+    print("  README.md - CHECK60: the '## Project Structure' fenced block vanished — the map itself is gone")
+    sys.exit(1)
+block = m.group(1)
+
+listed = set(re.findall(r"[A-Za-z0-9_-]+\.brs", block))
+if not listed:
+    print("  README.md - CHECK60: the structure block lists zero .brs files — it cannot be a map")
+    sys.exit(1)
+
+actual = set()
+for scan_dir in ("source", "components"):
+    for root, dirs, names in os.walk(scan_dir):
+        dirs.sort()
+        for name in sorted(names):
+            if name.endswith(".brs"):
+                actual.add(name)
+
+for phantom in sorted(listed - actual):
+    problems.append(f"  README.md - CHECK60 R1: structure block lists {phantom} — no such .brs exists under source/ or components/ (phantom landmark: deleted, renamed, or never shipped)")
+for miss in sorted(actual - listed):
+    problems.append(f"  README.md - CHECK60 R2: {miss} ships in the tree but the structure block omits it (missing landmark: the map is no longer complete)")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK60: %d structure-map entr(s) broken" % len(problems))
+    sys.exit(1)
+
+print(f"  CHECK60: the Project Structure map lists exactly the {len(listed)} shipped .brs")
+print("           landmarks of source/ + components/ — no phantoms, no misses")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
