@@ -1510,7 +1510,7 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
             handled = true
         else if key = "replay" then
             ' R6.9: Instant replay — seek back 10 s and briefly flash captions if off.
-            ' Standard Roku behaviour: https://developer.roku.com/docs/references/scenegraph/remote-control-events.md
+            ' Standard Roku behavior: https://developer.roku.com/docs/references/scenegraph/remote-control-events.md
             SeekRelative(-10)
             FlashCaptionsIfOff()
             handled = true
@@ -1575,7 +1575,7 @@ end sub
 
 ' R6.9: Instant replay caption flash. If captions are off, briefly enable them
 ' for 2 seconds to give the user a "replay" visual cue, then restore the prior state.
-' Standard Roku behaviour:
+' Standard Roku behavior:
 ' https://developer.roku.com/docs/references/scenegraph/remote-control-events.md
 sub FlashCaptionsIfOff()
     if m.videoPlayer = invalid then return
@@ -2295,7 +2295,7 @@ end sub
 ' media playlist, else the multi-variant master (Auto). Falls back to the master
 ' whenever the preference is "auto"/unset or the pinned rung is absent from THIS
 ' job's clamped ladder (e.g. a 1080p pin against a 720p-max source). With no
-' ladder this is byte-identical to the old PlayHls(master_url) behaviour.
+' ladder this is byte-identical to the old PlayHls(master_url) behavior.
 sub PlayPreferredOrMaster()
     pref = GetStorage().get("preferred_quality")
     if pref = invalid then pref = ""

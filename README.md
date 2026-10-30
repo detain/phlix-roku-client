@@ -19,7 +19,7 @@ A native Roku application for the Phlix Media Server platform. Stream your media
 - **Hub / Multi-Server Mode**: Point the Connect screen at a Phlix Hub instead of a single server — after login the client detects the hub (`GET /api/v1/me/servers`), shows a server picker, and routes all media requests to the chosen server through the hub's relay proxy (the hub Bearer is the relay auth). The hub relay supports all HTTP verbs (GET, PUT, DELETE, PATCH, POST). See "Hub / multi-server mode" below.
 - **Skip Intro/Outro**: Automatically displayed skip buttons when playback enters marker ranges defined by the server (intro start/end, outro start/end)
 - **SyncPlay / Watch Together** *(device-unverifiable — see the LIMITATIONS box under "SyncPlay (Watch Together)")*: a hand-rolled RFC6455 WebSocket client (`source/lib/SyncPlayProtocol.brs` + `components/SyncPlayTask.{xml,brs}`) lets several devices watch the same content in sync. Open the **Watch Together** overlay in the player (the `*`/Options key), pick a group from the list (or Create), and playback follows the host (play/pause/seek) with NTP-style drift correction. **Direct mode only** (disabled in hub mode), and **`ws://` only** because Roku's `roStreamSocket` has no TLS.
-- **Manual quality selection** *(server-A7-dependent; the transient content-swap-while-playing behaviour needs an on-device smoke test — see the CHANGELOG)*: press **Up** in the player to open a quality picker listing **Auto** (server-driven ABR, the multi-variant master) plus each rung the active transcode advertises, highest first, read from the server's `variants[]` ladder. Picking a rung swaps to that rung's own signed playlist and resumes at the same position; picking Auto hands playback back to native ABR. The choice is remembered (`Storage` key `preferred_quality`) and re-applied on the next transcode. With no ladder (direct-play or a legacy job) the picker shows Auto only and no-ops gracefully.
+- **Manual quality selection** *(server-A7-dependent; the transient content-swap-while-playing behavior needs an on-device smoke test — see the CHANGELOG)*: press **Up** in the player to open a quality picker listing **Auto** (server-driven ABR, the multi-variant master) plus each rung the active transcode advertises, highest first, read from the server's `variants[]` ladder. Picking a rung swaps to that rung's own signed playlist and resumes at the same position; picking Auto hands playback back to native ABR. The choice is remembered (`Storage` key `preferred_quality`) and re-applied on the next transcode. With no ladder (direct-play or a legacy job) the picker shows Auto only and no-ops gracefully.
 - **Audio & subtitle track selection**: press **Down** in the player to open a **Settings** panel (Audio / Subtitles). The tracks are read from playback info (`audio_tracks` / `subtitle_tracks`); picking a subtitle track applies it to the `Video` node (`currentSubtitleTrack`, with "Off" to disable) and picking an audio track records the preference. The choice is remembered (`Storage` keys `preferred_audio_track` / `preferred_subtitle_track`). Additive: the panel is hidden by default, so the default playback path is unchanged when it is never opened, and it degrades gracefully to an empty-state message when no tracks are present.
 - **Profile Management (admin)**: View a user's profiles and adjust the parental-control rating or clear a forgotten PIN — button-driven, no keyboard. Reached via `Admin → Users → (select user) → Profiles`
 
@@ -36,7 +36,7 @@ The following features are not currently available:
 ### Required
 - **Roku Device**: Any Roku device with developer mode enabled
 - **Phlix Media Server**: Running instance accessible on your network
-- **Roku Developer Account**: For sideloading apps
+- **Roku Developer Account**: NOT needed for sideloading — device developer mode covers it (`make install`). The paid account is a store-submission prerequisite only (docs/publishing.md Prerequisites).
 
 ### Development Tools
 - **Roku SDK**: For packaging and deployment ( rokupkg )
@@ -327,7 +327,7 @@ Implemented in `SyncPlayProtocol.brs` TimeSync, mirroring `@phlix/syncplay` SPEC
 
 Edit `manifest` to customize:
 - `title`: Application name
-- `ui_resolutions`: Supported resolutions (hd, fhd, uhd)
+- `ui_resolutions`: `hd` — the manifest's actual declaration, pinned by Check 38 to the hardcoded 1280×720 design plane (the legacy `full` alias stays retired alongside it; see the manifest comment above the key)
 
 The version triple is **not** edited here: `make package` derives
 `major_version`/`minor_version`/`build_version` in the build manifest from
@@ -568,7 +568,7 @@ deliberately absent from the server manifest.
 | Right | Seek forward 10 seconds |
 | Rewind | Seek backward 30 seconds |
 | Fast Forward | Seek forward 30 seconds |
-| Replay (Instant Replay) | Seek backward 10 seconds and briefly flash captions if they are off. Standard Roku behaviour per [remote control UX guidance](https://developer.roku.com/docs/references/scenegraph/remote-control-events.md). |
+| Replay (Instant Replay) | Seek backward 10 seconds and briefly flash captions if they are off. Standard Roku behavior per [remote control UX guidance](https://developer.roku.com/docs/references/scenegraph/remote-control-events.md). |
 | Info | Show item title and current playback position for 3 seconds. |
 | Options (`*`) | Open/close the **Watch Together** (SyncPlay) overlay (direct mode only; shows a disabled message in hub mode). While the overlay is open, Back/Options close it. |
 | Up | Open/close the **video quality picker** (Auto + each ABR rung the current transcode advertises, server-A7-dependent; shows Auto-only when there's no ladder). While the overlay is open, Back/Up close it and the list owns Up/Down/Select. |

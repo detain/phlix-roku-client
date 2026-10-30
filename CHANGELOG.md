@@ -51,6 +51,35 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — W-min88 minors cluster (3 cured, 1 stale-verified) — 2026-10-30
+
+- **M-ROKU-45 (cured).** README's manifest bullet claimed
+  `ui_resolutions: (hd, fhd, uhd)` — the manifest declares `hd` and Check
+  38 pins the token set to exactly {hd} while the 1280×720 design plane is
+  hardcoded (the review era's `hd,full` was itself since rotated: the
+  legacy `full` alias stays retired). README now quotes the real value with
+  the plane law and the alias note.
+- **M-ROKU-46 (cured).** The -our/-or split inverted since the review:
+  README carried `behaviour` x2 with zero `behavior` (the
+  redirect-follow line had rotated away), and three PlayerScene comments
+  carried the fourth, fifth and sixth British spellings. Swept to
+  American `behavior` (Roku's own docs' spelling) in README x2 +
+  PlayerScene x3; CHANGELOG occurrences are history and stay verbatim.
+- **M-ROKU-56 (cured).** README's Required-prerequisites line "Roku
+  Developer Account: For sideloading apps" contradicted the shipped
+  release law — sideloading is developer mode + `make install`
+  (docs/publishing.md: "does not require store certification"); the paid
+  account belongs to store submission only. Line rewritten to the honest
+  split, pointing at publishing.md's Prerequisites.
+- **M-ROKU-43 (stale-verified, zero diff).** The claimed "port fiction" is
+  current truth: 8096 IS the documented phlix-server HTTP default at tip
+  (server `config/server.php:22` + server README `PHLIX_HTTP_PORT` `8096`
+  (`server.port`) + install.sh `--http-port` default 8096). R4.10 deleted
+  the client's hardcoded LOCALHOST fallback (AppContext now returns ""
+  when unset — a different defect), not the port. README's example URL and
+  ApiClient.brs's docblock example ride the documented Phlix port;
+  changing them to a non-default would be the regression.
+
 ### Fixed — W-min87 minors cluster (6 cured, 2 stale-verified) — 2026-10-30
 
 - **M-ROKU-06 (cured).** The session-expired overlay copy commands "sign in
