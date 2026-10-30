@@ -2,6 +2,57 @@
 
 ## [Unreleased]
 
+### Fixed — the Retry stand-down hands the description strip back from the stranded loading copy too; Check 58 (M-ROKU-21f) — 2026-10-30
+
+- **The hole.** Review roku__gameux M21 r2's sole MINOR-1 survivor, live at
+  tip: `OnRetryPressed` writes the transient `common_loading` copy into the
+  home description strip while the failed rails re-load, but
+  `HideHomeRailFailureIfHealthy` restored the default chrome only when the
+  strip still showed the `home_rail_failed` copy. After a SUCCESSFUL retry both
+  flags clear, the guard's equality fails, and a healthy app kept reading
+  "Loading…" until an item focus happened to self-heal the caption. The r1 lane
+  struck the dispatched-sha claim as phantom and r2 proved the 4-state cure
+  landed at `14465fe` — this lane cures exactly the residual, nothing else.
+- **The cure.** `components/HomeScene.brs`: the guard now snapshots the strip
+  and restores from EITHER transient copy it owns — failure OR retry-stranded
+  loading — behind the unchanged healthy-gate early return (Check 32
+  partial-recovery law intact: one rail still failed, the other's copy
+  stands). The recognition is safe because `OnRetryPressed` is the SOLE writer
+  of `common_loading` onto the description strip: boot loading rides the
+  separate `loadingLabel` and `ApplyXmlChrome` defaults the strip to
+  `home_select_library`; item captions are a different copy class, so neither
+  a live load nor a mid-flight focus can be stripped.
+- **New teeth.** `scripts/verify-runtime.sh` **Check 58** — the lane claimed
+  Check 57 (next-free at `ff298d9e`, measured) but the sibling co-watch lane
+  landed its own Check 57 at `2157264` mid-flight, so this leg renumbered to
+  58 on the new tip per the collision law: R1 pins the healthy-gate return,
+  the strip snapshot, the two-copy recognition guard and the restore write as
+  four exact needles; R2 pins the sole-writer fact with a masked `components/`
+  + `source/` `.brs` census requiring the transient copy to appear exactly once
+  at `OnRetryPressed` — a second writer convicts ON PURPOSE because it would
+  make R1's recognition unsafe to keep. CHECK52 (the M21 failure-topology leg)
+  is deliberately guard-agnostic and needed no rotation — the recovery half is
+  now owned here. `docs/static-checks.md` gains row 58.
+- **Measured.** Red-on-base at `2157264` (this leg, UNFIXED tip `HomeScene.brs`):
+  exit 1 with exactly 2 named CHECK58 R1 convictions (the snapshot line, the
+  extended guard) and zero other violations across the 58-leg battery — R2 was
+  already code-true at base, the defect class was precisely the guard (the
+  CHECK56 honest-scope asymmetry precedent). Green after the cure: full battery
+  exit 0, 58 checks. Portable twin (`tests/scripts/verify-runtime-portable.sh`,
+  the CI harness) exit 0 including the CHECK58 plant legs: P1 reverting the
+  guard arm and P2 re-growing a second description-strip `common_loading`
+  writer each convicted by name with CHECK52/CHECK56 gate independence (same
+  M21 family, disjoint arms; the sibling CHECK57 scratch tree under
+  `$TEST_ROOT/red57` stays disjoint from `$TEST_ROOT/red58`), restores returned
+  exit 0. `make lint` (bsc) exit 0 — 23 pre-existing BS1013 test-file warnings,
+  parent-identical measured both sides at the new base, zero from this change.
+  No unit suite — the chrome state machine needs device focus events (rooibos
+  is ROKU_HOST-gated); statement/presence legs per the CHECK50/52/53 precedent.
+- **Untouched law.** No new locale keys (all three copies pre-exist across the
+  7 catalogs) — the 348-key ×7 parity, CHECK25/48 and the version pin all stand
+  unrotated; the co-watch one-name values the sibling CHECK57 guards are not
+  touched by this cure.
+
 ### Fixed — the co-watch feature speaks with one name: Check 57 (M-ROKU-25)
 
 - **The drift (review roku__writer M1).** Five names for one feature, three

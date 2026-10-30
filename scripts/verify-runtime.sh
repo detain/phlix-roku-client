@@ -7719,4 +7719,134 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+# ============================================================================
+echo ""
+echo "=== Check 58: the Retry recovery path hands the strip back (M-ROKU-21f) ==="
+# RETRY RECOVERY-CHROME LAW (M-ROKU-21f, review roku__gameux M21 r2 MINOR-1):
+# The M21 failure-vs-emptiness cure gave HomeScene a Retry control whose press
+# writes the transient loading copy (Translate("common_loading")) into the
+# description strip while the failed rails re-load. Its stand-down guard,
+# HideHomeRailFailureIfHealthy, recognized ONLY the failure copy — after a
+# SUCCESSFUL retry both flags clear, the guard's equality fails, and the strip
+# stays "Loading..." over a healthy app until the user happens to focus an
+# item (the focused handlers' self-heal). Cosmetic chrome, but the same
+# state-legibility class in miniature: a completed load must not look like an
+# in-flight one. Cure: the guard restores the default chrome from EITHER copy
+# it owns — failure OR retry-stranded loading — behind the healthy-gate. The
+# recognition is safe because OnRetryPressed is the SOLE writer of
+# common_loading to the description strip (boot loading rides the separate
+# loadingLabel; ApplyXmlChrome's default is home_select_library) — R2 proves
+# that sole-writer fact repo-wide, so the extended guard can never overwrite a
+# legitimate live loading state or an item caption the user focused meanwhile.
+# R1 keeps the healthy-gate early return pinned: a partial recovery must still
+# let the other rail's failure copy stand (Check 32 shared-slot law intact).
+# CHECK52 owns the failure-branch topology and is deliberately guard-agnostic;
+# this leg owns the recovery half of the same 4-state model.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+HOME = "components/HomeScene.brs"
+TRANSIENT = 'm.descriptionLabel.text = Translate("common_loading")'
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK58: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(text):
+    out = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
+def func_body(text, name):
+    m = re.search(r"(?ms)^(function|sub) %s\(.*?^(end function|end sub)" % re.escape(name), text)
+    return m.group(0) if m else None
+
+
+home = read(HOME)
+if home is not None:
+    hcode = mask(home)
+
+    # ---- R1 the stand-down guard owns BOTH transient copies ----------------
+    hb = func_body(hcode, "HideHomeRailFailureIfHealthy")
+    if hb is None:
+        problems.append(f"  {HOME} - CHECK58 R1: sub HideHomeRailFailureIfHealthy() vanished — nothing ever hands the strip back")
+    else:
+        for needle, why in (
+            ("if m.librariesFailed or m.continueFailed then return",
+             "the healthy-gate early return is gone — a partial recovery would strip the still-failed rail's copy"),
+            ("strip = m.descriptionLabel.text",
+             "the guard no longer snapshots the strip text it decides on — the shape this leg pins drifted"),
+            ('if strip = Translate("home_rail_failed") or strip = Translate("common_loading") then',
+             "the restore guard is back to recognizing only the failure copy — a successful Retry strands the strip on the loading copy (review M21 r2 MINOR-1 re-grown)"),
+            ('m.descriptionLabel.text = Translate("home_select_library")',
+             "the stand-down never hands the strip back to its default chrome"),
+        ):
+            if needle not in hb:
+                problems.append(f"  {HOME} - CHECK58 R1: {needle!r} missing — {why}")
+
+    # ---- R2 the loading copy is OnRetryPressed's SOLE write-site -----------
+    rb = func_body(hcode, "OnRetryPressed")
+    if rb is None:
+        problems.append(f"  {HOME} - CHECK58 R2: sub OnRetryPressed() vanished — the Retry control would be theater")
+    elif TRANSIENT not in rb:
+        problems.append(f'  {HOME} - CHECK58 R2: OnRetryPressed no longer writes {TRANSIENT!r} — the transient copy R1 recognizes must be the one Retry itself writes')
+
+writers = []
+for scan_dir in ("components", "source"):
+    for root, dirs, names in os.walk(scan_dir):
+        dirs.sort()
+        for name in sorted(names):
+            if name.endswith(".brs"):
+                path = os.path.join(root, name)
+                text = read(path)
+                if text is None:
+                    continue
+                for lineno, line in enumerate(mask(text).split("\n"), 1):
+                    if TRANSIENT in line:
+                        writers.append(f"{path}:{lineno}")
+if len(writers) != 1:
+    problems.append(
+        f"  {HOME} - CHECK58 R2: the description-strip loading copy is written {len(writers)}x {writers} — "
+        f"OnRetryPressed must be the SOLE writer, or R1's recognition of common_loading can overwrite a "
+        f"legitimate live loading state (the sole-writer fact the recovery-chrome law rests on)")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK58: %d recovery-chrome pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print('  CHECK58: the stand-down guard restores the default strip from the failure copy')
+print('           AND the retry-stranded loading copy behind the healthy-gate, and')
+print('           OnRetryPressed is the proven sole writer of that transient copy across')
+print('           components/ + source/ — a completed retry can no longer read as a live')
+print('           load, and no legitimate loading state can be stripped mid-flight')
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

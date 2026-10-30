@@ -289,11 +289,21 @@ end sub
 ' Retract the failure state only when BOTH rails are healthy again: on a partial
 ' recovery the other rail's failure copy legitimately stands. When it does
 ' stand down, hand the strip back to its default chrome only if it still shows
-' the failure copy - never overwrite an item caption the user focused meanwhile.
+' transient chrome this choke owns — the failure copy OR the loading copy a
+' Retry press wrote (M-ROKU-21f [review roku__gameux M21 r2 MINOR-1]: the guard
+' used to recognize only the failure copy, so a successful Retry left the strip
+' stranded on "Loading..." over a healthy app until the next item focus
+' self-healed it). The recognition is safe because OnRetryPressed is the ONLY
+' writer that puts common_loading on the description strip (Check 58 R2 proves
+' it; boot loading rides the separate loadingLabel and ApplyXmlChrome's default
+' is the same copy the restore writes) — so a live boot load and an item
+' caption the user focused meanwhile both stand untouched.
 sub HideHomeRailFailureIfHealthy()
     if m.librariesFailed or m.continueFailed then return
     if m.retryButton <> invalid then m.retryButton.visible = false
-    if m.descriptionLabel <> invalid and m.descriptionLabel.text = Translate("home_rail_failed") then
+    if m.descriptionLabel = invalid then return
+    strip = m.descriptionLabel.text
+    if strip = Translate("home_rail_failed") or strip = Translate("common_loading") then
         m.descriptionLabel.text = Translate("home_select_library")
     end if
 end sub
