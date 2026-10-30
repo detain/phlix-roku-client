@@ -543,6 +543,11 @@ sub OnConnected()
 
     ' Rebuild the shared API client + AuthManager so they bind to the newly
     ' persisted server_url (the originals were built against the absent default).
+    ' M-ROKU-24 (review roku__secnet M3): when the URL CHANGED, the six
+    ' auth/session keys were already wiped at the PersistAndGo choke before the
+    ' connected signal fired, so this rebuild restores nothing and the auth
+    ' check lands on the login screen instead of shipping the old host's
+    ' credentials to the new one. A same-URL reconnect keeps its session.
     m.api = GetApiClient()
     m.auth = AuthManager(m.api)
 

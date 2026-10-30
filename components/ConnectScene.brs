@@ -347,8 +347,34 @@ sub OnCleartextConsentChoice(index as Integer)
     PersistAndGo(url)
 end sub
 
-' The single storage write behind the consent gate.
+' The single storage write behind the consent gate — and THE credential-custody
+' choke for a server change (M-ROKU-24, review roku__secnet M3). The six
+' auth/session keys are bound to the host that ISSUED them: this sub used to
+' write the new server_url over the old one with the previous host's tokens
+' still persisted, so OnConnected -> GetApiClient() restored them and
+' restoreSession() fired GET {new}/auth/me with the OLD Bearer — and the 401
+' refresh arm then POSTed the old refresh token to the new host. The leak was
+' reachable at tip through the boot transport-failure retry (HandleBootAuth-
+' Failure -> ShowConnect(reason) prefill, M-ROKU-04): edit the prefilled
+' address to another host and connect. OnSwitchServer wipes before showing
+' this scene, but the invariant belongs at the WRITE-SITE, not at each caller.
+' The law now enforced here: when a server_url was already persisted AND the
+' incoming url differs, ResetCachedStorage(true) — the R1.6 six-key wipe
+' (auth_token, refresh_token, session_id, connection_kind, active_server_id,
+' active_server_name; server_url and device_id survive by that primitive's own
+' documented law) — runs BEFORE the new url is written and before the
+' connected signal, so no credential ever rides to a host the user has not
+' authenticated against (the rebuilt client sees empty storage;
+' restoreSession takes its honest no_session arm -> ShowLogin on the new
+' server). Same-URL reconnect keeps its session: equality means the persisted
+' tokens belong to this host. First connect has no prior url — nothing to
+' custody. The wipe is silent; its observable effect is the login screen,
+' already fully cataloged. Pinned by CHECK53.
 sub PersistAndGo(url as String)
+    previousUrl = GetServerUrl()
+    if previousUrl <> "" and previousUrl <> url then
+        ResetCachedStorage(true)
+    end if
     GetStorage().set("server_url", url)
     GetStorage().flush()  ' R1.6: persist the URL before the first boot auth check
     HideError()

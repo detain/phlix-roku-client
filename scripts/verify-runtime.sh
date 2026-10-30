@@ -6813,4 +6813,146 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+# ============================================================================
+echo ""
+echo "=== Check 53: the server_url persist choke wipes credentials on URL change (M-ROKU-24) ==="
+# CREDENTIAL-CUSTODY-AT-THE-CHOKE LAW (M-ROKU-24, review roku__secnet M3):
+# PersistAndGo — the single server_url write-site CHECK48 R2 censuses to
+# exactly one — used to write the newly entered address over the old one with
+# the PREVIOUS host's auth_token/refresh_token/session_id still persisted.
+# OnConnected then rebuilt the client (GetApiClient restores those keys),
+# restoreSession() fired GET {new}/auth/me with the OLD Bearer, and the 401
+# refresh arm POSTed the old refresh token to {new}/auth/refresh. Reachable at
+# tip via the boot transport-failure retry (ShowConnect(reason), M-ROKU-04
+# prefill): edit the saved address to another host and connect. The cure runs
+# the R1.6 six-key ResetCachedStorage(true) wipe at the choke BEFORE the new
+# url is written and before the connected signal, CONDITIONAL on the url
+# actually changing (same-URL reconnect keeps its session; first connect has
+# no prior url). Pinned statically (the logic needs registry + network nodes —
+# CHECK50/51/52 precedent: statement-presence legs, device honesty disclosed):
+#   R1  ConnectScene.PersistAndGo owns the custody sequence: previousUrl
+#       capture, the exact conditional guard (a surviving unconditional wipe or
+#       a dropped equality arm breaks the prefill/retry law), the
+#       ResetCachedStorage(true) call, and the order wipe -> set("server_url")
+#       -> m.top.connected = true (no request surface can observe the new host
+#       before the old credentials are gone);
+#   R2  the wipe rides the named primitive, not a re-rolled delete list (the
+#       six-key census is Storage.brs's law — a hand-rolled subset here drifts
+#       silently), and the write-site stays unique inside the choke;
+#   R3  PhlixApp.OnConnected stays a pure rebuild + StartAuthCheck: no storage
+#       write may re-appear there (custody scattered to callers is the exact
+#       invariant the review convicted) and the auth check must stay wired.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+SCENE = "components/ConnectScene.brs"
+APP = "components/PhlixApp.brs"
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK53: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(text):
+    out = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
+def func_body(text, name):
+    m = re.search(r"(?ms)^(function|sub) %s\(.*?^(end function|end sub)" % re.escape(name), text)
+    return m.group(0) if m else None
+
+
+def require(haystack, where, needle, why):
+    if haystack is None:
+        return
+    if needle not in haystack:
+        problems.append(f"  {where} - CHECK53: {needle!r} missing — {why}")
+
+
+scene = read(SCENE)
+app = read(APP)
+
+# ---- R1 the choke owns the custody sequence ---------------------------------
+if scene is not None:
+    scode = mask(scene)
+    pg = func_body(scode, "PersistAndGo")
+    if pg is None:
+        problems.append(f"  {SCENE} - CHECK53 R1: sub PersistAndGo() vanished — the credential-custody choke has no home")
+    else:
+        require(pg, SCENE, "previousUrl = GetServerUrl()",
+                "the choke must capture the PERSISTED url before overwriting it (CHECK48 R2 keeps this the only write-site)")
+        require(pg, SCENE, 'if previousUrl <> "" and previousUrl <> url then',
+                "the wipe must stay conditional on a genuine URL change — same-URL reconnect keeps its session (M-ROKU-04 prefill/retry law), first connect wipes nothing")
+        require(pg, SCENE, "ResetCachedStorage(true)",
+                "the change arm must run the R1.6 six-key wipe, not a silent partial clear")
+        wipe = pg.find("ResetCachedStorage(true)")
+        write = pg.find('GetStorage().set("server_url"')
+        signal = pg.find("m.top.connected = true")
+        if write == -1:
+            problems.append(f"  {SCENE} - CHECK53 R1: PersistAndGo lost its server_url write — the choke stopped being the persist site")
+        elif wipe == -1 or wipe > write:
+            problems.append(f"  {SCENE} - CHECK53 R1: the wipe no longer PRECEDES the server_url write — the new host's address could persist while the old host's tokens still ride storage")
+        if signal != -1 and wipe != -1 and wipe > signal:
+            problems.append(f"  {SCENE} - CHECK53 R1: the wipe no longer precedes the connected signal — OnConnected could restore old credentials before they are gone")
+
+    # ---- R2 single-source wipe primitive, unique write inside the choke ----
+    if pg is not None:
+        if "registry.Delete(" in pg or ".deleteKey(" in pg:
+            problems.append(f"  {SCENE} - CHECK53 R2: a hand-rolled registry delete appeared inside PersistAndGo — the six-key census is ResetCachedStorage's law; a re-rolled subset drifts silently")
+        if pg.count('GetStorage().set("server_url"') != 1:
+            n = pg.count('GetStorage().set("server_url"')
+            problems.append(f"  {SCENE} - CHECK53 R2: PersistAndGo's own server_url write count is {n}, expected exactly 1 — CHECK48 R2's repo-wide census starts here")
+
+# ---- R3 OnConnected stays a pure rebuild + auth check -----------------------
+if app is not None:
+    acode = mask(app)
+    oc = func_body(acode, "OnConnected")
+    if oc is None:
+        problems.append(f"  {APP} - CHECK53 R3: sub OnConnected() vanished — nothing rebuilds the client after connect")
+    else:
+        if "GetStorage().set(" in oc:
+            problems.append(f"  {APP} - CHECK53 R3: OnConnected writes storage again — custody scattered to callers is the exact invariant review roku__secnet M3 convicted; it lives at PersistAndGo")
+        require(oc, APP, "StartAuthCheck()",
+                "the boot auth check must stay wired — custody wipes must not silence the session validation")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK53: %d credential-custody-at-the-choke pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK53: the one server_url write-site wipes the six auth/session keys")
+print("           before persisting a CHANGED address and before the connected")
+print("           signal, so no old-host access or refresh token can ride a")
+print("           request to a host the user has not authenticated against;")
+print("           same-URL reconnect keeps its session, first connect keeps its")
+print("           nothing, and the wipe rides the single R1.6 primitive")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

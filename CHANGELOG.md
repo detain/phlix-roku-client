@@ -2,6 +2,51 @@
 
 ## [Unreleased]
 
+### Fixed — a server-URL change no longer carries the old host's tokens (M-ROKU-24) — 2026-10-29
+
+- **The defect (review roku__secnet M3).** `PersistAndGo` — the single
+  `server_url` write-site CHECK48 R2 censuses to exactly one — overwrote the
+  persisted address while the PREVIOUS host's `auth_token`, `refresh_token`
+  and `session_id` were still in Storage. `PhlixApp.OnConnected` then rebuilt
+  the client (`GetApiClient()` restores those keys unconditionally),
+  `restoreSession()` fired `GET {new}/auth/me` with the OLD Bearer, and the
+  401 refresh arm POSTed the old refresh token to `{new}/auth/refresh` — a
+  latent credential leak to an unverified host. Reachable at the tip through
+  the boot transport-failure retry (`HandleBootAuthFailure` ->
+  `ShowConnect(reason)` prefills the saved address, M-ROKU-04): edit it to
+  another host and connect. Settings -> Switch (`OnSwitchServer`) did wipe
+  six keys first, but the invariant lived in one caller, not at the choke —
+  exactly the implicit-invariant shape the review convicted.
+- **The cure.** The custody law now sits at the write-site: when a
+  `server_url` was already persisted AND the incoming url differs,
+  `ResetCachedStorage(true)` (the R1.6 six-key wipe — auth/session + hub
+  binding keys; `server_url` and `device_id` survive by that primitive's own
+  law) runs BEFORE the new url is written and before the `connected` signal.
+  The rebuilt client restores nothing, `restoreSession()` takes its honest
+  `no_session` arm and the user logs in on the new server; no credential ever
+  rides a request to a host it was not issued by. Same-URL reconnect (the
+  prefill/retry affordance) KEEPS its session — equality means the persisted
+  tokens belong to this host; first connect has no prior url and wipes
+  nothing. The cleartext-consent arm reaches the same choke and inherits the
+  law. `OnConnected` gained the docblock truth; its purity (rebuild +
+  `StartAuthCheck()`, zero storage writes) is now pinned.
+- **Law (CHECK53, static statement-presence legs — the CHECK50/51/52
+  precedent, the flow needs registry + network nodes):** R1 pins the capture
+  (`previousUrl = GetServerUrl()`), the exact conditional guard, the
+  `ResetCachedStorage(true)` call and the wipe -> write -> signal order; R2
+  convicts any hand-rolled delete list inside the choke (the six-key census
+  is `Storage.brs`'s single source) and keeps the write count at one; R3
+  keeps `OnConnected` a pure rebuild with the auth check wired. Portable
+  plant-and-restore leg re-grows the pre-cure persist and fires four named
+  CHECK53 convictions with CHECK48/CHECK52 gate independence. Red-on-parent
+  MEASURED at `14465fe`: exactly 4 CHECK53 pins fire, all 52 other legs PASS.
+- **Scope honesty.** No new user-facing strings — the wipe is silent and its
+  observable effect is the login screen, already cataloged in all seven
+  locales; the `_metadata.version` 1.10.0 set and CHECK48's pin are
+  untouched. `Back`/teardown posture (CHECK27/C47) and the key-repeat
+  throttles are untouched; `make lint` and the full battery are green at the
+  landing sha.
+
 ### Fixed — a failed read never renders as emptiness again (M-ROKU-21) — 2026-10-29
 
 - **The defect (review roku__gameux M6).** Failure and emptiness were rendered
