@@ -51,6 +51,19 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — §1a/row-39 attribution tightened: the channel-manifest page names 1.0/1.2/1.3; 1.1's authority is the vendored RSG_VERSIONS map (R-ROKU-02 rider) — 2026-10-30
+
+- **The looseness.** M-ROKU-07 review m2: both truth surfaces attributed the
+  full {1.0, 1.1, 1.2, 1.3} value space to the live channel-manifest page, but
+  the page names 1.0/1.2/1.3 explicitly — 1.1's authority is brighterscript's
+  vendored `RSG_VERSIONS` map (`dist/RokuConstants.js`: 1.1 `introducedAt`
+  7.5.0, `removedAt` 14.5.0), verified byte-for-byte in the same review. The
+  fact was correct; the provenance citation was loose.
+- **The cure.** `docs/certification.md` §1a and `docs/static-checks.md` row 39
+  now split the attribution exactly that way. Docs prose only: the CHECK39
+  legs, their value-space set literal, and the manifest are untouched, so no
+  gate's teeth moved.
+
 ### Fixed — CHECK39 R5 scans Eval() case-INsensitively, matching BrightScript's own identifier law (R-ROKU-01 rider) — 2026-10-30
 
 - **The hole.** M-ROKU-07 review m1: the R5 leg searched `\bEval\s*\(` with a

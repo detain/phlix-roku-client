@@ -22,9 +22,13 @@
 `rsg_version` is a real manifest key and it does **not** take a SceneGraph
 component-library release number. Per the live channel-manifest docs
 (retrieved 2026-10-29), it "Sets the SceneGraph observer callback model", with
-documented values **1.0** (deprecated as of Roku OS 8), **1.1**, **1.2** (what
-the entry "defaults to … as of Roku OS 9.3 if it's not specified"), and
-**1.3**. The shipped `rsg_version=7.0` conflated this key with RSG's package
+documented values **1.0** (deprecated as of Roku OS 8), **1.2** (what the entry
+"defaults to … as of Roku OS 9.3 if it's not specified") and **1.3** named on
+the page itself. **1.1** is NOT named there — its authority inside the accepted
+set {1.0, 1.1, 1.2, 1.3} is brighterscript's vendored `RSG_VERSIONS` map
+(`dist/RokuConstants.js`: 1.1 `introducedAt` 7.5.0, `removedAt` 14.5.0),
+re-verified byte-for-byte by the M-ROKU-07 review (m2 attribution tightening).
+The shipped `rsg_version=7.0` conflated this key with RSG's package
 version — devices silently ignore unknown values, so for the channel's whole
 life the line was a false-comfort knob that ran on the firmware default, and
 no vendored tool could catch it (brighterscript treats unknown-but-semver
