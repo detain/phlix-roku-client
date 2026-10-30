@@ -51,6 +51,37 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Docs — writer M9's ask list completes: retroactive quality-picker entry + Check 59's table row recovered (M-ROKU-33 follow-through) — 2026-10-30
+
+- **The hole.** The `[latest]` cure landed its header, model block and
+  Check 59 but collected only part of review roku__writer M9: the
+  Manual-quality-selection feature still had no CHANGELOG entry, so
+  README.md:22's "see the CHANGELOG" pointer stayed dead — the writer named
+  that pointer as reader-harm — and Check 59 shipped without its
+  `docs/static-checks.md` table row, the same landing debt the M-ROKU-28
+  docs-truth lane exists to collect.
+- **The cure.** Completion, not rotation: the quality picker (shipped
+  `46c0d5b`, 2026-07-08, inside the R4.10 era) gets a disclosed retroactive
+  entry at that era's tail, and `docs/static-checks.md` gains row 59
+  describing the leg as shipped (R1 rolling header, R2 whitespace-collapsed
+  model-block needles, R3 version-shaped headers standing on live
+  `git tag -l` or package.json backing). The leg, the header and the model
+  block are untouched. Writer M9's remaining asks verified already closed at
+  tip: the a2216e0 copy-lane entry is recorded, and the release-shape fiction
+  died with the twin-landed cure at `abd182a` — this lane raced it live
+  (double dispatch on the same item; first push won; the loser's independent
+  re-enumeration of the tag layer agreed claim-for-claim, and only the two
+  residues above survived as delta).
+- **Measured.** `make lint` exit 0; `bash scripts/verify-runtime.sh` exit 0
+  over all 59 legs (CI layout: server sibling shallow-cloned for Check 14);
+  CHECK59 red-on-base re-measured on `abd182a~1`'s committed CHANGELOG under
+  the shipped leg — exactly 4 named convictions (R1 + R2×3), exit 1, all 61
+  other PASS legs intact; the lane's own pre-landing leg-versus-base probe
+  measured the same class independently (3 convictions — the R2 trio
+  collapses to one section-home arm in that leg's shape);
+  `bash tests/scripts/verify-runtime-portable.sh` exit 0 including its
+  CHECK59 P1/P2 plants.
+
 ### Fixed — the CHANGELOG finally describes real releases: rolling-latest header + verified release model; phantom v1.0.0–v1.4.0 claim retracted (M-ROKU-33) — 2026-10-30
 
 - **The hole.** Review roku__writer M33: the file carried exactly two `##`
@@ -2835,3 +2866,22 @@ The `validate-xml` Makefile target now correctly returns exit code 1 on validati
 
 - `source/lib/AppContext.brs`: `GetServerUrl()` no longer falls back to `http://localhost:8096`. Returns "" when no server is configured — callers must check `IsServerConnected()` first and route to Connect.
 - `scripts/verify-runtime.sh`: Added CHECK 15 to detect hardcoded localhost URLs in source files.
+
+### Added — In-player quality selection (G4, PR #32) — recorded retroactively 2026-10-30 (M-ROKU-33, review roku__writer M9)
+
+Shipped `46c0d5b` (2026-07-08), inside this era. This entry is a disclosed
+retroactive record: the CHANGELOG never carried it, and README.md's
+"Manual quality selection" bullet has pointed readers ("see the CHANGELOG")
+at this missing entry ever since — that pointer resolves with this commit.
+Press **Up** in the player to open a quality picker listing **Auto**
+(server-driven ABR over the multi-variant master) plus every rung the active
+transcode advertises in its `variants[]` ladder, highest first; picking a
+rung swaps playback to that rung's own signed playlist and resumes at the
+same position, picking Auto hands playback back to native ABR. The choice
+persists in the `Storage` key `preferred_quality` and re-applies on the next
+transcode. With no ladder (direct-play or a legacy job) the picker shows Auto
+only and no-ops gracefully. Depends on server-side A7 (the variants ladder).
+Known limitation, unchanged and device-unverified: the transient
+content-swap-while-playing behaviour still needs an on-device smoke test
+(device queue blocked — `docs/BLOCKED_R0.1.md`); code path
+`components/PlayerScene.brs`.
