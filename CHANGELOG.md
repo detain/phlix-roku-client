@@ -2,6 +2,55 @@
 
 ## [Unreleased]
 
+### Docs — the i18n docs' numbers meet the shipped tooling: seven checks, seven restored rows, two corrected counts (M-ROKU-28) — 2026-10-30
+
+- **The holes.** Review `roku__writer` M4: `docs/i18n.md:220` said
+  "`scripts/verify-runtime.sh` runs all three checks as part of
+  `make verify-runtime`" while the same document enumerates SEVEN i18n checks
+  directly beneath it (Checks 19-25) — the sentence froze at three in the
+  8657ba6b era when three were all that existed. The queue's
+  `cured-by: C21 c6c9009; C33 9ff4a6d` annotations never touched the line.
+  The mandated whole-file recount of every numeric claim in `docs/i18n.md` +
+  `docs/static-checks.md` surfaced three more: the ledger bullet claiming the
+  catalog "grew from 140 to 273 keys per locale (v1.3.0 → v1.4.0)" — measured
+  274 at `ee70fad` under the loader's flatten rule (a 2026-09-25 review had
+  already convicted the 273 figure; the doc bullet never absorbed it, and its
+  own next bullet starts at 274); the `docs/static-checks.md` table skipping
+  rows 32-38 ENTIRELY — seven live checks (M-ROKU-02/03/04/04-closeout/04-r2/
+  05/06 eras) shipped as script legs with no table row, a gap the file itself
+  admitted in a "landing debt ... Recorded for closeout collection" comment;
+  and the Check 14 section citing "lines 853-855" — the ENUM comment moved to
+  `Utilities.brs:1301-1303` long ago.
+- **The cures.** :220 now states the seven checks (19-25) and points at
+  `docs/static-checks.md` for the full table — with NO total-check count
+  embedded, because that number moves with every landing lane: the sentence's
+  own failure mode. 273 → 274. Rows 32-38 are restored from each check's
+  in-script docblock and R-rule enumeration (32:R1-R5, 33:R1-R6, 34:R1-R5,
+  35:R1-R5, 36:R1-R6, 37:R1-R4, 38:R1-R3), the debt comment replaced by a
+  collection note, the table complete 1-56 with no duplicate or gap; and the
+  Check 14 coordinate re-anchors to what the checker actually greps — the
+  `' The full ENUM is:` banner above `PlayableTypes()`, two member lines,
+  13 members — a claim re-verified on both sides (the checker's own scoped
+  regex over server migrations still elects `034_media_items_type_audiobook.sql`
+  with exactly 13).
+- **The census (zero survivors).** Every checks/legs/locales/keys claim in both
+  files was measured against shipped tooling. Era key-counts via each version's
+  bump commit with the loader flatten rule: 140@`d048bfc`, 274@`ee70fad`,
+  276@`4761741`, 277@`fd90120`, 278@`a2216e0`, 302@`d252b17`, 310@`dc4d6b3`,
+  319@`ab050d5`, 345@`a5dad23`, 348@`14465fe` (= HEAD, and HEAD's
+  `_metadata.version` 1.10.0); "all 16 token-bearing values" verified 16 at
+  `e010a4e` (the set is 32 today — already disclosed by row 51's own text;
+  history verbatim); the wire census 19 = 9 bare SCREAMING + 7 dotted +
+  3 pre-flip-only with the reserved set empty, counted live in `Utilities.brs`;
+  CHECK51's `PLAYER_KEYS` pin = 29; 13 `SetSyncStatus` call sites at `ab050d5`
+  (15 greps minus 2 definition lines); `RatingLabel()` ships exactly 7 labels;
+  Check 19's scope list is exactly the three named files; seven locale dirs;
+  every portable-harness red-leg and green-set the docs cite (red-20/21/22/
+  22b/23/24/25/19/26, the reserved-removal leg, `seq 11 26`, the aggregation
+  leg) exists as claimed; era-phrasings ("hardcoded 8 paths", "All 31 checks",
+  "checks 11-19 had never executed in CI") re-measured true against their cure
+  commits' scripts. No code, catalog, or check leg touched.
+
 ### Fixed — the dead SyncPlay room pair is demoted to shipped truth everywhere: Check 56 (M-ROKU-26)
 
 - **Verify-first verdict: NOT stale.** The queue marked the item
