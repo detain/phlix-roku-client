@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+### Fixed — the SyncPlay dial posture gets its composition census and survival pins: Check 54 (M-ROKU-22 residual)
+
+- **What landed where (disclosed double-lane).** Review roku__secnet M1
+  ("plaintext-by-assertion") was filed once and shipped by two lanes. The
+  prose cure — scoped headings, the `roSecureSocket` deferred-arm truth, the
+  CHECK46 R2 misclaim conviction arms — is `edbbd8a`. That commit message
+  claimed "dead worklog pointers re-anchored" and missed one:
+  `source/lib/SyncPlayProtocol.brs` still cited the vanished `worklog §1f`;
+  this lane deletes it.
+- **What prose cannot pin (Check 54).** The M1 exfil scenario needs the
+  bearer JWT to reach a host the user never authenticated against. That
+  remains impossible only while the dial COMPOSES honestly: the SyncPlayTask
+  node has exactly one instantiation site, that site orders builder ->
+  invalid guard -> refusal probe -> node, `BuildSyncPlayWsParts` refuses
+  `https://` origins in-code and FORCES port 8097 from the stored
+  `GetServerUrl` authority, and hub mode is choked at the panel entry (no
+  relay path exists, so a hub token has nowhere to ride). CHECK46/48/53 each
+  guard their own choke but none censuses the composition: a second,
+  ungated dial site would pass all three. R2 adds truth-PRESENCE arms — the
+  scoped `ws://`-only heading, the README/TASK `roSecureSocket` deferred-arm
+  sentences, the SPEC §5 citation — because a conviction arm only catches a
+  lie coming back, not a truth being silently deleted. R3 convicts the dead
+  `worklog §` / "See the worklog" pointer family in the M22 file set
+  (LiveTV/LivePlayer's bare pointers are a different feature's prose debt,
+  disclosed as out of scope). The plant-and-restore leg re-plants the hub
+  choke, truncates the heading and re-adds the `§1f` pointer: exactly the
+  CHECK54 R1/R2/R3 legs fire and CHECK46/48/53 stay green (gate
+  independence).
+
 ### Fixed — the SyncPlay transport stops asserting a false platform limit: wss is DEFERRED, not impossible (M-ROKU-22) — 2026-10-29
 
 - **The defect (review roku__secnet M1, the "plaintext-by-assertion" item).**

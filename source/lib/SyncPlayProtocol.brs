@@ -525,7 +525,7 @@ function SyncPlayProtocol() as Object
 
         ' -----------------------------------------------------------------
         ' TimeSync (NTP-style offset + drift, milliseconds scale)
-        ' Implements @phlix/syncplay SPEC §5 / worklog §1f exactly.
+        ' Implements @phlix/syncplay SPEC §5 exactly.
         ' -----------------------------------------------------------------
 
         ' Record a pong sample. t1=client_time(ms), t2=server_time(ms, server
