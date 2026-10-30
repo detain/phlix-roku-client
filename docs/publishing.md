@@ -64,6 +64,15 @@ What exists **today** (pinned against drift by verify-runtime Check 40):
   only survive to the next push if someone downloads its `phlix.zip` in time
   (Actions artifacts from the run are re-zipped on download; the Release
   asset is the bare sideload zip). Keep any build you may need to return to.
+- **The package build is deterministic and digested (M-ROKU-20).**
+  `make package` zips a staged tree in fixed `LC_ALL=C sort` order at fixed
+  mtimes (`zip -X`), so the same commit reproduces byte-identical
+  `phlix.zip` bytes (measured), and the same recipe writes a
+  `phlix.zip.sha256` companion. The `Package` workflow verifies the digest
+  (`sha256sum -c`), uploads the pair beside the release and prints the
+  digest into the rolling `latest` body. The recipe's line shape is pinned
+  by verify-runtime Check 41 R5 — rotate the doc, `scripts/verify-package.sh`
+  and that leg together.
 - **Store-side version management lives at the Roku Developer Portal**, not
   in this repo — which approved build is live is portal state. Nothing here
   automates or documents a portal-side revert procedure.

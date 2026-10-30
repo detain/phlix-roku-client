@@ -122,9 +122,11 @@ sub TestSleepTimerGetRemainingFormattedWhenNotActive()
 end sub
 
 sub TestSleepTimerIsActive()
-    ' Test isActive returns current state
+    ' isActive is a STATE FIELD (the duplicate accessor method was removed —
+    ' see SleepTimer.brs M-ROKU-15 note; it shadowed the field and crashed
+    ' every 'not m.isActive' guard on the device).
     timer = SleepTimer()
-    assertFalse(timer.isActive())
+    assertFalse(timer.isActive)
     print "TestSleepTimerIsActive passed"
 end sub
 

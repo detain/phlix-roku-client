@@ -46,7 +46,7 @@ end function
 ' @return String - routing action: "play", "series", "season", or ""
 function MapDeepLinkMediaType(mediaType as String) as String
     if mediaType = invalid then return ""
-    lower = mediaType.Trim().Lower()
+    lower = LCase(mediaType.Trim())
     ' Direct-playback types: movie, episode, shortformvideo, tvspecial
     if lower = "movie" or lower = "episode" or lower = "shortformvideo" or lower = "tvspecial" then
         return "play"
@@ -74,7 +74,7 @@ function ExtractDeepLinkParams(args as Object) as Object
     contentId = invalid
     mediaType = invalid
     for each key in args.Keys()
-        k = key.Trim().Lower()
+        k = LCase(key.Trim())
         if k = deepLinkContentIdKey then contentId = args[key]
         if k = deepLinkMediaTypeKey then mediaType = args[key]
     end for

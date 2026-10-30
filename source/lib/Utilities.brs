@@ -19,9 +19,9 @@ function FormatTime(seconds as Float) as String
     secs = Int(seconds mod 60)
 
     if hours > 0 then
-        return str(hours).trim() + ":" + str(minutes).Trim().Right(2).Repl(" ", "0") + ":" + str(secs).Trim().Right(2).Repl(" ", "0")
+        return str(hours).trim() + ":" + Right("0" + str(minutes).Trim(), 2) + ":" + Right("0" + str(secs).Trim(), 2)
     else
-        return str(minutes).Trim() + ":" + str(secs).Trim().Right(2).Repl(" ", "0")
+        return str(minutes).Trim() + ":" + Right("0" + str(secs).Trim(), 2)
     end if
 end function
 
@@ -53,7 +53,7 @@ end function
 ' Truncate string with ellipsis
 function TruncateString(str as String, maxLength as Integer) as String
     if str.Len() > maxLength then
-        return str.Left(maxLength - 3) + "..."
+        return Left(str, maxLength - 3) + "..."
     end if
     return str
 end function
@@ -61,7 +61,7 @@ end function
 ' Validate URL format
 function IsValidUrl(url as String) as Boolean
     if url <> invalid and url <> "" then
-        if url.Left(7).Lower() = "http://" or url.Left(8).Lower() = "https://" then
+        if LCase(Left(url, 7)) = "http://" or LCase(Left(url, 8)) = "https://" then
             return true
         end if
     end if
@@ -78,10 +78,10 @@ end function
 ' law all read hosts through here (CHECK48 R3 pins the delegation).
 function HostOfUrl(url as String) as String
     if url = invalid then return ""
-    u = url.Trim().Lower()
+    u = LCase(url.Trim())
     if u = "" then return ""
     schemeSep = Instr(1, u, "://")
-    if schemeSep > 0 then u = u.Mid(schemeSep + 3)
+    if schemeSep > 0 then u = Mid(u, schemeSep + 3)
 
     cut = Len(u)
     for i = 1 to Len(u)
@@ -102,7 +102,14 @@ function HostOfUrl(url as String) as String
     end if
 
     colon = Instr(1, u, ":")
-    if colon > 0 then u = Left(u, colon - 1)
+    if colon > 0 then
+        ' Two or more colons can only be an unbracketed IPv6 literal without
+        ' a port (a host:port authority carries exactly one). Cutting at the
+        ' FIRST colon would blank the address, so the literal passes through
+        ' — the Connect screen's scheme-less input includes '::1' shapes.
+        if Instr(colon + 1, u, ":") > 0 then return u
+        u = Left(u, colon - 1)
+    end if
     return u
 end function
 
@@ -116,7 +123,7 @@ end function
 ' cleartext-consent gate - CHECK48 R3 pins the delegation.
 function IsPrivateHostAddress(host as String) as Boolean
     if host = invalid then return false
-    h = host.Trim().Lower()
+    h = LCase(host.Trim())
     if h = "" then return false
     if h = "localhost" then return true
     if h = "::1" or h = "[::1]" then return true
@@ -163,8 +170,8 @@ function NormalizeServerUrl(raw as String) as String
     url = raw.Trim()
     if url = "" then return ""
 
-    lower = url.Lower()
-    if lower.Left(7) = "http://" or lower.Left(8) = "https://" then
+    lower = LCase(url)
+    if Left(lower, 7) = "http://" or Left(lower, 8) = "https://" then
         ' Explicit scheme - keep as typed (the cleartext class of a remote
         ' http:// is gated at PERSIST time in ConnectScene, not here).
     else
@@ -216,7 +223,7 @@ end function
 function ClassifyUrlFailure(failReason as String, started as Boolean) as String
     if not started then return "bad_url"
     lower = ""
-    if failReason <> invalid then lower = failReason.Lower()
+    if failReason <> invalid then lower = LCase(failReason)
     if Instr(1, lower, "resolve") > 0 then return "dns"
     ' M-ROKU-15 custody bucket - checked BEFORE the "refused" arm on purpose:
     ' our refusal texts ("unsafe redirect refused ...") contain the word
@@ -280,8 +287,8 @@ end function
 ' ever reached with NormalizeServerUrl output (which guarantees a scheme).
 function ServerUrlUsesCleartextToRemoteHost(url as String) as Boolean
     if url = invalid then return false
-    u = url.Trim().Lower()
-    if u.Left(7) <> "http://" then return false
+    u = LCase(url.Trim())
+    if Left(u, 7) <> "http://" then return false
     return not IsPrivateHostAddress(HostOfUrl(u))
 end function
 
@@ -297,13 +304,13 @@ end function
 ' every malformed shape the custody law must REFUSE.
 function OriginOfUrl(url as String) as String
     if url = invalid then return ""
-    u = url.Trim().Lower()
+    u = LCase(url.Trim())
     schemeSep = Instr(1, u, "://")
     if schemeSep = 0 then return ""
     scheme = Left(u, schemeSep - 1)
     if scheme <> "http" and scheme <> "https" then return ""
 
-    rest = u.Mid(schemeSep + 3)
+    rest = Mid(u, schemeSep + 3)
     cut = Len(rest)
     for i = 1 to Len(rest)
         c = Mid(rest, i, 1)
@@ -322,16 +329,22 @@ function OriginOfUrl(url as String) as String
         close = Instr(1, rest, "]")
         if close = 0 then return ""
         host = Left(rest, close)
-        after = rest.Mid(close)
+        ' Mid() is 1-based on the device: the text AFTER the bracket starts at
+        ' close + 1, and the port digits start at after[2] (after ':' ).
+        ' The former close / 1 off-by-one pair made EVERY bracketed IPv6
+        ' origin return "" on the device (and in brs, which is 1-based too) —
+        ' found only because the M-ROKU-15 headless harness executed these
+        ' tests for the first time.
+        after = Mid(rest, close + 1)
         if Len(after) > 0 then
             if Left(after, 1) <> ":" then return ""
-            port = after.Mid(1)
+            port = Mid(after, 2)
         end if
     else
         colon = Instr(1, rest, ":")
         if colon > 0 then
             host = Left(rest, colon - 1)
-            port = rest.Mid(colon + 1)
+            port = Mid(rest, colon + 1)
         end if
     end if
     if host = "" then return ""
@@ -362,8 +375,8 @@ function IsCredentialSafeRedirectHop(fromUrl as String, toUrl as String) as Bool
     destOrigin = OriginOfUrl(toUrl)
     if fromOrigin = "" or destOrigin = "" then return false
     if fromOrigin = destOrigin then return true
-    if fromOrigin.Left(7) = "http://" and destOrigin.Left(8) = "https://" then
-        if fromOrigin.Mid(8) = destOrigin.Mid(9) then return true
+    if Left(fromOrigin, 7) = "http://" and Left(destOrigin, 8) = "https://" then
+        if Mid(fromOrigin, 8) = Mid(destOrigin, 9) then return true
     end if
     return false
 end function
@@ -380,14 +393,14 @@ function ResolveRedirectTarget(fromUrl as String, location as String) as String
     if loc = "" then return ""
     if Instr(1, loc, Chr(13)) > 0 or Instr(1, loc, Chr(10)) > 0 or Instr(1, loc, Chr(0)) > 0 then return ""
 
-    lower = loc.Lower()
-    if lower.Left(7) = "http://" or lower.Left(8) = "https://" then return loc
+    lower = LCase(loc)
+    if Left(lower, 7) = "http://" or Left(lower, 8) = "https://" then return loc
 
     origin = OriginOfUrl(fromUrl)
     if origin = "" then return ""
-    if loc.Left(2) = "//" then
+    if Left(loc, 2) = "//" then
         sep = Instr(1, origin, "://")
-        return origin.Left(sep - 1) + ":" + loc
+        return Left(origin, sep - 1) + ":" + loc
     end if
     if Left(loc, 1) = "/" then return origin + loc
     return origin + "/" + loc
@@ -402,17 +415,17 @@ function ExtractServerOrigin(location as String) as String
     if location = invalid then return ""
     u = location.Trim()
     if u = "" then return ""
-    lower = u.Lower()
-    if lower.Left(7) <> "http://" and lower.Left(8) <> "https://" then return ""
+    lower = LCase(u)
+    if Left(lower, 7) <> "http://" and Left(lower, 8) <> "https://" then return ""
     schemeSep = Instr(1, u, "://")
-    scheme = lower.Left(schemeSep - 1)
-    rest = u.Mid(schemeSep + 3)
+    scheme = Left(lower, schemeSep - 1)
+    rest = Mid(u, schemeSep + 3)
     pathSep = Instr(1, rest, "/")
-    if pathSep > 0 then rest = rest.Left(pathSep - 1)
+    if pathSep > 0 then rest = Left(rest, pathSep - 1)
     querySep = Instr(1, rest, "?")
-    if querySep > 0 then rest = rest.Left(querySep - 1)
+    if querySep > 0 then rest = Left(rest, querySep - 1)
     fragmentSep = Instr(1, rest, "#")
-    if fragmentSep > 0 then rest = rest.Left(fragmentSep - 1)
+    if fragmentSep > 0 then rest = Left(rest, fragmentSep - 1)
     if rest = "" then return ""
     if Instr(1, rest, "@") > 0 then return ""
     return scheme + "://" + rest
@@ -430,7 +443,7 @@ end function
 function ParseSsdpResponse(raw as String) as String
     if raw = invalid then return ""
     if raw = "" then return ""
-    if raw.Left(4) <> "HTTP" then return ""
+    if Left(raw, 4) <> "HTTP" then return ""
     if Instr(1, raw, " 200") = 0 then return ""
 
     location = ""
@@ -446,12 +459,12 @@ function ParseSsdpResponse(raw as String) as String
         ' match no prefix and are inert. AA member lookup is
         ' case-insensitive; the Left/UCase prefix tests keep header casing
         ' irrelevant by design.
-        upper = Left(value, 9).UCase()
+        upper = UCase(Left(value, 9))
         if upper = "LOCATION:" then
             location = Mid(value, 10).Trim()
-        else if Left(value, 4).UCase() = "USN:" then
-            if Instr(1, value.UCase(), "PHLIXSERVER") > 0 then isPhlix = true
-        else if Left(value, 7).UCase() = "SERVER:" then
+        else if UCase(Left(value, 4)) = "USN:" then
+            if Instr(1, UCase(value), "PHLIXSERVER") > 0 then isPhlix = true
+        else if UCase(Left(value, 7)) = "SERVER:" then
             if Instr(1, value, "Phlix/") > 0 then isPhlix = true
         end if
     end for
@@ -487,7 +500,7 @@ function GetFileExtension(url as String) as String
         filename = parts[parts.Count() - 1]
         extParts = filename.Split(".")
         if extParts.Count() > 1 then
-            return extParts[extParts.Count() - 1].Lower()
+            return LCase(extParts[extParts.Count() - 1])
         end if
     end if
     return ""
@@ -495,7 +508,7 @@ end function
 
 ' Determine stream format from container
 function GetStreamFormat(container as String) as String
-    container = container.Lower()
+    container = LCase(container)
     if container = "mp4" or container = "m4v" then
         return "mp4"
     else if container = "mkv" then
@@ -597,7 +610,7 @@ function ByteToHex(n as Integer) as String
     hexDigits = "0123456789ABCDEF"
     hi = (n \ 16) mod 16
     lo = n mod 16
-    return hexDigits.Mid(hi, 1) + hexDigits.Mid(lo, 1)
+    return Mid(hexDigits, hi + 1, 1) + Mid(hexDigits, lo + 1, 1)
 end function
 
 ' URL-encode a string (percent-encode according to RFC 3986).
@@ -770,7 +783,7 @@ function SortByEpisodeOrder(items as Object) as Object
     end for
 
     ' ArraySort is O(n log n) merge sort; sort by sortKey ascending.
-    decorated.SortBy("sortKey", "asc", false)
+    decorated.SortBy("sortKey", "asc")
 
     ' Extract the sorted items back out.
     result = []
@@ -930,7 +943,7 @@ function SortByTrackOrder(tracks as Object) as Object
     end for
 
     ' ArraySort is O(n log n) merge sort; sort by sortKey ascending.
-    decorated.SortBy("sortKey", "asc", false)
+    decorated.SortBy("sortKey", "asc")
 
     ' Extract the sorted tracks back out.
     result = []
@@ -1332,7 +1345,7 @@ function IsPlayableType(itemType as Dynamic) as Boolean
     t = type(itemType)
     if t <> "String" and t <> "roString" then return false
 
-    needle = itemType.Trim().Lower()
+    needle = LCase(itemType.Trim())
     if needle = "" then return false
 
     for each candidate in PlayableTypes()
@@ -1528,13 +1541,30 @@ end function
 ' Strings pass through; booleans render "true"/"false"; integers and floats
 ' render sign-free via the repo's str().trim() idiom; anything else is
 ' rejected as invalid.
-' @param value Object - the raw parameter value
+' @param value - the raw parameter value (dynamic by law: see the body note)
 ' @return Object - String when renderable, invalid otherwise
-function TokenValueText(value as Object) as Object
+function TokenValueText(value) as Object
+    ' Contract (tests/unit/TranslateWithParams.test.brs pins the whole table):
+    ' strings pass through, booleans render true/false, numerics render
+    ' sign-free via the str().trim() idiom, and everything else — invalid,
+    ' associative arrays, lists — is REJECTED with invalid so
+    ' ApplyNamedTokens leaves the token visible (fail-loud) instead of
+    ' swallowing it or crashing the render thread.
+    '
+    ' The parameter is DYNAMIC (untyped) deliberately: brs 0.45 boxes a
+    ' Boolean passed into an 'as Object' formal into a wrapper whose if-context
+    ' truthiness is false for BOTH true and false (measured: tv5(true) and
+    ' tv5(false) both took the else arm; same function untyped coerces
+    ' correctly). On the device 'as Object' and dynamic both accept any value,
+    ' so untyping is behavior-neutral on hardware and the only shape this
+    ' interpreter can evaluate honestly.
+    if value = invalid then return invalid
     t = type(value)
     if t = "String" or t = "roString" then return value
-    if t = "Boolean" then
-        if value = true then return "true"
+    ' The boxed names mirror the unboxed device forms (a value stored in an
+    ' associative-array slot can surface either shape depending on runtime).
+    if t = "Boolean" or t = "roBoolean" then
+        if value then return "true"
         return "false"
     end if
     if t = "Integer" or t = "roInt" or t = "LongInteger" or t = "roLongInt" then return str(value).trim()
@@ -1629,7 +1659,9 @@ end function
 ' declared-reserved}, so an undeclared future code cannot ride in on a count
 ' bump. Post-flip split (promoted per the #90 law: reserved -> emitted only
 ' with fresh server evidence at a pinned origin):
-'   emitted-verified: 19 codes, read off phlix-server origin/master
+'   emitted-verified: 20 codes (19 at the 9b2394ee flip + queue_limit_
+'     exceeded promoted W-min92 on 7baa398a evidence), read off
+'     phlix-server origin/master
 '     9b2394eea631739dff8f6e039d50f910c4304d97 (PR #798 twin flip) plus the
 '     pre-flip record e0e010b07c7f4cc21baf10d9a945bac24edab45c:
 '       9 legacy SCREAMING still emitted at 9b2394ee (src/Session/SyncPlay/
@@ -1656,18 +1688,20 @@ end function
 ' - only this split moved.
 ' ===========================================
 
-' Canonical client-reachable syncplay wire codes: the 19 emitted-verified
-' codes (9 current + 3 pre-flip-only legacy SCREAMING + 7 dotted registry
-' twins, read off phlix-server origin/master 9b2394ee sendError literals,
+' Canonical client-reachable syncplay wire codes: the 20 emitted-verified
+' codes (9 current + 3 pre-flip-only legacy SCREAMING + 8 dotted registry
+' twins — the eighth, syncplay.queue_limit_exceeded, promoted W-min92 on the
+' live emission evidence recorded at its push site, read off phlix-server
+' origin/master sendError literals,
 ' pre-flip record e0e010b0) UNION the codes declared in
-' SyncPlayReservedErrorCodes() (none since the 2026-09-25 twin flip) = 19.
+' SyncPlayReservedErrorCodes() (none since the 2026-09-25 twin flip) = 20.
 ' Every element MUST have a matching errors_<law(key)> entry in ALL seven
 ' locale catalogs - Check 22 enforces the en_US side by CONTENT equality
 ' against that split (the guard law: silent fallback must not hide a missing
 ' translation, and an undeclared future code must not ride in on a count
 ' bump) and Check 21 pins cross-locale key parity from the catalogs themselves.
 ' Pure: returns a fresh array; callers must not mutate module state through it.
-' @return Object - roArray of 19 code strings as they appear on the wire
+' @return Object - roArray of 20 code strings as they appear on the wire
 '         (current servers or pre-flip servers)
 function SyncPlayKnownErrorCodes() as Object
     codes = []
@@ -1696,6 +1730,16 @@ function SyncPlayKnownErrorCodes() as Object
     codes.push("syncplay.create_failed")
     codes.push("syncplay.join_failed")
     codes.push("syncplay.leave_failed")
+    ' Promoted W-min92 on live emission evidence: phlix-server 7baa398a emits
+    ' syncplay.queue_limit_exceeded on queue overflow (sendError at
+    ' SyncPlayManager.php:1254 on current master; contracts v0.5.3 registry
+    ' row 8). Declaration preceded the census entry in the contracts union;
+    ' the wire change has landed, so this is a promotion, not a reservation.
+    ' NOTE for future editors: never place a double quote inside this body —
+    ' Checks 22/23 extract members by pairing quoted strings across the raw
+    ' function text (no comment masking), so one unbalanced quote here turns
+    ' every following push into a false census member.
+    codes.push("syncplay.queue_limit_exceeded")
     return codes
 end function
 
@@ -1767,7 +1811,7 @@ end function
 ' and ride no frame.
 ' They are not "unrecognized server codes", so they must not squat in the
 ' wire census SyncPlayKnownErrorCodes() (Check 22 pins that list by content
-' to exactly the 19 emitted-verified wire codes - 16 current + 3
+' to exactly the 20 emitted-verified wire codes - 17 current + 3
 ' pre-flip-only legacy - plus any declared-reserved flip-pending codes
 ' (none today), and that honesty is the point).
 '

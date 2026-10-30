@@ -74,10 +74,19 @@ sub TestIsSafeContentIdRejectsEmptyAndControlAndHighBytes()
     assertFalse(IsSafeContentId(""))
     assertFalse(IsSafeContentId("   "))
     ' Control bytes and non-ASCII never survive: labels and paths both go.
-    assertFalse(IsSafeContentId("a" + Chr(0) + "b"))
     assertFalse(IsSafeContentId("a" + Chr(10) + "b"))
     assertFalse(IsSafeContentId("café"))
     print "TestIsSafeContentIdRejectsEmptyAndControlAndHighBytes passed"
+end sub
+
+sub TestIsSafeContentIdRejectsNulByte()
+    ' Split arm (M-ROKU-15): brs collapses Chr(0) to the EMPTY string
+    ' (measured Len(Chr(0))=0), so this input degrades to "ab" there and the
+    ' assertion can only hold on a device, where Chr(0) is a real NUL byte
+    ' the shape law rejects. Kept as its own test so the headless harness
+    ' can EXCLUDE exactly this brs gap, not the whole guard suite.
+    assertFalse(IsSafeContentId("a" + Chr(0) + "b"))
+    print "TestIsSafeContentIdRejectsNulByte passed"
 end sub
 
 sub TestIsSafeContentIdTrimsForJudgmentOnly()

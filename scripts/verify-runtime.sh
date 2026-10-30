@@ -429,6 +429,12 @@ os.chdir(os.environ['REPO'])
 exempt_files = {
     # tests/ — unit tests always use localhost for the mock server
     'tests/',
+    # build/ — output tree, not source. Since M-ROKU-20 the deterministic
+    # package recipe stages a byte-copy of source/ under build/pkg-stage/
+    # (CI: package.yml only, and the Lint job's git-grep legs never see it;
+    # a local `make package` followed by a full gate run WOULD). Contents
+    # are already scanned at their real paths.
+    'build/',
 }
 # Allow-list: specific line content patterns that are legitimate
 exempt_line_patterns = [
@@ -443,8 +449,11 @@ exempt_locs = {
     # (IsPrivateHostAddress - scheme inference + the M-ROKU-15 cleartext gate
     # classify loopback through it). The pre-R4.7 pin at line 91 went stale
     # when the inline inference moved out of NormalizeServerUrl; M-ROKU-15
-    # re-pinned it onto the predicate's own line.
-    ('source/lib/Utilities.brs', 121): re.compile(r'if h = "localhost" then return true'),
+    # re-pinned it onto the predicate's own line. W-min91 re-pinned 121 -> 128:
+    # the harness-convicted cure families (LCase/Left/Mid/Right global
+    # conversions + Repl/UrlEncode evidence docblocks) shifted the file by
+    # seven lines above this predicate.
+    ('source/lib/Utilities.brs', 128): re.compile(r'if h = "localhost" then return true'),
 }
 
 found_violation = False
@@ -1228,7 +1237,8 @@ echo "=== Check 22: syncplay wire census is content-pinned and resolves in en_US
 # reserved at #90) BEFORE the server started sending them, so
 # "known" is now a SUPERSET law: census ⊇ emitted, and the law is machine-
 # enforced by CONTENT equality against an explicit split instead of a count:
-#   EMITTED_VERIFIED (19, post-flip): read off phlix-server origin/master
+#   EMITTED_VERIFIED (20 = 19 post-flip + syncplay.queue_limit_exceeded
+#     promoted W-min92 on phlix-server 7baa398a evidence): read off origin/master
 #     9b2394eea631739dff8f6e039d50f910c4304d97 (PR #798 twin flip) plus the
 #     pre-flip record e0e010b07c7f4cc21baf10d9a945bac24edab45c, sendError
 #     literals (src/Session/SyncPlay/SyncPlayManager.php +
@@ -1253,7 +1263,7 @@ echo "=== Check 22: syncplay wire census is content-pinned and resolves in en_US
 #   (d) SyncPlayTask.brs still routes syncplay_error text through
 #       LocalizeSyncPlayError() (wire-in present)
 #   (e) CENSUS CONTENT: set(census) == EMITTED_VERIFIED | RESERVED exactly -
-#       a planted 20th code, a renamed member or a silently re-admitted
+#       a planted 21st code, a renamed member or a silently re-admitted
 #       retired code all fire, which a count pin could not see
 #   (f) DECLARED RESERVED: SyncPlayReservedErrorCodes() exists, names exactly
 #       the RESERVED set, every member is in the census, and no reserved
@@ -1297,6 +1307,11 @@ EMITTED_VERIFIED = {
     # dotted registry - promoted by the 9b2394ee twin flip (ex-RESERVED)
     "syncplay.create_failed", "syncplay.join_failed",
     "syncplay.leave_failed",
+    # dotted registry - promoted W-min92 on live emission: phlix-server
+    # 7baa398a 'emit syncplay.queue_limit_exceeded on queue overflow'
+    # (sendError literal SyncPlayManager.php:1254 on current master; ancestor
+    # of server master verified at re-vendor time; contracts v0.5.3 row 8).
+    "syncplay.queue_limit_exceeded",
     # legacy SCREAMING - emitted ONLY by pre-flip servers (e0e010b0
     # evidence; retired from current emits at 9b2394ee, kept for old-server
     # resolution - a family retires only when its servers do)
@@ -1444,8 +1459,10 @@ echo "=== Check 23: client local.* error family stays separate from the wire cen
 #   (a) SyncPlayLocalErrorCodes() exists; every entry matches local.<snake>
 #   (b) each local code flattens (via the Check 22 normalizer) to an existing
 #       en_US errors_local_* entry, collision-free within the family
-#   (c) WIRE-CENSUS HONESTY: SyncPlayKnownErrorCodes() still lists exactly 19
-#       wire codes (19 emitted-verified + 0 declared-reserved post-flip per Check 22's
+#   (c) WIRE-CENSUS HONESTY: SyncPlayKnownErrorCodes() still lists exactly 20
+#       wire codes (20 emitted-verified — 19 since the flip + queue_limit_
+#       exceeded promoted W-min92 on server 7baa398a evidence — + 0
+#       declared-reserved post-flip per Check 22's
 #       content pin), none starts with "local.", and no wire code
 #       normalizes onto a local key (the families cannot impersonate each other)
 #   (d) SECTION PURITY: every key in the en_US errors section belongs to
@@ -1529,10 +1546,10 @@ if util:
         wire_codes = re.findall(r'"([^"]+)"', mw.group(0))
     # (c) wire-census honesty (content authority is Check 22's pin (e); the
     # count here re-derives it independently so the two gates stay redundant)
-    if len(wire_codes) != 19:
+    if len(wire_codes) != 20:
         problems.append(
-            f"  {UTILITIES} - CHECK23: wire census must stay the 19 "
-            "wire-honest codes (19 emitted-verified + 0 declared-reserved), "
+            f"  {UTILITIES} - CHECK23: wire census must stay the 20 "
+            "wire-honest codes (20 emitted-verified + 0 declared-reserved), "
             f"found {len(wire_codes)} - client-minted "
             "strings belong in SyncPlayLocalErrorCodes(), never here")
     for code in wire_codes:
@@ -4547,11 +4564,14 @@ if not problems:
                     "real archive shape (root manifest + source/ components/ images/ "
                     "locale/; M-ROKU-29)"
                 )
-    if not re.search(r"zip -r \$\(PKG_NAME\)\.zip source components images locale", mk):
+    if not re.search(r"find source components images locale manifest -type f \| LC_ALL=C sort \| zip -X -q", mk):
         problems.append(
-            f"  {MK} - CHECK41 R5: the package recipe no longer zips "
-            "`source components images locale` — the doc's archive-contract claim is "
-            "pinned to this exact line; rotate the doc, scripts/verify-package.sh and "
+            f"  {MK} - CHECK41 R5: the package recipe no longer zip-pipes "
+            "`source components images locale manifest` through the deterministic "
+            "staged sorted-entry line (M-ROKU-20 rotated the era "
+            "'zip -r $(PKG_NAME).zip source components images locale' literal onto "
+            "this shape) — the doc's archive-contract claim is pinned to this exact "
+            "line; rotate the doc, scripts/verify-package.sh and "
             "this leg together (M-ROKU-29)"
         )
 
@@ -5891,7 +5911,7 @@ echo "=== Check 48: connect/pair credential custody - redirect law + cleartext c
 #       (NormalizeServerUrl delegates - re-rolled octet logic is how
 #       "10th-street.example.com" was once misclassified); the
 #       redirect_refused bucket carries its classifier arm, transport guard,
-#       ladder line and catalog message x7; catalogs bump as a set (1.11.0 —
+#       ladder line and catalog message x7; catalogs bump as a set (1.12.0 —
 #       rotated by W-min90: nine new/cured keys entered the set, disclosed
 #       with the batch per this arm's own law).
 #   R4  the device harness pins the law: tests/unit/RedirectCustody.test.brs
@@ -6058,8 +6078,8 @@ for L in LOCALES:
     for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
         if cat.get("connect", {}).get(key, "") == "":
             problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
-    if cat.get("_metadata", {}).get("version") != "1.11.0":
-        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.11.0 — the catalogs bump as a set with this law (rotated by W-min90, disclosed)")
+    if cat.get("_metadata", {}).get("version") != "1.12.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.12.0 — the catalogs bump as a set with this law (rotated by W-min92 with the queue_limit_exceeded promotion, disclosed)")
 
 # ---- R4 the device harness pins the law -----------------------------------
 test = read(TEST)
@@ -8872,6 +8892,140 @@ print("           roster keys speakable x7, unknown_message says what to do next
 print("           the header row stands inside the 1280 plane, the account label")
 print("           rides getMe with the bare-client read extinct, no value in any")
 print("           catalog types '...', and the README prose convictions hold")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo ""
+echo "=== Check 65: forbidden string-member family extinct; headless unit gate wired (M-ROKU-15/17) ==="
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os
+import re
+import sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+
+def mask_brs_comments(text):
+    # Same contract as Check 20/64's masker: a single quote outside a
+    # double-quoted string opens a comment running to end of line.
+    out = []
+    for line in text.splitlines(keepends=True):
+        in_str = False
+        chars = list(line)
+        i = 0
+        while i < len(chars):
+            c = chars[i]
+            if c == '"':
+                in_str = not in_str
+            elif c == "'" and not in_str:
+                for j in range(i, len(chars)):
+                    if chars[j] not in ("\n", "\r"):
+                        chars[j] = " "
+                break
+            i += 1
+        out.append("".join(chars))
+    return "".join(out)
+
+
+# The W-min91 harness campaign proved these string MEMBERS are fatal on the
+# device (.Lower/.UCase do not exist at all; .Left/.Mid/.Right phantom-serve
+# in some runtimes with 0-BASED indices while the device exposes them only as
+# globals; .Repl/.padz misuse were found in-tree). The globals LCase/UCase/
+# Left/Mid/Right/Repl are the legal shapes. Pin: no receiver-dot member of the
+# family survives anywhere the client executes.
+MEMBER = re.compile(r"(?:[A-Za-z0-9_\]\)\"])\.(Lower|Upper|UCase|Left|Mid|Right|padz|Repl)\s*\(")
+SORTBY3 = re.compile(r"\.SortBy\s*\([^()]*,[^()]*,[^()]*\)")
+
+scan_exts = (".brs", ".xml", ".bs")
+files = []
+# tests/ is included on purpose: the suites execute on the DEVICE (rooibos)
+# too, and the harness does NOT catch member forms — brs phantom-serves
+# .Left/.Mid (0-based) where the device has no member at all. A forbidden
+# member in a test file is a device-side crash that hides green here.
+for base in ("source", "components", "tests"):
+    for root, _dirs, names in os.walk(base):
+        for n in sorted(names):
+            if n.endswith(scan_exts):
+                files.append(os.path.join(root, n))
+
+lcase_uses = 0
+for path in sorted(files):
+    with open(path, encoding="utf-8") as f:
+        raw = f.read()
+    code = mask_brs_comments(raw)
+    for m in MEMBER.finditer(code):
+        line = code[: m.start()].count("\n") + 1
+        problems.append(
+            f"  {path}:{line} - CHECK65 R1: forbidden string member '.{m.group(1)}(' — "
+            "device law: use the global {Lower/Upper->LCase/UCase, Left/Mid/Right, Repl}"
+        )
+    if SORTBY3.search(code):
+        for m in SORTBY3.finditer(code):
+            line = code[: m.start()].count("\n") + 1
+            problems.append(
+                f"  {path}:{line} - CHECK65 R2: 3-argument .SortBy( — the device (and brs) "
+                "accept at most (fieldName, sortFlag)"
+            )
+    lcase_uses += len(re.findall(r"\bLCase\s*\(", code))
+
+# R3 positive control: the sweep must not be vacuous — LCase (the family's
+# canonical cure) actually appears in shipped code.
+if lcase_uses < 10:
+    problems.append(
+        f"  CHECK65 R3: only {lcase_uses} LCase( call sites across source/+components/ — "
+        "the pin is going vacuous (expect dozens; a rename storm or scanner break happened)"
+    )
+
+# R4 detector self-probe: the regex must convict planted shapes (red-leg proof
+# inside the leg, estate style) AND the comment masker must keep a member call
+# that lives INSIDE a comment out of the conviction set (negative control).
+probe = mask_brs_comments('x = "a".Mid(1)\n\' foo.Left(2) planted\n')
+if len(MEMBER.findall(probe)) != 1:  # the in-comment arm must NOT count
+    problems.append("  CHECK65 R4: detector self-probe failed — planted member calls not convicted")
+probe2 = 'z = q.Repl(" ", 2)\nw = LCase(m.Upper())'
+if len(MEMBER.findall(probe2)) != 2:
+    problems.append("  CHECK65 R4: detector self-probe failed — Repl/.Upper members not convicted")
+if not SORTBY3.search('arr.SortBy("k", "desc", false)'):
+    problems.append("  CHECK65 R4: detector self-probe failed — 3-arg SortBy not convicted")
+
+# R5 wiring law (M-ROKU-17): the headless gate must stay executed by a real,
+# unconditional CI step AND by the Makefile test-unit device-free arm. A future
+# edit re-deadening either is exactly the defect class this item was filed for.
+with open(".github/workflows/test.yml", encoding="utf-8") as f:
+    tify = f.read()
+if "run-headless-unit.mjs" not in tify:
+    problems.append("  CHECK65 R5: test.yml no longer executes tests/scripts/run-headless-unit.mjs")
+if re.search(r"if:\s*env\.ROKU_HOST\s*!=\s*''", tify):
+    problems.append(
+        "  CHECK65 R5: test.yml re-grows an 'if: env.ROKU_HOST != \"\"' step — job env never "
+        "defines ROKU_HOST, so such a step is permanently dead (the M-ROKU-17 defect)"
+    )
+with open("Makefile", encoding="utf-8") as f:
+    mk = f.read()
+if "run-headless-unit.mjs" not in mk:
+    problems.append("  CHECK65 R5: Makefile no longer references the headless unit gate")
+with open("package.json", encoding="utf-8") as f:
+    pkg = f.read()
+if '"brs"' not in pkg:
+    problems.append("  CHECK65 R5: package.json lost the brs devDependency the headless gate runs on")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK65: %d conviction(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK65: no forbidden string member (.Lower/.Upper/.UCase/.Left/.Mid/.Right/")
+print("           .padz/.Repl) survives in source/, components/ or tests/, no 3-arg")
+print("           SortBy, the detector self-probes convict, LCase presence keeps the")
+print("           sweep honest, and the headless brs gate is wired into CI + Makefile")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

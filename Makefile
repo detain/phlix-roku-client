@@ -44,12 +44,25 @@ all: package
 # install`, `make dev-install`, CI's package job, and package-signed.sh's
 # phlix.zip input) can no longer produce a structurally invalid artifact
 # silently.
+# M-ROKU-20 (determinism): the same tree now rebuilds BYTE-IDENTICAL zips.
+# The recipe stages a copy of the four payload trees plus the version-derived
+# manifest, stamps every staged entry to a fixed timestamp, and feeds zip a
+# C-locale-sorted file list ('zip -X -@', extra fields off) from inside the
+# stage dir — so checkout mtimes and filesystem traversal order can no longer
+# change the bytes. The digest is recorded next to the archive (phlix.zip.
+# sha256) and CI (package.yml) uploads/publishes it beside the package.
 package: _update-manifest
 	@echo "Packaging version $(PKG_VERSION)..."
-	@rm -f $(PKG_NAME).zip
-	zip -r $(PKG_NAME).zip source components images locale
-	zip -j $(PKG_NAME).zip $(MANIFEST_OUT)
+	@rm -f $(PKG_NAME).zip $(PKG_NAME).zip.sha256
+	@rm -rf $(BUILD_DIR)/pkg-stage
+	@mkdir -p $(BUILD_DIR)/pkg-stage
+	@cp -R source components images locale $(BUILD_DIR)/pkg-stage/
+	@cp $(MANIFEST_OUT) $(BUILD_DIR)/pkg-stage/manifest
+	@find $(BUILD_DIR)/pkg-stage -exec touch -t 200001010000.00 {} +
+	@cd $(BUILD_DIR)/pkg-stage && find source components images locale manifest -type f | LC_ALL=C sort | zip -X -q "$(CURDIR)/$(PKG_NAME).zip" -@
 	@bash "$(CURDIR)/scripts/verify-package.sh" "$(CURDIR)/$(PKG_NAME).zip"
+	@cd "$(CURDIR)" && sha256sum "$(PKG_NAME).zip" > "$(PKG_NAME).zip.sha256"
+	@cat "$(PKG_NAME).zip.sha256"
 
 # Build a code-signed package. The artifact is named to the certificate's
 # nature: the Roku-issued cert yields phlix-X.X.X.pkg (store submission); a
@@ -67,26 +80,30 @@ package-signed:
 	@PKG_VERSION="$(PKG_VERSION)" bash scripts/package-signed.sh
 	@echo "Done — see docs/publishing.md for artifact truth and submission steps."
 
-# Install to Roku device
+# Install to Roku device.
+# M-ROKU-21: credentials no longer ride curl argv (-u user:pass is visible in
+# ps to every local user); the whole request is described on stdin via
+# 'curl --config -'. The raw-manifest form field was DROPPED too: since the
+# C08 cure the version-injected manifest rides at the zip's root and is the
+# single source the installer should see — feeding a second, un-injected
+# 'manifest' field re-created the dual-source shape the C1 law forbids.
 install: package
 	@echo "Installing to Roku at $(ROKU_IP)..."
-	curl -v -u $(ROKU_DEV):$(ROKU_PASSWORD) -X POST \
-		http://$(ROKU_IP):8060/install/app \
-		-F "archive=@$(PKG_NAME).zip" \
-		-F "manifest=@manifest"
+	@printf 'user = "%s:%s"\nurl = "http://%s:8060/install/app"\nrequest = "POST"\nform = "archive=@%s.zip"\n' \
+		"$(ROKU_DEV)" "$(ROKU_PASSWORD)" "$(ROKU_IP)" "$(PKG_NAME)" \
+		| curl -v --config -
 
 # Launch the app (after install)
 launch:
 	@echo "Launching $(PKG_NAME)..."
-	curl -u $(ROKU_DEV):$(ROKU_PASSWORD) -X POST \
-		http://$(ROKU_IP):8060/launch/dev \
-		--data-urlencode "channel=dev"
+	@printf 'user = "%s:%s"\nurl = "http://%s:8060/launch/dev?channel=dev"\nrequest = "POST"\n' \
+		"$(ROKU_DEV)" "$(ROKU_PASSWORD)" "$(ROKU_IP)" | curl -sS --config -
 
 # Stop the app
 stop:
 	@echo "Stopping $(PKG_NAME)..."
-	curl -u $(ROKU_DEV):$(ROKU_PASSWORD) -X POST \
-		http://$(ROKU_IP):8060/keypress/home
+	@printf 'user = "%s:%s"\nurl = "http://%s:8060/keypress/home"\nrequest = "POST"\n' \
+		"$(ROKU_DEV)" "$(ROKU_PASSWORD)" "$(ROKU_IP)" | curl -sS --config -
 
 # Development server (requires rokupkg)
 dev-install: package
@@ -106,32 +123,19 @@ clean:
 test:
 	@echo "Running tests..."
 	@echo ""
-	@# rooibos requires a Roku device/emulator (set ROKU_HOST env var)
-	@# If ROKU_HOST is not set and no local runner available, fail with clear message
+	@# With a device configured (ROKU_HOST/ROKU_TEST_HOST) rooibos drives the
+	@# full suite on hardware. Without one, the headless BrightScript
+	@# interpreter gate (brs) executes the pure-logic suites — it is a real
+	@# test runner (red exits red), not a lint-substitute; see M-ROKU-18.
 	@if [ -n "$$ROKU_HOST" ] || [ -n "$$ROKU_TEST_HOST" ]; then \
 		echo "Roku host detected ($$ROKU_HOST$$ROKU_TEST_HOST), attempting to run tests..."; \
 		$(MAKE) _run_rooibos; \
 	elif command -v rokuunit >/dev/null 2>&1; then \
 		echo "Running tests with rokuunit..."; \
 		rokuunit; \
-	elif command -v rooibos >/dev/null 2>&1; then \
-		echo "ERROR: Tests cannot run in this environment."; \
-		echo "rooibos requires a Roku device/emulator. Set ROKU_HOST environment variable."; \
-		echo "Falling back to lint check..."; \
-		$(MAKE) lint; \
-		exit 1; \
-	elif command -v npx >/dev/null 2>&1 && npx --yes rooibos-roku --help >/dev/null 2>&1; then \
-		echo "ERROR: Tests cannot run in this environment."; \
-		echo "rooibos-roku requires a Roku device/emulator. Set ROKU_HOST environment variable."; \
-		echo "Falling back to lint check..."; \
-		$(MAKE) lint; \
-		exit 1; \
 	else \
-		echo "ERROR: Tests cannot run in this environment."; \
-		echo "No BrightScript test runner (rokuunit/rooibos/rooibos-roku) is available."; \
-		echo "Falling back to lint check..."; \
-		$(MAKE) lint; \
-		exit 1; \
+		echo "No Roku host configured — running the headless (brs) interpreter gate."; \
+		node tests/scripts/run-headless-unit.mjs; \
 	fi
 
 # Internal target to run rooibos with host
@@ -142,21 +146,23 @@ _run_rooibos:
 		npx --yes rooibos-roku; \
 	fi
 
-# Run unit tests only.
-# BrightScript unit tests can ONLY execute on a real Roku device/emulator (rooibos).
-# When no device is configured (e.g. CI) this SKIPS with success rather than failing —
-# the brighterscript zero-error gate (`make lint`) is the real automated check. Set
-# ROKU_HOST to actually run the suite against a device.
+# Run unit tests.
+# BrightScript suites have two execution venues (M-ROKU-15/M-ROKU-18 truth):
+#  - On a real Roku device/emulator (ROKU_HOST/ROKU_TEST_HOST set): rooibos
+#    drives every suite on hardware.
+#  - Device-free (CI, workstations): the headless interpreter gate runs the
+#    pure-logic suites in the brs BrightScript interpreter — a REAL gate:
+#    failures exit non-zero. Suites that depend on device-only idioms are
+#    excluded there with per-item reasons recorded in that script's EXCLUDED
+#    maps and the W-min91 fixlog.
 test-unit:
 	@echo "Running unit tests..."
 	@if [ -n "$$ROKU_HOST" ] || [ -n "$$ROKU_TEST_HOST" ]; then \
 		echo "Roku host detected ($$ROKU_HOST$$ROKU_TEST_HOST), attempting to run unit tests..."; \
 		$(MAKE) _run_rooibos_unit; \
 	else \
-		echo "Tests require hardware — skipping"; \
-		echo "Unit test files present:"; \
-		if [ -d $(TESTS_DIR)/unit ]; then find $(TESTS_DIR)/unit -name "*.test.brs" -exec basename {} \; | head -10; else echo "  (none)"; fi; \
-		exit 2; \
+		echo "No Roku host configured — running the headless (brs) unit gate."; \
+		node tests/scripts/run-headless-unit.mjs; \
 	fi
 
 _run_rooibos_unit:
@@ -166,7 +172,10 @@ _run_rooibos_unit:
 		npx --yes rooibos-roku --group unit; \
 	fi
 
-# Run integration tests only
+# Run integration tests (device-only).
+# These suites open real sockets from the Roku to a live Phlix server, so they
+# require ROKU_HOST/ROKU_TEST_HOST (or the rokuunit CLI) — there is no
+# device-free arm here and the recipe says so loudly instead of pretending.
 test-integration:
 	@echo "Running integration tests..."
 	@if [ -n "$$ROKU_HOST" ] || [ -n "$$ROKU_TEST_HOST" ]; then \
@@ -175,22 +184,9 @@ test-integration:
 	elif command -v rokuunit >/dev/null 2>&1; then \
 		echo "Running integration tests with rokuunit..."; \
 		rokuunit --group integration; \
-		exit 1; \
-	elif command -v rooibos >/dev/null 2>&1; then \
-		echo "ERROR: Tests cannot run in this environment."; \
-		echo "rooibos requires a Roku device/emulator. Set ROKU_HOST environment variable."; \
-		echo "Integration test files:"; \
-		if [ -d $(TESTS_DIR)/integration ]; then find $(TESTS_DIR)/integration -name "*.test.brs" -exec basename {} \; | head -5; else echo "  No integration tests found"; fi; \
-		exit 1; \
-	elif command -v npx >/dev/null 2>&1 && npx --yes rooibos-roku --help >/dev/null 2>&1; then \
-		echo "ERROR: Tests cannot run in this environment."; \
-		echo "rooibos-roku requires a Roku device/emulator. Set ROKU_HOST environment variable."; \
-		echo "Integration test files:"; \
-		if [ -d $(TESTS_DIR)/integration ]; then find $(TESTS_DIR)/integration -name "*.test.brs" -exec basename {} \; | head -5; else echo "  No integration tests found"; fi; \
-		exit 1; \
 	else \
-		echo "ERROR: Tests cannot run in this environment."; \
-		echo "No BrightScript test runner (rokuunit/rooibos/rooibos-roku) is available."; \
+		echo "ERROR: integration tests need a Roku device/emulator."; \
+		echo "Set ROKU_HOST (or install rokuunit) — the headless brs gate covers unit suites only."; \
 		echo "Integration test files:"; \
 		if [ -d $(TESTS_DIR)/integration ]; then find $(TESTS_DIR)/integration -name "*.test.brs" -exec basename {} \; | head -5; else echo "  No integration tests found"; fi; \
 		exit 1; \

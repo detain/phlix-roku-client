@@ -43,8 +43,11 @@ sub TestSyncPlayErrorCodeToKeyDottedFlipTwins()
 end sub
 
 sub TestSyncPlayErrorCodeToKeyNormalizesNoise()
-    ' Case-insensitive, trims padding, dash maps like dot
-    assertEqual(SyncPlayErrorCodeToKey("  Not_Host\t"), "errors_not_host")
+    ' Case-insensitive, trims space padding, dash maps like dot. (BrightScript
+    ' string literals have no \t escape — an earlier version of this arm
+    ' carried a literal backslash-t, which is ordinary noise text, not
+    ' padding; the padding arms below use real spaces.)
+    assertEqual(SyncPlayErrorCodeToKey("  Not_Host  "), "errors_not_host")
     assertEqual(SyncPlayErrorCodeToKey("syncplay.GROUP-FULL"), "errors_syncplay_group_full")
     print "TestSyncPlayErrorCodeToKeyNormalizesNoise passed"
 end sub
@@ -62,10 +65,12 @@ end sub
 
 sub TestSyncPlayKnownErrorCodesSet()
     codes = SyncPlayKnownErrorCodes()
-    ' Wire-honesty split: 19 emitted-verified + 0 declared-reserved = 19.
+    ' Wire-honesty split: 20 emitted-verified + 0 declared-reserved = 20.
     ' The 2026-09-25 twin flip (phlix-server 9b2394ee) promoted the reserved
-    ' trio; the reserved arm stays armed for the next flip-pending code.
-    assertEqual(codes.count(), 19)
+    ' trio; W-min92 promoted syncplay.queue_limit_exceeded on live emission
+    ' evidence (phlix-server 7baa398a, sendError at SyncPlayManager.php:1254);
+    ' the reserved arm stays armed for the next flip-pending code.
+    assertEqual(codes.count(), 20)
     ' Law output must be collision-free across the two code families
     seen = {}
     for each code in codes
@@ -74,19 +79,20 @@ sub TestSyncPlayKnownErrorCodesSet()
         seen[key] = true
     end for
     ' Family census: 12 legacy SCREAMING (9 current + 3 pre-flip-only, kept
-    ' for old-server resolution), 7 dotted registry (all emitted-verified
-    ' since the flip) - the split Check 22 content-pins in CI.
+    ' for old-server resolution), 8 dotted registry (all emitted-verified -
+    ' the 9b2394ee seven plus queue_limit_exceeded since 7baa398a) - the split
+    ' Check 22 content-pins in CI.
     screaming = 0
     dotted = 0
     for each code in codes
-        if code.Instr(".") > 0
+        if Instr(1, code, ".") > 0
             dotted++
         else
             screaming++
         end if
     end for
     assertEqual(screaming, 12)
-    assertEqual(dotted, 7)
+    assertEqual(dotted, 8)
     print "TestSyncPlayKnownErrorCodesSet passed"
 end sub
 
@@ -110,7 +116,7 @@ sub TestSyncPlayReservedErrorCodesSet()
         localSeen[code] = true
     end for
     for each code in reserved
-        assertTrue(LCase(code).Left(9) = "syncplay.")
+        assertTrue(Left(LCase(code), 9) = "syncplay.")
         assertEqual(wireSeen.doesExist(code), true)
         assertEqual(localSeen.doesExist(code), false)
     end for
@@ -171,11 +177,11 @@ sub TestSyncPlayLocalErrorCodesCensus()
     ' M-ROKU-14 rotated the pin 9 -> 10: local.ws_accept_invalid joined the
     ' family when the :8097 dial gained its fail-closed Sec-WebSocket-Accept
     ' proof (a refused handshake proof is its own client-minted class, never
-    ' a wire code - Check 22's 19-code wire census stays untouched).
+    ' a wire code - Check 22's wire census stays untouched (local codes never join it)).
     codes = SyncPlayLocalErrorCodes()
     assertEqual(codes.count(), 10)
     for each code in codes
-        assertTrue(code.Left(6) = "local.")
+        assertTrue(Left(code, 6) = "local.")
     end for
     print "TestSyncPlayLocalErrorCodesCensus passed"
 end sub
@@ -194,7 +200,7 @@ sub TestSyncPlayFamiliesAreDisjoint()
     ' duplicate within its own family.
     wireSeen = {}
     for each code in SyncPlayKnownErrorCodes()
-        assertTrue(LCase(code).Left(6) <> "local.")
+        assertTrue(Left(LCase(code), 6) <> "local.")
         wireSeen[SyncPlayErrorCodeToKey(code)] = true
     end for
     localSeen = {}

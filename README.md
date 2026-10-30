@@ -319,9 +319,11 @@ Implemented in `SyncPlayProtocol.brs` TimeSync, mirroring `@phlix/syncplay` SPEC
 
 | Variable | Description | Default |
 |---------|-------------|---------|
-| `ROKU_IP` | IP address of Roku device | `192.168.1.100` |
+| `ROKU_IP` | IP address of the Roku device (sideload/launch targets: `install`, `launch`, `stop`) | `192.168.1.100` |
 | `ROKU_DEV` | Developer username | `rokudev` |
 | `ROKU_PASSWORD` | Developer password | `rokipassword` |
+| `ROKU_HOST` | Device address for the **test** targets — setting it makes `make test` / `make test-unit` drive rooibos on hardware instead of the device-free headless gate. It is NOT read by `install` (that uses `ROKU_IP`) | — (unset) |
+| `ROKU_TEST_HOST` | Test-gate alias for `ROKU_HOST` — either name arms the device path; neither arms anything outside the test targets | — (unset) |
 
 ### Manifest Configuration
 
@@ -398,12 +400,16 @@ Unit tests live in `tests/unit/` — **22 rooibos unit suites** at time of writi
 Check 62 pins this count and the listing to the shipped tree, so a re-drift reddens CI.
 
 ```bash
-# Run the unit suite (rooibos) - requires a device
+# Drive the FULL suite on hardware (rooibos) — needs a real device/emulator:
 ROKU_HOST=192.168.1.100 make test-unit
 
-# Without ROKU_HOST the target prints "Tests require hardware — skipping" followed by
-# the first 10 unit-test files `find` turns up (filesystem order — the target does not
-# sort), then exits 2. The suites that WOULD run are exactly what tests/unit/ holds.
+# Device-free (the CI default): make test-unit / make test run the headless
+# BrightScript interpreter gate — node tests/scripts/run-headless-unit.mjs —
+# which executes every pure-logic suite in brs and exits non-zero on any
+# failure. Suites that depend on device-only idioms are excluded there with
+# per-test reasons (function-object state, roByteArray, NUL bytes…), listed
+# in that script's EXCLUDED maps and the W-min91 fixlog. Integration suites
+# still require a device: `make test-integration` says so and fails loudly.
 ```
 
 ### Running Tests on Device

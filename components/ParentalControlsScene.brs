@@ -596,7 +596,7 @@ function ValidateTimeString(input as String) as String
     if minutes < 0 or minutes > 59 then return ""
     if seconds < 0 or seconds > 59 then return ""
 
-    return str(hours).trim() + ":" + str(minutes).Trim().Right(2).Repl(" ", "0") + ":" + str(seconds).Trim().Right(2).Repl(" ", "0")
+    return str(hours).trim() + ":" + Right("0" + str(minutes).Trim(), 2) + ":" + Right("0" + str(seconds).Trim(), 2)
 end function
 
 ' Read the message-or-error key from an action response.

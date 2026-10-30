@@ -262,14 +262,17 @@ function SleepTimer() as Object
             end if
 
             totalSeconds = int(m.remainingMs / 1000)
-            hours = totalSeconds / 3600
-            minutes = (totalSeconds mod 3600) / 60
+            ' '\' is integer division: '/' yields floats on the device, so
+            ' str(3600/3600) rendered ' 1' only by luck of whole results while
+            ' every other value leaked '0.01666667' into the label.
+            hours = totalSeconds \ 3600
+            minutes = (totalSeconds mod 3600) \ 60
             seconds = totalSeconds mod 60
 
             if hours > 0 then
-                m.timerLabel.text = "Sleep: " + str(hours).trim() + ":" + str(minutes).trim().padz(2) + ":" + str(seconds).trim().padz(2)
+                m.timerLabel.text = "Sleep: " + str(hours).trim() + ":" + Right("0" + str(minutes).trim(), 2) + ":" + Right("0" + str(seconds).trim(), 2)
             else
-                m.timerLabel.text = "Sleep: " + str(minutes).trim() + ":" + str(seconds).trim().padz(2)
+                m.timerLabel.text = "Sleep: " + str(minutes).trim() + ":" + Right("0" + str(seconds).trim(), 2)
             end if
         end sub
 
@@ -280,22 +283,26 @@ function SleepTimer() as Object
                 return ""
             end if
             totalSeconds = int(m.remainingMs / 1000)
-            hours = totalSeconds / 3600
-            minutes = (totalSeconds mod 3600) / 60
+            hours = totalSeconds \ 3600
+            minutes = (totalSeconds mod 3600) \ 60
             seconds = totalSeconds mod 60
 
             if hours > 0 then
-                return str(hours).trim() + ":" + str(minutes).trim().padz(2) + ":" + str(seconds).trim().padz(2)
+                return str(hours).trim() + ":" + Right("0" + str(minutes).trim(), 2) + ":" + Right("0" + str(seconds).trim(), 2)
             else
-                return str(minutes).trim() + ":" + str(seconds).trim().padz(2)
+                return str(minutes).trim() + ":" + Right("0" + str(seconds).trim(), 2)
             end if
         end function
 
-        ' Check if timer is currently active
-        ' @return Boolean
-        isActive: function() as Boolean
-            return m.isActive
-        end function
+        ' (M-ROKU-15 harness catch) The former `isActive: function()` accessor
+        ' collided with the `isActive` STATE FIELD declared at the top of this
+        ' object: associative-array literals are last-key-wins, so the boolean
+        ' field was replaced by the function — and every `if not m.isActive`
+        ' (cancel/tick/getRemainingFormatted on a FRESH timer, the exact arms
+        ' the unit suite drives) hit 'NOT non-boolean' on the device, while the
+        ' accessor itself recursed (its body read the slot it occupied). No
+        ' caller outside this file used the method (grep: components/, source/),
+        ' so the field is the single canonical shape and the accessor is gone.
 
         ' Get the current preset index
         ' @return Integer
@@ -324,14 +331,16 @@ end function
 ' @return String - Formatted duration string
 function formatDuration(totalSeconds as Integer) as String
     if totalSeconds < 0 then totalSeconds = 0
-    hours = totalSeconds / 3600
-    minutes = (totalSeconds mod 3600) / 60
+    ' Integer division (see the label arms above): '/' renders float garbage
+    ' through str() for every non-whole-hour value on the device.
+    hours = totalSeconds \ 3600
+    minutes = (totalSeconds mod 3600) \ 60
     seconds = totalSeconds mod 60
 
     if hours > 0 then
-        return str(hours).trim() + ":" + str(minutes).trim().padz(2) + ":" + str(seconds).trim().padz(2)
+        return str(hours).trim() + ":" + Right("0" + str(minutes).trim(), 2) + ":" + Right("0" + str(seconds).trim(), 2)
     else
-        return str(minutes).trim() + ":" + str(seconds).trim().padz(2)
+        return str(minutes).trim() + ":" + Right("0" + str(seconds).trim(), 2)
     end if
 end function
 

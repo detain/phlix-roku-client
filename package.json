@@ -29,6 +29,7 @@
   "devDependencies": {
     "@rokucommunity/bslint": "^0.8.44",
     "brighterscript": "0.72.5",
+    "brs": "^0.45.0",
     "rooibos-roku": "^5.16.4"
   },
   "overrides": {

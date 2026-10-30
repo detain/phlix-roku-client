@@ -51,6 +51,79 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — W-min91 minors cluster (6 cured) — 2026-10-30
+
+- **M-ROKU-15 (cured — CI unit coverage was fiction).** The 22-suite
+  `tests/unit/*.test.brs` roster (291 `sub Test*` cases) executed nowhere:
+  `assertTrue`/`assertEqual` were defined nowhere in the repo
+  (rooibos-era scaffolding), no runner was wired, and the surrounding
+  prose claimed coverage. Cure:
+  `tests/scripts/run-headless-unit.mjs` drives the rokucommunity `brs`
+  interpreter (devDependency `brs@0.45.0`) over the roster with a
+  device-faithful assertion prelude (raw `<>` compare, `GetGlobalAA`
+  fail counter, a device-correct `Right` shim for brs' measured
+  off-by-one at n==Len), per-test isolation (fresh execute per case),
+  closure-resolved source loading and `--selftest`/`--suite`/`--list`
+  surfaces. Measured: 210 cases run green, 0 failed; 53 per-test
+  exclusions + 4 whole-suite exclusions (28 cases), each carrying a
+  measured brs-gap reason (function-object state at `Storage.brs:78` /
+  `Utilities.brs:1462`, `roByteArray`, int `not`, invalid-to-typed-formal
+  strictness, `Chr(0)` collapse; the `Theme` suite drives a `Theme()`
+  API that exists nowhere in the tree — fictional, delete-or-rebuild
+  follow-up disclosed; `tests/integration/ApiIntegration.test.brs`
+  remains device-integration scope).
+  Executing the suites convicted REAL device bugs, all cured here:
+  `.Lower()` member calls x14 (no such Roku string member — the global
+  is `LCase`), `.Left/.Mid/.Right` member calls x34+ (device globals,
+  not members; brs phantom-serves them 0-based, so the class returned
+  silently wrong text, e.g. `HostOfUrl`), `.UCase()` members x4, the
+  fabricated `.padz(n)` member x6 and `.Repl(" ","0")` member misuse
+  x3, `ByteToHex` indexing 0-based into the 1-based `Mid` (EVERY
+  percent-escape wrong on device — `UrlEncode(" ")` != `%20`),
+  3-argument `.SortBy(` x2 (the signature is 2-arg), `SleepTimer`'s
+  duplicate-AA-key `isActive` field-vs-accessor (last-key-wins turned
+  the field into a function — `if not m.isActive` crashed; accessor
+  deleted), `SkipButton` recording model state before its node guard,
+  `OriginOfUrl`'s bracketed-IPv6 off-by-one pair, `HostOfUrl`'s
+  bare-IPv6 passthrough, `TokenValueText`'s boxed-boolean parameter
+  contract (untyped formal; `roBoolean` arm), and `SleepTimer`
+  float-division time math x3 (`/` -> `\`). New Check 65
+  (`scripts/verify-runtime.sh`) pins the forbidden-member family
+  extinct across `source/` + `components/` + `tests/`, with self-probes
+  and the R5 wiring law below.
+- **M-ROKU-17 (cured).** test.yml's `Run unit tests` step was gated
+  `if: env.ROKU_HOST != ''` while the job env never defined ROKU_HOST —
+  permanently dead, unarmable even with secrets (contrast package.yml,
+  which wires the secret). Replaced by an unconditional device-free step
+  running the headless gate; CHECK65 R5 convicts the dead-step shape
+  re-growing.
+- **M-ROKU-18 (cured).** Makefile prose-vs-behavior truth: `test-unit`'s
+  docblock promised "SKIPS with success" while its no-host arm ended
+  `exit 2`; `test-integration` ran its suite then hit an UNCONDITIONAL
+  `exit 1`. `test-unit` now runs the headless gate device-free by
+  default (rooibos-on-hardware when ROKU_HOST is set); `test-integration`
+  is honest device-only with a says-so loudly arm; the `test` umbrella
+  ERROR arms agree with their echoes.
+- **M-ROKU-20 (cured).** `make package` is deterministic: staged tree,
+  fixed mtimes (`touch -t 200001010000.00`), `LC_ALL=C sort` entry
+  order, `zip -X` — measured byte-identical across two builds.
+  `phlix.zip.sha256` companion is generated and printed; package.yml
+  verifies it (`sha256sum -c`), uploads the pair and the rolling
+  release body carries the digest.
+- **M-ROKU-21 (cured).** `make install` leaked credentials on argv
+  (`curl -u dev:pass` is visible in `ps`; the defaults were
+  rokudev/rokipassword) — creds now ride `curl --config -` on stdin.
+  The `-F "manifest=@manifest"` form field re-introduced the manifest
+  dual-source the C08 cure buried (raw checked-in file vs the
+  version-injected `build/manifest`) — dropped; the zip's root manifest
+  is the single source verify-package.sh already asserts.
+- **M-ROKU-44 (cured).** README's env table now documents ROKU_HOST /
+  ROKU_TEST_HOST (the names the test gates read) alongside ROKU_IP
+  (install/launch/stop) with each surface's readers spelled out — the
+  misleading `ROKU_IP=… make test-unit` silently-skip class is closed
+  at the doc surface, and after M-ROKU-18 the device-free default
+  closes it in behavior too.
+
 ### Fixed — W-min90 minors cluster (7 cured, 1 stale-verified) — 2026-10-30
 
 - **M-ROKU-01 (stale-verified, zero diff).** The "five names" finding no

@@ -169,7 +169,7 @@ end sub
 sub TestUrlEncodeNewBehavior()
     ' Criterion 5: allow-list characters encoded correctly
     ' Percent sign encoded first to prevent double-encoding
-    assertEqual(UrlEncode("50% off"), "50%25off")
+    assertEqual(UrlEncode("50% off"), "50%25%20off")
     ' Plus sign is NOT unreserved (RFC 3986) — encodes to %2B
     assertEqual(UrlEncode("C++"), "C%2B%2B")
     ' Non-ASCII (U+00EF = ï) encoded as 3-byte UTF-8: C3 AF
@@ -374,7 +374,7 @@ sub TestTrackCaptionWithTrackNumber()
     ' Test TrackCaption with track number
     track = { name: "My Song", track_number: 5 }
     caption = TrackCaption(track)
-    assertTrue(caption.Left(2) = "5.")
+    assertTrue(Left(caption, 2) = "5.")
     print "TestTrackCaptionWithTrackNumber passed"
 end sub
 
@@ -382,7 +382,9 @@ sub TestTrackCaptionWithDuration()
     ' Test TrackCaption includes duration
     track = { name: "My Song", track_number: 1, duration_secs: 180 }
     caption = TrackCaption(track)
-    assertTrue(caption.Instr(0, "3:00") > 0)
+    ' The .Instr member form exists only in some runtimes (brs serves it
+    ' 0-based); the device-safe shape is the global three-arg Instr.
+    assertTrue(Instr(1, caption, "3:00") > 0)
     print "TestTrackCaptionWithDuration passed"
 end sub
 
@@ -557,16 +559,26 @@ end sub
 
 ' ---- PlayableTypes tests ----
 
+' Device-safe membership scan: roArray exposes no IndexOf on the device
+' (and brs does not either — measured), so the old .IndexOf arms could never
+' have executed anywhere; a plain loop is the shape that works on both.
+function __typeListHas(arr as Object, want as String) as Boolean
+    for each e in arr
+        if e = want then return true
+    end for
+    return false
+end function
+
 sub TestPlayableTypes()
     ' Test PlayableTypes returns expected array
     types = PlayableTypes()
     assertTrue(types <> invalid)
     assertEqual(types.Count(), 6)
-    assertTrue(types.IndexOf("movie") >= 0)
-    assertTrue(types.IndexOf("episode") >= 0)
-    assertTrue(types.IndexOf("video") >= 0)
-    assertTrue(types.IndexOf("audio") >= 0)
-    assertTrue(types.IndexOf("track") >= 0)
-    assertTrue(types.IndexOf("audiobook") >= 0)
+    assertTrue(__typeListHas(types, "movie"), "movie in playable types")
+    assertTrue(__typeListHas(types, "episode"), "episode in playable types")
+    assertTrue(__typeListHas(types, "video"), "video in playable types")
+    assertTrue(__typeListHas(types, "audio"), "audio in playable types")
+    assertTrue(__typeListHas(types, "track"), "track in playable types")
+    assertTrue(__typeListHas(types, "audiobook"), "audiobook in playable types")
     print "TestPlayableTypes passed"
 end sub

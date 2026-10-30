@@ -100,11 +100,21 @@ jobs:
         # OLD build/manifest layout reddens root-manifest + build-entries legs).
         run: make verify-package
 
+      - name: Record sideload digest (M-ROKU-20)
+        # 'make package' already wrote phlix.zip.sha256 from the same bytes;
+        # this step RE-DERIVES it independently and fails loudly on drift, so
+        # the published digest is proven against the artifact as uploaded.
+        run: |
+          sha256sum -c phlix.zip.sha256
+          sha256sum phlix.zip
+
       - name: Upload sideload package
         uses: actions/upload-artifact@v7
         with:
           name: phlix-roku-sideload
-          path: phlix.zip
+          path: |
+            phlix.zip
+            phlix.zip.sha256
           if-no-files-found: error
 
   # (M-ROKU-10) A `package-signed` job used to live here. It ran
@@ -155,9 +165,14 @@ jobs:
             Rolling build of the latest `master` commit (${{ github.sha }}).
             - **`phlix.zip`** — Roku sideload package. Upload it directly via the
               Roku device's Development Application Installer (no zip wrapper).
+            - **`phlix.zip.sha256`** — digest of the exact bytes above (the build
+              is deterministic: same tree ⇒ same zip); check with
+              `sha256sum -c phlix.zip.sha256`.
           prerelease: true
           make_latest: false
           target_commitish: ${{ github.sha }}
-          files: artifacts/phlix.zip
+          files: |
+            artifacts/phlix.zip
+            artifacts/phlix.zip.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

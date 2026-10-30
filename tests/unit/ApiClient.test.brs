@@ -22,7 +22,7 @@ sub TestApiClientDeviceId()
     ' Test device ID generation
     client = ApiClient("http://localhost:8096")
     assertTrue(client.deviceId.Len() > 0)
-    assertTrue(client.deviceId.Left(5) = "roku-")
+    assertTrue(Left(client.deviceId, 5) = "roku-")
     print "TestApiClientDeviceId passed"
 end sub
 

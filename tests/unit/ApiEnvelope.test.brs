@@ -55,8 +55,13 @@ sub TestUnwrapApiEnvelopeNonObjectPassThrough()
     ' crash (the helper must be safe on any value a pre-unwrapped helper hands it).
     assertTrue(UnwrapApiEnvelope(invalid) = invalid)
     assertEqual(UnwrapApiEnvelope("plain"), "plain")
+    ' Arrays are non-primitive: '=' on two roArrays raises on the device just
+    ' as in brs, so identity is proven by shape + contents, not object '='.
     list = [1, 2, 3]
-    assertTrue(UnwrapApiEnvelope(list) = list)
+    returned = UnwrapApiEnvelope(list)
+    assertTrue(type(returned) = "roArray")
+    assertTrue(returned.count() = 3)
+    assertTrue(returned[0] = 1 and returned[2] = 3)
     print "TestUnwrapApiEnvelopeNonObjectPassThrough passed"
 end sub
 

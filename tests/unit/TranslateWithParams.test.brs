@@ -72,7 +72,11 @@ sub TestApplyNamedTokensPurity()
     first = ApplyNamedTokens("{count} items", params)
     second = ApplyNamedTokens("{count} items", params)
     assertEqual(first, second)
-    assertEqual(params.count(), 1)
+    ' Member lookup on an associative array resolves KEYS before interface
+    ' methods, so a fixture that names its key 'count' cannot use .count() to
+    ' prove the array still has one entry - reading the KEY value is the
+    ' unambiguous purity assertion (still "9" only if it was not consumed).
+    assertEqual(params.count, "9")
     print "TestApplyNamedTokensPurity passed"
 end sub
 

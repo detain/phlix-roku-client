@@ -22,10 +22,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run unit tests
-        if: env.ROKU_HOST != ''
-        run: |
-          make test-unit
+      - name: Headless BrightScript unit gate (brs)
+        # M-ROKU-17: this used to be 'make test-unit' gated behind
+        # 'if: env.ROKU_HOST != ""' — and the job never defined ROKU_HOST, so
+        # the step could not execute even with the secret set. The gate now
+        # runs device-free (pure-logic suites in the brs interpreter; the
+        # device-only suites are excluded there with per-item reasons).
+        run: node tests/scripts/run-headless-unit.mjs
 
       - name: Run lint
         run: |

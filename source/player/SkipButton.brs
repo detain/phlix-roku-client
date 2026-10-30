@@ -118,10 +118,13 @@ function SkipButton() as Object
         ' Show the skip button with appropriate label
         ' @param markerType String - "intro" or "outro"
         showButton: function(markerType as String) as Void
-            if m.button = invalid then return
-
+            ' The marker model updates regardless of whether a node is wired:
+            ' updatePosition() has already committed to this range, and readers
+            ' of activeMarkerType must see state that agrees with its return
+            ' value. Only the VIEW writes need a live node.
             m.activeMarkerType = markerType
             m.isVisible = true
+            if m.button = invalid then return
             m.button.visible = true
 
             if m.label <> invalid then

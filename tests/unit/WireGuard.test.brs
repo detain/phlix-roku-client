@@ -94,10 +94,14 @@ sub TestGetErrorMessageSurvivesHostileEnvelopes()
     assertEqual(GetErrorMessage(hostileAA), generic)
     assertEqual(GetErrorMessage(invalid), generic)
     assertEqual(GetErrorMessage(""), generic)
-    ' Well-behaved values keep their pre-M12 semantics verbatim.
+    ' Well-behaved values keep their mapped semantics.
     assertEqual(GetErrorMessage("http_401"), "You are not logged in. Please sign in again.")
     assertEqual(GetErrorMessage("http_404"), "The requested item was not found.")
-    assertEqual(GetErrorMessage("Bad credentials"), "Bad credentials")
+    ' M-ROKU-03 (review roku__webux, shipped in W-min89) is the NEWER law for
+    ' everything else: server prose is not user copy. A non-transport string
+    ' is printed for diagnostics and replaced by the generic caption — the
+    ' old pass-through expectation this suite shipped with is extinct.
+    assertEqual(GetErrorMessage("Bad credentials"), generic)
     print "TestGetErrorMessageSurvivesHostileEnvelopes passed"
 end sub
 
