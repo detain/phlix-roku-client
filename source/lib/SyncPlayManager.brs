@@ -2,6 +2,14 @@
 ' @license   MIT
 
 ' source/lib/SyncPlayManager.brs
+'
+' DEAD PATH — not wired into the shipped UI. Every construction site of this manager
+' lives inside components/SyncPlayScene.brs, a room scene with zero instantiation
+' sites (no CreateObject, no XML child, no route) — so this object never runs in the
+' shipped channel. The LIVE watch flow is PlayerScene's overlay driving
+' components/SyncPlayTask directly (PlayerScene.brs:1800). Retained for a possible
+' room revival; owner wire-vs-retire decision open. See README §6 "Room-scene
+' retention" and Check 56 (scripts/verify-runtime.sh), which pins both directions.
 
 ' copyright 2026 Joe Huss
 '

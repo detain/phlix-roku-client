@@ -5,6 +5,11 @@
 <!-- copyright 2026 Joe Huss -->
 
 <!--
+DEAD PATH — not wired into the shipped UI. This component has zero instantiation
+sites repo-wide; the live watch flow is PlayerScene's overlay + SyncPlayTask
+(README §6 "Room-scene retention", Check 56). The historical claim below was FALSE —
+no such launch path exists — and is corrected verbatim-marked per M-ROKU-26.
+
 P8-S4 SyncPlay Scene - Room management UI for Watch Together feature.
 
 Displays:
@@ -12,7 +17,7 @@ Displays:
 - Form to create a new room (name input, public/private toggle)
 - Current room info when joined (members, sync status)
 
-Launched from PlayerScene via SyncPlay button (Options key).
+(Launched from PlayerScene via SyncPlay button (Options key). — FALSE: never wired.)
 -->
 
 <component name="SyncPlayScene" extends="Scene">

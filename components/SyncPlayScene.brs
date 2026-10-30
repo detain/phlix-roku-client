@@ -2,6 +2,14 @@
 ' @license   MIT
 
 ' components/SyncPlayScene.brs
+'
+' DEAD PATH — not wired into the shipped UI. This room scene is instantiated from NO
+' site in the channel (no CreateObject, no XML child, no route); its live-path sibling
+' is the PlayerScene "Watch Together" overlay driving components/SyncPlayTask.
+' Retained for a possible room revival (P8-S4); the wire-vs-retire disposition is an
+' open owner decision. Check 56 in scripts/verify-runtime.sh pins this status against
+' the instantiation graph — README §6 "Room-scene retention" carries the user-facing
+' truth. Do not wire this scene without re-cutting the doc set in the same commit.
 
 ' copyright 2026 Joe Huss
 '

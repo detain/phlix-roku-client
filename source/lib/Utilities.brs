@@ -1763,6 +1763,13 @@ end function
 ' pre-flip-only legacy - plus any declared-reserved flip-pending codes
 ' (none today), and that honesty is the point).
 '
+' DEAD-PATH NOTE (M-ROKU-26, Check 56): the SyncPlayScene.brs sites named above
+' are retained but not instantiated - that half of the family currently never
+' fires on a device (only the SyncPlayTask half does). The census law still
+' scans components/, so the registry (and its rule that these literals never
+' regress to raw display strings) stays complete for a room revival; wiring the
+' scene must re-cut the README §6 retention note in the same commit.
+'
 ' They DO reuse the W5 MAPPING LAW verbatim (SyncPlayErrorCodeToKey) under a
 ' reserved "local." mint prefix: law("local.connect_failed") =
 ' "errors_local_connect_failed", so the catalog keeps ONE errors registry

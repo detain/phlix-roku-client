@@ -2,6 +2,50 @@
 
 ## [Unreleased]
 
+### Fixed — the dead SyncPlay room pair is demoted to shipped truth everywhere: Check 56 (M-ROKU-26)
+
+- **Verify-first verdict: NOT stale.** The queue marked the item
+  `cured-by: C33 9ff4a6d`; that commit IS an ancestor of `dc362df87`, but its
+  README diff touched zero SyncPlayScene/SyncPlayManager lines — it cured other
+  endpoint fictions. The i18n.md consumer-table half was cured separately
+  `@ab050d5`. Re-proven dead at tip: the room scene has zero instantiation
+  sites repo-wide; `SyncPlayManager`'s sole caller is the never-instantiated
+  `components/SyncPlayScene.brs:54`; the live watch flow is `PlayerScene.brs:1800`
+  driving `SyncPlayTask` directly. The residual liveness claims stood in the
+  README tree, CHECK 23's prose, `docs/api-envelope.md`, the `Utilities.brs`
+  local-family docblock, and `SyncPlayScene.xml`'s own header ("Launched from
+  PlayerScene via SyncPlay button" — a false in-file claim, corrected).
+- **Cure = docs-truth demotion, not wiring.** Wiring the room is neither small
+  nor spec-matching (the shipped architecture's law is "no separate SyncPlay
+  scene") and the wire-vs-retire disposition is an open owner decision
+  (`docs/i18n.md` historical record). The pair now carries per-file
+  `DEAD PATH — not wired into the shipped UI` banners, README §6 gained the
+  "Room-scene retention (dead path)" note, both tree rows their markers, and
+  the CHECK 23 / api-envelope / Utilities prose their annotations.
+- **Check 56 pins both directions.** R1 instantiation census (wiring the room
+  reddens CI on purpose and forces the doc set to be re-cut in the same
+  commit); R2 truth-presence across the nine claim surfaces (a cure only needs
+  to survive being DELETED — CHECK 54's survival idiom); R3 provenance-kept:
+  all seven catalogs keep listing `components/SyncPlayScene.brs` in
+  `_metadata.source_files` — deliberately DEVIATING from the review's suggested
+  deletion, because the field means "source files that OWN the strings", the
+  scene ships and physically owns the syncplay/`*_room` keys (Check 24 stages
+  it as a consumer); retiring the files must rotate R3 in the same commit.
+- **Measured gates** (fresh clone at `dc362df87`): red-on-parent for the new
+  leg — exactly 10 named CHECK56 convictions, ALL R2 truth-presence (R1/R3
+  were already code-true: the defect class was precisely documentation). The
+  leg shipped locally as Check 55, then renumbered to 56 when the concurrent
+  M-ROKU-23 lane (hub relay origin law) landed `d671151` first and took 55;
+  red-on-parent re-verified on both subsequent parents (`d671151`, then the
+  final push parent `09761fac` after M-ROKU-27's docs entry) — identical 10
+  convictions each time. Full
+  `scripts/verify-runtime.sh` exit 0 with `PHLIX_SERVER_DIR` bound; portable
+  harness exit 0 including the new Check-56 CI-layout asserts and its
+  plant-and-restore leg (planted `CreateObject("roSGNode", "SyncPlayScene")` +
+  stripped README marker -> R1+R2 convictions with CHECK46/CHECK54 gate
+  independence; restore -> exit 0); `make lint` exit 0 (22 pre-existing BS1013
+  test-file warnings, parent-identical). No locale, behavior, or wire surface
+  touched — 11 files, +356/−5 (356 including this entry), all prose/gate. [review roku__writer M2]
 ### Docs — i18n.md Future Work no longer advertises the closed `{token}` concat defect (M-ROKU-27) — 2026-10-29
 
 - **The hole.** Review `roku__writer` M3. `docs/i18n.md:499` (Future Work)

@@ -178,6 +178,13 @@ timestamp coordination. It is a **TV-friendly, button-driven overlay inside the 
 no separate SyncPlay scene; all playback control stays in `PlayerScene`, so when the overlay is
 never opened the player path is byte-identical to a non-SyncPlay build.
 
+**Room-scene retention (dead path).** `components/SyncPlayScene.{xml,brs}` + `source/lib/SyncPlayManager.brs` (the abandoned standalone P8-S4 room UI and its REST-snapshot manager) are a **DEAD PATH — not wired into the shipped UI.** The room scene has zero instantiation sites (no `CreateObject`, no XML child, no
+route) and the manager's sole caller is that never-instantiated scene; the live watch flow is the
+`PlayerScene` overlay driving `SyncPlayTask` directly. The files still ship, retained for a possible
+room revival; the wire-vs-retire disposition is an open owner decision. Check 56
+(`scripts/verify-runtime.sh`) pins this claim to the instantiation graph, so silently wiring the room —
+or silently deleting these truth markers — reddens CI.
+
 > ## ⚠️ LIMITATIONS — read before relying on SyncPlay
 >
 > - **DEVICE-UNVERIFIABLE.** Roku BrightScript only runs on hardware (there is no host runner), so
@@ -678,7 +685,7 @@ phlix-roku/
 │   │   ├── LibraryManager.brs  # Library browsing logic
 │   │   ├── TaskManager.brs     # Background task management
 │   │   ├── SyncPlayProtocol.brs # SyncPlay: pure RFC6455 WS framing + flat syncplay_* codec + NTP TimeSync (no I/O / no UI)
-│   │   ├── SyncPlayManager.brs  # SyncPlay: coordinates the REST group snapshot + the WS session state
+│   │   ├── SyncPlayManager.brs  # SyncPlay DEAD PATH — not wired into the shipped UI: REST group snapshot + WS session-state coordinator for the abandoned standalone room; its ONLY caller is the never-instantiated components/SyncPlayScene.brs; retained for room revival (see §6 + Check 56)
 │   │   ├── ToastManager.brs     # Toast/notification singleton for background errors (GetToastManager())
 │   │   └── Utilities.brs        # Helper functions
 │   ├── player/
@@ -708,6 +715,7 @@ phlix-roku/
 │   ├── SeriesRulesScene.brs  # Admin Live TV series-rules list (one-shot LabelList; read-only, selection inert)
 │   ├── PlayerScene.brs     # Video player (+ additive "Watch Together" SyncPlay overlay, opened with the "*"/Options key; gated, hub-disabled, ws:// only) (+ additive video-quality picker, opened with the Up key; server-A7-dependent, no-ops without a ladder) (+ additive Audio/Subtitles Settings panel, opened with the Down key; persists preferred_audio_track / preferred_subtitle_track)
 │   ├── SyncPlayTask.{xml,brs} # Long-lived Task running the SyncPlay ws:// socket off the render thread (roStreamSocket; RunSocket loop; flat syncplay_* frames)
+│   ├── SyncPlayScene.{xml,brs} # DEAD PATH — not wired into the shipped UI: abandoned P8-S4 room UI (public-room list / create / join); zero instantiation sites repo-wide; retained for a possible room revival, owner wire-vs-retire decision open (§6, Check 56)
 │   ├── HubCommandTask.{xml,brs} # Long-lived Task consuming hub relay pending_command / play_media frames (mints a relay token, Bearer on the RFC6455 handshake; the plaintext :8804 dial is REFUSED behind https hubs — M-ROKU-23, wss deferred)
 │   ├── ToastScene.xml      # Toast overlay — Dialog-derived node shown via the current surface's dialog field (M-ROKU-17; queue/dismiss owned by the PhlixApp root coordinator, no script)
 │   ├── ConnectScene.brs    # First-run "Connect to server" screen (normalizes + probes /health, persists server_url, then proceeds to login)

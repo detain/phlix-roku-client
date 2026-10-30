@@ -80,7 +80,7 @@ quietly. That bug class — *silent empty render* — is what this law forbids.
 | Convenience getters | `ApiClient.getLibraries/getItem/getAudiobook/getMe/...` | already-unwrapped payload (`invalid`/`[]` on failure), via `UnwrapApiEnvelope` behind `env.ok` |
 | Login | `ApiClient.login()` | envelope like `request()` — note: **no `success` key exists** on the server or hub login body; the verdict is `ok` (server login returns `{access_token, refresh_token, token_type, expires_in, user}`) |
 | Task boundary | `ApiTask` `ApplyEnvelope()` | task `response.data` = server payload, `response.ok` = HTTP verdict |
-| Direct-call tasks | `ListTask`, `EpisodeListTask`, `SyncPlayManager` | unwrap with `UnwrapApiEnvelope` + `env.ok` guard locally (they skip the ApiTask hop) |
+| Direct-call tasks | `ListTask`, `EpisodeListTask`, `SyncPlayManager` (dead path — the retained-but-not-instantiated room manager; it ships and unwraps honestly in code, but no live flow reaches it: README §6, Check 56) | unwrap with `UnwrapApiEnvelope` + `env.ok` guard locally (they skip the ApiTask hop) |
 | Scenes | read `resp.ok` + `resp.data.<serverKey>` only | — |
 
 ### Documented exceptions

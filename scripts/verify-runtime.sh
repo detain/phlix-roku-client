@@ -7327,4 +7327,206 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 56: the dead SyncPlay room files stay truthfully dead — docs-claim-vs-instantiation-site law (M-ROKU-26) ==="
+# DEAD-PATH DOCUMENTATION-TRUTH LAW (M-ROKU-26, review roku__writer M2):
+# components/SyncPlayScene.{brs,xml} is instantiated nowhere (no CreateObject, no XML
+# child, no route) and source/lib/SyncPlayManager.brs has exactly ONE caller — dead
+# SyncPlayScene.brs. The LIVE watch-together flow is PlayerScene's overlay driving
+# components/SyncPlayTask directly (PlayerScene.brs:1800). The writer review caught
+# docs describing this dead pair as live machinery; the i18n.md consumer row was
+# annotated @ab050d5, but the README tree, CHECK 23's prose, the api-envelope row,
+# Utilities' local-family comments and the shipped files themselves still read live.
+# This leg pins BOTH directions of that contract:
+#   R1 (code truth): the room scene stays uninstantiated and the manager stays called
+#      only by the dead pair. If a lane ever wires the room, this arm goes RED on
+#      purpose — the docs' dead-path claims must be re-cut in the same commit.
+#   R2 (docs truth): the demotion markers ("DEAD PATH — not wired into the shipped
+#      UI", the README retention note, the per-file banners, the CHECK 23 /
+#      api-envelope annotations, the i18n.md survive-delete annotation, the Utilities
+#      law note) must be PRESENT — a cure that can be silently deleted is the same
+#      misinformation as the old false claim (CHECK 54 R2's survival idiom).
+#   R3 (provenance truth): every locale's _metadata.source_files keeps listing
+#      components/SyncPlayScene.brs. The field means "source files that OWN the
+#      strings" (docs/i18n.md), the scene ships, and its keys are physically extracted
+#      from it (Check 24 stages SyncPlayScene.brs as the sole consumer of
+#      syncplay_members_count). Deleting the entry would falsify provenance; retiring
+#      the files/key-sets must rotate this arm in the same commit (disclosed rotation).
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+SCENE_BRS = "components/SyncPlayScene.brs"
+SCENE_XML = "components/SyncPlayScene.xml"
+MANAGER = "source/lib/SyncPlayManager.brs"
+README = "README.md"
+DOCS = "docs/static-checks.md"
+ENVELOPE = "docs/api-envelope.md"
+I18N = "docs/i18n.md"
+UTILS = "source/lib/Utilities.brs"
+
+DEAD_MARKER = "DEAD PATH — not wired into the shipped UI"
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK56: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(text):
+    out = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
+def require(haystack, where, needle, why):
+    if haystack is None:
+        return
+    if needle not in haystack:
+        problems.append(f"  {where} - CHECK56: {needle!r} missing — {why}")
+
+
+# ---- R1 instantiation census: the room stays unwired, by code -------------
+scene_re = re.compile(r'CreateObject\(\s*"SyncPlayScene"|CreateObject\(\s*"roSGNode",\s*"SyncPlayScene"\s*\)')
+manager_call_re = re.compile(r'(?<!function )\bSyncPlayManager\(')
+
+for base in ("components", "source"):
+    for root, _dirs, files in os.walk(base):
+        for fn in sorted(files):
+            if not fn.endswith(".brs"):
+                continue
+            path = os.path.join(root, fn)
+            text = read(path)
+            if text is None:
+                continue
+            coded = mask(text)
+            for m26 in scene_re.finditer(coded):
+                problems.append(f"  {path} - CHECK56 R1: the SyncPlayScene node is instantiated ({coded[m26.start():m26.start()+60]!r}) — the room scene is NOT wired into the shipped UI per README/§6, every doc naming it DEAD PATH is now a lie, and the wire-vs-retire owner decision was bypassed silently; re-cut the R2 doc set and rotate this pin in the same commit")
+            if path != MANAGER:
+                for line in coded.split("\n"):
+                    if manager_call_re.search(line) and path != SCENE_BRS:
+                        problems.append(f"  {path} - CHECK56 R1: SyncPlayManager is constructed here — its only lawful caller is the dead {SCENE_BRS}; a live caller makes the 'dead pair' docs false: {line.strip()!r}")
+
+for root, _dirs, files in os.walk("components"):
+    for fn in sorted(files):
+        if not fn.endswith(".xml"):
+            continue
+        path = os.path.join(root, fn)
+        if path == SCENE_XML:
+            continue
+        text = read(path)
+        if text is None:
+            continue
+        for needle, why in (
+            ("<SyncPlayScene", "a live XML graph embeds the room scene — that IS instantiation; docs must be re-cut with the wiring"),
+            ('uri="pkg:/components/SyncPlayScene.brs"', "a live XML graph loads the dead scene's script — the pair is being wired"),
+            ('uri="pkg:/source/lib/SyncPlayManager.brs"', "a live XML graph loads the dead manager's script — the manager is being wired"),
+        ):
+            if needle in text:
+                problems.append(f"  {path} - CHECK56 R1: {needle!r} — {why}")
+
+# ---- R2 truth present: every demotion marker survives ---------------------
+r = read(README)
+if r is not None:
+    for line in r.split("\n"):
+        if "SyncPlayManager.brs" in line and "#" in line and DEAD_MARKER not in line:
+            problems.append(f"  {README} - CHECK56 R2: the SyncPlayManager.brs tree row lost its {DEAD_MARKER!r} demotion — the row described dead machinery in live-tense for a whole era (review roku__writer M2) and must not silently revert: {line.strip()!r}")
+        if "components/SyncPlayScene" in line and "DEAD PATH" not in line:
+            problems.append(f"  {README} - CHECK56 R2: a README row names components/SyncPlayScene without a DEAD PATH marker — the shipped-UI-architecture law is 'no separate SyncPlay scene'; name the retention explicitly: {line.strip()!r}")
+    require(r, README, "**Room-scene retention (dead path).**",
+            "the §6 retention note is the user-visible truth that the room files are unreachable from the shipped UI (owner wire-vs-retire stays open; the docs may not claim live)")
+    require(r, README, "Check 56",
+            "README must cite the gate that keeps these claims honest")
+
+for path in (SCENE_BRS, SCENE_XML, MANAGER):
+    t = read(path)
+    if t is not None:
+        require(t, path, DEAD_MARKER,
+                "the reader who opens a dead file must learn it is dead THERE — this is the file a contributor reads before 'fixing a bug in the SyncPlay scene' (the day-waster the review named)")
+
+d = read(DOCS)
+if d is not None:
+    row23 = [line for line in d.split("\n") if line.startswith("| 23 |")]
+    if not row23:
+        problems.append(f"  {DOCS} - CHECK56 R2: the Check 23 table row vanished — its prose names the dead pair's error sites and must carry the not-instantiated annotation")
+    else:
+        require(row23[0], f"{DOCS} row 23", "not-instantiated",
+                "CHECK 23's example prose cited 'SyncPlayScene REST-path failures' as if they occur live; the annotation is the cure")
+    if not [line for line in d.split("\n") if line.startswith("| 56 |")]:
+        problems.append(f"  {DOCS} - CHECK56 R2: no row 56 in the checks table — the ledger must enumerate this gate (this leg self-pins its ledger row, the house truth-presence idiom)")
+
+e = read(ENVELOPE)
+if e is not None:
+    for line in e.split("\n"):
+        if "SyncPlayManager" in line and "dead path" not in line:
+            problems.append(f"  {ENVELOPE} - CHECK56 R2: the SyncPlayManager mention lost its 'dead path' annotation — the envelope story must not imply the manager runs: {line.strip()!r}")
+
+i18 = read(I18N)
+if i18 is not None:
+    for line in i18.split("\n"):
+        if "components/SyncPlayScene.brs" in line and "| `" in line and "**not instantiated**" not in line:
+            problems.append(f"  {I18N} - CHECK56 R2: the syncplay consumer-table row naming components/SyncPlayScene.brs lost its '**not instantiated**' annotation (shipped @ab050d5) — survive-delete, CHECK 54 R2's idiom: {line.strip()[:80]!r}")
+
+u = read(UTILS)
+require(u, UTILS, "DEAD-PATH NOTE (M-ROKU-26, Check 56)",
+        "the local-error family docblock says these codes are 'produced ON THIS DEVICE' — half of them (the room REST path) are produced by code that never runs; the law note keeps that honest")
+
+# ---- R3 provenance kept: catalogs still list the dead scene as owner ------
+locale_root = "locale"
+try:
+    locales = sorted(d for d in os.listdir(locale_root) if os.path.isdir(os.path.join(locale_root, d)))
+except OSError as err:
+    locales = []
+    problems.append(f"  {locale_root} - CHECK56 R3: unreadable: {err} — the pin cannot run vacuously")
+if len(locales) != 7:
+    problems.append(f"  CHECK56 R3: expected SEVEN locale dirs, found {len(locales)} {locales} — the provenance pin must not run against a truncated set")
+for loc in locales:
+    path = os.path.join(locale_root, loc, "strings.json")
+    text = read(path)
+    if text is None:
+        continue
+    try:
+        meta = json.loads(text).get("_metadata", {})
+    except (ValueError, AttributeError) as err:
+        problems.append(f"  {path} - CHECK56 R3: unparsable or shape-broken catalog: {err}")
+        continue
+    src = meta.get("source_files")
+    if not isinstance(src, list) or SCENE_BRS not in src:
+        problems.append(f"  {path} - CHECK56 R3: _metadata.source_files no longer lists {SCENE_BRS} — the field means 'source files that own the strings' and the scene ships and owns the syncplay/*_room keys (Check 24 proves the consumer); retiring the files/key-sets must rotate this arm and the i18n.md row in the SAME commit")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK56: %d dead-SyncPlay-path doc/instantiation pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK56: the SyncPlay room scene has zero instantiation sites and its manager")
+print("           is called only by the dead pair; the README tree/retention note, the")
+print("           three per-file DEAD PATH banners, the CHECK 23 row, the api-envelope")
+print("           row, the i18n.md consumer annotation and the Utilities law note all")
+print("           carry the demotion truth, and all seven catalogs keep the scene as a")
+print("           provenance owner — the dead path can neither be silently wired nor")
+print("           silently re-claimed as live")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
