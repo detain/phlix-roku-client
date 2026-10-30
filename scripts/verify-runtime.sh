@@ -7342,7 +7342,9 @@ echo "=== Check 56: the dead SyncPlay room files stay truthfully dead — docs-c
 #      purpose — the docs' dead-path claims must be re-cut in the same commit.
 #   R2 (docs truth): the demotion markers ("DEAD PATH — not wired into the shipped
 #      UI", the README retention note, the per-file banners, the CHECK 23 /
-#      api-envelope annotations, the i18n.md survive-delete annotation, the Utilities
+#      api-envelope annotations, the i18n.md consumer rows — positive survive-
+#      delete on the `syncplay` row plus a dead-marker law over EVERY table row
+#      naming the scene, r2 cure of review M-ROKU-26 r1 MAJOR-1 — , the Utilities
 #      law note) must be PRESENT — a cure that can be silently deleted is the same
 #      misinformation as the old false claim (CHECK 54 R2's survival idiom).
 #   R3 (provenance truth): every locale's _metadata.source_files keeps listing
@@ -7480,9 +7482,27 @@ if e is not None:
 
 i18 = read(I18N)
 if i18 is not None:
+    # POSITIVE survive-delete presence (r2 cure, review M-ROKU-26 r1 MAJOR-1):
+    # the r1 arm was conditional-shape only — deleting the syncplay row outright
+    # (plant V1) or rewriting it live-tense without the components/ prefix
+    # (plant V2) passed VACUOUSLY at fa67902 (both measured exit 0), while the
+    # row's own contract text advertised a survive-delete tooth. The row must
+    # now EXIST and carry the demotion. And every consumer-table row naming the
+    # scene file — bare or prefixed — must carry a dead marker: that general
+    # law arms the r1 MINOR-1 survivor (the `errors` row presenting the dead
+    # scene as a live law-driven consumer), so the annotation shipped for :71
+    # cannot silently decay one line away from the row the review cured @ab050d5.
+    sync_rows = [line for line in i18.split("\n") if line.startswith("| `syncplay`")]
+    if not sync_rows:
+        problems.append(f"  {I18N} - CHECK56 R2: the `syncplay` consumer-table row vanished entirely — the row carries the scene's '**not instantiated**' demotion (shipped @ab050d5); deleting it re-claims the dead room as live by omission (r1 plant V1, survive-delete)")
+    else:
+        require(sync_rows[0], f"{I18N} `syncplay` row", "**not instantiated**",
+                "the syncplay consumer-table row lost its demotion annotation — the room scene is dead machinery and this row is where a reader of the consumer table learns it (r1 plant V2, survive-delete)")
     for line in i18.split("\n"):
-        if "components/SyncPlayScene.brs" in line and "| `" in line and "**not instantiated**" not in line:
-            problems.append(f"  {I18N} - CHECK56 R2: the syncplay consumer-table row naming components/SyncPlayScene.brs lost its '**not instantiated**' annotation (shipped @ab050d5) — survive-delete, CHECK 54 R2's idiom: {line.strip()[:80]!r}")
+        if not line.startswith("| `"):
+            continue
+        if "SyncPlayScene.brs" in line and "**not instantiated**" not in line and "DEAD PATH" not in line:
+            problems.append(f"  {I18N} - CHECK56 R2: a consumer-table row names SyncPlayScene.brs without a dead marker (bare or prefixed) — the `errors` row presented the dead scene as a live law-driven errors consumer for an era (r1 MINOR-1); name the dead path explicitly: {line.strip()[:80]!r}")
 
 u = read(UTILS)
 require(u, UTILS, "DEAD-PATH NOTE (M-ROKU-26, Check 56)",
@@ -7520,8 +7540,9 @@ if problems:
 print("  CHECK56: the SyncPlay room scene has zero instantiation sites and its manager")
 print("           is called only by the dead pair; the README tree/retention note, the")
 print("           three per-file DEAD PATH banners, the CHECK 23 row, the api-envelope")
-print("           row, the i18n.md consumer annotation and the Utilities law note all")
-print("           carry the demotion truth, and all seven catalogs keep the scene as a")
+print("           row, the i18n.md consumer rows (positive survive-delete on the")
+print("           `syncplay` row plus the table dead-marker law) and the Utilities law")
+print("           note all carry the demotion truth, and all seven catalogs keep the scene as a")
 print("           provenance owner — the dead path can neither be silently wired nor")
 print("           silently re-claimed as live")
 PYEOF

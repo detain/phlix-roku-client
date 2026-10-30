@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+### Fixed — CHECK56 gains the positive-presence needles its own contract claims; the i18n `errors` row gets its dead marker (M-ROKU-26 r2) — 2026-10-30
+
+- **The hole.** Review M-ROKU-26 r1 (verdict REWORK, MAJOR-1): CHECK56's
+  row-56 contract and the leg's R2 comment advertised the `docs/i18n.md`
+  syncplay consumer row as survive-delete, but the implementation was a
+  conditional shape only — it fired when a row that *contains*
+  `components/SyncPlayScene.brs` lacked the annotation, and deleting the row
+  outright or rewriting it live-tense without the prefix both measured exit 0
+  at `fa67902` (r1 plants V1/V2). The gate described teeth it did not have, and
+  the exact surface the review convicted could re-claim live-room framing
+  silently. MINOR-1: one line apart, `docs/i18n.md:71`'s `errors` row presented
+  `SyncPlayScene.brs` as a live law-driven errors consumer with no dead marker
+  (the conditional arm never saw it — it required the `components/` prefix).
+- **The cure.** R2's i18n surface is now two arms: POSITIVE survive-delete
+  presence (the `| \`syncplay\`` consumer row must exist AND carry
+  `**not instantiated**` — deletion convicts the row-vanished arm, a live-tense
+  rewrite convicts the lost-annotation requirement), and a consumer-table
+  dead-marker law (every table row naming `SyncPlayScene.brs`, bare or
+  prefixed, must carry a dead marker). MINOR-1 is cured BOTH-SIDES with the
+  choice justified: the `errors` row is annotated honestly in the same commit
+  ("the latter **not instantiated** — its error family is shipped copy that can
+  never fire live; the live law-driven producer is `SyncPlayTask.brs`") AND
+  pinned — the marker law convicts the exact :71 shape if the annotation ever
+  decays.
+- **MINOR-2 (math corrected forward).** The r1 review measured the `fa67902`
+  landing at 11 files +360/−5 — not the entry's claimed "+356 (356 including
+  this entry)" (the entry grew four lines after counting) — and 23 pre-existing
+  BS1013 warnings, not 22 (the parent-identical half of that claim holds).
+  History stands verbatim per house law; these measurements supersede.
+- **Measured gates** (fresh clone at tip `f39ce22`): the rotated leg is
+  red-on-parent at `f39ce22` with EXACTLY 1 named CHECK56 conviction — the
+  r1-named `errors`-row survivor (the positive `syncplay`-row arm is green at
+  that parent because the annotation ships there — precisely the vacuous-pass
+  asymmetry r1 MAJOR-1 convicted); the portable harness's new i18n
+  plant-and-restore trio (V1 delete-row, V2 live-tense rewrite, E strip the
+  `errors` marker) each redden CHECK56 naming `docs/i18n.md` with CHECK46/
+  CHECK54 gate independence and each restore returns exit 0; full
+  `scripts/verify-runtime.sh` exit 0 (all 56 legs, `PHLIX_SERVER_DIR` bound);
+  portable harness exit 0; `make lint` exit 0 (23 BS1013, parent-identical).
+  Docs+gate only — `docs/i18n.md`, the CHECK56 leg, its ledger row, and the
+  portable plant family; no behavior, locale, or wire surface touched.
+  [review roku__crossfe M26r2]
+
 ### Docs — the i18n docs' numbers meet the shipped tooling: seven checks, seven restored rows, two corrected counts (M-ROKU-28) — 2026-10-30
 
 - **The holes.** Review `roku__writer` M4: `docs/i18n.md:220` said
