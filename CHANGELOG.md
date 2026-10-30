@@ -2,7 +2,53 @@
 
 ## [Unreleased]
 
-### Fixed — the Retry stand-down hands the description strip back from the stranded loading copy too; Check 58 (M-ROKU-21f) — 2026-10-30
+### Fixed — device-verification.md cured to shipped truth: artifact path, dev-mode menu, console port, superseded art audit (M-ROKU-30) — 2026-10-30
+
+- **The hole.** Review roku__writer M6: the repo's only zero-to-console procedure
+  shipped lies. Step 1 sent the tester to "Settings → System → About → Developer
+  Options" — an Android menu that does not exist on Roku; step 2 promised
+  `out/phlix-roku-client.zip (or similar path)` while the Makefile's `PKG_NAME =
+  phlix` writes `phlix.zip` in the repo root; step 9 told them to save to
+  `docs/first-boot-console.log`, a file that has never existed in the tree. The
+  whole-doc claim sweep found the same class deeper: step 4's telnet console port
+  8080 (Roku's debug console is 8085), §5.1 presenting the R0.2-cured `&hEC`
+  Storage misuse as a live defect, §5.2's "~13 parent scenes are not wired" caveat
+  pointing at a "Known Limitation note in CHANGELOG.md" that does not exist and
+  describing the bubble-up contract C03 cured 2026-10-28/29, a fabricated `&h06`
+  error code on the §5.3 status row, R1.6 naming `Storage.invalidateAll()`/
+  `Storage.flush()` where the code runs `ResetCachedStorage(false)`/
+  `ResetCachedStorage(true)` + registry flush, the R6.2 audit table declaring
+  `icon-focus-sd.png` Missing and all art 1-bit placeholders when six
+  spec-dimension 8-bit RGB assets landed at `47cfdb6`→`326eb0d` (splash_fhd IS
+  manifest:12; placeholder.png is a LIVE runtime poster fallback, not "discard"),
+  and the R6.6 status row claiming documentation-in-this-file for a section that
+  never existed here. README §1's dev-mode sequence said "Home (5 times)" — Home×5
+  is the Dump-Core prefix; the Developer Settings sequence is Home×3 (official Roku
+  docs), matching the other six presses already in the list.
+- **The cure.** Docs-only. `docs/device-verification.md`: key-sequence step, real
+  `phlix.zip`-at-repo-root artifact (with the `zip -j` root-manifest +
+  verify-package.sh self-check noted), port 8085, step 9 re-pointed to the
+  verification ticket (vendoring a real log is impossible while the device is
+  BLOCKED — `docs/BLOCKED_R0.1.md`), §5.1 tagged (FIXED R0.2) in §5.2's era
+  pattern with CHECK 1 named as the pin, §5.2 caveat re-anchored to
+  `docs/navigation.md` Back/Close contract + CHECK27, §5.3 given its implemented
+  exitChannel/CHECK31 status with the device arm honestly NOT REACHED, R1.6
+  mechanism names corrected to the shipped `ResetCachedStorage` paths, R6.2
+  replaced by a measured table (sizes + IHDR dimensions taken this lane: 51,879
+  B/290×218 … 1,441,342 B/1,920×1,080) with the generated-not-commissioned
+  brand-review risk disclosed, and the checklist boxes ticked only where a gate
+  run this lane proves them (device box left unchecked). `README.md`: Home (3 times).
+- **Measured.** `make lint` exit 0; `make validate-manifest` exit 0;
+  `bash scripts/verify-runtime.sh` with `PHLIX_SERVER_DIR=/home/sites/phlix/phlix-server`
+  exit 0 (all 58 legs; first sandbox run's single red was this leg's server-dir
+  guard, a venue fact not a defect); `tests/scripts/verify-runtime-portable.sh`
+  exit 0. No new CHECK: verify-runtime greps no device-verification.md string
+  (old or new), and no existing leg's needle set fits a doc-path pin. Locale
+  catalog untouched — CHECK21/22 verified by the full runs anyway. Residuals
+  reported, out of this lane's scope: the same 8080 console-port error stands in
+  README.md:372/:769, docs/debugging.md:97/:100, docs/BLOCKED_R0.1.md:8, and
+  docs/BLOCKED_R0.8.md:9 still names the phantom `docs/first-boot-console.log`
+  diff baseline.
 
 - **The hole.** Review roku__gameux M21 r2's sole MINOR-1 survivor, live at
   tip: `OnRetryPressed` writes the transient `common_loading` copy into the

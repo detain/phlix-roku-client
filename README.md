@@ -53,7 +53,7 @@ The following features are not currently available:
 ### 1. Enable Developer Mode on Roku
 
 Press the following button sequence on your Roku remote:
-1. Home (5 times)
+1. Home (3 times)
 2. Up (2 times)
 3. Right (1 time)
 4. Left (1 time)
