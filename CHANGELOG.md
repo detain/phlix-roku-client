@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+### Fixed — the co-watch feature speaks with one name: Check 57 (M-ROKU-25)
+
+- **The drift (review roku__writer M1).** Five names for one feature, three
+  user-visible: the overlay said **Watch Together**, the status lines said
+  **groups**, the created group defaulted to `"<device>'s Room"`, the live
+  auth error said **watch parties**, and the local errors spoke of a **watch
+  room**, **watch session** and a **sync server** with **SyncPlay** spelling
+  surviving in two banner/fallback labels. A member hitting "Sign in before
+  using watch parties." could not know the feature was the one labeled Watch
+  Together, and support copy could not be searched.
+- **The cure (law: concept = group, feature = Watch Together).** Thirteen
+  `en_US` catalog values swept (the whole `sync server` family -> "the server"
+  per the review's own "server (direct)" rubric; `watch session` -> Watch
+  Together; `watch parties`/`watch room` -> the block's verbatim replacements;
+  `SyncPlay error`/`SyncPlay unavailable` -> `Watch Together error`/`Watch
+  Together unavailable`), the created-group default renamed to
+  `"<device>'s Group"` at its one producer site, and the README step +
+  docs/i18n.md section line de-drifted ("Create Group … to start a new group";
+  "Watch-party room UI" is gone from both docs).
+- **Check 57.** R1 convicts any convicted name inside the co-watch key scope
+  (all `errors.*`, `syncplay.*` outside the pinned carve-out, `player.party_*`
+  /`player.sync_*`/`create_group`/`leave`); R2 pins the new default and holds
+  `"'s Room"` extinct across `components/` + `source/`; R3 FREEZES the
+  room/party key-name census at exactly the six dead-scene `syncplay.*_room`
+  carve-out keys + 13 wire/banner identifier mirrors (CON-07: keys are code
+  identifiers riding the Check 23 wire mirror — values cured, names never);
+  R4 keeps "watch party" out of README + docs/i18n.md. The portable twin
+  plants all four arms (the R3 plant grows `syncplay.create_room2` in all
+  seven catalogs so Check 21 cannot absorb it) with CHECK20/21/25/51 gate
+  independence.
+- **Disclosed.** The review's own `local_connect_failed` example carried the
+  word "session" while its law killed "session" — the law governs and the
+  rubric's "server (direct)" shapes the family. The six `syncplay.*_room`
+  keys AND values stay for the dead `SyncPlayScene` (owner-gated
+  wire-vs-retire; R3 pins that exact set so the carve-out cannot silently
+  grow). Non-en_US catalogs keep their era translations (key parity
+  untouched — sibling i18n lane's domain). `docs/i18n.md` joined the portable
+  twin's stage list (Check 57 R4 reads it; staging-gap family). Catalog
+  `_metadata.version` holds at 1.10.0 — no keys added or removed (dc362df
+  precedent: value-only copy cures do not bump).
+
+
+
 ### Fixed — CHECK56 gains the positive-presence needles its own contract claims; the i18n `errors` row gets its dead marker (M-ROKU-26 r2) — 2026-10-30
 
 - **The hole.** Review M-ROKU-26 r1 (verdict REWORK, MAJOR-1): CHECK56's

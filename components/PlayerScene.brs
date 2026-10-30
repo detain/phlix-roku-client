@@ -1960,7 +1960,7 @@ sub OnSyncCreatePressed()
     deviceName = GetStorage().get("device_name")
     if deviceName = invalid or deviceName = "" then deviceName = "Roku"
     SetSyncStatus(Translate("player_sync_status_creating"))
-    m.syncTask.command = { kind: "create", group_name: deviceName + "'s Room" }
+    m.syncTask.command = { kind: "create", group_name: deviceName + "'s Group" }
 end sub
 
 ' Leave the current group (also closes the socket task-side). Stops the

@@ -227,7 +227,7 @@ or silently deleting these truth markers — reddens CI.
    Together** overlay (direct mode only — in hub mode it shows the disabled message).
 2. **Pick or create a group.** The overlay lists existing groups (a read-only snapshot from
    `GET /api/v1/syncplay/groups`, so no group-id typing on the TV). Select one to **Join**, press
-   **Create Group** to start a new room (named `"<device>'s Room"`, no keyboard), or **Leave** to
+   **Create Group** to start a new group (named `"<device>'s Group"`, no keyboard), or **Leave** to
    exit. A status line shows the connection state, group name, member count, and sync (offset/stable)
    indicator.
 3. **Watch together.** Playback follows the group **host**: inbound host `play` / `pause` / `seek`

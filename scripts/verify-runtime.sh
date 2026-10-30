@@ -7550,4 +7550,173 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+# ============================================================================
+echo ""
+echo "=== Check 57: the co-watch feature speaks with one name (M-ROKU-25) ==="
+# ONE-NAME LAW (M-ROKU-25, review roku__writer M1): the co-watch feature had
+# five names, three of them live on TV (Watch Together / group / Room /
+# watch parties / watch room + sync server, plus user-visible "SyncPlay").
+# The ruling: user-visible concept = GROUP, feature name = WATCH TOGETHER;
+# room/party/session/"sync server"/user-visible SyncPlay are dead vocabulary
+# in en_US values, and the created group defaults to "<device>'s Group".
+# The README carried the whole drift in one sentence ("press Create Group to
+# start a new room") — cured here; docs/i18n.md's "Watch-party room UI" —
+# cured here. Carve-outs are ruling-anchored, not drift: CON-07 — catalog KEY
+# names are code identifiers (they mirror wire/client codes through Check 23)
+# and never rename; the six syncplay.*_room chrome keys+values belong to the
+# DEAD SyncPlayScene ("keep the *_room keys only if the dead scene survives";
+# wire-vs-retire is an owner call, docs/i18n.md). Non-en_US locales are the
+# sibling i18n lane's domain (key parity is Check 19/20/24/25's law, all
+# unchanged here); auth-context "session" (player.err_session_expired etc.)
+# is a different concept — the law kills the word as a co-watch NAME. The
+# review's own example 'Couldn't reach the watch session.' contradicted its
+# kill-session clause; the same review's rubric ("server (direct)") governs,
+# so the sync-server family became "the server" (disclosed in
+# .reviews/fixlog/M-ROKU-25__fix.md).
+# Pinned statically:
+#   R1  vocabulary conviction over the co-watch key scope (all errors.*, all
+#       syncplay.* except the pinned carve-out, player.party_*/sync_*/
+#       create_group/leave): no value carries a convicted name;
+#   R2  the create command defaults deviceName + "'s Group" and the old "'s
+#       Room" spelling is extinct across components/ + source/;
+#   R3  the room/party KEY census is frozen at exactly the 6 carve-out + 13
+#       identifier mirrors — silent growth or rename reddens;
+#   R4  README + docs/i18n.md never spell "watch party", and the Create Group
+#       step says you start a new group.
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+CAT = "locale/en_US/strings.json"
+README = "README.md"
+I18N = "docs/i18n.md"
+PLAYER = "components/PlayerScene.brs"
+
+# Dead-scene carve-out (SyncPlayScene chrome; keys AND values stay per the
+# M1 ruling + owner-gated wire-vs-retire. R3 freezes this exact set.)
+DEAD_ROOM = {
+    "syncplay.default_room_name", "syncplay.label_room_name",
+    "syncplay.label_public_room", "syncplay.create_room",
+    "syncplay.public_rooms", "syncplay.leave_room",
+}
+# Key names mirroring wire/client codes or the banner function family
+# (CON-07: identifiers ride forever; values above already speak group/Watch
+# Together).
+IDENTIFIER_KEYS = {
+    "errors.local_room_create_failed", "errors.local_room_join_failed",
+    "errors.local_room_leave_failed", "errors.local_invalid_room",
+    "player.party_connected", "player.party_disconnected",
+    "player.party_error_fallback", "player.party_host_changed",
+    "player.party_host_paused", "player.party_host_position",
+    "player.party_host_resumed", "player.party_member_joined",
+    "player.party_you_are_host",
+}
+CONVICTED = re.compile(r"(?i)\broom\b|\bpart(y|ies)\b|\bsession\b|sync server|\bSyncPlay\b")
+DOC_PARTY = re.compile(r"(?i)watch[- ]part")
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK57: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+# ---- R1 vocabulary conviction over the co-watch key scope -------------------
+data = None
+raw = read(CAT)
+if raw is not None:
+    try:
+        data = json.loads(raw)
+    except ValueError as err:
+        problems.append(f"  {CAT} - CHECK57 R1: unreadable: {err} — the pin cannot run vacuously")
+
+if isinstance(data, dict):
+    scope = {}
+    for sec in ("errors", "syncplay"):
+        for k, v in (data.get(sec) or {}).items():
+            if f"{sec}.{k}" in DEAD_ROOM:
+                continue
+            scope[f"{sec}.{k}"] = v
+    for k, v in (data.get("player") or {}).items():
+        if k.startswith(("party_", "sync_")) or k in ("create_group", "leave"):
+            scope[f"player.{k}"] = v
+    for key in sorted(scope):
+        v = scope[key]
+        if not isinstance(v, str):
+            continue
+        m = CONVICTED.search(v)
+        if m:
+            problems.append(f"  {CAT} - CHECK57 R1: {key} = {v!r} carries the convicted name {m.group(0)!r} — the concept is 'group', the feature is 'Watch Together'")
+
+# ---- R2 the default group name is its concept -------------------------------
+player = read(PLAYER)
+if player is not None and "group_name: deviceName + \"'s Group\"" not in player:
+    problems.append("  components/PlayerScene.brs - CHECK57 R2: the create command must default the group name to deviceName + \"'s Group\" (the M1 ruling renamed the \"Room\" default)")
+for base in ("components", "source"):
+    for root, _dirs, files in os.walk(base):
+        for fn in sorted(files):
+            if not fn.endswith((".brs", ".xml")):
+                continue
+            path = os.path.join(root, fn)
+            text = read(path)
+            if text is None:
+                continue
+            hits = [n + 1 for n, line in enumerate(text.split("\n")) if "'s Room" in line]
+            if hits:
+                problems.append(f"  {path}:{hits} - CHECK57 R2: the renamed default came back ('s Room) — the concept is 'group'")
+
+# ---- R3 the room/party key-name census is a closed set ----------------------
+if isinstance(data, dict):
+    found = set()
+    for sec, vals in data.items():
+        if isinstance(vals, dict):
+            for k in vals:
+                if re.search(r"(?i)room|party", k):
+                    found.add(f"{sec}.{k}")
+    pinned = DEAD_ROOM | IDENTIFIER_KEYS
+    for key in sorted(found - pinned):
+        problems.append(f"  {CAT} - CHECK57 R3: new room/party key {key} — the co-watch identifier set is closed; grow it (with 7-family parity) or not at all")
+    for key in sorted(pinned - found):
+        problems.append(f"  {CAT} - CHECK57 R3: pinned identifier key {key} vanished — key renames break the Check 23 code-mirror law; retire only with the owner's SyncPlayScene wire-vs-retire call")
+
+# ---- R4 the docs speak the one name -------------------------------------------
+for doc in (README, I18N):
+    text = read(doc)
+    if text is None:
+        continue
+    hits = [n + 1 for n, line in enumerate(text.split("\n")) if DOC_PARTY.search(line)]
+    if hits:
+        problems.append(f"  {doc}:{hits} - CHECK57 R4: a 'watch party' spelling survived in the docs — searchable drift the census convicted")
+readme = read(README)
+if readme is not None:
+    if 'to start a new group (named `"<device>\'s Group"`' not in readme:
+        problems.append('  README.md - CHECK57 R4: the Create Group step must say you start a new GROUP named "<device>\'s Group" — the button/thing drift was the item in one sentence')
+    if "to start a new room" in readme:
+        problems.append("  README.md - CHECK57 R4: 'to start a new room' is back")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK57: %d co-watch vocabulary pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK57: the co-watch feature speaks with one name — no convicted room/party/")
+print("           session/'sync server'/SyncPlay spelling survives in the scoped en_US")
+print("           values, the created group defaults to \"<device>'s Group\", the")
+print("           room/party key census is frozen at the 6 dead-scene carve-outs + 13")
+print("           Check-23 identifier mirrors, and README + docs/i18n.md name the")
+print("           feature Watch Together only")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
