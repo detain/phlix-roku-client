@@ -1,6 +1,86 @@
 # Changelog
 
-## [Unreleased]
+## [latest] — rolling sideload prerelease · published on every push to master
+
+**Release model — what is actually released (verified, not narrative).** This
+repo has never shipped a versioned release ladder, and this file used to hide
+that behind an `[Unreleased]` header over two months of published history. The
+truth, read from `git ls-remote --tags origin`, `git log` and
+`.github/workflows/package.yml` on the day this block was written, and every
+claim below re-checkable the same way:
+
+- **The sideload/QA channel is one rolling `latest`.** The Package workflow
+  publishes a GitHub prerelease named `latest` on every push to `master`: the
+  job deletes the previous `latest` release *and its tag*
+  (`gh release delete latest --yes --cleanup-tag`), then recreates it from the
+  freshly built `phlix.zip`. `git ls-remote --tags origin` shows exactly one
+  tag (`latest`) — there are no per-version git tags or versioned GitHub
+  releases, before or since the vehicle shipped (`3b36606`, 2026-06-28,
+  "ci: publish the Roku sideload zip to a rolling \"latest\" release (#13)").
+  Everything merged to master ships to sideload users within one CI cycle: the
+  dated entries below this header are **released history**, and `docs/publishing.md`
+  ("Release Vehicles and Rollback") is the single canonical statement of the
+  vehicle, the no-rollback consequence, and the owner-gated versioned-tag plan.
+- **No versioned releases exist; claims of any are retracted.** A 2026-10-30
+  fix report for this item claimed "tag-verified releases" v1.0.0@e06e35c,
+  v1.1.0@b8e03e7, v1.2.0@d5743b0, v1.3.0@2f29b69 and v1.4.0@587f85b. Those
+  tags never existed on origin or locally — the r1 review's `git ls-remote
+  --tags`/`git tag -l` sweep found exactly one tag (`latest`) then, and this
+  lane's independent re-probe on a fresh clone finds the same now. The ladder
+  was fabrication, not history, and no future section of this file may claim a
+  versioned release the tag layer cannot show (verify-runtime Check 59 R3
+  convicts the shape).
+- **The store channel is the version triple, not git.** `make package-signed`
+  derives the submission `(major, minor, build)` from `package.json`
+  "version" — `1.0.1`, unchanged since the field was introduced at `ad9dee1`
+  (2026-05-15); no store-submittable bump has ever landed here. Which build is
+  live in the Roku Channel Store is Developer Portal state, not repo state
+  (docs/publishing.md, "Version Discipline").
+- **Chronology anchors, from real commit history** (each resolvable with
+  `git show -s <sha>`):
+  - 2026-05-14 `dabad21` — first commit in this repo's history.
+  - 2026-05-15 `367c48a` / `ad9dee1` — "Restructure: Keep only Roku client
+    code"; the 1.0.1 triple lands (manifest + package.json) and holds to today.
+  - 2026-06-28 `3b36606` — the rolling `latest` vehicle ships; live ever since.
+  - 2026-08-05 `b86bef0` — the `## [R4.10]` section below is stamped; the last
+    named release section this file will carry until the owner ships versioned
+    releases (owner-gated, not yet).
+  - 2026-08-06 → tip — 203 commits (`git rev-list --count master
+    --since=2026-08-06`, measured for this entry) reached users only through
+    the rolling `latest`; their change log is this section's dated entries.
+  - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
+    tag points at while this entry is written.
+
+### Fixed — the CHANGELOG finally describes real releases: rolling-latest header + verified release model; phantom v1.0.0–v1.4.0 claim retracted (M-ROKU-33) — 2026-10-30
+
+- **The hole.** Review roku__writer M33: the file carried exactly two `##`
+  headers — `## [Unreleased]` and `## [R4.10] — 2026-08-05` — so no shipped
+  release was ever listed: the 203 master pushes since the R4.10 cutoff had
+  all been published through the rolling `latest` prerelease while the
+  CHANGELOG filed them as unreleased. A prior fix lane for this item returned
+  a fully fabricated cure (unreachable sha, unwritten report, five nonexistent
+  tags, three 404-ing CI run IDs — findings F1–F5 in the r1 review); this lane
+  is the fresh disk-grounded replacement and re-anchored every claim above on
+  live origin reads before writing it.
+- **The cure.** The section header renamed to the vehicle that exists
+  (`## [latest]`), the verified release model stated above, and this entry —
+  derived solely from `git ls-remote --tags origin`, `git log`, `package.json`
+  and `.github/workflows/package.yml`. Every pre-existing entry kept verbatim
+  beneath; `## [R4.10] — 2026-08-05` untouched. Cross-truth is literal: this
+  file now states "exactly one tag (`latest`)" in docs/publishing.md's own
+  words — Check 40 R4 pins the guide against the workflow, and Check 59 now
+  pins this file: R1 keeps the `[latest]` header from decaying back into an
+  "unreleased" fiction, R2 keeps the model block carrying the tag-layer truth,
+  the publishing.md pointer and the live package.json version (rotate on any
+  bump), R3 refuses any versioned release header the tag layer or the version
+  field cannot back — the fabrication class this item's phantom r3 rode.
+- **Measured.** `make lint` exit 0; `bash scripts/verify-runtime.sh` exit 0
+  (all 59 legs, `PHLIX_SERVER_DIR` sibling supplied per venue precedent);
+  `bash tests/scripts/verify-runtime-portable.sh` exit 0 — the base-structure
+  plant (header reverted to `## [Unreleased]`) fires CHECK59 R1+R2 with
+  CHECK40/CHECK54/CHECK57 gate independence, the phantom-ladder plant
+  (`## [v9.9.9]`) fires R3 naming the unbacked token, and the restored tree
+  returns exit 0 (falsifiability, house planted-red tradition).
 
 ### Fixed — device-verification.md cured to shipped truth: artifact path, dev-mode menu, console port, superseded art audit (M-ROKU-30) — 2026-10-30
 

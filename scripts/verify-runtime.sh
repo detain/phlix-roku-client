@@ -7849,4 +7849,126 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+# ============================================================================
+echo ""
+echo "=== Check 59: the CHANGELOG describes the real release vehicle (M-ROKU-33) ==="
+# CHANGELOG RELEASE-TRUTH LAW (M-ROKU-33, review roku__writer): the file carried
+# exactly two '##' headers (## [Unreleased] + ## [R4.10] — 2026-08-05), so no
+# shipped release was EVER listed — while the Package workflow had been publishing
+# a rolling `latest` GitHub prerelease on every master push since 2026-06-28
+# (`3b36606`). A prior fix report for this item proved wholly phantom (unreachable
+# anchor sha, five fabricated "tag-verified" v1.0.0–v1.4.0 releases against a
+# one-tag origin, three 404-ing CI run IDs — r1 review findings F1–F5). The cure
+# names the vehicle that exists; this leg keeps it honest:
+#   R1  ROLLING HEADER: a line starting '## [latest]' must exist — published
+#       rolling-era history can never again be filed under an "unreleased" fiction
+#   R2  MODEL-BLOCK TRUTH: the prose between the '## [latest]' header and the next
+#       header must carry (whitespace-collapsed for wrapping) docs/publishing.md's
+#       literal "exactly one tag (`latest`)", the "docs/publishing.md"
+#       cross-reference, and the LIVE package.json version — a store-triple bump
+#       without a CHANGELOG rotation reddens this arm
+#   R3  ANTI-FABRICATION: every '## [token]' release header whose token is
+#       version-shaped must be backed by a real git tag or the package.json
+#       version — the phantom v1.x ladder class can never re-enter this file
+# CHECK40 R4 pins the same vehicle from the package.yml + publishing.md side; this
+# leg pins the CHANGELOG side, gate-independent of it.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, subprocess, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+CHANGE = "CHANGELOG.md"
+HEADER = "## [latest]"
+problems = []
+
+pkg_version = None
+try:
+    pkg_version = json.load(open("package.json", encoding="utf-8")).get("version")
+except (OSError, ValueError) as err:
+    problems.append(f"  package.json - CHECK59: unreadable: {err} — the version-truth arm cannot run vacuously")
+
+text = None
+try:
+    text = open(CHANGE, encoding="utf-8").read()
+except OSError as err:
+    problems.append(f"  {CHANGE} - CHECK59: unreadable: {err} — the pin cannot run vacuously")
+
+if text is not None:
+    lines = text.split("\n")
+    header_at = [i for i, l in enumerate(lines) if l.startswith(HEADER)]
+
+    # ---- R1 the rolling line is named what it is ----------------------------
+    if not header_at:
+        problems.append(
+            f"  {CHANGE} - CHECK59 R1: no '## [latest]' header — the rolling sideload"
+            " prerelease is the release vehicle (package.yml release-latest, every master"
+            " push); shipped history is back under an [Unreleased] fiction (M-ROKU-33)")
+
+    # ---- R2 the model block states the verified vehicle ---------------------
+    collapsed = ""
+    if header_at:
+        start = header_at[0] + 1
+        end = len(lines)
+        for i in range(start, len(lines)):
+            if lines[i].startswith("## ") or lines[i].startswith("### "):
+                end = i
+                break
+        collapsed = re.sub(r"\s+", " ", "\n".join(lines[start:end]))
+    for needle, why in (
+        ("exactly one tag (`latest`)",
+         "the CHANGELOG stopped sharing docs/publishing.md's literal tag-layer truth —"
+         " the cross-truth between the two documents IS the M-ROKU-33 cure"),
+        ("docs/publishing.md",
+         "the release-model block lost its cross-reference to docs/publishing.md"),
+    ):
+        if not header_at or needle not in collapsed:
+            problems.append(f"  {CHANGE} - CHECK59 R2: {needle!r} missing from the [latest] release-model block — {why}")
+    if pkg_version and (not header_at or str(pkg_version) not in collapsed):
+        problems.append(
+            f"  {CHANGE} - CHECK59 R2: the live package.json version {pkg_version!r} is not stated"
+            " in the [latest] release-model block — rotate this entry with any store-triple bump")
+
+    # ---- R3 version-shaped headers need tag or version backing --------------
+    def tag_backed(name):
+        try:
+            out = subprocess.run(["git", "tag", "-l", name], capture_output=True, text=True, timeout=20)
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return out.returncode == 0 and bool(out.stdout.strip())
+
+    for lineno, line in enumerate(lines, 1):
+        m = re.match(r"^## \[([^\]]+)\]", line)
+        if not m:
+            continue
+        token = m.group(1).strip()
+        if not re.fullmatch(r"v?\d+(?:\.\d+)+", token):
+            continue
+        bare = token[1:] if token.startswith("v") else token
+        if token == pkg_version or bare == pkg_version or tag_backed(token) or tag_backed("v" + bare):
+            continue
+        problems.append(
+            f"  {CHANGE}:{lineno} - CHECK59 R3: versioned release header {token!r} has NO"
+            f" backing — not a git tag on this checkout and not the package.json version"
+            f" {pkg_version!r} — the fabricated v1.0.0–v1.4.0 ladder the r1 review"
+            " convicted (F3) can never re-enter this file")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK59: %d CHANGELOG release-truth pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK59: the CHANGELOG names the vehicle that exists — the [latest]")
+print("           rolling line heads a model block carrying publishing.md's")
+print("           exactly-one-tag literal, the publishing.md cross-reference and")
+print("           the live store triple, and every version-shaped release header")
+print("           stands on git-tag or version-field proof")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
