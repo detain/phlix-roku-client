@@ -474,7 +474,10 @@ Store submission takes the **signed `.pkg`**, not the sideload `phlix.zip`:
    `(major, minor, build)` triple per submission (Check 40 pins the law docs)
 2. Build the signed artifact: `make package-signed` → `phlix-X.X.X.pkg`
    (needs a real Roku-issued code signing certificate; a self-signed cert
-   only sideloads — see the certificate section in `docs/publishing.md`)
+   produces a signing-chain smoke artifact only — it neither uploads nor
+   installs: no `.pkg` is device-installable, device testing uses `make
+   install` with the unsigned zip; see the certificate section in
+   `docs/publishing.md`)
 3. Create/sign in a developer account at [developer.roku.com](https://developer.roku.com),
    go to Dashboard → Channels, upload the `.pkg`, complete the listing and
    certification checklist, submit for review

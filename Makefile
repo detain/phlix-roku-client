@@ -53,8 +53,10 @@ package: _update-manifest
 
 # Build a code-signed package. The artifact is named to the certificate's
 # nature: the Roku-issued cert yields phlix-X.X.X.pkg (store submission); a
-# self-signed cert yields phlix-X.X.X-dev-signed.pkg (sideload testing only,
-# never uploadable) — scripts/package-signed.sh decides and states it.
+# self-signed cert yields phlix-X.X.X-dev-signed.pkg — a signing-chain smoke
+# artifact only (never uploadable, and nothing installs a .pkg on a device:
+# device testing runs 'make install' with phlix.zip) — scripts/package-signed.sh
+# decides and states it.
 # Truth pass (M-ROKU-10): the old comment demanded a "ROKU_DEV_PASSWORD"
 # env var that no component ever read; credentials belong to the rokudev
 # CLI's interactive `rokudev auth` step. PKG_VERSION is passed explicitly

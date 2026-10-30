@@ -10,7 +10,7 @@ This guide covers the end-to-end workflow for submitting Phlix to the Roku Chann
 |---|---|---|---|
 | `phlix.zip` (unsigned) | `make package` | Sideloaded to any dev-enabled Roku | No |
 | `phlix-X.X.X.pkg` (signed) | `make package-signed` | Roku Channel Store | **Yes — real cert from Roku** |
-| `phlix-X.X.X-dev-signed.pkg` | `make package-signed` with a self-signed cert | Sideload testing **only** — the portal rejects it | Self-signed (dev) |
+| `phlix-X.X.X-dev-signed.pkg` | `make package-signed` with a self-signed cert | **Nowhere — a signing-chain smoke artifact**: the portal rejects it and devices install the unsigned zip | Self-signed (dev) |
 
 - **Sideloading** (`make install` + `phlix.zip`): Fast iteration, any dev-enabled device, does not require store certification.
 - **Store submission** (`make package-signed` + `.pkg`): Requires a signed `.pkg` built with a real Roku code signing certificate.
@@ -129,9 +129,10 @@ The script:
    terminal, only with your consent)
 3. Determines the certificate's nature (self-signed vs Roku-issued) and
    names the output to that truth: `phlix-X.X.X-dev-signed.pkg` for a
-   self-signed cert (sideload testing only — the summary explicitly marks it
-   NOT uploadable), `phlix-X.X.X.pkg` for a Roku-issued cert (the store
-   submission artifact)
+   self-signed cert (a signing-chain smoke artifact — the summary explicitly
+   marks it NOT uploadable, and nothing installs a `.pkg` on a device:
+   device testing runs on the unsigned `phlix.zip`), `phlix-X.X.X.pkg` for
+   a Roku-issued cert (the store submission artifact)
 4. Fails loud — minting nothing — when no signer CLI is installed, when
    signing itself fails (there is no fallback that renames the unsigned zip
    into a `.pkg`; that mislabel was the M-ROKU-10 defect), or when the
@@ -156,10 +157,19 @@ Review times are typically 3–5 business days.
 
 ### Development Certificate (self-signed)
 
-If you generated a self-signed certificate at `~/.phlix/phlix-signing.pem` for local testing, **it cannot be used for store submission**. Self-signed certificates produce packages that:
+If you generated a self-signed certificate at `~/.phlix/phlix-signing.pem`
+— or let `scripts/package-signed.sh` auto-mint one when it runs
+non-interactively — the `phlix-X.X.X-dev-signed.pkg` it signs is a
+**signing-chain smoke test**, nothing more. Packages from a self-signed
+certificate:
 
-- ✅ Can be sideloaded for testing on your own devices
-- ❌ Cannot be published to the Roku Channel Store
+- ✅ Exercise the whole chain end to end — `make package`, certificate
+  inspection, signer invocation — with no store credentials
+- ❌ Cannot be published to the Roku Channel Store (the portal requires a
+  Roku-issued code signing certificate)
+- ❌ Cannot be installed on a device either: Roku's dev-mode installer
+  accepts the unsigned `phlix.zip` and nothing else — no `.pkg`, self-signed
+  or genuine, is device-installable. To test on a device, run `make install`
 
 ### Production Certificate (Roku-issued)
 
@@ -214,7 +224,10 @@ Your certificate is not a Roku-issued code signing certificate. For store submis
 
 Roku has strict requirements for channel packages. Common issues:
 
-- `sagas.xml` or required assets missing from the package
+- required trees missing from the archive root — a channel package is the
+  `manifest` at the root plus `source/`, `components/`, `images/` and
+  `locale/`, those entries and only those; `make package` assembles exactly
+  that and `scripts/verify-package.sh` fails loud on any other layout
 - Manifest fields (`title`, `major_version`, etc.) invalid
 - Icon images not meeting size/format requirements
 

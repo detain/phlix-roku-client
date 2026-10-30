@@ -82,6 +82,52 @@ claim below re-checkable the same way:
   (`## [v9.9.9]`) fires R3 naming the unbacked token, and the restored tree
   returns exit 0 (falsifiability, house planted-red tradition).
 
+### Fixed — publishing.md artifact + signing model cured to shipped truth; CHECK41 gains the R5 smoke-truth rider (M-ROKU-29) — 2026-10-30
+
+- **The hole.** Review roku__writer M5: the store guide still described a
+  signing chain the code cannot back. `sagas.xml` was listed as a
+  package-validation checklist item — a file no Roku package contract
+  contains (the archive is the root `manifest` plus `source/`,
+  `components/`, `images/`, `locale/`, exactly the Makefile `zip -r` recipe
+  and the layout `scripts/verify-package.sh` enforces). And the self-signed
+  `.pkg` was billed five times as sideload-able — publishing.md's Overview
+  row ("Sideload testing **only**"), its Step-2 parenthetical ("sideload
+  testing only"), its Certificate Details bullet ("✅ Can be sideloaded for
+  testing on your own devices"), the Makefile comment, and
+  `scripts/package-signed.sh`'s own summary echo ("Sideload it for
+  testing") — while Roku's dev-mode installer accepts the unsigned zip and
+  nothing else (the Makefile `install` target POSTs `-F archive=@phlix.zip`;
+  the script's own signer-failure branch already routed testers there,
+  contradicting its summary inside one file). A developer minting the
+  auto-generated dev cert to "sideload" got an artifact that installs
+  nowhere, and a store-submission reader triaged failures against an
+  imaginary file.
+- **The cure.** Claims-to-shipped sweep of the whole chain: publishing.md's
+  Overview row, Step-2 naming bullet and Certificate Details section now
+  state the `phlix-X.X.X-dev-signed.pkg` as what it is — a signing-chain
+  smoke test that neither uploads nor installs, with `make install` on the
+  unsigned `phlix.zip` named as the only device route; the troubleshooting
+  item was replaced by the real archive contract with `verify-package.sh`
+  as its enforcer. The Makefile comment, the script summary (keeping the
+  Check-41-pinned "NOT accepted by the Roku Channel Store" banner verbatim)
+  and README's store-step parenthetical rotate to the same truth.
+  CHECK41 — the signing-claim gate whose M-ROKU-10 pass named the artifact
+  honestly but left this claim standing — gains an R5 rider: the four
+  fiction needles (whitespace-joined, so line-wrapped spellings convict)
+  are banned across script/Makefile/doc/README; the smoke framing and the
+  `make install` route must SURVIVE deletion in doc and script; the
+  package-validation section is pinned token-by-token to the Makefile's
+  actual `zip -r` recipe line, and any `sagas` resurrection convicts by
+  name. Portable harness RED41 family extended: script echo + publishing.md
+  sagas/sideload lines + README wrapped-claim plants each fire CHECK41 R5
+  naming their file (CHECK18/CHECK40 gate independence), restore → exit 0.
+  `docs/static-checks.md` row 41 rotated with the legs + plant record.
+- **Measured.** 7 files +157/−17 before this CHANGELOG entry; verify-runtime
+  FULL exit 0; portable harness green incl. the new R5 plant legs; make lint
+  exit 0; no new Check number claimed (rider inside the existing family —
+  CHECK56-r2 precedent), so the 55–58 numbering race with sibling lanes
+  cannot touch this cure.
+
 ### Fixed — device-verification.md cured to shipped truth: artifact path, dev-mode menu, console port, superseded art audit (M-ROKU-30) — 2026-10-30
 
 - **The hole.** Review roku__writer M6: the repo's only zero-to-console procedure

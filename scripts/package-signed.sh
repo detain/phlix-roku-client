@@ -30,7 +30,10 @@
 #   3. Signs with rokudev/rokupkg. The certificate's NATURE decides the
 #      artifact name and the printed next steps: a self-signed certificate
 #      can never produce a store-submittable package, so that artifact is
-#      named *-dev-signed.pkg and is explicitly marked NOT uploadable.
+#      named *-dev-signed.pkg and is explicitly marked NOT uploadable — its
+#      purpose is the signing-chain smoke test only. Nothing installs a
+#      .pkg on a device anyway: the dev-mode installer takes the unsigned
+#      zip ('make install'), never a package of any provenance.
 #      There is deliberately NO fallback that renames the unsigned zip into
 #      a .pkg — a "signed" label the chain cannot back is exactly the
 #      mislabeled artifact that wastes a store review cycle (M-ROKU-10).
@@ -185,7 +188,9 @@ if [ "$SELF_SIGNED" -eq 1 ]; then
 	echo ""
 	echo "  DEV-SIGNED ONLY — this artifact is NOT accepted by the Roku Channel Store."
 	echo "  (It was signed with a self-signed certificate at $CERT_PATH.)"
-	echo "  Sideload it for testing; NEVER upload it to the developer portal."
+	echo "  Nothing installs a .pkg on a device — the dev-mode installer takes the"
+	echo "  unsigned zip: for device testing use '${PKG_NAME}.zip' via 'make install'."
+	echo "  This artifact is a signing-chain smoke test; NEVER upload it to the portal."
 	echo "  For store submission, replace the certificate with the Roku-issued one"
 	echo "  and rebuild — see docs/publishing.md, 'Certificate Details'."
 else

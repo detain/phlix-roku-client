@@ -4354,6 +4354,21 @@ echo "=== Check 41: signing wrapper claims only what it enforces; CI has no un-p
 #      deleted stub may only return actually able to sign — and every
 #      `needs:` entry names a job that exists (dangling-need from stub
 #      removal or drift fails here)
+#   R5 SMOKE-TRUTH RIDER (M-ROKU-29, review roku__writer M5): M-ROKU-10 made
+#      the artifact NAME honest but left standing the claim that a
+#      self-signed *-dev-signed.pkg is for "sideload testing" (five surfaces)
+#      and a troubleshooting item blaming a missing `sagas.xml` — a file no
+#      Roku package contract contains. The dev-mode installer accepts the
+#      unsigned zip ONLY (the Makefile install target POSTs
+#      -F archive=@phlix.zip; the script's own signer-failure branch already
+#      names that route). Arms: R5a the false-smoke-claim needles
+#      (whitespace-joined, wrap-tolerant) stay extinct in script, Makefile,
+#      publishing doc and README; R5b the honest framing survives deletion —
+#      "signing-chain smoke" and the `make install` device route are present
+#      in doc AND script (positive-survive-delete, CHECK56 R2 idiom); R5c
+#      the package-validation section states the REAL archive contract (root
+#      manifest + source/ components/ images/ locale/) and the Makefile
+#      still zips exactly that recipe — claim pinned to behavior.
 # Static pins only: package-signed.sh executes `make package` and touches
 # external CLIs/certs, so unlike CHECK40's pure derive-version.sh this leg
 # never runs the wrapper — its guards are grepped, and the behavioral red
@@ -4372,9 +4387,10 @@ PS = "scripts/package-signed.sh"
 MK = "Makefile"
 WF = ".github/workflows/package.yml"
 DOC = "docs/publishing.md"
+RDME = "README.md"
 
 texts = {}
-for path in (PS, MK, WF, DOC):
+for path in (PS, MK, WF, DOC, RDME):
     try:
         texts[path] = open(path, encoding="utf-8").read()
     except OSError as e:
@@ -4469,6 +4485,72 @@ if not problems:
                     "(deleted stub not un-referenced?) — release lanes would never start"
                 )
 
+    # ---- R5 smoke-truth rider (M-ROKU-29) --------------------------------
+    SIDELOAD_FICTIONS = (
+        "sideload testing only",
+        "can be sideloaded",
+        "sideload it for testing",
+        "self-signed cert only sideloads",
+    )
+    for path in (PS, MK, DOC, RDME):
+        joined = re.sub(r"\s+", " ", texts[path]).lower()
+        for needle in SIDELOAD_FICTIONS:
+            if needle in joined:
+                problems.append(
+                    f"  {path} - CHECK41 R5: revives the self-signed-sideload fiction "
+                    f"({needle!r}) — no .pkg is device-installable; the dev-mode "
+                    "installer takes the unsigned phlix.zip via 'make install' "
+                    "(M-ROKU-29: the chain may only be described as it performs)"
+                )
+    for path in (DOC, PS):
+        if "signing-chain smoke" not in texts[path]:
+            problems.append(
+                f"  {path} - CHECK41 R5: the 'signing-chain smoke' framing is gone — the "
+                "dev-signed artifact's sole honest purpose must stay named; a cure that "
+                "can be silently deleted is the same misinformation (positive-survive-"
+                "delete, CHECK56 R2 idiom; M-ROKU-29)"
+            )
+        if "make install" not in texts[path]:
+            problems.append(
+                f"  {path} - CHECK41 R5: the device route ('make install', unsigned zip) "
+                "is no longer named — steering testers to a path that actually installs "
+                "is the load-bearing half of the cure (M-ROKU-29)"
+            )
+    if "sagas" in texts[DOC].lower():
+        problems.append(
+            f"  {DOC} - CHECK41 R5: a `sagas` artifact claim is back — no such file "
+            "exists in the Roku package contract (root manifest + source/ components/ "
+            "images/ locale/, the Makefile zip recipe); troubleshooting copy may name "
+            "only shipped entries (M-ROKU-29, review roku__writer M5)"
+        )
+    _anchor = '"Package validation failed"'
+    _i = texts[DOC].find(_anchor)
+    if _i < 0:
+        problems.append(
+            f"  {DOC} - CHECK41 R5: the 'Package validation failed' anchor vanished — "
+            "the package-contract pin cannot run vacuously; rotate this leg with the "
+            "doc in the same commit (M-ROKU-29)"
+        )
+    else:
+        _rest = texts[DOC][_i + len(_anchor):]
+        _ends = [k for k in (_rest.find(t) for t in ("\n### ", "\n## ", "\n---\n")) if k >= 0]
+        _sec = _rest[: min(_ends)] if _ends else _rest
+        for token in ("manifest", "source/", "components/", "images/", "locale/"):
+            if token not in _sec:
+                problems.append(
+                    f"  {DOC} - CHECK41 R5: the package-validation section no longer "
+                    f"names `{token}` — the troubleshooting contract must state the "
+                    "real archive shape (root manifest + source/ components/ images/ "
+                    "locale/; M-ROKU-29)"
+                )
+    if not re.search(r"zip -r \$\(PKG_NAME\)\.zip source components images locale", mk):
+        problems.append(
+            f"  {MK} - CHECK41 R5: the package recipe no longer zips "
+            "`source components images locale` — the doc's archive-contract claim is "
+            "pinned to this exact line; rotate the doc, scripts/verify-package.sh and "
+            "this leg together (M-ROKU-29)"
+        )
+
 if problems:
     for prob in problems:
         print(prob)
@@ -4478,6 +4560,8 @@ if problems:
 print("  CHECK41: no phantom password-secret claim in the signing chain; no rename-into-.pkg fallback;")
 print("           certificate nature names the artifact (dev-signed honesty in script AND docs);")
 print("           version derived + passed explicitly; no workflow signs without a provisioned signer, every needs: resolves")
+print("           no self-signed-sideload fiction (smoke-only framing + device-zip route live;")
+print("           package-validation contract pinned to the Makefile zip recipe, M-ROKU-29)")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
