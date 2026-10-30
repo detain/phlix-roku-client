@@ -51,6 +51,32 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — dashboard + stream-limit copy rides the catalog (R-ROKU-09 rider) — 2026-10-30
+
+- **R-ROKU-09 (cured; one named site stale-verified).** The M-ROKU-20 minors
+  handoff's named same-class sites: `ParentalControlsScene.brs`'s
+  `currentStreamLimitLabel` pair ("No stream limit configured", and the
+  `"Current limit: " + str(maxStreams).trim() + " concurrent stream(s)"`
+  concat) now ride `Translate("parentalcontrols_no_stream_limit")` and
+  `TranslateWithParams("parentalcontrols_current_limit", { count })` — the
+  token renders through `TokenValueText`'s str().trim() idiom, byte-identical
+  to the retired concat (house precedent: `parentalcontrols_title_with_profile`
+  at the same file's :121). `DashboardScene`'s honest-empty `"(none)"` rows ×3
+  ride `Translate("dashboard_none")`, and the section-header trio — the named
+  `"— Now Playing —"` plus its two raw siblings inside the same
+  `RenderDashboard` — rides `dashboard_header_{now_playing,storage,recent_activity}`
+  (disclosed class-completion: translating one header and leaving two beside it
+  ships a split-brain dashboard). The rider's LoginScene site was stale:
+  "Loading servers…" already rides `Translate("login_status_loading")` at
+  `LoginScene.brs:166`. Six catalog keys entered all seven locales;
+  `_metadata.version` bumped as a set 1.13.0 → 1.14.0 per the CHECK48 R3
+  rotation law (disclosed with this entry; the pre-rotation battery measured
+  exactly 7 R3 convictions — the arm's teeth, and all other 65 legs green).
+  No new verify leg (rider discipline); Check 52 R1's
+  `Translate("dashboard_failed_row")` ×3 count, its ExtractData collapse
+  needles, Check 51's player-family sentences and Check 19's TARGETS were each
+  verified non-colliding before the cure.
+
 ### Fixed — W-min95 minors cluster (5 cured, 1 stale-verified, 1 honest-blocked) — 2026-10-30
 
 - **M-ROKU-24 (cured, half stale).** The parse-frame half of the ask was

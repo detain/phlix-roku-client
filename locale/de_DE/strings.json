@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.13.0",
+    "version": "1.14.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -323,7 +323,11 @@
   },
   "dashboard": {
     "failed_row": "Konnte nicht geladen werden — OK zum Wiederholen",
-    "failed_status": "Einige Admin-Daten konnten nicht geladen werden — OK zum Wiederholen"
+    "failed_status": "Einige Admin-Daten konnten nicht geladen werden — OK zum Wiederholen",
+    "header_now_playing": "— Es läuft gerade —",
+    "header_recent_activity": "— Letzte Aktivitäten —",
+    "header_storage": "— Speicher —",
+    "none": "(keine)"
   },
   "connect": {
     "anyway": "Trotzdem verbinden",
@@ -441,7 +445,9 @@
     "add_schedule": "Zeitplan hinzufügen",
     "blocked_tags": "Blockierte Tags",
     "concurrent_stream_limits": "Gleichzeitige Stream-Limits",
+    "current_limit": "Aktuelles Limit: {count} gleichzeitige Streams",
     "delete_selected": "Ausgewählte löschen",
+    "no_stream_limit": "Kein Stream-Limit konfiguriert",
     "remove_selected": "Ausgewählte entfernen",
     "tab_schedules": "Zeitpläne",
     "tab_stream_limits": "Stream-Limits",

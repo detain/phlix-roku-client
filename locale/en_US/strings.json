@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.13.0",
+    "version": "1.14.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -323,7 +323,11 @@
   },
   "dashboard": {
     "failed_row": "Couldn't load — press OK to retry",
-    "failed_status": "Some admin reads failed — press OK to retry"
+    "failed_status": "Some admin reads failed — press OK to retry",
+    "header_now_playing": "— Now Playing —",
+    "header_recent_activity": "— Recent Activity —",
+    "header_storage": "— Storage —",
+    "none": "(none)"
   },
   "connect": {
     "anyway": "Connect anyway",
@@ -441,7 +445,9 @@
     "add_schedule": "Add Schedule",
     "blocked_tags": "Blocked Tags",
     "concurrent_stream_limits": "Concurrent Stream Limits",
+    "current_limit": "Current limit: {count} concurrent stream(s)",
     "delete_selected": "Delete Selected",
+    "no_stream_limit": "No stream limit configured",
     "remove_selected": "Remove Selected",
     "tab_schedules": "Schedules",
     "tab_stream_limits": "Stream Limits",

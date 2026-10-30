@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.13.0",
+    "version": "1.14.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -323,7 +323,11 @@
   },
   "dashboard": {
     "failed_row": "Échec du chargement — appuyez sur OK pour réessayer",
-    "failed_status": "Certaines lectures admin ont échoué — appuyez sur OK pour réessayer"
+    "failed_status": "Certaines lectures admin ont échoué — appuyez sur OK pour réessayer",
+    "header_now_playing": "— Lecture en cours —",
+    "header_recent_activity": "— Activité récente —",
+    "header_storage": "— Stockage —",
+    "none": "(aucun)"
   },
   "connect": {
     "anyway": "Se connecter quand même",
@@ -441,7 +445,9 @@
     "add_schedule": "Ajouter une planification",
     "blocked_tags": "Étiquettes bloquées",
     "concurrent_stream_limits": "Limites de flux simultanés",
+    "current_limit": "Limite actuelle : {count} flux simultanés",
     "delete_selected": "Supprimer la selezione",
+    "no_stream_limit": "Aucune limite de flux configurée",
     "remove_selected": "Retirer la sélection",
     "tab_schedules": "Planifications",
     "tab_stream_limits": "Limites de flux",

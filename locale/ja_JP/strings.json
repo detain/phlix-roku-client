@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.13.0",
+    "version": "1.14.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -323,7 +323,11 @@
   },
   "dashboard": {
     "failed_row": "読み込めませんでした — OKで再試行",
-    "failed_status": "一部の管理者データを読み込めませんでした — OKで再試行"
+    "failed_status": "一部の管理者データを読み込めませんでした — OKで再試行",
+    "header_now_playing": "— 現在再生中 —",
+    "header_recent_activity": "— 最近のアクティビティ —",
+    "header_storage": "— ストレージ —",
+    "none": "（なし）"
   },
   "connect": {
     "anyway": "とにかく接続",
@@ -441,7 +445,9 @@
     "add_schedule": "スケジュールを追加",
     "blocked_tags": "ブロックされたタグ",
     "concurrent_stream_limits": "同時ストリーム制限",
+    "current_limit": "現在の制限: 同時 {count} ストリーム",
     "delete_selected": "選択したものを削除",
+    "no_stream_limit": "ストリーム制限は設定されていません",
     "remove_selected": "選択したものを外す",
     "tab_schedules": "スケジュール",
     "tab_stream_limits": "ストリーム制限",

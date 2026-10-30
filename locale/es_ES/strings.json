@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "es_ES",
     "language_name": "Español (España)",
-    "version": "1.13.0",
+    "version": "1.14.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -323,7 +323,11 @@
   },
   "dashboard": {
     "failed_row": "No se pudo cargar — pulsa OK para reintentar",
-    "failed_status": "Algunas lecturas de administración fallaron — pulsa OK para reintentar"
+    "failed_status": "Algunas lecturas de administración fallaron — pulsa OK para reintentar",
+    "header_now_playing": "— Reproduciendo ahora —",
+    "header_recent_activity": "— Actividad reciente —",
+    "header_storage": "— Almacenamiento —",
+    "none": "(ninguna)"
   },
   "connect": {
     "anyway": "Conectar de todos modos",
@@ -441,7 +445,9 @@
     "add_schedule": "Añadir horario",
     "blocked_tags": "Etiquetas bloqueadas",
     "concurrent_stream_limits": "Límites de streams concurrentes",
+    "current_limit": "Límite actual: {count} streams concurrentes",
     "delete_selected": "Eliminar seleccionados",
+    "no_stream_limit": "No hay ningún límite de streams configurado",
     "remove_selected": "Quitar seleccionados",
     "tab_schedules": "Horarios",
     "tab_stream_limits": "Límites de streams",

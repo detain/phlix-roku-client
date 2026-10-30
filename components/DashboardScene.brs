@@ -142,11 +142,11 @@ sub RenderDashboard()
     content = CreateObject("roSGNode", "ContentNode")
 
     ' --- Now Playing ---
-    content.AddChild({ title: "— Now Playing —" })
+    content.AddChild({ title: Translate("dashboard_header_now_playing") })
     if m.nowPlayingFailed then
         content.AddChild({ title: Translate("dashboard_failed_row") })
     else if m.nowPlaying.Count() = 0 then
-        content.AddChild({ title: "(none)" })
+        content.AddChild({ title: Translate("dashboard_none") })
     else
         for each row in m.nowPlaying
             if row <> invalid then
@@ -156,11 +156,11 @@ sub RenderDashboard()
     end if
 
     ' --- Storage ---
-    content.AddChild({ title: "— Storage —" })
+    content.AddChild({ title: Translate("dashboard_header_storage") })
     if m.storageFailed then
         content.AddChild({ title: Translate("dashboard_failed_row") })
     else if m.storage.Count() = 0 then
-        content.AddChild({ title: "(none)" })
+        content.AddChild({ title: Translate("dashboard_none") })
     else
         for each row in m.storage
             if row <> invalid then
@@ -170,11 +170,11 @@ sub RenderDashboard()
     end if
 
     ' --- Recent Activity ---
-    content.AddChild({ title: "— Recent Activity —" })
+    content.AddChild({ title: Translate("dashboard_header_recent_activity") })
     if m.activityFailed then
         content.AddChild({ title: Translate("dashboard_failed_row") })
     else if m.activity.Count() = 0 then
-        content.AddChild({ title: "(none)" })
+        content.AddChild({ title: Translate("dashboard_none") })
     else
         for each row in m.activity
             if row <> invalid then
