@@ -102,6 +102,21 @@ if [ "$root_manifest" -eq 1 ]; then
 				note "shipped root manifest lacks required key '${key}=' (R8.8 derivation must ride the artifact)."
 			fi
 		done
+		# (7) [W-min93 M-ROKU-14, review roku__crossfe m6] the rsg_version
+		# callback-model pin must ride the ARTIFACT (CHECK39 pins the source
+		# manifest; this closes it at the shipped-bytes surface), and every
+		# images/ path the shipped manifest references must EXIST as a member
+		# — a package whose declared icon/splash is missing installs into a
+		# broken chrome (same uninstallable-adjacent class as legs 3-5).
+		if ! grep -q '^rsg_version=' "$tmp"; then
+			note "shipped root manifest lacks rsg_version= (SceneGraph callback-model pin must ride the artifact)."
+		fi
+		while IFS= read -r ref; do
+			[ -n "$ref" ] || continue
+			if ! printf '%s\n' "$listing" | grep -qxF "$ref"; then
+				note "shipped manifest references '$ref' but the archive carries no such member."
+			fi
+		done < <(grep -oE 'images/[A-Za-z0-9._/-]+' "$tmp" | sort -u)
 	fi
 fi
 

@@ -377,7 +377,11 @@ sub OnApiResponse(event as Object)
             m.loadingLabel.visible = false
         end if
 
-        if not resp.ok or resp.data = invalid or resp.data.items = invalid then
+        ' [W-min93 M-ROKU-10, review roku__crossfe m2] Shape law, CollectionScene
+        ' idiom: an invalid-only check lets a dict-shaped `items` (PHP preserved-
+        ' key drift) through, and roArray.Append(roAssociativeArray) is a runtime
+        ' error that crashes the channel. Type-guard the array explicitly.
+        if not resp.ok or resp.data = invalid or resp.data.items = invalid or type(resp.data.items) <> "roArray" then
             m.loadingPage = false
             return
         end if
@@ -407,7 +411,17 @@ sub OnApiResponse(event as Object)
             })
 
             if item.year <> invalid then
-                contentItem.ShortDescriptionLine2 = str(item.year).trim()
+                ' [W-min93 M-ROKU-10] str() type-errors if the wire ever carries
+                ' year as a String; the sibling CollectionScene ships
+                ' str(Int(item.year)) for exactly this. Accept both carriers.
+                if type(item.year) = "roString" then
+                    yearText = item.year.trim()
+                    if yearText <> "" then
+                        contentItem.ShortDescriptionLine2 = yearText
+                    end if
+                else
+                    contentItem.ShortDescriptionLine2 = str(Int(item.year)).trim()
+                end if
             end if
 
             ' R5: Lazy image loading — defer HDPosterUrl assignment until visible
@@ -429,7 +443,10 @@ sub OnApiResponse(event as Object)
 
     else if resp.op = "getLetterIndex" then
         ' Store letter index for A-Z jump
-        if resp.ok and resp.data <> invalid and resp.data.letters <> invalid then
+        ' [W-min93 M-ROKU-10] dict-shaped `letters` makes the BuildAzBar for-each
+        ' yield Strings whose .count is invalid — invalid > 0 is a runtime error.
+        ' Only a real roArray may land in m.letterIndex.
+        if resp.ok and resp.data <> invalid and resp.data.letters <> invalid and type(resp.data.letters) = "roArray" then
             m.letterIndex = resp.data.letters
         else
             m.letterIndex = []
@@ -448,7 +465,9 @@ sub BuildAzBar()
     ' Create buttons for each letter with items (count > 0)
     letterButtons = []
     for each letterData in m.letterIndex
-        if letterData.count > 0 then
+        ' [W-min93 M-ROKU-10] row-shape guard: only an AA carrying an integer
+        ' count participates; any other member is skipped, never compared.
+        if type(letterData) = "roAssociativeArray" and letterData.DoesExist("count") and type(letterData.count) = "roInt" and letterData.count > 0 then
             letter = letterData.letter
             button = CreateObject("roSGNode", "Button")
             button.id = letter

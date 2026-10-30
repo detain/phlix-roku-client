@@ -214,7 +214,12 @@ function MintRelayToken(apiBase as String, serverId as String, token as String) 
             body = ev.GetString()
             if code = 201 and body <> "" then
                 parsed = ParseJSON(body)
-                if parsed <> invalid and type(parsed) = "roAssociativeArray" and parsed.DoesExist("token") then
+                ' [W-min93 M-ROKU-26, review roku__exploiter m5] a hostile/
+                ' compromised hub answering {"token":123} used to cross the raw
+                ' value into "Bearer " + relayToken downstream — a task-thread
+                ' type error that kills the command channel before the ladder
+                ' even starts. Only a String token is minted onward.
+                if parsed <> invalid and type(parsed) = "roAssociativeArray" and parsed.DoesExist("token") and type(parsed.token) = "roString" then
                     return parsed.token
                 end if
             end if

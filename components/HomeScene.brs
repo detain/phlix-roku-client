@@ -372,11 +372,17 @@ sub OnContinueWatchingResponse(resp as Object)
     m.continueLabel.visible = true
     m.continueGrid.visible = true
 
-    ' Surface the rail. Only move focus on first load — never yank focus back
-    ' mid-interaction if the user has already moved elsewhere.
+    ' Surface the rail. Only move focus on first load — and only while the
+    ' scene itself still holds focus with NO child claimed yet
+    ' (focusedChild = invalid is the boot state; once the user has moved to a
+    ' header button or another rail, focusedChild names that chain, so a late
+    ' arriving row must NOT teleport focus down [W-min93 M-ROKU-07, review
+    ' roku__casualgamer m7: the first-load get-yank].).
     if not m.continueGridFirstLoaded then
-        m.continueGrid.SetFocus(true)
-        m.currentRail = "continue"
+        if m.top.focusedChild = invalid then
+            m.continueGrid.SetFocus(true)
+            m.currentRail = "continue"
+        end if
         m.continueGridFirstLoaded = true
     end if
 

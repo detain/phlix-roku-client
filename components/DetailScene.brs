@@ -74,6 +74,32 @@ sub Init()
 
     ' R7.11: Collections state - list of available collections.
     m.collections = []
+
+    ' [W-min93 M-ROKU-22/23, review roku__exploiter m1/m2] In-flight guards —
+    ' the ParentalControlsScene m.pendingOp serialization idiom at the detail
+    ' surface. m.playPending: a Play press while getItemPlaybackInfo is
+    ' outstanding is ignored (was: N concurrent PlayerScene instances, N
+    ' stream sessions, self-inflicted 429s). m.mutationPending: at most one
+    ' favorite/rating/watched/like/collection mutation in flight; presses
+    ' during the window are ignored instead of bursting requests and racing
+    ' the revert-on-failure flips against a single shared apiTask stream.
+    m.playPending = false
+    m.mutationPending = false
+end sub
+
+' Single serialization point for every detail-page mutation (see guards in
+' Init). [W-min93 M-ROKU-23]
+sub SendMutation(request as Object)
+    if m.mutationPending then return
+    m.mutationPending = true
+    m.apiTask.request = request
+    m.apiTask.control = "run"
+end sub
+
+' Release the mutation guard when the owning response lands (success OR
+' failure — the arms below keep their own revert logic). [W-min93 M-ROKU-23]
+sub EndMutation()
+    m.mutationPending = false
 end sub
 
 sub LoadItem(itemId as String)
@@ -112,6 +138,7 @@ sub OnApiResponse(event as Object)
         ' R7.4: Load additional enrichment data (similar items, ratings).
         LoadAdditionalData()
     else if resp.op = "getItemPlaybackInfo" then
+        m.playPending = false
         ' Markers/chapters may legitimately be empty; launch the player either way.
         if resp.ok then
             m.playbackInfo = resp.data
@@ -120,6 +147,7 @@ sub OnApiResponse(event as Object)
         end if
         PlayItem()
     else if resp.op = "favorite" then
+        EndMutation()
         ' Optimistic flip already applied; revert on failure.
         if not resp.ok then
             if m.userData <> invalid then
@@ -129,6 +157,7 @@ sub OnApiResponse(event as Object)
             ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_error_favorite_save_message"))
         end if
     else if resp.op = "unfavorite" then
+        EndMutation()
         if not resp.ok then
             if m.userData <> invalid then
                 m.userData.favorite = true
@@ -137,6 +166,7 @@ sub OnApiResponse(event as Object)
             ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_error_favorite_remove_message"))
         end if
     else if resp.op = "setRating" then
+        EndMutation()
         if not resp.ok then
             ' Revert to the server's last-known rating.
             if m.userData <> invalid then
@@ -149,6 +179,7 @@ sub OnApiResponse(event as Object)
             ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_error_rating_save_message"))
         end if
     else if resp.op = "clearRating" then
+        EndMutation()
         if not resp.ok then
             if m.userData <> invalid then
                 m.pendingRating = 0
@@ -160,6 +191,7 @@ sub OnApiResponse(event as Object)
             ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_error_rating_clear_message"))
         end if
     else if resp.op = "markWatched" then
+        EndMutation()
         ' Optimistic update already applied; revert on failure.
         if not resp.ok then
             if m.userData <> invalid then
@@ -169,6 +201,7 @@ sub OnApiResponse(event as Object)
             ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_error_watched_mark_message"))
         end if
     else if resp.op = "markUnwatched" then
+        EndMutation()
         ' Optimistic update already applied; revert on failure.
         if not resp.ok then
             if m.userData <> invalid then
@@ -178,6 +211,7 @@ sub OnApiResponse(event as Object)
             ShowErrorDialog(m.top, Translate("common_error"), Translate("detail_error_watched_unmark_message"))
         end if
     else if resp.op = "like" then
+        EndMutation()
         ' Optimistic update already applied; revert on failure.
         if not resp.ok then
             if m.userData <> invalid then
@@ -235,6 +269,7 @@ sub OnApiResponse(event as Object)
             DisplayExtras(extras)
         end if
     else if resp.op = "getCollections" then
+        EndMutation()
         ' R7.11: Store collections list and show picker.
         if resp.ok and resp.data <> invalid then
             collectionsArray = invalid
@@ -252,10 +287,12 @@ sub OnApiResponse(event as Object)
             ShowCollectionPicker()
         end if
     else if resp.op = "addToCollection" then
+        EndMutation()
         if not resp.ok then
             ShowErrorDialog(m.top, Translate("common_error"), GetErrorMessage(resp.error))
         end if
     else if resp.op = "removeFromCollection" then
+        EndMutation()
         if not resp.ok then
             ShowErrorDialog(m.top, Translate("common_error"), GetErrorMessage(resp.error))
         end if
@@ -444,11 +481,11 @@ end sub
 ' ---------------------------------------------------------------------
 sub OnCollectionPressed()
     if m.itemId = "" or m.userData = invalid then return
+    if m.mutationPending then return
 
     ' First, fetch the list of collections if not already loaded.
     if m.collections.count() = 0 then
-        m.apiTask.request = { op: "getCollections" }
-        m.apiTask.control = "run"
+        SendMutation({ op: "getCollections" })
         return
     end if
 
@@ -484,8 +521,7 @@ end sub
 sub AddItemToCollection(collectionId as String)
     if m.itemId = "" or collectionId = "" then return
 
-    m.apiTask.request = { op: "addToCollection", collectionId: collectionId, itemId: m.itemId }
-    m.apiTask.control = "run"
+    SendMutation({ op: "addToCollection", collectionId: collectionId, itemId: m.itemId })
 end sub
 
 ' ---------------------------------------------------------------------
@@ -495,8 +531,7 @@ end sub
 sub RemoveItemFromCollection(collectionId as String)
     if m.itemId = "" or collectionId = "" then return
 
-    m.apiTask.request = { op: "removeFromCollection", collectionId: collectionId, itemId: m.itemId }
-    m.apiTask.control = "run"
+    SendMutation({ op: "removeFromCollection", collectionId: collectionId, itemId: m.itemId })
 end sub
 
 sub RenderAggregateRating()
@@ -590,10 +625,17 @@ end sub
 sub OnPlayPressed()
     if m.itemId = "" or m.item = invalid then return
 
+    ' [W-min93 M-ROKU-22] One playback request at a time: a press while the
+    ' playback-info read is outstanding is ignored (the flag clears in the
+    ' response arm, and a failed launch never leaves it stuck because the arm
+    ' runs for ok AND error envelopes).
+    if m.playPending then return
+
     ' Only playable leaf types have a stream to request. This mirrors the
     ' play-button visibility gate above, so Play is never a silent no-op for an
     ' item whose button we chose to show.
     if IsPlayableItem(m.item) then
+        m.playPending = true
         m.apiTask.request = { op: "getItemPlaybackInfo", itemId: m.itemId }
         m.apiTask.control = "run"
     end if
@@ -601,6 +643,7 @@ end sub
 
 sub OnFavoriteToggle()
     if m.userData = invalid or m.itemId = "" then return
+    if m.mutationPending then return
 
     isFav = false
     if m.userData.DoesExist("favorite") and m.userData.favorite = true then isFav = true
@@ -609,30 +652,27 @@ sub OnFavoriteToggle()
         ' Optimistic: clear locally, fire unfavorite; revert on failure.
         m.userData.favorite = false
         RenderFavorite()
-        m.apiTask.request = { op: "unfavorite", itemId: m.itemId }
-        m.apiTask.control = "run"
+        SendMutation({ op: "unfavorite", itemId: m.itemId })
     else
         m.userData.favorite = true
         RenderFavorite()
-        m.apiTask.request = { op: "favorite", itemId: m.itemId }
-        m.apiTask.control = "run"
+        SendMutation({ op: "favorite", itemId: m.itemId })
     end if
 end sub
 
 sub OnRatingCommit()
     if m.userData = invalid or m.itemId = "" then return
+    if m.mutationPending then return
 
     if m.pendingRating <= 0 then
         ' 0 = clear the rating.
         m.userData.rating = invalid
         RenderRating()
-        m.apiTask.request = { op: "clearRating", itemId: m.itemId }
-        m.apiTask.control = "run"
+        SendMutation({ op: "clearRating", itemId: m.itemId })
     else
         m.userData.rating = m.pendingRating
         RenderRating()
-        m.apiTask.request = { op: "setRating", itemId: m.itemId, rating: m.pendingRating }
-        m.apiTask.control = "run"
+        SendMutation({ op: "setRating", itemId: m.itemId, rating: m.pendingRating })
     end if
 end sub
 
@@ -642,6 +682,7 @@ end sub
 ' ---------------------------------------------------------------------
 sub OnWatchedToggle()
     if m.userData = invalid or m.itemId = "" then return
+    if m.mutationPending then return
 
     isWatched = false
     if m.userData.DoesExist("watched") and m.userData.watched = true then isWatched = true
@@ -650,14 +691,12 @@ sub OnWatchedToggle()
         ' Optimistic: mark as unwatched
         m.userData.watched = false
         RenderWatched()
-        m.apiTask.request = { op: "markUnwatched", itemId: m.itemId }
-        m.apiTask.control = "run"
+        SendMutation({ op: "markUnwatched", itemId: m.itemId })
     else
         ' Optimistic: mark as watched
         m.userData.watched = true
         RenderWatched()
-        m.apiTask.request = { op: "markWatched", itemId: m.itemId }
-        m.apiTask.control = "run"
+        SendMutation({ op: "markWatched", itemId: m.itemId })
     end if
 end sub
 
@@ -667,6 +706,7 @@ end sub
 ' ---------------------------------------------------------------------
 sub OnLikeToggle()
     if m.userData = invalid or m.itemId = "" then return
+    if m.mutationPending then return
 
     isLiked = false
     if m.userData.DoesExist("liked") and m.userData.liked = true then isLiked = true
@@ -675,14 +715,12 @@ sub OnLikeToggle()
         ' Optimistic: mark as unliked
         m.userData.liked = false
         RenderLike()
-        m.apiTask.request = { op: "like", itemId: m.itemId }
-        m.apiTask.control = "run"
+        SendMutation({ op: "like", itemId: m.itemId })
     else
         ' Optimistic: mark as liked
         m.userData.liked = true
         RenderLike()
-        m.apiTask.request = { op: "like", itemId: m.itemId }
-        m.apiTask.control = "run"
+        SendMutation({ op: "like", itemId: m.itemId })
     end if
 end sub
 

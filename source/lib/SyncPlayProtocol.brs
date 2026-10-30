@@ -187,6 +187,13 @@ function SyncPlayProtocol() as Object
         ParseFrames: function(buffer as Object) as Object
             frames = []
             consumed = 0
+            ' [W-min93 M-ROKU-16 (part), review roku__crossfe m8] a crafted/garbage
+            ' 127-extended header used to overflow to a NEGATIVE payLen with plain
+            ' Int math (b6 >= 128 * 16777216 walks off the integer range), letting
+            ' frameEnd run backwards into buffer[-n] — runtime error. Declared
+            ' lengths beyond the RFC's 2^31 bound or a sane SyncPlay maximum are
+            ' now a REJECTION: no frame is produced and the caller closes.
+            rejected = false
             total = 0
             if buffer <> invalid then total = buffer.Count()
 
@@ -218,17 +225,36 @@ function SyncPlayProtocol() as Object
                         payLen = len
                         if len = 126 then
                             payLen = (buffer[cur + 2] * 256) + buffer[cur + 3]
+                            ' [W-min93 M-ROKU-16 (part), review roku__crossfe m8]
+                            ' RFC6455 minimality + sane SyncPlay maximum bound.
+                            if payLen < 126 or payLen > 1048576 then
+                                rejected = true
+                            end if
                         else if len = 127 then
-                            ' 64-bit: high 4 bytes ignored (0 in practice); read
-                            ' the low 4 bytes big-endian.
-                            payLen = (buffer[cur + 6] * 16777216) + (buffer[cur + 7] * 65536) + (buffer[cur + 8] * 256) + buffer[cur + 9]
+                            ' [W-min93 M-ROKU-16 (part)] the OLD plain-Int math
+                            ' overflowed to NEGATIVE payLen when b6 >= 128, letting
+                            ' frameEnd walk backwards into buffer[-n] (runtime
+                            ' error). 64-bit lengths are now consumed only with
+                            ' zero high word, clear top bit, and a sane bound.
+                            if buffer[cur + 2] <> 0 or buffer[cur + 3] <> 0 or buffer[cur + 4] <> 0 or buffer[cur + 5] <> 0 or (buffer[cur + 6] and 128) <> 0 then
+                                rejected = true
+                            else
+                                payLen = (buffer[cur + 6] * 16777216) + (buffer[cur + 7] * 65536) + (buffer[cur + 8] * 256) + buffer[cur + 9]
+                                if payLen > 1048576 then
+                                    rejected = true
+                                end if
+                            end if
                         end if
 
                         maskLen = 0
                         if masked then maskLen = 4
 
                         frameEnd = cur + headerLen + maskLen + payLen
-                        if frameEnd > total then
+                        if rejected then
+                            ' Hostile/garbage declared length: produce NOTHING,
+                            ' tell the caller via rejectedOversize to close.
+                            keepGoing = false
+                        else if frameEnd > total then
                             ' Incomplete frame - wait for more bytes.
                             keepGoing = false
                         else
@@ -262,7 +288,7 @@ function SyncPlayProtocol() as Object
                 end if
             end while
 
-            return { frames: frames, consumed: consumed }
+            return { frames: frames, consumed: consumed, rejectedOversize: rejected }
         end function
 
         ' Return a NEW roByteArray containing buffer[consumed..end]. roByteArray has

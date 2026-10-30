@@ -51,6 +51,65 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — W-min93 minors cluster (6 cured, 1 partial-cured, 1 honest-blocked) — 2026-10-30
+
+- **M-ROKU-07 (cured).** The Continue-Watching first-load focus get-yank:
+  `OnContinueWatchingResponse` moved focus into `continueGrid` unconditionally
+  on first load, teleporting a user who had already navigated to the header.
+  The grab now fires only while `m.top.focusedChild = invalid` — the boot
+  state where nothing has claimed focus — so the row still becomes the boot
+  destination but never yanks an already-moved user.
+- **M-ROKU-10 (cured).** `LibraryScene` wire-shape law applied (the sibling
+  `CollectionScene` guards, review roku__crossfe m2): `getLibraryItems`
+  responses now require `type(resp.data.items) = "roArray"` before
+  `m.items.append` (a PHP-preserved-key dict made `roArray.Append(roAssociativeArray)`
+  a channel-ending runtime error); `year` accepts both String and numeric
+  carriers instead of `str()` type-erroring on a String year; `getLetterIndex`
+  stores only a real array and `BuildAzBar` participates only in AA rows with
+  an integer `count` (`invalid > 0` on dict-shaped payloads is a runtime
+  error).
+- **M-ROKU-14 (cured, residual delta).** The packaged-artifact gate already
+  existed (`scripts/verify-package.sh`, C08 era) and covers the ask's
+  manifest-root + no-`build/` legs; this lane closed the residual the ask
+  named: the shipped root manifest must carry `rsg_version=` and every
+  `images/…` path it references must exist as an archive member.
+- **M-ROKU-16 (partial-cured; remainder honest-blocked).** Cured the pure
+  parser half of the ask: `ParseFrames` 126/127-extended lengths are clamped
+  (zero high word, clear top bit, minimality, 1 MiB sane maximum) — the old
+  plain-Int math overflowed to negative `payLen` on `b6 >= 128`, letting the
+  cursor walk backwards into `buffer[-n]` — and a rejection closes the
+  socket via `rejectedOversize` in `HandleSocketEvent`. Honest-blocked (ask
+  quote: "distinguish would-block … add a pong-miss deadline (3 × interval)
+  and mirror HubCommandTask's ladder"): the negative-`Receive` taxonomy and
+  ladder re-dial semantics are device-unverifiable in this venue (brs does
+  not implement `roStreamSocket`; hardware confirmation of the would-block
+  constant vs abort codes is a precondition), same verification-gated class
+  the lane logged for hardware asks. Cure spec retained here for a
+  hardware-verification lane.
+- **M-ROKU-22 (cured).** `OnPlayPressed` gained the `m.playPending` guard;
+  the flag clears in the `getItemPlaybackInfo` arm which runs for ok AND
+  error envelopes — mashing OK can no longer spawn concurrent PlayerScenes
+  and self-inflicted 429 stream-limit bursts.
+- **M-ROKU-23 (cured).** All six detail mutations (favorite/unfavorite,
+  setRating/clearRating, markWatched/markUnwatched, like, collection add/
+  remove) plus the initial `getCollections` fetch now route through
+  `SendMutation` behind `m.mutationPending` and release via `EndMutation` in
+  their response arms — the ParentalControlsScene `m.pendingOp` serialization
+  idiom at the detail surface; presses during a flight are ignored instead of
+  bursting requests and racing the revert-on-failure flips.
+- **M-ROKU-26 (cured).** `MintRelayToken` returns only a `type(parsed.token) = "roString"`
+  value; a hostile hub answering `{"token":123}` can no longer cross a
+  non-String into the downstream `"Bearer " + relayToken` and kill the
+  command channel before the ladder starts.
+- **M-ROKU-36 (honest-blocked).** Ask: "Login uses deprecated `TextEditBox`
+  … Roku's current guidance is `VoiceTextEditBox`/dynamic keyboards; … no
+  visible retry affordance". The component swap changes the account-entry
+  critical path (a regression bricks login on every device at once), carries
+  firmware-support surface this venue cannot verify headless, and the
+  retry-affordance half is a UX redesign — owner/device-verification call,
+  not a blind minors cure. `TextEditBox` renders the system keyboard today
+  (review's own words), so shipping posture is unchanged while blocked.
+
 ### Fixed — W-min92 minors cluster (3 cured) — 2026-10-30
 
 - **M-ROKU-12 (cured).** The route-manifest fixture was pinned to the

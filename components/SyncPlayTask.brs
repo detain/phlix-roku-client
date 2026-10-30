@@ -317,6 +317,16 @@ function HandleSocketEvent() as Boolean
     m.buffer.Append(chunk)
 
     res = m.proto.ParseFrames(m.buffer)
+    ' [W-min93 M-ROKU-16 (part)] ParseFrames rejects declared lengths it cannot
+    ' safely consume (negative-overflow / beyond-sane-max classes, review
+    ' roku__crossfe m8). A rejection means the peer is desynced or hostile:
+    ' drop the socket; the scene's closed-arm chrome already covers the UX
+    ' (reconnect ladder itself is the hardware-verification-gated remainder).
+    if res.rejectedOversize = true then
+        SetState("closed")
+        EmitEvent({ kind: "closed" })
+        return false
+    end if
     if res.consumed > 0 then
         m.buffer = m.proto.RemainderBuffer(m.buffer, res.consumed)
     end if
