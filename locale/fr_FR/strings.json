@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.11.0",
+    "version": "1.12.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -258,6 +258,7 @@
     "syncplay_create_failed": "Impossible de créer le groupe synchronisé.",
     "syncplay_join_failed": "Impossible de rejoindre le groupe synchronisé.",
     "syncplay_leave_failed": "Impossible de quitter le groupe synchronisé.",
+    "syncplay_queue_limit_exceeded": "La file de lecture de ce groupe synchronisé est pleine ; rien n'a été ajouté.",
     "local_no_config": "Impossible de préparer la session de synchronisation.",
     "local_no_host": "L’adresse du serveur de synchronisation n’est pas configurée.",
     "local_socket_unavailable": "Cet appareil n’a pas pu ouvrir de connexion réseau pour la session.",

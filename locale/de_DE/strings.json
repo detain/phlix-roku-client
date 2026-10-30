@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.11.0",
+    "version": "1.12.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -258,6 +258,7 @@
     "syncplay_create_failed": "Die synchronisierte Gruppe konnte nicht erstellt werden.",
     "syncplay_join_failed": "Der Gruppe konnte nicht beigetreten werden.",
     "syncplay_leave_failed": "Die Gruppe konnte nicht verlassen werden.",
+    "syncplay_queue_limit_exceeded": "Die Warteschlange dieser synchronisierten Gruppe ist voll; nichts wurde hinzugefügt.",
     "local_no_config": "Die Synchronsitzung konnte nicht eingerichtet werden.",
     "local_no_host": "Die Adresse des Sync-Servers ist nicht konfiguriert.",
     "local_socket_unavailable": "Dieses Gerät konnte keine Netzwerkverbindung für die Synchronsitzung aufbauen.",

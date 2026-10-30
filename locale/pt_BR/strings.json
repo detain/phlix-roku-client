@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "pt_BR",
     "language_name": "Português (Brasil)",
-    "version": "1.11.0",
+    "version": "1.12.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -258,6 +258,7 @@
     "syncplay_create_failed": "Não foi possível criar o grupo de exibição.",
     "syncplay_join_failed": "Não foi possível entrar no grupo de exibição.",
     "syncplay_leave_failed": "Não foi possível sair do grupo de exibição.",
+    "syncplay_queue_limit_exceeded": "A fila de reprodução desse grupo de exibição está cheia; nada foi adicionado.",
     "local_no_config": "Não foi possível preparar a sessão de sincronização.",
     "local_no_host": "O endereço do servidor de sincronização não está configurado.",
     "local_socket_unavailable": "Este dispositivo não pôde abrir uma conexão de rede para a sessão.",

@@ -51,6 +51,53 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — W-min92 minors cluster (3 cured) — 2026-10-30
+
+- **M-ROKU-12 (cured).** The route-manifest fixture was pinned to the
+  v0.5.2 era: `tests/fixtures/server-route-manifest.json` re-vendored
+  BYTE-FOR-BYTE from contracts tag `v0.5.3`
+  (`dist/server-route-manifest.json`, md5
+  `915796837d38a77733c169996d97640c`, 412 tuples @ server
+  `758f91496c068551b310f1078093335f79c20e04`), replacing the 410-tuple
+  `730e55b7` bytes; the gate's `PROVENANCE_SHA`/`TOTAL_TUPLES` constants
+  and header prose followed, and the currency token rotated
+  (`CS47REVENDORPINQ7T3`). The SyncPlay error census 19->20 resolved as
+  a PROMOTION, not a reservation: `syncplay.queue_limit_exceeded` is
+  LIVE server-side since `7baa398a` (ancestor-verified;
+  `SyncPlayManager.php` sendError site), so `SyncPlayKnownErrorCodes()`,
+  the Check 22 emitted-verified set, Check 23's count pins, the seven
+  locale catalogs (new `errors_syncplay_queue_limit_exceeded` line;
+  catalog set bumped 1.11.0->1.12.0 as a set, rotating CHECK48 R3's
+  version pin — disclosed on that row) and the localized-line test
+  pins all moved together. Editor hazard now documented in-body: the
+  Check 22/23 extractors pair double-quoted strings across the RAW
+  census body, so a quoted word inside that function hijacks
+  extraction — keep census-body comments quote-free.
+- **M-ROKU-13 (cured).** The route gate's scanner matched only
+  `.request(`/`.sendRaw(` — the login URL issued inside
+  `sendRawWithDeviceId` escaped the census (scanned 91 -> 92, re-pinned
+  from measured red), and the header claim that EVERY URL the client
+  touches is tuple-exact was overbroad. The gate now matches the third
+  call shape, and the two genuinely out-of-registry classes —
+  `HubCommandTask`'s hub-registry relay-token site and the two WS dial
+  paths (:8097 direct + :8804 relay) — are declared rosters
+  (`HUB_SITES`/`WS_SITES`) with per-site reasons and
+  literal-survival pins: a roster site whose code text vanishes, or a
+  hub site that starts resolving against the SERVER registry, reddens
+  the gate. Honest partition, not regex accident.
+- **M-ROKU-19 (cured).** `scripts/validate-xml.sh` discovered only a
+  FLAT `components/*.xml` glob and "validated" with two substring
+  greps: a nested XML file had ZERO coverage while `total_files` stayed
+  above the zero-guard, and any malformed document whose
+  `<?xml version` / `</component>` markers merely EXISTED passed. The
+  script now walks recursively (deterministic order), requires the
+  prologue on the first line, runs a real `xml.etree`
+  well-formedness parse and asserts the lowercase `<component>` root,
+  keeping the zero-file and missing-root fail-louds verbatim.
+  Portable legs 13e (nested plant convicted by relative path, restore
+  green) and 13f (a file surviving BOTH legacy greps convicted by the
+  parser) pin both holes; the real repo validates 48 files green.
+
 ### Fixed — W-min91 minors cluster (6 cured) — 2026-10-30
 
 - **M-ROKU-15 (cured — CI unit coverage was fiction).** The 22-suite

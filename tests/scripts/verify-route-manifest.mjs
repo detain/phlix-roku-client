@@ -3,13 +3,22 @@
  * S280 — roku client route gate (the BrightScript mirror of mobile's
  * `src/api/test/routeManifest.gate.test.ts`).
  *
- * WHAT IT PINS: every URL phlix-roku-client can put on the wire is tuple-exact
+ * WHAT IT PINS: every URL phlix-roku-client can put on the wire THROUGH THE
+ * SCANNED HTTP HELPERS (ApiClient's request/sendRaw/sendRawWithDeviceId and
+ * ApiTask, plus the declared RAW_SITES) is tuple-exact
  * against the VENDORED phlix-server route manifest
  * (`tests/fixtures/server-route-manifest.json`, a byte-for-byte copy of
  * `@phlix/contracts` `dist/server-route-manifest.json`). Current currency:
- * untagged contracts master regen #34 at phlix-server `730e55b7` — a CONTENT
- * regen, 404→410 tuples (quick-connect pairing + consent-gated telemetry;
- * cs#46 chain: `c9c551e0`/regen #33, 404). The expected set is
+ * contracts TAG v0.5.3 (peel 430981e) — content regen at phlix-server
+ * `758f91496c068551b310f1078093335f79c20e04`, 412 tuples (the v0.5.2-era
+ * 410 @ `730e55b7` was the previous currency; cs#47 re-vendor, W-min92).
+ * The two address classes the HTTP manifest CANNOT own are declared, not
+ * hidden (M-ROKU-13): HUB_SITES (hub-registry paths — asserted ABSENT from
+ * the server manifest, the same staleness law as PARTITIONED) and WS_SITES
+ * (WebSocket transport upgrades on :8097/:8804 — a syncplay dial is not a
+ * route tuple, ever). Anything else that starts issuing URLs must join one
+ * of these lists or the scan.
+ * The expected set is
  * derived from the SERVER side only — a check derived from its subject
  * self-adjusts and passes every defect it exists to catch, which is exactly
  * why S264/S276/S279 shipped in three repos before anyone pinned anything.
@@ -40,11 +49,12 @@ const MANIFEST_FILE = path.join(REPO, 'tests', 'fixtures', 'server-route-manifes
 const QUIET = process.argv.includes('--quiet');
 const SELF_TEST = process.argv.includes('--self-test');
 
-// cs#46 currency re-vendor ritual token (code-resident survival assertion target).
-export const CS46_CURRENCY_TOKEN = 'CS46CURRENCYPINX9X1';
+// cs#47 currency re-vendor ritual token (code-resident survival assertion
+// target — W-min92 rotated it with the v0.5.3 byte-for-byte re-vendor).
+export const CS46_CURRENCY_TOKEN = 'CS47REVENDORPINQ7T3';
 
-const PROVENANCE_SHA = '730e55b7d3ad44a155f6b46374a9f6c463792840';
-const TOTAL_TUPLES = 410;
+const PROVENANCE_SHA = '758f91496c068551b310f1078093335f79c20e04';
+const TOTAL_TUPLES = 412;
 
 /**
  * Sites the scanner DELIBERATELY does not check against the server manifest,
@@ -75,6 +85,43 @@ const RAW_SITES = [
     method: 'GET',
     path: '/health',
     via: 'probeHealth() builds m.baseUrl + "/health" directly (public unauthenticated probe, registered at the server root)',
+  },
+];
+
+/**
+ * Hub-registry sites (M-ROKU-13). These URLs exist in the HUB's route space,
+ * which this repo does not vendor a manifest for. They are DECLARED here —
+ * never silently outside the scan — and triple-guarded like PARTITIONED:
+ *  1. the literal must still be present in the named file (survival),
+ *  2. the path must be ABSENT from the vendored SERVER manifest (a stale
+ *     hub-claim reds the moment the server registers it — re-draw then),
+ *  3. the list itself is count-pinned in the summary line.
+ */
+const HUB_SITES = [
+  {
+    file: 'components/HubCommandTask.brs',
+    method: 'POST',
+    path: '/api/v1/me/servers/{P}/relay-token',
+    literals: ['"/api/v1/me/servers/"', '"/relay-token"'],
+    reason: 'relay-token mint rides the hub JWT against the hub origin (roUrlTransfer direct, SetUrl-built at HubCommandTask.brs:193) — hub registry namespace, not the server ROUTE_MANIFEST',
+  },
+];
+
+/**
+ * WebSocket transport dials (M-ROKU-13): a syncplay upgrade is not a route
+ * tuple on ANY HTTP manifest; declared for the same reason HUB_SITES is.
+ * Survival-pinned to the files that still spell them.
+ */
+const WS_SITES = [
+  {
+    file: 'components/SyncPlayTask.brs',
+    url: '"/syncplay"',
+    via: 'path literal (SyncPlayTask.brs:61) dialed through BuildHandshakeRequest to the plaintext :8097 worker — transport upgrade, never an HTTP tuple',
+  },
+  {
+    file: 'components/HubCommandTask.brs',
+    url: '"/syncplay/"',
+    via: 'relay dial ("/syncplay/" + serverId, HubCommandTask.brs:185) to the hub :8804 listener — hub transport, never an HTTP tuple',
   },
 ];
 
@@ -179,7 +226,8 @@ function siteFromCall(verb, expr) {
 function scan() {
   const sites = [];
   const files = walk(path.join(REPO, 'source')).concat(walk(path.join(REPO, 'components')));
-  const callRe = /\.request\(\s*"(GET|POST|PUT|PATCH|DELETE)"\s*,\s*(.+)$|\.sendRaw\(\s*"(GET|POST|PUT|PATCH|DELETE)"\s*,\s*(.+)$/;
+  const callRe =
+    /\.request\(\s*"(GET|POST|PUT|PATCH|DELETE)"\s*,\s*(.+)$|\.sendRaw\(\s*"(GET|POST|PUT|PATCH|DELETE)"\s*,\s*(.+)$|\.sendRawWithDeviceId\(\s*"(GET|POST|PUT|PATCH|DELETE)"\s*,\s*(.+)$/;
   for (const file of files) {
     const rel = path.relative(REPO, file).split(path.sep).join('/');
     const lines = readFileSync(file, 'utf8').split('\n');
@@ -188,8 +236,8 @@ function scan() {
       if (line.startsWith("'")) return; // BrightScript comment line
       const m = line.match(callRe);
       if (!m) return;
-      const verb = m[1] ?? m[3];
-      let expr = cutToPathExpr((m[2] ?? m[4]).trim());
+      const verb = m[1] ?? m[3] ?? m[5];
+      let expr = cutToPathExpr((m[2] ?? m[4] ?? m[6]).trim());
       // Variable-path sites (facets / letter-index / admin users / ApiTask
       // cache paths): resolve the assignment chain backwards within the
       // enclosing function.
@@ -247,10 +295,12 @@ function resolvePathChain(lines, callIndex, varName = 'path') {
  * Site counts at merge time. If this moves, either the client grew/shrank its
  * HTTP surface (legit: update WITH the serve check passing) or the scanner went
  * blind on a new call shape (NOT legit: find out why before touching numbers).
+ * W-min92: 91→92 / ApiClient 83→84 — the M-ROKU-13 cure made the scanner see
+ * the sendRawWithDeviceId("POST", "/auth/login") site; it is served @ 412.
  */
 const CHECK_COUNTS = {
-  totalSites: 91,
-  perFile: { 'source/lib/ApiClient.brs': 83, 'components/ApiTask.brs': 8 },
+  totalSites: 92,
+  perFile: { 'source/lib/ApiClient.brs': 84, 'components/ApiTask.brs': 8 },
 };
 
 function selfTest() {
@@ -299,6 +349,31 @@ for (const r of RAW_SITES) {
     fail(`RAW SITE UNSERVED: ${r.method} ${r.path} — ${r.via}`);
   }
 }
+// Hub sites (M-ROKU-13): survival-pinned literals + the path must be ABSENT
+// from the server manifest — the hub-claim goes stale the day the server
+// registers it, and the gate says so instead of silently checking nothing.
+for (const h of HUB_SITES) {
+  const src = readFileSync(path.join(REPO, h.file), 'utf8');
+  for (const needle of h.literals) {
+    if (!src.includes(needle)) {
+      fail(`HUB SITE DRIFT: ${h.file} no longer spells ${needle} — ${h.reason}`);
+    }
+  }
+  if (served(h.method, h.path)) {
+    fail(
+      `HUB CLAIM STALE: ${h.method} ${h.path} is now REGISTERED server-side (${h.reason}) — ` +
+        'pull it out of HUB_SITES and let the gate check it properly',
+    );
+  }
+}
+// WebSocket dials (M-ROKU-13): survival-pinned only (no HTTP manifest owns a
+// transport upgrade; the syncplay WS wire law lives in SPEC/docs + Checks 21/22).
+for (const w of WS_SITES) {
+  const src = readFileSync(path.join(REPO, w.file), 'utf8');
+  if (!src.includes(w.url)) {
+    fail(`WS SITE DRIFT: ${w.file} no longer spells ${w.url} — ${w.via}`);
+  }
+}
 
 const perFile = {};
 for (const s of sites) perFile[s.file] = (perFile[s.file] ?? 0) + 1;
@@ -319,7 +394,10 @@ if (!QUIET) {
       `across ${Object.keys(perFile).length} modules — tuple-exact against the vendored ${TOTAL_TUPLES}-route manifest @ ${PROVENANCE_SHA}`,
   );
   for (const [file, count] of Object.entries(perFile).sort()) console.log(`  ${file}: ${count}`);
-  console.log(`  partitioned: ${PARTITIONED.length} (hub-addressed) · raw-transport: ${RAW_SITES.length} (GET /health)`);
+  console.log(
+    `  partitioned: ${PARTITIONED.length} (hub-addressed) · raw-transport: ${RAW_SITES.length} (GET /health) ` +
+      `· hub-sites: ${HUB_SITES.length} · ws-dials: ${WS_SITES.length} (declared outside the HTTP manifest, M-ROKU-13)`,
+  );
 }
 
 for (const u of unserved) {

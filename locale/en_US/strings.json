@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.11.0",
+    "version": "1.12.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -258,6 +258,7 @@
     "syncplay_create_failed": "Could not create the watch group.",
     "syncplay_join_failed": "Could not join the watch group.",
     "syncplay_leave_failed": "Could not leave the watch group.",
+    "syncplay_queue_limit_exceeded": "The play queue for that watch group is full; nothing was added.",
     "local_no_config": "Could not set up Watch Together.",
     "local_no_host": "The server address is not configured.",
     "local_socket_unavailable": "This device could not open a network connection for Watch Together.",

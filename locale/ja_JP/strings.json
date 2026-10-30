@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.11.0",
+    "version": "1.12.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -258,6 +258,7 @@
     "syncplay_create_failed": "ウォッチグループを作成できませんでした。",
     "syncplay_join_failed": "ウォッチグループに参加できませんでした。",
     "syncplay_leave_failed": "ウォッチグループから退出できませんでした。",
+    "syncplay_queue_limit_exceeded": "そのウォッチグループの再生キューがいっぱいのため、追加されませんでした。",
     "local_no_config": "同期セッションを準備できませんでした。",
     "local_no_host": "同期サーバーのアドレスが設定されていません。",
     "local_socket_unavailable": "このデバイスで同期セッション用のネットワーク接続を開けませんでした。",

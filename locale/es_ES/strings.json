@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "es_ES",
     "language_name": "Español (España)",
-    "version": "1.11.0",
+    "version": "1.12.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -258,6 +258,7 @@
     "syncplay_create_failed": "No se pudo crear el grupo de visionado.",
     "syncplay_join_failed": "No se pudo unir al grupo de visionado.",
     "syncplay_leave_failed": "No se pudo salir del grupo de visionado.",
+    "syncplay_queue_limit_exceeded": "La cola de reproducción de ese grupo de visionado está llena; no se añadió nada.",
     "local_no_config": "No se pudo preparar la sesión de sincronización.",
     "local_no_host": "La dirección del servidor de sincronización no está configurada.",
     "local_socket_unavailable": "Este dispositivo no pudo abrir una conexión de red para la sesión.",
