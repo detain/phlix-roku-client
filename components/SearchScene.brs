@@ -376,6 +376,18 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
                 m.zone = "results"
                 handled = true
             end if
+        else if key = "down" and m.zone = "keyboard" and m.results.Count() > 0 then
+            ' [W-min94 M-ROKU-32, review roku__gameux m4] alternative binding
+            ' for the keyboard->results hop: where the firmware does NOT bubble
+            ' right-at-edge (the review's failure mode — results unreachable),
+            ' DOWN reaches the rail anyway. Additive-by-construction: a
+            ' firmware whose Keyboard grid consumes down internally never
+            ' delivers it here, so existing row navigation is untouched.
+            if m.resultsGrid <> invalid then
+                m.resultsGrid.SetFocus(true)
+                m.zone = "results"
+                handled = true
+            end if
         else if key = "left" and m.zone = "results" then
             if m.keyboard <> invalid then
                 m.keyboard.SetFocus(true)

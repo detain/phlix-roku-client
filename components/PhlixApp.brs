@@ -165,12 +165,20 @@ sub StartAuthCheck()
     m.retryCount = 0
     ShowBootLoading()
 
-    ' Unhook any stale observers before replacing the old task/timer
+    ' Unhook any stale observers before replacing the old task/timer — and
+    ' DETACH the old nodes: un-observing alone leaves every retry's task (and,
+    ' once attached, its timer) as an orphan child of m.top [W-min94 M-ROKU-25,
+    ' review roku__exploiter m4].
     if m.authTask <> invalid then
         m.authTask.UnObserveField("response")
+        m.top.RemoveChild(m.authTask)
+        m.authTask = invalid
     end if
     if m.authTimer <> invalid then
+        m.authTimer.control = "stop"
         m.authTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.authTimer)
+        m.authTimer = invalid
     end if
 
     ' Create single ApiTask for boot auth (serialized, not concurrent)
@@ -178,9 +186,14 @@ sub StartAuthCheck()
     m.authTask.ObserveField("response", "OnAuthResponse")
     m.top.Append(m.authTask)
 
-    ' 20-second scene-level timeout
+    ' 20-second scene-level timeout. [W-min94 M-ROKU-25 disclosure] The Timer
+    ' was never appended, and a Timer only ticks while attached (the repo's own
+    ' toastTimer law, PhlixApp.brs:101) — on device the boot timeout chrome was
+    ' fiction. Attaching restores the documented behavior the handlers already
+    ' implement.
     m.authTimer = CreateObject("roSGNode", "Timer")
     m.authTimer.SetDuration(20000)
+    m.top.AppendChild(m.authTimer)
     m.authTimer.ObserveField("fire", "OnAuthTimeout")
     m.authTimer.control = "start"
 
@@ -194,12 +207,18 @@ sub StartHubAuthCheck()
     m.retryCount = 0
     ShowBootLoading()
 
-    ' Unhook any stale observers before replacing the old task/timer
+    ' Unhook any stale observers before replacing the old task/timer — and
+    ' DETACH the old nodes [W-min94 M-ROKU-25, mirror of StartAuthCheck].
     if m.authTask <> invalid then
         m.authTask.UnObserveField("response")
+        m.top.RemoveChild(m.authTask)
+        m.authTask = invalid
     end if
     if m.authTimer <> invalid then
+        m.authTimer.control = "stop"
         m.authTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.authTimer)
+        m.authTimer = invalid
     end if
 
     m.authTask = CreateObject("roSGNode", "ApiTask")
@@ -208,6 +227,7 @@ sub StartHubAuthCheck()
 
     m.authTimer = CreateObject("roSGNode", "Timer")
     m.authTimer.SetDuration(20000)
+    m.top.AppendChild(m.authTimer)
     m.authTimer.ObserveField("fire", "OnAuthTimeout")
     m.authTimer.control = "start"
 
@@ -469,6 +489,15 @@ end sub
 '                          caller drives setup after PushScreen returns the node)
 ' @returns {Object} - The newly created roSGNode
 function PushScreen(nodeType as String, params as Object) as Object
+    ' [W-min94 M-ROKU-28, review roku__exploiter m7] Depth cap: unauthenticated
+    ' ECP deep-link spam (supports_input_launch=1) used to push one DetailScene
+    ' per accepted link with zero bound, an OOM walk-down on low-tier Rokus.
+    ' Beyond the cap the push is refused loudly (print + toast-style state is
+    ' the scene's own chrome); the existing stack keeps working.
+    if m.screenStack.Count() >= 12 then
+        print "PushScreen refused: screenStack at cap (12) — deep-link spam guard"
+        return invalid
+    end if
     scene = CreateObject("roSGNode", nodeType)
     ' Observe requestClose so the child can ask to be popped without touching
     ' its parent. When the child sets m.top.requestClose = true, this handler
@@ -534,12 +563,17 @@ sub ShowConnect(bootReason = "" as String)
     if bootReason <> "" then connectScene.bootReason = bootReason
     connectScene.ObserveField("connected", "OnConnected")
     m.top.Append(connectScene)
+    ' [W-min94 M-ROKU-28] named reference — never "whatever child is last".
+    m.connectScene = connectScene
     connectScene.SetFocus(true)
 end sub
 
 sub OnConnected()
-    ' Remove the connect child (the last-appended child).
-    m.top.RemoveChild(m.top.GetChild(m.top.GetChildCount() - 1))
+    ' Remove the connect child by NAMED reference [W-min94 M-ROKU-28].
+    if m.connectScene <> invalid then
+        m.top.RemoveChild(m.connectScene)
+        m.connectScene = invalid
+    end if
 
     ' Rebuild the shared API client + AuthManager so they bind to the newly
     ' persisted server_url (the originals were built against the absent default).
@@ -574,12 +608,18 @@ sub ShowLogin()
     loginScene.ObserveField("loginSucceeded", "OnLoginSuccess")
     loginScene.ObserveField("hubDetected", "OnHubDetected")
     m.top.Append(loginScene)
+    ' [W-min94 M-ROKU-28] named reference.
+    m.loginScene = loginScene
     loginScene.SetFocus(true)
 end sub
 
 sub OnHubDetected()
-    ' Remove the login child, then show the server picker.
-    m.top.RemoveChild(m.top.GetChild(m.top.GetChildCount() - 1))
+    ' Remove the login child by NAMED reference, then show the server picker
+    ' [W-min94 M-ROKU-28].
+    if m.loginScene <> invalid then
+        m.top.RemoveChild(m.loginScene)
+        m.loginScene = invalid
+    end if
     ShowServerPicker()
 end sub
 
@@ -587,6 +627,8 @@ sub ShowServerPicker()
     pickerScene = CreateObject("roSGNode", "ServerPickerScene")
     pickerScene.ObserveField("serverPicked", "OnServerPicked")
     m.top.Append(pickerScene)
+    ' [W-min94 M-ROKU-28] named reference.
+    m.pickerScene = pickerScene
     pickerScene.SetFocus(true)
 end sub
 
@@ -595,8 +637,11 @@ sub OnServerPicked()
     ' picks up the new active_server_id without reading stale cached values.
     ResetCachedStorage(false)
 
-    ' Remove the picker child.
-    m.top.RemoveChild(m.top.GetChild(m.top.GetChildCount() - 1))
+    ' Remove the picker child by NAMED reference [W-min94 M-ROKU-28].
+    if m.pickerScene <> invalid then
+        m.top.RemoveChild(m.pickerScene)
+        m.pickerScene = invalid
+    end if
 
     ' Rebuild the shared API client + AuthManager so they bind to the relay base
     ' (GetApiClient now returns the relay url because active_server_id is set).
@@ -716,8 +761,11 @@ sub OnPendingHubCommand(event as Object)
 end sub
 
 sub OnLoginSuccess()
-    ' Transition from login to home
-    m.top.RemoveChild(m.top.GetChild(m.top.GetChildCount() - 1))
+    ' Transition from login to home — named reference [W-min94 M-ROKU-28].
+    if m.loginScene <> invalid then
+        m.top.RemoveChild(m.loginScene)
+        m.loginScene = invalid
+    end if
     ' R6.3: If a deep link was stashed (user deep-linked while signed out),
     ' ProcessDeepLinkAfterLogin will be called by the login observer chain.
     ' Check for pending deep link first.
@@ -942,15 +990,22 @@ sub OnDeepLinkItemResponse(event as Object)
         ' "series": smart-bookmark series -> detail scene (smart bookmark handled there)
         ' Push DetailScene and tell it to auto-play when loaded.
         detailScene = PushScreen("DetailScene", {})
-        detailScene.autoPlayOnLoad = true
-        detailScene.LoadItem(item.id)
+        ' [W-min94 M-ROKU-28] PushScreen refuses beyond the stack cap.
+        if detailScene = invalid then
+            ShowHome()
+        else
+            detailScene.autoPlayOnLoad = true
+            detailScene.LoadItem(item.id)
+        end if
     else if action = "season" then
         ' season: show the season/episode picker scene
         ' item.name provides the display title for the season header
         seasonName = ""
         if item <> invalid and item.name <> invalid then seasonName = item.name
         seasonScene = PushScreen("SeasonScene", {})
-        seasonScene.LoadSeason(item.id, seasonName)
+        if seasonScene <> invalid then
+            seasonScene.LoadSeason(item.id, seasonName)
+        end if
     else
         ' Unknown action — fall back to home
         print "Unknown deep link action: " + action

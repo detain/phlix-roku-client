@@ -51,6 +51,66 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — W-min94 minors cluster (3 cured, 3 stale-verified, 2 honest-blocked) — 2026-10-30
+
+- **M-ROKU-25 (cured, half stale).** The observer-stack half was already dead:
+  the retry button's `buttonSelected` wiring moved to a single `Init` owner in
+  `6c9e348` (its docblock names the m5 cure). This lane closed the orphan half
+  of the ask: `StartAuthCheck`/`StartHubAuthCheck` now DETACH the replaced
+  task and timer (`RemoveChild`, stop, un-observe) instead of only un-observing,
+  so retry-mashing can no longer accumulate orphaned ApiTask nodes each with an
+  in-flight `/auth` request. Disclosure — the 20s boot `Timer` was never
+  appended to the render tree, and the repo's own toastTimer law (attach or it
+  never ticks) means the boot timeout chrome was device-side fiction; the cure
+  appends it, making both the documented behavior and the exploiter's
+  "live 20 s timer" premise true.
+- **M-ROKU-28 (cured).** `screenStack` gained a depth cap (12): accepted ECP
+  deep-links beyond it are refused with a printed conviction instead of
+  pushing unbounded DetailScene nodes (the review's memory-pressure walk-down
+  on low-tier Rokus); both deep-link call sites handle the refusal. The four
+  bootstrap transitions the ask named (`OnConnected`, `OnHubDetected`,
+  `OnServerPicked`, `OnLoginSuccess`) now remove their scene by NAMED
+  reference (`m.connectScene`/`m.loginScene`/`m.pickerScene`) — the
+  `RemoveChild(GetChild(Count-1))` "whatever is last" invariant is gone from
+  those paths. (The two `GetChild(0)` logout/teardown sites are outside the
+  ask's cited set; disclosed as residual.)
+- **M-ROKU-32 (cured).** SearchScene gained the alternative binding the ask
+  named: `down` from the keyboard moves focus to the results rail whenever
+  results exist. Additive-by-construction — firmware whose `Keyboard`
+  consumes `down` internally never delivers it to the scene, so existing key
+  navigation is untouched; on the review's failure mode (right-at-edge does
+  not bubble) the rail is now reachable. The same device-unverifiable caveat
+  the review stated is preserved in the branch docblock.
+- **M-ROKU-33 (stale-verified).** Duplicate boot-error observers: cured at
+  `6c9e348` (ancestor of HEAD, raws in the fix report) — the observer wires
+  exactly once in `Init`; `ShowBootError` only focuses. Content proof: the
+  in-file docblock names the m5 cure.
+- **M-ROKU-38 (stale-verified).** Deep-link `contentId` path injection:
+  `ValidateDeepLinkContentId` now delegates to `IsSafeContentId`, the
+  `[A-Za-z0-9_-]` allowlist shipped by `6a40a8f` (ancestor-verified; the
+  function's own header recounts the retired printable-minus-`&` checker),
+  headless-pinned by `tests/unit/ContentIdGuard.test.brs` in the CI gate.
+- **M-ROKU-41 (stale-verified, platform bound disclosed).** The ask's action
+  half — verify `Sec-WebSocket-Accept` — shipped fail-closed at `4240ad2`
+  (`m.proto.VerifyHandshakeAccept`, ancestor-verified; the W-min91-era battery
+  and `SyncPlayWsTls` suite pin it). `RandomByte` remains `Rnd()`-based:
+  Roku BrightScript exposes no CSPRNG primitive, and the review itself grants
+  the key carries no security absent TLS — the fold-in it asked for is live.
+- **M-ROKU-37 (honest-blocked).** Ask: "prefer https for LAN too (self-signed
+  warning UX / optional cert upload) or at least a persistent
+  cleartext-credentials warning at login". The default-scheme flip breaks the
+  fail-closed self-signed-https LAN installs the current policy tolerates and
+  the warning-UX half is an owner copy/flow call across seven locale catalogs
+  — transport-policy posture, not a blind minors cure. Ruled to the owner reel.
+- **M-ROKU-40 (honest-blocked).** Scheme allowlist before assignment across
+  stream/transcode/BIF/redirect/poster surfaces. A wrong boundary (the sets
+  legitimately mix `http(s)://` server URLs with `pkg:/` placeholders — see
+  the placeholder pairs at `AudiobookScene`/`CollectionScene`/`DetailScene`/
+  `EpisodeListTask`/`FavoritesScene`) silently kills image and stream chrome
+  on device, and this venue cannot verify `Video`/`Poster` render outcomes
+  headless. Cure spec: one `IsAllowedMediaUrl` (http/https/pkg:) in Utilities
+  applied at each assignment, device-verified. Held for hardware.
+
 ### Fixed — W-min93 minors cluster (6 cured, 1 partial-cured, 1 honest-blocked) — 2026-10-30
 
 - **M-ROKU-07 (cured).** The Continue-Watching first-load focus get-yank:
