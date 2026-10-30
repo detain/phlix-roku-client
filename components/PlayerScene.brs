@@ -268,6 +268,11 @@ sub Init()
     m.errorMessageLabel = m.top.FindNode("errorMessageLabel")
     m.errorOkButton = m.top.FindNode("errorOkButton")
 
+    ' M-ROKU-06: discriminates the session-expired error - the one overlay
+    ' whose copy commands "sign in again" - from the access/stream errors on
+    ' the shared OK handler. True only while that dialog is on screen.
+    m.errorIsAuth = false
+
     if m.errorOkButton <> invalid then m.errorOkButton.ObserveField("buttonSelected", "OnErrorOkPressed")
 end sub
 
@@ -1014,6 +1019,10 @@ sub ShowProgressAuthError()
             ' rides the catalog through Translate (law: CHECK51).
             m.errorMessageLabel.text = Translate("player_err_session_expired")
         end if
+        ' M-ROKU-06: this dialog commands "sign in again"; flag it so OK
+        ' delivers the sign-in surface (root OnLogout ceremony) instead of
+        ' dropping the user on a browse whose calls all 401 with a dead token.
+        m.errorIsAuth = true
         m.errorOverlay.visible = true
         if m.errorOkButton <> invalid then m.errorOkButton.SetFocus(true)
     end if
@@ -1704,6 +1713,7 @@ sub ShowAccessError()
             ' M-ROKU-20: rides the catalog (law: CHECK51).
             m.errorMessageLabel.text = Translate("player_err_access_schedule")
         end if
+        m.errorIsAuth = false ' M-ROKU-06: not a re-auth command - OK closes normally
         m.errorOverlay.visible = true
         if m.errorOkButton <> invalid then m.errorOkButton.SetFocus(true)
     end if
@@ -1718,14 +1728,34 @@ sub ShowStreamLimitError()
             ' M-ROKU-20: rides the catalog (law: CHECK51).
             m.errorMessageLabel.text = Translate("player_err_stream_limit")
         end if
+        m.errorIsAuth = false ' M-ROKU-06: not a re-auth command - OK closes normally
         m.errorOverlay.visible = true
         if m.errorOkButton <> invalid then m.errorOkButton.SetFocus(true)
     end if
 end sub
 
-' Handle OK button press on the error overlay. Returns to home/browse.
+' Handle OK button press on the error overlay. Ordinary errors return to
+' home/browse. M-ROKU-06: the session-expired dialog (the one surface whose
+' copy commands "sign in again") delivers that surface instead - it calls the
+' root scene's OnLogout ceremony (six-key wipe, stack clear, ShowLogin), the
+' same routing SettingsScene's Log Out button uses. PlayerScene is appended
+' to the LAUNCHING scene's m.top (Home/Detail/Music/...), so the walk to the
+' root scene is by parent chain rather than a fixed depth, and it fails soft:
+' with no OnLogout host found the close behaves exactly as before.
 sub OnErrorOkPressed()
     if m.errorOverlay <> invalid then m.errorOverlay.visible = false
+    wasAuthFailure = (m.errorIsAuth = true)
+    m.errorIsAuth = false
+    if wasAuthFailure then
+        root = m.top
+        while root.GetParent() <> invalid
+            root = root.GetParent()
+        end while
+        if root <> invalid and root.HasMethod("OnLogout") then
+            root.OnLogout()
+            return
+        end if
+    end if
     ClosePlayer()
 end sub
 

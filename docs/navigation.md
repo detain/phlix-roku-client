@@ -31,14 +31,19 @@ the final state.
 
 Creates a child scene, appends it to `m.top`, sets focus on it, records it on the
 stack, and returns it. The caller is responsible for calling any setup methods
-(like `LoadLibrary`, `Show`) on the returned node after `PushScreen` returns.
+(like `LoadItem`, `LoadSeason`) on the returned node after `PushScreen` returns.
+The live callers are the deep-link arms in `PhlixApp.brs`:
 
 ```brightscript
-sub ShowLibrary(libraryId as String, libraryName as String)
-    scene = PushScreen("LibraryScene", {})
-    scene.LoadLibrary(libraryId, libraryName)
-end sub
+' PhlixApp.brs, the deep-link "play" arm (real code):
+detailScene = PushScreen("DetailScene", {})
+detailScene.autoPlayOnLoad = true
+detailScene.LoadItem(item.id)
 ```
+
+(HomeScene's rail handlers — Library, Music, Search, the resume player — do
+NOT go through `PushScreen`: see "Scenes opened from **HomeScene**" under the
+requestClose contract for the append-and-observe-local pattern.)
 
 ### PopScreen() as Boolean
 

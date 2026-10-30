@@ -7,33 +7,39 @@
 <component name="PhlixApp" extends="Scene">
     <interface>
         <field id="serverUrl" type="string" />
-        ' Deep-link params from cold-launch: { contentId, mediaType, action }
-        ' Set by main.brs when valid deep-link args are present in launch params.
+        <!--
+          Deep-link params from cold-launch: { contentId, mediaType, action }
+          Set by main.brs when valid deep-link args are present in launch params.
+        -->
         <field id="deepLinkParams" type="assocarray" />
-        ' Exit signal (M-ROKU-01): set by OnKeyEvent when Back is pressed with an
-        ' empty screen stack (we are on a bootstrap scene). Observed by main.brs on
-        ' the screen message port; the loop then returns, ending the channel cleanly.
-        ' There is no creatable roApp.Exit() primitive in Roku SceneGraph (absent from
-        ' the official component library bsc ships), so main-thread exit-by-return is
-        ' the platform-correct cure. Scripts must never fall through to RSG's native
-        ' back handling: it closes only the FOCUSED scene, exposing the root's black
-        ' boot chrome as a dead screen (review roku__casualgamer M2).
+        <!--
+          Exit signal (M-ROKU-01): set by OnKeyEvent when Back is pressed with an
+          empty screen stack (we are on a bootstrap scene). Observed by main.brs on
+          the screen message port; the loop then returns, ending the channel cleanly.
+          There is no creatable roApp.Exit() primitive in Roku SceneGraph (absent from
+          the official component library bsc ships), so main-thread exit-by-return is
+          the platform-correct cure. Scripts must never fall through to RSG's native
+          back handling: it closes only the FOCUSED scene, exposing the root's black
+          boot chrome as a dead screen (review roku__casualgamer M2).
+        -->
         <field id="exitChannel" type="boolean" alwaysNotify="true" />
-        ' Toast dispatch channel (M-ROKU-17 r2, review roku__gameux M17r1
-        ' CRITICAL-1): the root scene's observed interface fields are the
-        ' delivery wire. Producers (source/lib/ToastManager.brs, running in
-        ' any consumer scope) walk the GetParent chain to this root, write
-        ' the String/Integer payload, then bump the alwaysNotify toastSeq
-        ' trigger; PhlixApp Init wires ObserveField("toastSeq",
-        ' "OnToastNotice") — the repo's proven render-thread idiom
-        ' (requestClose arms, ShowErrorDialog's wasClosed observers). This
-        ' replaces the retired node.PostMessage -> onMessage fiction:
-        ' roSGNode has no documented onMessage receive contract (bsc models
-        ' PostMessage only on roRenderThreadQueue, whose receive path is
-        ' AddMessageHandler — used nowhere in this channel). Payload fields
-        ' need no alwaysNotify; only the trigger does. CHECK49 R7 pins the
-        ' trio. Zero user-facing literals (CHECK25 intact — copy reaches the
-        ' render path only as app-side static Strings, ROKU-12/CHECK43).
+        <!--
+          Toast dispatch channel (M-ROKU-17 r2, review roku__gameux M17r1
+          CRITICAL-1): the root scene's observed interface fields are the
+          delivery wire. Producers (source/lib/ToastManager.brs, running in
+          any consumer scope) walk the GetParent chain to this root, write
+          the String/Integer payload, then bump the alwaysNotify toastSeq
+          trigger; PhlixApp Init wires ObserveField("toastSeq",
+          "OnToastNotice") — the repo's proven render-thread idiom
+          (requestClose arms, ShowErrorDialog's wasClosed observers). This
+          replaces the retired node.PostMessage -> onMessage fiction:
+          roSGNode has no documented onMessage receive contract (bsc models
+          PostMessage only on roRenderThreadQueue, whose receive path is
+          AddMessageHandler — used nowhere in this channel). Payload fields
+          need no alwaysNotify; only the trigger does. CHECK49 R7 pins the
+          trio. Zero user-facing literals (CHECK25 intact — copy reaches the
+          render path only as app-side static Strings, ROKU-12/CHECK43).
+        -->
         <field id="toastMessage" type="string" />
         <field id="toastDuration" type="integer" />
         <field id="toastSeq" type="integer" alwaysNotify="true" />

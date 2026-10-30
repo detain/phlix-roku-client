@@ -33,7 +33,7 @@ After R3.3, every API response uses this shape:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `op` | String | The operation that was run (e.g. `"getLibrary"`, `"login"`) |
+| `op` | String | The operation that was run (e.g. `"getLibraries"`, `"login"`) |
 | `ok` | Boolean | Derived from HTTP status — `true` for 2xx, `false` otherwise. **Not** from whether `data` is non-invalid |
 | `data` | Object | Parsed JSON response body, or `invalid` on parse failure |
 | `error` | String | Human-readable error message when `ok` is `false` |

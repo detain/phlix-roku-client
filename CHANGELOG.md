@@ -51,6 +51,56 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — W-min87 minors cluster (6 cured, 2 stale-verified) — 2026-10-30
+
+- **M-ROKU-06 (cured).** The session-expired overlay copy commands "sign in
+  again" but OK just closed the player onto a browse whose calls all 401
+  with the dead token. `PlayerScene` now discriminates the dialog
+  (`m.errorIsAuth`, written by the three overlay subs together): OK on the
+  auth failure walks the parent chain to the root scene and calls the same
+  `OnLogout()` ceremony SettingsScene's Log Out button uses (six-key wipe,
+  stack clear, LoginScene), failing soft to the old close if no `OnLogout`
+  host exists. PlayerScene is appended to the LAUNCHING scene's children
+  (depth varies), so the walk replaces SettingsScene's fixed two-hop.
+- **M-ROKU-08 (cured at the live half).** navigation.md's PushScreen
+  example fabricated `ShowLibrary` routing through the stack — the live
+  `HomeScene.ShowLibrary` bare-appends. The example now quotes the real
+  PhlixApp deep-link callsite, with a pointer to the (already honest)
+  "Scenes opened from HomeScene are not on that stack" law. The
+  Known-Limitations and four-button-comment sub-claims were cured earlier
+  by the C03/C03-r2 docs pass (stale at landing, disclosed).
+- **M-ROKU-51 (cured).** The 25 + 3 BrightScript-apostrophe "comment" lines
+  smuggled into `PhlixApp.xml`/`DetailScene.xml` are now real XML comments
+  (`<!-- -->`, bodies byte-kept) — visible to every XML-aware tool instead
+  of riding as invisible text inside `<interface>`.
+- **M-ROKU-52 (cured).** architecture-apitask.md's envelope example named a
+  `"getLibrary"` op that never existed; now `"getLibraries"` (the shipped
+  `ApiTask.brs:330` op).
+- **M-ROKU-53 (cured-in-place, files kept).** BLOCKED_R0.1/R0.8 got dated
+  2026-10-30 status banners (device queue still blocked; paths stay —
+  README's CHECK60-self-pinned structure map and four device-verification.md
+  pointers reference them; the "undated"/"not linked" halves of the ask are
+  disproved), R0.1's wrong telnet 8080 → flagged as 8085 per
+  device-verification.md's law, and R0.8's phantom
+  `docs/first-boot-console.log` baseline → capture-a-fresh-log instruction,
+  plus its "(11+ CHECKs)" count rotated to the measured 62 legs.
+- **M-ROKU-54 (cured).** `LibraryScene.brs`'s sort-picker TODO named
+  `roListDialog`, a native-UI dialog that cannot join a SceneGraph tree;
+  it now names the shipped picker idioms (LabelList/RowList + ContentNode,
+  or a dedicated roSGNode panel) without touching the cycle-on-press
+  behavior.
+- **M-ROKU-55 (cured).** CLAUDE.md still legislated the R7.5-deleted
+  manager layer (`SessionManager`/`LibraryManager`/`TaskManager`, "scenes
+  call managers") and listed `m.session`/`m.library` rebuilds at
+  OnConnected and OnServerPicked. Rewritten to the live law: scenes
+  dispatch through `ApiTask` ops, `AuthManager` wraps auth token state,
+  `AppContext` owns connection state; the rebuild lists are `m.api`/`m.auth`.
+- **M-ROKU-05 (stale-verified, zero diff).** The Home failure-path ask was
+  already shipped by M-ROKU-21: `OnLibrariesResponse`'s else branch sets
+  `m.librariesFailed` + `ShowHomeRailFailure()` (catalog copy + focusable
+  Retry via the M16 boot-retry idiom); `OnMeResponse`'s degrade is the
+  deliberate R4 fail-closed non-admin posture.
+
 ### Fixed — CHECK43's bare-"String" whole-line exemption tightens to the wire-bound gate shape (R-ROKU-04 rider) — 2026-10-30
 
 - **The looseness.** R-ROKU-03's own note named this leftover: `"String"`

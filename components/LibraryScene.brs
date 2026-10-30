@@ -225,7 +225,10 @@ sub ShowSortOptions()
         idx = idx + 1
     end for
 
-    ' TODO: Show actual roListDialog or custom picker here
+    ' TODO: replace the cycle-on-press fallback with a real picker surface.
+    ' The old text promised roListDialog - a Native UI (canvas-era) dialog
+    ' that cannot join a SceneGraph node tree; the shipped idiom here is a
+    ' LabelList/RowList fed by a ContentNode, or a dedicated roSGNode panel.
     ' For now, cycle through options on each press
     fields = [m.sortName, m.sortYear, m.sortRating, m.sortDateAdded, m.sortRuntime]
     currentIdx = fields.find(m.sortField)
