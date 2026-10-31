@@ -1683,7 +1683,7 @@ function ApiClient(baseUrl as String) as Object
     }
 
     ' roDeviceInfo provides device identification per the ifDeviceInfo interface
-    ' See: https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+    ' See: https://developer.roku.com/dev/docs/ifdeviceinfo
     deviceInfo = CreateObject("roDeviceInfo")
 
     ' Use GetChannelClientId() for stable per-device, per-channel identifier

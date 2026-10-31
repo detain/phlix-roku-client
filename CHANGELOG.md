@@ -51,6 +51,55 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the legacy Roku docs redirect URLs rotated to canonical /dev/docs citations, and Check 69 makes the rotation one-way (R-ROKU-26 rider) — 2026-10-31
+
+- **R-ROKU-26 (cured; the M-ROKU-05 lane's disclosed out-of-scope find, kept
+  alive by fixlog/M-ROKU-05__r1.md note 4).** The review recorded "legacy 404
+  doc URL in comments …ifdeviceinfo.md". Re-measured at cure time: bare curl
+  is answered 403 everywhere (the docs site fronts a WAF), yet with a browser
+  UA every one of the 21 legacy `docs/refer-ences/...` citations —
+  AppContext.brs x10, PlayerScene.brs x5, ApiClient.brs x1, two
+  verify-runtime.sh header comments, README.md x2, docs/bif_thumbs.md x1 —
+  answers 301 onto its canonical `https://developer.roku.com/dev/docs/<page>`
+  target. The family is not dead; it lives on redirect grace, and a law-
+  comment should name the live page, not a path whose continued answering is
+  hope. All 21 sites were rotated to their MEASURED Location targets (the
+  media-playback-nodes `#bifdisplay` fragment was dropped — the reorganized
+  SPA exposes no verifiable anchor; disclosed). The two named lines were completed to their
+  in-file families — the same URL recurs across one docblock — and the sweep
+  took every same-family site in the repo, so the ban below ships with no
+  amnesty list. Foreign families (the developer-program deep-linking and
+  store-certification paths, the en-us/docs closed-caption page) were
+  disclosed, not touched, not banned.
+- **Gate:** battery 68→69 legs — NEW Check 69 (next-FREE numbering probed: the
+  highest header is 68 and 'Check 69'/'CHECK69' grep rc=1 across scripts/,
+  tests/, docs/, README.md and CHANGELOG.md). R1 reads the SHIPPED surface
+  (source/ components/ scripts/ tests/ docs/ locale/ images/ + README.md
+  manifest package.json; .brs .xml .md .json .sh .txt) and convicts any line
+  carrying the legacy prefix at file:line, failing LOUD on a whitelisted file
+  that is not valid UTF-8 — a scan may not silently skip a member. R2 pins
+  the migrated citations LIVE: the five carrier files must still cite the
+  canonical pages the rotation landed on, because deleting a citation
+  launders documentation instead of curing it. Both gate scripts assemble the
+  banned prefix from adjacent string literals so neither gate convicts
+  itself, and CHANGELOG.md sits outside the scan set — the verbatim-history
+  law forbids rewriting retired paths that historical entries quoted.
+- **Twin and measured figures:** tests/scripts/verify-runtime-portable.sh
+  stages docs/bif_thumbs.md (an R2 carrier) and gains the CHECK69 leg:
+  plant-A re-grows the legacy URL at AppContext.brs:129 while plant-B
+  re-points BOTH canonical ifappmanager citations onto an unreachable mirror,
+  in one scratch copy — the run convicted exactly two pins (R1 naming
+  file:line and the cited URL, R2 naming the vanished page; measured at
+  composition: rc=1 with the pair printed), CHECK35 (same edited file —
+  comment-only plants are inert to its code-shape walk), CHECK42 and CHECK68
+  stayed green on the very run (gate independence), and the restore returned
+  exit 0 across all 69 legs (falsifiability). The docs/static-checks.md row
+  69 carries the law (the table's pre-existing row-68 gap is R-ROKU-28
+  landing debt — disclosed here, not silently filled).
+- **Era hold:** comments and gate scripts only — zero shipped-code behavior
+  change, zero locale bytes; the headless gate holds at total=210 failed=0
+  excluded=53.
+
 ### Fixed — CHECK35 R1's positional-call test can no longer be evaded by a nested close (R-ROKU-25 rider) — 2026-10-31
 
 - **R-ROKU-25 (cured; the M-ROKU-05 r1 review's own note 3).** The review that

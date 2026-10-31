@@ -579,7 +579,7 @@ deliberately absent from the server manifest.
 | Right | Seek forward 10 seconds |
 | Rewind | Seek backward 30 seconds |
 | Fast Forward | Seek forward 30 seconds |
-| Replay (Instant Replay) | Seek backward 10 seconds and briefly flash captions if they are off. Standard Roku behavior per [remote control UX guidance](https://developer.roku.com/docs/references/scenegraph/remote-control-events.md). |
+| Replay (Instant Replay) | Seek backward 10 seconds and briefly flash captions if they are off. Standard Roku behavior per [remote control UX guidance](https://developer.roku.com/dev/docs/remote-control-events). |
 | Info | Show item title and current playback position for 3 seconds. |
 | Options (`*`) | Open/close the **Watch Together** (SyncPlay) overlay (direct mode only; shows a disabled message in hub mode). While the overlay is open, Back/Options close it. |
 | Up | Open/close the **video quality picker** (Auto + each ABR rung the current transcode advertises, server-advertised; shows Auto-only when there's no ladder). While the overlay is open, Back/Up close it and the list owns Up/Down/Select. |
@@ -588,7 +588,7 @@ deliberately absent from the server manifest.
 
 ### Seek Interval Convention
 
-Per Roku's [remote control UX guidelines](https://developer.roku.com/docs/references/scenegraph/remote-control-events.md), the dedicated transport keys (Rewind/Fast Forward) perform the larger seek interval (±30 seconds), while the directional keys (Left/Right) perform the smaller seek interval (±10 seconds).
+Per Roku's [remote control UX guidelines](https://developer.roku.com/dev/docs/remote-control-events), the dedicated transport keys (Rewind/Fast Forward) perform the larger seek interval (±30 seconds), while the directional keys (Left/Right) perform the smaller seek interval (±10 seconds).
 
 ### Home Header Navigation
 

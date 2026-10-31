@@ -295,7 +295,7 @@ visible on the device.
 
 ## References
 
-- [Roku Developer Documentation — Trickplay Thumbnails](https://developer.roku.com/docs/references/scenegraph/media-playback-nodes.md#bifdisplay)
+- [Roku Developer Documentation — Trickplay Thumbnails](https://developer.roku.com/dev/docs/media-playback-nodes)
 - [Roku BIF Format Specification](https://developer.roku.com/docs/developer-program/media-playback/mjpeg-bif.md)
 
 ---

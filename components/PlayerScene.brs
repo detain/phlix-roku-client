@@ -360,14 +360,14 @@ sub Show(itemId as String, args as Object)
     end if
 
     ' R6.8: Derive stream format from the URL extension via GetFileExtension + GetStreamFormat.
-    ' GetStreamFormat: https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+    ' GetStreamFormat: https://developer.roku.com/dev/docs/ifdeviceinfo
     ' Default to "mp4" if no extension is present (the most common format).
     containerExt = GetFileExtension(streamUrl)
     if containerExt = "" then containerExt = "mp4"
     streamFormat = GetStreamFormat(containerExt)
 
     ' R6.8: Gate direct play on device capability check.
-    ' DeviceCanDecodeVideo: https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+    ' DeviceCanDecodeVideo: https://developer.roku.com/dev/docs/ifdeviceinfo
     ' Default codec to "h264" (most common) if not specified; empty profile = "any".
     ' If the device cannot decode this format, go straight to transcode.
     canDirectPlay = DeviceCanDecodeVideo("h264", streamFormat, "")
@@ -1496,7 +1496,7 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
         else if key = "rewind" then
             ' R6.9: Transport keys (rewind/fastforward) do the larger jump per Roku UX convention.
             ' Transport keys: ±30 s. Directional keys: ±10 s.
-            ' Convention: https://developer.roku.com/docs/references/scenegraph/remote-control-events.md
+            ' Convention: https://developer.roku.com/dev/docs/remote-control-events
             SeekRelative(-30)
             handled = true
         else if key = "fastforward" then
@@ -1510,7 +1510,7 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
             handled = true
         else if key = "replay" then
             ' R6.9: Instant replay — seek back 10 s and briefly flash captions if off.
-            ' Standard Roku behavior: https://developer.roku.com/docs/references/scenegraph/remote-control-events.md
+            ' Standard Roku behavior: https://developer.roku.com/dev/docs/remote-control-events
             SeekRelative(-10)
             FlashCaptionsIfOff()
             handled = true
@@ -1576,7 +1576,7 @@ end sub
 ' R6.9: Instant replay caption flash. If captions are off, briefly enable them
 ' for 2 seconds to give the user a "replay" visual cue, then restore the prior state.
 ' Standard Roku behavior:
-' https://developer.roku.com/docs/references/scenegraph/remote-control-events.md
+' https://developer.roku.com/dev/docs/remote-control-events
 sub FlashCaptionsIfOff()
     if m.videoPlayer = invalid then return
     

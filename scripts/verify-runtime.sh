@@ -105,7 +105,7 @@ done
 echo ""
 echo "=== Check 8: m.videoPlayer invalid fields (maps to §5.6) ==="
 # Allow-list of real Video node fields (Roku SceneGraph SDK)
-# https://developer.roku.com/docs/references/scenegraph/media-playback-nodes/video.md
+# https://developer.roku.com/dev/docs/video
 # M-ROKU-08 aggregation law: VIOLATIONS is the single end-to-end sink — legs
 # may NEVER re-zero it. Checks 1-10 used to reset it at each header, so every
 # violation before Check 11 printed but could not gate the exit. The PASS
@@ -124,7 +124,7 @@ done < <(git grep -n 'm\.videoPlayer\.' -- '*.brs' 2>/dev/null || true)
 
 echo ""
 echo "=== Check 9: OnKeyEvent invalid Roku remote keys (maps to §3.6) ==="
-# Valid Roku remote keys per https://developer.roku.com/docs/references/scenegraph/remote-control-events.md
+# Valid Roku remote keys per https://developer.roku.com/dev/docs/remote-control-events
 ALLOW_KEYS="back up down left right OK replay play rewind fastforward options info"
 FOUND=0
 for brs in $(git ls-files -- '*.brs'); do
@@ -9841,6 +9841,141 @@ print("           only 401/403 and the empty-state arm reach the single wipe")
 print("           tail — the keep family extends M-ROKU-04's transport law to")
 print("           the answer R-ROKU-24 names, and CHECK53's write-site custody")
 print("           wipe keeps cross-host safety independent of this choice")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo ""
+echo "=== Check 69: Roku doc citations are canonical /dev/docs URLs; the legacy redirect family stays extinct (R-ROKU-26) ==="
+# NUMBERING (probed, CHECK62/CHECK66 precedent): at composition time the
+# highest header in this script is Check 68, and neither 'Check 69' nor
+# 'CHECK69' appears anywhere in scripts/, tests/, docs/, README.md or
+# CHANGELOG.md (grep rc=1, measured this lane) — 69 is next-FREE.
+#
+# WHY THE LEG EXISTS (R-ROKU-26, the M-ROKU-05 lane's disclosed out-of-scope
+# find, kept alive by fixlog/M-ROKU-05__r1.md note 4). The tree cited Roku's
+# pre-reorg docs path — the `docs/refer-ences/...` family (the banned prefix
+# below is assembled from fragments; the hyphen here is deliberate, see
+# SELF-BURN) — at 21 comment/README/doc sites (AppContext.brs x10,
+# PlayerScene.brs x5, ApiClient.brs x1, this script's Check-8/Check-9 header
+# comments x2, README.md x2, docs/bif_thumbs.md x1). The October measurement
+# called them 404; re-measured at cure time every one answers 301 onto its
+# canonical https://developer.roku.com/dev/docs/<page> target (browser UA —
+# the whole site answers 403 to bare curl, which is itself why the family
+# must not be trusted to keep answering at all). A comment should name the
+# live page, not a path that survives only as Roku's redirect grace. The cure
+# rotated all 21 sites to their MEASURED Location targets; this leg makes the
+# rotation one-way.
+#
+# SELF-BURN (disclosed): this script and tests/scripts/verify-runtime-portable.sh
+# live INSIDE the scanned surface; both build the legacy prefix from ADJACENT
+# string literals so the ban never matches its own gate. CHANGELOG.md is
+# deliberately OUT of the scan set — the verbatim-history law forbids rewriting
+# historical entries that quote the retired paths.
+#
+# WHAT IT PINS:
+#   R1  Family ban, read directly off the shipped surface: no scanned line
+#       carries the contiguous legacy prefix; convictions name file:line and
+#       the cited URL. A whitelisted-extension file that is not valid UTF-8
+#       fails LOUD (the scan certifies what it reads; silence is not a pass).
+#       Scan set: source/ components/ scripts/ tests/ docs/ locale/ images/ +
+#       README.md manifest package.json; dot-dirs, build/ and node_modules/
+#       pruned; citation extensions .brs .xml .md .json .sh .txt.
+#   R2  Migrated citations LIVE ON: each rotated carrier file must still cite
+#       the canonical dev/docs page its rotation landed on. Deleting a
+#       citation launders documentation instead of curing it — the arm
+#       convicts file, page and the loss. (This script's own two rotated
+#       comments are NOT pinned: a gate self-citing its subject is circular.)
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+# Assembled from adjacent literals (SELF-BURN law, header above): the
+# contiguous banned prefix must never exist in this file's own bytes.
+LEGACY = "developer.roku.com/docs/refer" "ences/"
+
+SCAN_DIRS = ("source", "components", "scripts", "tests", "docs", "locale", "images")
+SCAN_FILES = ("README.md", "manifest", "package.json")
+CITATION_EXTS = {".brs", ".xml", ".md", ".json", ".sh", ".txt"}
+PRUNE = {"build", "node_modules"}
+
+
+def scanned():
+    for top in SCAN_DIRS:
+        if not os.path.isdir(top):
+            continue
+        for root, dirs, files in os.walk(top):
+            dirs[:] = [d for d in sorted(dirs)
+                       if not d.startswith(".") and d not in PRUNE]
+            for name in sorted(files):
+                if os.path.splitext(name)[1] in CITATION_EXTS:
+                    yield os.path.join(root, name).replace(os.sep, "/")
+    for name in SCAN_FILES:
+        if os.path.isfile(name):
+            yield name
+
+
+texts = {}
+for path in scanned():
+    try:
+        text = open(path, encoding="utf-8").read()
+    except UnicodeDecodeError:
+        problems.append(f"  {path} - CHECK69 R1: whitelisted citation file is "
+                        "not readable UTF-8 text — this scan certifies what it "
+                        "reads; it may not silently skip a member")
+        continue
+    texts[path] = text
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if LEGACY in line:
+            m = re.search(r"https?://\S*" + re.escape(LEGACY) + r"\S*", line)
+            cited = m.group(0).rstrip(").,;:'\"") if m else LEGACY
+            problems.append(
+                f"  {path}:{lineno} - CHECK69 R1: legacy Roku doc URL cited: "
+                f"{cited} \u2014 cite the canonical "
+                "https://developer.roku.com/dev/docs/<page> target; the "
+                "legacy path is redirect-only indirection, not documentation")
+
+CANON = "https://developer.roku.com/dev/docs/"
+CARRIERS = {
+    "source/lib/AppContext.brs": ("ifdeviceinfo", "ifappinfo", "ifappmanager",
+                                  "iftimespan"),
+    "source/lib/ApiClient.brs": ("ifdeviceinfo",),
+    "components/PlayerScene.brs": ("ifdeviceinfo", "remote-control-events"),
+    "README.md": ("remote-control-events",),
+    "docs/bif_thumbs.md": ("media-playback-nodes",),
+}
+for carrier in sorted(CARRIERS):
+    text = texts.get(carrier)
+    if text is None:
+        problems.append(f"  {carrier} - CHECK69 R2: the citation carrier is "
+                        "gone from the layout — R-ROKU-26's rotated citations "
+                        "it hosted cannot be verified")
+        continue
+    for page in CARRIERS[carrier]:
+        if CANON + page not in text:
+            problems.append(
+                f"  {carrier} - CHECK69 R2: the canonical "
+                f"{CANON + page} citation vanished — the rotated law-comment "
+                "must name the live page; deleting a citation launders "
+                "documentation, it is not a cure")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK69: %d Roku-doc-citation pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK69: every Roku docs citation on the shipped surface points at")
+print("           the canonical /dev/docs page — the legacy redirect family")
+print("           is extinct here and stays extinct, and all five carriers")
+print("           keep their migrated citations (21 sites rotated by R-ROKU-26)")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

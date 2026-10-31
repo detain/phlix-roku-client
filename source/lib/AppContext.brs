@@ -126,10 +126,10 @@ end function
 ' Device Capability Detection (R6.8)
 ' Records device model, video mode, and memory tier at boot.
 ' Uses roDeviceInfo methods per:
-' - GetModel()       -> https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
-' - GetVideoMode()   -> https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
-' - GetDeviceInfo()  -> https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
-' - CanDecodeVideo() -> https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+' - GetModel()       -> https://developer.roku.com/dev/docs/ifdeviceinfo
+' - GetVideoMode()   -> https://developer.roku.com/dev/docs/ifdeviceinfo
+' - GetDeviceInfo()  -> https://developer.roku.com/dev/docs/ifdeviceinfo
+' - CanDecodeVideo() -> https://developer.roku.com/dev/docs/ifdeviceinfo
 ' ===========================================
 
 ' Factory function for device info - returns cached singleton.
@@ -142,18 +142,18 @@ function DeviceInfoData() as Object
     devInfoObj = CreateObject("roDeviceInfo")
 
     ' GetModel() returns the device model number (e.g., "4800X", "3920X")
-    ' Docs: https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+    ' Docs: https://developer.roku.com/dev/docs/ifdeviceinfo
     model = devInfoObj.GetModel()
 
     ' GetVideoMode() returns the display resolution (e.g., "1080p", "720p", "480p")
-    ' Docs: https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+    ' Docs: https://developer.roku.com/dev/docs/ifdeviceinfo
     videoMode = devInfoObj.GetVideoMode()
 
     ' GetDeviceInfo() returns an associative array with device details:
     ' { serialNumber, modelNumber, modelName, tvFeatures, audioCapabilities,
     '   outputCapabilities, totalMemoryMB, deviceType, hasGames, country,
     '   countryInfo, locale, timeZone, timeZoneInfo, isRokuTV, isDTV }
-    ' Docs: https://developer.roku.com/docs/references/brightscript/interfaces/ifdeviceinfo.md
+    ' Docs: https://developer.roku.com/dev/docs/ifdeviceinfo
     devInfo = devInfoObj.GetDeviceInfo()
     totalMemoryMB = 0
     if devInfo <> invalid and devInfo.DoesExist("totalMemoryMB") then
@@ -327,7 +327,7 @@ end function
 ' DeviceInfoData function-object-cache pattern). Only the two fields this
 ' client actually consumes are carried (About screen + the wire header);
 ' roAppInfo.GetTitle()/GetValue() stay unread rather than cached dead.
-' Docs: https://developer.roku.com/docs/references/brightscript/interfaces/ifappinfo.md
+' Docs: https://developer.roku.com/dev/docs/ifappinfo
 ' GetVersion() returns the conglomerate manifest version "major.minor.build";
 ' make package stamps those fields from package.json via derive-version.sh,
 ' so the value tracks the release chain (CHECK41 R3) with no client literal.
@@ -461,8 +461,8 @@ end function
 ' returns an roTimespan marked when the channel was launched, so
 ' TotalMilliseconds() is time since app start — exactly the ordering hint
 ' the ring wants. Docs:
-' https://developer.roku.com/docs/references/brightscript/interfaces/ifappmanager.md
-' https://developer.roku.com/docs/references/brightscript/interfaces/iftimespan.md
+' https://developer.roku.com/dev/docs/ifappmanager
+' https://developer.roku.com/dev/docs/iftimespan
 ' @return LongInteger - elapsed milliseconds (0 when firmware gave nothing)
 function GetRunElapsedMs() as LongInteger
     span = CreateObject("roAppManager").GetUptime()
