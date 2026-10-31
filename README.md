@@ -207,7 +207,12 @@ or silently deleting these truth markers — reddens CI.
 >   `ws://` only. That is a BUILD limitation, not a platform one: Roku's TLS client socket
 >   `roSecureSocket` exists, and a wss migration stays a deferred option (docs/static-checks.md,
 >   Check 46 scope note) — the credential is guarded by the refusal law below, not by a transport
->   that cannot do TLS. On a TLS-fronted production box (HAProxy terminating TLS) SyncPlay connects
+>   that cannot do TLS. The deferral carries a build-time floor too: bsc's vendored Roku type data
+>   (`brighterscript/dist/roku-types/data.json`) models `roStreamSocket` but not `roSecureSocket`
+>   (it omits `roSocket` likewise — the defs are non-exhaustive, not disproof), so when the
+>   deferred arm is implemented, bsc type-support and the no-fabricated-apis law must be
+>   re-verified BEFORE writing code against the socket. On a TLS-fronted production box (HAProxy
+>   terminating TLS) SyncPlay connects
 >   **only if the server's plaintext `:8097` is reachable from the Roku** (same LAN, or a documented
 >   plaintext exposure). The client derives a plaintext
 >   `ws://<host>:8097/syncplay` URL from the connected server origin; the JWT rides the
