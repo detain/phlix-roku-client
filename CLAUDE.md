@@ -179,9 +179,14 @@ and this client flipped to it in `07eef68` via `BearerSubprotocolOffer` at
 
 **Two hard facts to keep in docs/code:**
 
-- **`ws://` only.** `roStreamSocket` is plaintext TCP with **no TLS** → `wss://` is impossible. The
-  scene derives `ws://<host>:8097/syncplay` from `GetServerUrl()` (port forced to `8097`) and the
-  JWT rides the **two-entry bearer subprotocol** handshake header
+- **`ws://` only — this build ships no `wss://` path.** `roStreamSocket` is plaintext TCP with
+  **no TLS**, so this hand-rolled client speaks `ws://` only — a BUILD limitation, not a platform
+  one: Roku's TLS client socket `roSecureSocket` exists and a wss migration stays a DEFERRED arm
+  (M-ROKU-22 truth-rotation; docs/static-checks.md, Check 46 scope note). Custody rests on the
+  refusal law, not on a transport that cannot do TLS: an `https://` server origin is refused
+  before the credential is even read (`SyncPlayWsRefusedForOrigin`). The scene derives
+  `ws://<host>:8097/syncplay` from `GetServerUrl()` (port forced to `8097`) and the JWT rides the
+  **two-entry bearer subprotocol** handshake header
   (`Sec-WebSocket-Protocol: bearer, <jwt>` — server law since phlix-server `424c14d0`; the legacy
   `?token=` query is accepted server-side only transitionally for older builds). It only works
   against a Roku-reachable **plaintext** `:8097` (LAN / documented exposure).
