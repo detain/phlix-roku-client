@@ -7128,6 +7128,176 @@ PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+# ============================================================================
+echo ""
+echo "=== Check 54: SyncPlay dial composes through the refusal choke; transport prose stays true (M-ROKU-22) ==="
+# SYNCPLAY DIAL-COMPOSITION + TRUTH-PRESENCE LAW (M-ROKU-22, review roku__secnet M1):
+# The credential class this item guards is ALREADY closed upstream — by CHECK46
+# (origin-refusal + RFC6455 accept-proof, M-ROKU-14), CHECK48 R2 (the single
+# server_url write-site and its cleartext consent dialog, M-ROKU-15) and
+# CHECK53 (custody wipe at the persist choke, M-ROKU-24). None of them,
+# however, pinned HOW the dial is COMPOSED: the review's exfil scenario needs
+# the bearer JWT to reach a non-LAN/off-origin host, and that stays impossible
+# only while (a) the SyncPlayTask node is instantiated from exactly one site,
+# (b) that site builds its parts through BuildSyncPlayWsParts AFTER the
+# refusal guard and the honest-reason probe, (c) the parts builder forces
+# port 8097 (host comes from GetServerUrl, the user-authenticated authority —
+# never a wire-provided address) and refuses https origins in-code, and (d)
+# the panel entry chokes hub mode (no relay path, so the token can never ride
+# the unimplemented side). This leg pins that composition, so a future edit
+# cannot open a second, ungated dial site while still passing CHECK46/48/53.
+# The platform-misclaim conviction arms are CHECK46 R2's (the sibling M22
+# prose lane edbbd8a shipped them first — disclosed double-lane landing);
+# THIS leg adds what that lane could not: the composition census above, the
+# truth-PRESENCE arms (the scoped ws://-only heading, the roSecureSocket
+# deferred-option sentences — a cure only needs to survive being DELETED, the
+# conviction arms do not catch that), and the dead-pointer arm for the era's
+# "worklog §" citations (no SyncPlay worklog exists in-repo; the sibling lane
+# re-anchored README/TASK but left source/lib/SyncPlayProtocol.brs' §5 note).
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+PLAYER = "components/PlayerScene.brs"
+TASK = "components/SyncPlayTask.brs"
+PROTO = "source/lib/SyncPlayProtocol.brs"
+README = "README.md"
+UTILS = "source/lib/Utilities.brs"
+DOCS = "docs/static-checks.md"
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK54: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(text):
+    out = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
+def func_body(text, name):
+    m = re.search(r"(?ms)^(function|sub) %s\(.*?^(end function|end sub)" % re.escape(name), text)
+    return m.group(0) if m else None
+
+
+def require(haystack, where, needle, why):
+    if haystack is None:
+        return
+    if needle not in haystack:
+        problems.append(f"  {where} - CHECK54: {needle!r} missing — {why}")
+
+
+# ---- R1 the dial composition: one node home, refusal-ordered, port-forced ----
+raw = read(PLAYER)
+pcode = mask(raw) if raw is not None else None
+
+homes = []
+for base in ("components", "source"):
+    for root, _dirs, files in os.walk(base):
+        for fn in sorted(files):
+            if not fn.endswith(".brs"):
+                continue
+            path = os.path.join(root, fn)
+            text = read(path)
+            if text is None:
+                continue
+            if re.search(r'CreateObject\("roSGNode",\s*"SyncPlayTask"\)', mask(text)):
+                homes.append(path)
+if len(homes) != 1:
+    problems.append(f"  CHECK54 R1: the SyncPlayTask node must be instantiated from exactly one site — found {len(homes)} {homes}. Every extra instantiator is a credentialed dial this gate does not see")
+
+ct = func_body(pcode, "ConnectSyncTask")
+if ct is None:
+    problems.append(f"  {PLAYER} - CHECK54 R1: sub ConnectSyncTask() vanished — the dial's only home has no shape to pin")
+else:
+    i_parts = ct.find("BuildSyncPlayWsParts()")
+    i_guard = ct.find("if parts = invalid")
+    i_probe = ct.find("SyncPlayWsRefusedForOrigin(GetServerUrl())")
+    i_node = ct.find('CreateObject("roSGNode", "SyncPlayTask")')
+    for idx, what in ((i_parts, "the parts-builder call"), (i_guard, "the invalid-parts guard"),
+                      (i_probe, "the honest-reason refusal probe"), (i_node, "the node instantiation")):
+        if idx < 0:
+            problems.append(f"  {PLAYER} - CHECK54 R1: ConnectSyncTask lost {what} — the choke that keeps the bearer JWT off an unrefused socket is gone")
+    if -1 not in (i_parts, i_guard, i_probe, i_node) and not (i_parts < i_guard < i_probe < i_node):
+        problems.append(f"  {PLAYER} - CHECK54 R1: ConnectSyncTask order broke (builder->guard->refusal-probe->instantiation) — a task that can be created before the refusal decides is a task that can dial refused origins")
+
+b = func_body(pcode, "BuildSyncPlayWsParts")
+if b is None:
+    problems.append(f"  {PLAYER} - CHECK54 R1: function BuildSyncPlayWsParts() vanished — no parts builder to census")
+else:
+    require(b, PLAYER, "SyncPlayWsRefusedForOrigin(serverUrl) then return invalid",
+            "the builder must refuse TLS origins in-code, not hope the caller checked (M-ROKU-14 choke)")
+    require(b, PLAYER, "port: 8097",
+            "the dial port is FORCED to the SyncPlay worker, never inherited from the stored origin's port")
+
+tp = func_body(pcode, "ToggleSyncPanel")
+require(tp, PLAYER, 'GetConnectionKind() = "hub"',
+        "hub mode must stay choked at the panel entry — no relay path is implemented, so the JWT has nowhere honest to ride")
+
+# ---- R2 truth present: the scoped transport law must SURVIVE, not just not-lie ----
+r = read(README)
+require(r, README, "**`ws://` only — this build ships no `wss://` path.**",
+        "the M22 rotation scoped the heading to the BUILD, and the heading is the user-facing law — silent deletion is the same misinformation as the old false claim")
+require(r, README, "roSecureSocket` exists",
+        "README must keep naming the platform's TLS client socket as a deferred arm (the misclaim cure this item filed)")
+require(r, README, "stays a deferred",
+        "README must keep the wss migration documented as deferred, not as impossibility")
+t = read(TASK)
+require(t, TASK, "BUILD limitation",
+        "the task header must keep scoping ws-only-ness to the build")
+require(t, TASK, "roSecureSocket exists",
+        "the task header must keep naming roSecureSocket — the header is what a maintainer reads before touching the transport")
+p = read(PROTO)
+require(p, PROTO, "SPEC §5",
+        "the client clock sync loop must keep its wire-contract citation")
+
+# ---- R3 extinct: the era's dead worklog pointers (scoped to M22's files) ------
+dead = re.compile(r"worklog\s*§|See the worklog")
+for path in (README, TASK, PROTO, PLAYER, UTILS, DOCS):
+    text = read(path)
+    if text is None:
+        continue
+    hits = [n + 1 for n, line in enumerate(text.split("\n")) if dead.search(line)]
+    if hits:
+        problems.append(f"  {path} - CHECK54 R3: dead worklog pointer back at line(s) {hits} — no SyncPlay worklog exists in-repo; prose must cite README/static-checks rows, not vanished history (LiveTV/LivePlayer 'See the worklog.' lines are a different feature's prose debt, out of this scope)")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK54: %d SyncPlay dial-composition/truth pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK54: the SyncPlayTask dial composes through the single refusal-ordered")
+print("           site (builder -> invalid guard -> refusal probe -> node), the")
+print("           parts force port 8097 from the authenticated origin, hub mode is")
+print("           choked at the panel, the scoped ws-only law and the roSecureSocket")
+print("           deferred-arm prose are present, and no dead worklog pointer")
+print("           survives in the M22 file set")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 echo "=== Check 55: the hub relay refuses the plaintext :8804 dial behind https origins (M-ROKU-23) ==="
 # HUB RELAY PLAINTEXT-ORIGIN LAW (M-ROKU-23, review roku__secnet M2):
 # StartHubCommandConsumer stripped the hub URL's scheme and dialled the FIXED
@@ -7313,176 +7483,6 @@ print("           origins — the scene choke precedes the auth_token read, the"
 print("           task choke precedes the mint, http/legacy hubs keep their")
 print("           exact pre-cure behavior, and the wss arm is DEFERRED-")
 print("           DISCLOSED (never fabricated, never declared impossible)")
-PYEOF
-) || PYRET=$?
-echo "$PYOUT"
-[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
-
-# ============================================================================
-echo ""
-echo "=== Check 54: SyncPlay dial composes through the refusal choke; transport prose stays true (M-ROKU-22) ==="
-# SYNCPLAY DIAL-COMPOSITION + TRUTH-PRESENCE LAW (M-ROKU-22, review roku__secnet M1):
-# The credential class this item guards is ALREADY closed upstream — by CHECK46
-# (origin-refusal + RFC6455 accept-proof, M-ROKU-14), CHECK48 R2 (the single
-# server_url write-site and its cleartext consent dialog, M-ROKU-15) and
-# CHECK53 (custody wipe at the persist choke, M-ROKU-24). None of them,
-# however, pinned HOW the dial is COMPOSED: the review's exfil scenario needs
-# the bearer JWT to reach a non-LAN/off-origin host, and that stays impossible
-# only while (a) the SyncPlayTask node is instantiated from exactly one site,
-# (b) that site builds its parts through BuildSyncPlayWsParts AFTER the
-# refusal guard and the honest-reason probe, (c) the parts builder forces
-# port 8097 (host comes from GetServerUrl, the user-authenticated authority —
-# never a wire-provided address) and refuses https origins in-code, and (d)
-# the panel entry chokes hub mode (no relay path, so the token can never ride
-# the unimplemented side). This leg pins that composition, so a future edit
-# cannot open a second, ungated dial site while still passing CHECK46/48/53.
-# The platform-misclaim conviction arms are CHECK46 R2's (the sibling M22
-# prose lane edbbd8a shipped them first — disclosed double-lane landing);
-# THIS leg adds what that lane could not: the composition census above, the
-# truth-PRESENCE arms (the scoped ws://-only heading, the roSecureSocket
-# deferred-option sentences — a cure only needs to survive being DELETED, the
-# conviction arms do not catch that), and the dead-pointer arm for the era's
-# "worklog §" citations (no SyncPlay worklog exists in-repo; the sibling lane
-# re-anchored README/TASK but left source/lib/SyncPlayProtocol.brs' §5 note).
-PYOUT=$(
-	python3 - <<'PYEOF'
-import os, re, sys
-
-repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
-os.chdir(repo)
-
-PLAYER = "components/PlayerScene.brs"
-TASK = "components/SyncPlayTask.brs"
-PROTO = "source/lib/SyncPlayProtocol.brs"
-README = "README.md"
-UTILS = "source/lib/Utilities.brs"
-DOCS = "docs/static-checks.md"
-
-problems = []
-
-
-def read(path):
-    try:
-        with open(path, encoding="utf-8") as f:
-            return f.read()
-    except OSError as err:
-        problems.append(f"  {path} - CHECK54: unreadable: {err} — the pin cannot run vacuously")
-        return None
-
-
-def mask(text):
-    out = []
-    for line in text.split("\n"):
-        in_string = False
-        cut = len(line)
-        for i, ch in enumerate(line):
-            if ch == '"':
-                in_string = not in_string
-            elif ch == "'" and not in_string:
-                cut = i
-                break
-        out.append(line[:cut])
-    return "\n".join(out)
-
-
-def func_body(text, name):
-    m = re.search(r"(?ms)^(function|sub) %s\(.*?^(end function|end sub)" % re.escape(name), text)
-    return m.group(0) if m else None
-
-
-def require(haystack, where, needle, why):
-    if haystack is None:
-        return
-    if needle not in haystack:
-        problems.append(f"  {where} - CHECK54: {needle!r} missing — {why}")
-
-
-# ---- R1 the dial composition: one node home, refusal-ordered, port-forced ----
-raw = read(PLAYER)
-pcode = mask(raw) if raw is not None else None
-
-homes = []
-for base in ("components", "source"):
-    for root, _dirs, files in os.walk(base):
-        for fn in sorted(files):
-            if not fn.endswith(".brs"):
-                continue
-            path = os.path.join(root, fn)
-            text = read(path)
-            if text is None:
-                continue
-            if re.search(r'CreateObject\("roSGNode",\s*"SyncPlayTask"\)', mask(text)):
-                homes.append(path)
-if len(homes) != 1:
-    problems.append(f"  CHECK54 R1: the SyncPlayTask node must be instantiated from exactly one site — found {len(homes)} {homes}. Every extra instantiator is a credentialed dial this gate does not see")
-
-ct = func_body(pcode, "ConnectSyncTask")
-if ct is None:
-    problems.append(f"  {PLAYER} - CHECK54 R1: sub ConnectSyncTask() vanished — the dial's only home has no shape to pin")
-else:
-    i_parts = ct.find("BuildSyncPlayWsParts()")
-    i_guard = ct.find("if parts = invalid")
-    i_probe = ct.find("SyncPlayWsRefusedForOrigin(GetServerUrl())")
-    i_node = ct.find('CreateObject("roSGNode", "SyncPlayTask")')
-    for idx, what in ((i_parts, "the parts-builder call"), (i_guard, "the invalid-parts guard"),
-                      (i_probe, "the honest-reason refusal probe"), (i_node, "the node instantiation")):
-        if idx < 0:
-            problems.append(f"  {PLAYER} - CHECK54 R1: ConnectSyncTask lost {what} — the choke that keeps the bearer JWT off an unrefused socket is gone")
-    if -1 not in (i_parts, i_guard, i_probe, i_node) and not (i_parts < i_guard < i_probe < i_node):
-        problems.append(f"  {PLAYER} - CHECK54 R1: ConnectSyncTask order broke (builder->guard->refusal-probe->instantiation) — a task that can be created before the refusal decides is a task that can dial refused origins")
-
-b = func_body(pcode, "BuildSyncPlayWsParts")
-if b is None:
-    problems.append(f"  {PLAYER} - CHECK54 R1: function BuildSyncPlayWsParts() vanished — no parts builder to census")
-else:
-    require(b, PLAYER, "SyncPlayWsRefusedForOrigin(serverUrl) then return invalid",
-            "the builder must refuse TLS origins in-code, not hope the caller checked (M-ROKU-14 choke)")
-    require(b, PLAYER, "port: 8097",
-            "the dial port is FORCED to the SyncPlay worker, never inherited from the stored origin's port")
-
-tp = func_body(pcode, "ToggleSyncPanel")
-require(tp, PLAYER, 'GetConnectionKind() = "hub"',
-        "hub mode must stay choked at the panel entry — no relay path is implemented, so the JWT has nowhere honest to ride")
-
-# ---- R2 truth present: the scoped transport law must SURVIVE, not just not-lie ----
-r = read(README)
-require(r, README, "**`ws://` only — this build ships no `wss://` path.**",
-        "the M22 rotation scoped the heading to the BUILD, and the heading is the user-facing law — silent deletion is the same misinformation as the old false claim")
-require(r, README, "roSecureSocket` exists",
-        "README must keep naming the platform's TLS client socket as a deferred arm (the misclaim cure this item filed)")
-require(r, README, "stays a deferred",
-        "README must keep the wss migration documented as deferred, not as impossibility")
-t = read(TASK)
-require(t, TASK, "BUILD limitation",
-        "the task header must keep scoping ws-only-ness to the build")
-require(t, TASK, "roSecureSocket exists",
-        "the task header must keep naming roSecureSocket — the header is what a maintainer reads before touching the transport")
-p = read(PROTO)
-require(p, PROTO, "SPEC §5",
-        "the client clock sync loop must keep its wire-contract citation")
-
-# ---- R3 extinct: the era's dead worklog pointers (scoped to M22's files) ------
-dead = re.compile(r"worklog\s*§|See the worklog")
-for path in (README, TASK, PROTO, PLAYER, UTILS, DOCS):
-    text = read(path)
-    if text is None:
-        continue
-    hits = [n + 1 for n, line in enumerate(text.split("\n")) if dead.search(line)]
-    if hits:
-        problems.append(f"  {path} - CHECK54 R3: dead worklog pointer back at line(s) {hits} — no SyncPlay worklog exists in-repo; prose must cite README/static-checks rows, not vanished history (LiveTV/LivePlayer 'See the worklog.' lines are a different feature's prose debt, out of this scope)")
-
-if problems:
-    for prob in problems:
-        print(prob)
-    print("  CHECK54: %d SyncPlay dial-composition/truth pin(s) broken" % len(problems))
-    sys.exit(1)
-
-print("  CHECK54: the SyncPlayTask dial composes through the single refusal-ordered")
-print("           site (builder -> invalid guard -> refusal probe -> node), the")
-print("           parts force port 8097 from the authenticated origin, hub mode is")
-print("           choked at the panel, the scoped ws-only law and the roSecureSocket")
-print("           deferred-arm prose are present, and no dead worklog pointer")
-print("           survives in the M22 file set")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
