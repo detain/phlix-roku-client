@@ -7514,6 +7514,7 @@ echo "=== Check 56: the dead SyncPlay room files stay truthfully dead — docs-c
 #      from it (Check 24 stages SyncPlayScene.brs as the sole consumer of
 #      syncplay_members_count). Deleting the entry would falsify provenance; retiring
 #      the files/key-sets must rotate this arm in the same commit (disclosed rotation).
+PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
 import json, os, re, sys
@@ -7744,6 +7745,7 @@ echo "=== Check 57: the co-watch feature speaks with one name (M-ROKU-25) ==="
 #       identifier mirrors — silent growth or rename reddens;
 #   R4  README + docs/i18n.md never spell "watch party", and the Create Group
 #       step says you start a new group.
+PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
 import json, os, re, sys
