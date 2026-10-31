@@ -3512,11 +3512,23 @@ echo "=== Check 35: CanDecodeVideo keeps the SDK options-AA call shape (M-ROKU-0
 # failing OPEN (allow direct play) whenever the gate itself is broken - a
 # wrongly-closed gate taxes every video with transcode, a wrongly-open one is
 # recovered by PlayerScene's OnPlayerStateChange transcode fallback. Rules
-# (all scoped via \b so the wrapper's own name DeviceCanDecodeVideo - whose
-# public String signature is deliberately preserved - never trips them):
-#   R1  no .brs file (comments stripped) contains a bare receiver-form
-#       CanDecodeVideo( call with a comma inside its argument list - the
-#       positional shape stays dead
+# (scoped via \b - and for R1 via word-boundary guards in its scanner - so
+# the wrapper's own name DeviceCanDecodeVideo, whose public String signature
+# is deliberately preserved, never trips them):
+#   R1  no .brs file contains a bare receiver-form CanDecodeVideo( call with
+#       a TOP-LEVEL comma in its BALANCED argument list - the positional
+#       shape stays dead. R-ROKU-25 (review M-ROKU-05__r1 note 3) replaced
+#       the day-1 single regex, whose [^)]* capture stopped at the FIRST ')'
+#       and let a nested close before the first comma hide every later comma
+#       (measured green on a planted evasion), with a string- and
+#       comment-aware balanced walk: case-insensitive like BrightScript
+#       itself, whole-word guarded like the old \b, amnesty for nested-call,
+#       bracket and inline-options-AA shapes whose commas never reach top
+#       level, and a fail-loud conviction for an unterminated argument list.
+#       Every occurrence of the name is its own scan target (the walk resumes
+#       inside each argument list, not past the call), so a positional call
+#       buried inside another call's list convicts too - a shape the day-1
+#       capture caught only by accident
 #   R2  the wrapper function body (comments stripped) builds a quoted
 #       lower-case options AA ("codec"/"container"/"profile") and issues a
 #       single-argument \bCanDecodeVideo(x) device call
@@ -3559,12 +3571,142 @@ for root in ("source", "components"):
                 brs_files.append(os.path.join(dirpath, f))
 
 # R1: the positional device-call shape is extinct in executable code.
+# R-ROKU-25 (review M-ROKU-05__r1 note 3): the day-1 capture
+# r'\bCanDecodeVideo\(([^)]*)\)' stopped at the FIRST ')', so a positional
+# call that closes a nested call before its first comma -
+# CanDecodeVideo(WrapFormat(dev), "container") matched as "WrapFormat(dev",
+# comma-less - sailed through (measured green on the plant family below).
+# The walk reads the BALANCED argument list instead: conviction requires a
+# comma at TOP-LEVEL depth, so nested calls, bracket runs and inline
+# options-AA literals (all their commas inside braces) stay the legitimate
+# shapes they are for the CALL BEING WALKED, and an unterminated list is
+# convicted fail-loud. Every occurrence of the name is still its own scan
+# target (the walk resumes inside the argument list, never past the whole
+# call): a positional CanDecodeVideo buried inside another call's list — the
+# shape the day-1 capture convicted only by accident, and what a skip-past
+# walk would amnesty through its own depth rule — is walked and convicted on
+# its own top-level commas.
+# BrightScript identifiers are case-blind, so the name matches
+# case-insensitively; the whole-word guards on both sides keep the wrapper's
+# own DeviceCanDecodeVideo (and any CanDecodeVideoX neighbour) out of the
+# class exactly as \b did. Strings (closed by quote or newline, the
+# BrightScript law) and ' line comments - same-line tails included, which
+# strip_comments never cut - are skipped, so prose can neither fake a
+# conviction nor hide one.
+WORD_CHAR = re.compile(r'[A-Za-z0-9_]')
+
+
+def skip_string(text, i):
+    """text[i] is a quote: return the index just past the literal."""
+    j = i + 1
+    n = len(text)
+    while j < n and text[j] not in '"\n':
+        j += 1
+    return j + 1
+
+
+def walk_args(text, start):
+    """text[start] is the '(' of a CanDecodeVideo call. Return the list of
+    top-level argument texts (None if the list never closes). The caller
+    deliberately does NOT skip past the whole call: it resumes INSIDE the
+    argument list, because an occurrence nested in another call's list is
+    itself an executable positional call - the day-1 first-paren-stop capture
+    convicted that shape by accident, and the balanced walk must not lose it
+    to its own depth amnesty."""
+    depth = 0
+    args = []
+    cur = []
+    i = start
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == '"':
+            after = skip_string(text, i)
+            cur.append(text[i:after])
+            i = after
+            continue
+        if ch == "'":
+            j = text.find("\n", i)
+            j = n if j == -1 else j
+            cur.append(text[i:j])
+            i = j
+            continue
+        if ch in "([{":
+            depth += 1
+            if depth > 1:
+                cur.append(ch)
+            i += 1
+            continue
+        if ch in ")]}":
+            depth -= 1
+            if depth < 0:
+                return None
+            if depth == 0 and ch == ")":
+                args.append("".join(cur))
+                return args
+            cur.append(ch)
+            i += 1
+            continue
+        if ch == "," and depth == 1:
+            args.append("".join(cur))
+            cur = []
+            i += 1
+            continue
+        cur.append(ch)
+        i += 1
+    return None
+
+
+def scan_positional_calls(path, text):
+    n = len(text)
+    i = 0
+    while i < n:
+        ch = text[i]
+        if ch == '"':
+            i = skip_string(text, i)
+            continue
+        if ch == "'":
+            j = text.find("\n", i)
+            i = n if j == -1 else j
+            continue
+        if ch.isalpha() and (i == 0 or not WORD_CHAR.match(text[i - 1])):
+            j = i
+            while j < n and (text[j].isalnum() or text[j] == "_"):
+                j += 1
+            if text[i:j].lower() == "candecodevideo":
+                k = j
+                while k < n and text[k] in " \t":
+                    k += 1
+                if k < n and text[k] == "(":
+                    line = text.count("\n", 0, i) + 1
+                    args = walk_args(text, k)
+                    if args is None:
+                        problems.append(f"  {path}:{line} - CHECK35 R1: "
+                                        "unterminated CanDecodeVideo( — the "
+                                        "argument list never closes; no "
+                                        "options-AA call shape can be read "
+                                        "from it (M-ROKU-05)")
+                    elif len(args) > 1:
+                        shown = ", ".join(" ".join(a.split()) for a in args)
+                        problems.append(f"  {path}:{line} - CHECK35 R1: "
+                                        f"positional CanDecodeVideo({shown}) "
+                                        "call - the SDK takes ONE options "
+                                        "associative array (M-ROKU-05)")
+                    # Resume INSIDE the argument list (k+1), never past the
+                    # whole call: every occurrence of the name gets its own
+                    # verdict, so a positional CanDecodeVideo buried in an
+                    # otherwise-sanctioned single-argument call's list (the
+                    # shape the day-1 capture convicted by accident, and the
+                    # shape a pure skip-past walk would amnesty) still convicts.
+                    i = k + 1
+                    continue
+            i = j
+            continue
+        i += 1
+
+
 for p in brs_files:
-    code = strip_comments(read(p))
-    for m in re.finditer(r'\bCanDecodeVideo\s*\(([^)]*)\)', code):
-        if "," in m.group(1):
-            problems.append(f"  {p} - CHECK35 R1: positional CanDecodeVideo({m.group(1).strip()}) "
-                            "call - the SDK takes ONE options associative array (M-ROKU-05)")
+    scan_positional_calls(p, read(p))
 
 WRAP = "source/lib/AppContext.brs"
 if not os.path.exists(WRAP):

@@ -51,6 +51,49 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — CHECK35 R1's positional-call test can no longer be evaded by a nested close (R-ROKU-25 rider) — 2026-10-31
+
+- **R-ROKU-25 (cured; the M-ROKU-05 r1 review's own note 3).** The review that
+  SHIPped the options-AA cure recorded, for completeness: "CHECK35 R1's
+  `\bCanDecodeVideo\(([^)]*)\)` comma test could be evaded by a positional
+  call containing a nested `)` before the comma; adequate for the pinned bug
+  class, noted for completeness." Adequate has since expired: the gate is the
+  only thing standing between this repo and the re-grown positional shape, and
+  it had a parenthesis-shaped door. The `[^)]*` capture stops at the FIRST
+  `)`, so `CanDecodeVideo(Format(dev), "container")` — one nested close away
+  from invisibility — matched as the comma-less `Format(dev` and the positional
+  call sailed green. Measured before the cure: a four-call plant (the
+  nested-close evasion, its lowercase twin under BrightScript's case-blind
+  identifiers, the plain positional pair, and an unterminated argument list)
+  convicted exactly ONCE on the tip leg — only the plain pair the day-1 regex
+  could already see.
+- **Cure:** R1 is now a string- and comment-aware balanced walk of the argument
+  list — conviction requires a comma at TOP-LEVEL depth, so nested calls,
+  bracket runs and inline options-AA literals (their commas live inside braces)
+  stay the legitimate shapes they are for the call being walked, while an
+  unterminated list convicts fail-loud. Every occurrence of the name is its own
+  scan target: the walk resumes INSIDE each argument list rather than past the
+  whole call, because a skip-past walk amnesties a positional `CanDecodeVideo`
+  buried inside an otherwise-sanctioned single-argument call's own list (the
+  takeover probe `dev.CanDecodeVideo(Wrap(dev.CanDecodeVideo("x", "y")))`,
+  measured green under the dead lane's first cut and convicted by the shipped
+  one — the day-1 capture had caught that shape only by accident through its
+  truncated outer match). The name matches case-insensitively as BrightScript
+  itself does, with whole-word guards on both sides preserving the old `\b` law
+  that keeps the wrapper's own `DeviceCanDecodeVideo` out of the class. Product
+  code is untouched: the shipped wrapper call was always compliant — this is
+  purely gate tightening.
+- **Gate:** no new check (battery stays 68 legs — same Check 35, tighter rule).
+  tests/scripts/verify-runtime-portable.sh gains the CHECK35 leg: the
+  five-plant red run (three top-level positionals, one positional buried in a
+  sanctioned call's list, one unterminated list) names file:line and each full
+  argument list with
+  CHECK34/CHECK42 gate independence (Check 42 reads this very wrapper file),
+  the restore returns exit 0 (falsifiability), and a sanctioned-shape twin
+  planting ONLY the inline AA literal and a wrapped single argument keeps the
+  whole battery green — the tightening cannot over-convict. The
+  docs/static-checks.md row 35 carries the new law.
+
 ### Fixed — an answered-but-broken /auth/me no longer wipes the session: keep-on-server_error folded in (R-ROKU-24 rider) — 2026-10-31
 
 - **R-ROKU-24 (cured; the named candidate from fixlog/M-ROKU-04__fix-r2.md
