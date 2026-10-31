@@ -51,6 +51,66 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the hub-relay dial proves Sec-WebSocket-Accept before trusting the 101 (R-ROKU-05 rider, security class) — 2026-11-01
+
+- **R-ROKU-05 (cured; triage `.reviews/ledger-exec/E-rok0507-triage.md`, class
+  OPEN-FIXABLE security-adjacent).** The `ws://hub:8804/syncplay/{server_id}`
+  command consumer (components/HubCommandTask.brs) accepted ANY
+  `HTTP/1.1 101` status line: `HandshakeAccepted` inspects the status line
+  only, so a blind LAN injector that forges `101` — without ever having seen
+  this dial's random key — opened the command channel with the scoped relay
+  token riding that socket. The M-ROKU-14 cure (review `roku__exploiter` M3)
+  shipped the fail-closed RFC6455 trio and wired it at the :8097 SyncPlay
+  dial only, with CHECK46 R2 pinning the ordering law at THAT site; the
+  relay sibling stayed status-line-only by asymmetry, and M23's expectation
+  that a deferred wss lane would retire the leg measured stale (the refusal
+  law gates https origins only — the plaintext :8804 arm carries live http-
+  origin traffic). Cure: the ordered twin guard at the relay site —
+  `if not m.proto.VerifyHandshakeAccept(headerText, keyB64) then return
+  false`, refusing into this file's own backoff-ladder idiom BEFORE any
+  frame byte reaches the accumulator. Proof, not transport: the hub
+  cross-read (fixlog/R-ROKU-05__fix.md) quotes the :8804 responder's 101
+  bytes — phlix-hub `vendor/workerman/workerman/src/Protocols/
+  Websocket.php` reads the offered `Sec-WebSocket-Key` (a handshake without
+  one gets a 400, never a bare 101, :511-514), computes
+  `base64(sha1(key + GUID))` at :516 and emits `Sec-WebSocket-Accept` in the
+  101 built at :518-523, sent at :557 — unconditionally on every upgrade, so
+  the client-side proof cannot brick a live relay. Zero wire codes, zero
+  server change, zero locale bytes.
+- **Gate:** battery 69→70 legs — NEW Check 70 (next-FREE numbering probed:
+  highest header 69, 'Check 70'/'CHECK70' grep rc=1 across scripts/, tests/,
+  docs/, README.md and CHANGELOG.md; the triage's CHECK46-R2-extension shape
+  was superseded by the house next-FREE law). R1 pins the relay-site proof
+  ordered and key-bound (capture → offer → status gate → proof →
+  accumulator, both refusal shapes sanctioned); R2 keeps scope precise: the
+  proof must ride the unit-tested trio (no bespoke `roEVPDigest`/GUID
+  reimplementation in the dial's CODE — masked scan, the file's truthful
+  wss-DEFERRED docblock prose stays legal), `local.ws_accept_invalid` stays
+  SyncPlayTask-owned (the relay's tagless ladder refusal is sanctioned
+  divergence), and the era's unverified-101 claims stay extinct here.
+- **Twin and measured figures:** tests/scripts/verify-runtime-portable.sh
+  gains the CHECK70 leg: three scratch reds, one named conviction each —
+  era-guard strip → R1 "never verifies"; proof swapped above the status gate
+  → R1 ordering law alone; a planted bespoke `roEVPDigest` line → R2 trio
+  custody — with CHECK44 (reads this very file) and CHECK46 (the sibling
+  dial) green on all three reds (gate independence), and the restore
+  returning exit 0 across all 70 legs (falsifiability; the restore doubles
+  as the amnesty measurement for the shipped single-line shape). docs/
+  static-checks.md row 70 carries the law (the table's pre-existing row-68
+  gap remains R-ROKU-28 landing debt — disclosed, not silently filled).
+- **Unit teeth:** the negative-proof arms this rider needed (absent header,
+  wrong value, case-mismatch refusal, no-SHA1 fail-closed branch) already
+  live in `tests/unit/SyncPlayWsTls.test.brs` (`TestVerifyHandshakeAcceptFailClosed`,
+  `TestRfc6455AcceptVector`) — the cure adds no new predicate, and component
+  call sites are not callable from the harness (the WireGuard precedent), so
+  the wiring rides Check 70 + its twin plant legs rather than a duplicated
+  suite. Disclosed, not silently claimed as new coverage.
+- **Era hold:** shipped-code change is one guard line + docblock prose in
+  HubCommandTask.brs — the headless gate holds at total=210 failed=0
+  excluded=53; the relay dial's transport posture (plaintext :8804 for http
+  origins, https refusal, wss deferral) is untouched by design.
+
+
 ### Fixed — the legacy Roku docs redirect URLs rotated to canonical /dev/docs citations, and Check 69 makes the rotation one-way (R-ROKU-26 rider) — 2026-10-31
 
 - **R-ROKU-26 (cured; the M-ROKU-05 lane's disclosed out-of-scope find, kept

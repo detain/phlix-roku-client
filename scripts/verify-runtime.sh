@@ -9981,4 +9981,177 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 70: the hub-relay dial proves Sec-WebSocket-Accept before any session traffic (R-ROKU-05) ==="
+# NUMBERING (probed, CHECK62/CHECK69 precedent): at composition time the
+# highest header in this script is Check 69, and neither 'Check 70' nor
+# 'CHECK70' appears anywhere in scripts/, tests/, docs/, README.md or
+# CHANGELOG.md (grep rc=1, measured this lane) — 70 is next-FREE.
+#
+# WHY THE LEG EXISTS (R-ROKU-05, triage .reviews/ledger-exec/E-rok0507-triage.md).
+# The hub relay consumer (components/HubCommandTask.brs, ws://hub:8804/
+# syncplay/{server_id}) accepted ANY "HTTP/1.1 101" status line: a blind LAN
+# injector that forges the status line — without ever having seen this dial's
+# random key — was handed a live command channel carrying the scoped relay
+# token on the socket it chose. The M-ROKU-14 cure shipped the fail-closed
+# RFC6455 accept-proof trio (SyncPlayProtocol.VerifyHandshakeAccept et al.)
+# and wired it at exactly ONE caller (SyncPlayTask.brs, the :8097 dial),
+# while CHECK46 R2 pinned the ordering law at THAT site only — the relay
+# sibling stayed a status-line-only acceptor by asymmetry, not by decision.
+# The cure: the ordered twin guard at the relay site (HubCommandTask
+# WaitForConnect), refusing into this file's own backoff-ladder idiom
+# (return false — no wsAcceptFailed tag: the SyncPlayTask emit path has no
+# consumer here, and R2 keeps that divergence sanctioned). Precondition
+# proven by cross-repo read before wiring (fixlog/R-ROKU-05__fix.md): the
+# hub :8804 101 is emitted by Workerman's Websocket protocol, which echoes
+# base64(SHA1(offered key + GUID)) unconditionally on every upgrade
+# (phlix-hub vendor/workerman/workerman/src/Protocols/Websocket.php:511-523,
+# sent at :558) — proof never bricks a live relay.
+#
+# WHAT IT PINS (arms follow the CHECK46 R2 precedent: shape-identity needles,
+# fail-loud on unreadable inputs, mask() before any code-shape scan):
+#   R1  relay-site proof, ordered and bound: inside HubCommandTask
+#       WaitForConnect the offered key is captured (NewWebSocketKey →
+#       keyB64), THAT key is the one BuildHandshakeRequest sends, the
+#       HandshakeAccepted status gate stands, the fail-closed
+#       `if not m.proto.VerifyHandshakeAccept(headerText, keyB64) then
+#       return false` runs AFTER the status gate (both single-line and
+#       block forms pass — shape tolerance, never over-convict the law),
+#       and BEFORE AppendRemainderBytes feeds the frame accumulator — a
+#       refused handshake may not leave parsed-frame machinery armed.
+#   R2  scope precision (the amnesty side of the law): the proof rides the
+#       TESTED trio — no bespoke roEVPDigest/SHA1/GUID reimplementation in
+#       the file's CODE (the :35 docblock's truthful wss-DEFERRED transport
+#       prose is untouched by this arm, comments are masked); the
+#       `local.ws_accept_invalid` census code stays SyncPlayTask-owned
+#       (Check 46 R3's emit gate — a second emitter here would repurpose a
+#       room-session code for the command channel without a law); and the
+#       era's status-line-only posture may not re-grow as prose
+#       ("do NOT verify ... Sec-WebSocket-Accept").
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+HCT = "components/HubCommandTask.brs"
+GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK70: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def mask(code):
+    out = []
+    for line in code.splitlines():
+        t = line.strip()
+        if t.startswith("'") or t.startswith("Rem") or t.startswith("rem "):
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
+def body(code, kind, name):
+    m = re.search(rf"{kind}\s+{name}\b[\s\S]*?\bend\s+{kind}\b", code)
+    return m.group(0) if m else None
+
+
+# ---- R1 the relay dial carries the ordered, key-bound, fail-closed proof --
+hct = read(HCT)
+if hct is not None:
+    code = mask(hct)
+    b = body(code, "function", "WaitForConnect")
+    if b is None:
+        problems.append(
+            f"  {HCT} - CHECK70 R1: WaitForConnect is gone — the relay handshake lost "
+            "the home that carries its accept proof (R-ROKU-05)")
+    else:
+        ki = re.search(r"keyB64\s*=\s*m\.proto\.NewWebSocketKey\(\)", b)
+        bi = re.search(r"BuildHandshakeRequest\(\s*host\s*,\s*port\s*,\s*path\s*,\s*keyB64\s*,", b)
+        hi = b.find("HandshakeAccepted(headerText)")
+        vm = re.search(
+            r"if\s+not\s+m\.proto\.VerifyHandshakeAccept\(\s*headerText\s*,\s*keyB64\s*\)"
+            r"\s+then\s+return\s+false", b)
+        ai = b.find("AppendRemainderBytes(headerBytes, termIdx + 4)")
+        if ki is None:
+            problems.append(
+                f"  {HCT} - CHECK70 R1: the offered key is no longer captured as keyB64 "
+                "(NewWebSocketKey) — the proof has nothing bound to THIS handshake")
+        if bi is None:
+            problems.append(
+                f"  {HCT} - CHECK70 R1: BuildHandshakeRequest no longer receives keyB64 in "
+                "its positional shape — the verified key must be the key this dial offered")
+        if hi < 0:
+            problems.append(
+                f"  {HCT} - CHECK70 R1: the HandshakeAccepted status gate vanished from the "
+                "relay dial")
+        if vm is None:
+            problems.append(
+                f"  {HCT} - CHECK70 R1: WaitForConnect never verifies Sec-WebSocket-Accept — "
+                "the era's status-line-only posture is back: a forged 101 re-opens the "
+                "command channel behind the scoped relay token (R-ROKU-05)")
+        else:
+            if hi >= 0 and vm.start() < hi:
+                problems.append(
+                    f"  {HCT} - CHECK70 R1: VerifyHandshakeAccept moved BEFORE the "
+                    "HandshakeAccepted status gate (ordering law, SyncPlayTask twin)")
+            if ki is not None and vm.start() < ki.start():
+                problems.append(
+                    f"  {HCT} - CHECK70 R1: the accept proof runs before the key is "
+                    "offered — it verifies nothing this handshake sent")
+        if ai >= 0 and vm is not None and ai < vm.start():
+            problems.append(
+                f"  {HCT} - CHECK70 R1: AppendRemainderBytes feeds the frame accumulator "
+                "BEFORE the accept proof — a refused handshake would leave parsed-frame "
+                "machinery armed with the injector's bytes")
+
+# ---- R2 scope precision: shared trio, SyncPlayTask-only emit, prose ------
+if hct is not None:
+    code = mask(hct)
+    low = code.lower()
+    for needle, name in (("roevpdigest", "roEVPDigest"), ("\"sha1\"", "a \"sha1\" digest name"),
+                         (GUID.lower(), "the RFC6455 GUID literal")):
+        if needle in low:
+            problems.append(
+                f"  {HCT} - CHECK70 R2: the relay dial carries a bespoke accept computation "
+                f"({name}) — the proof must ride the unit-tested SyncPlayProtocol trio "
+                "(SecWebSocketAcceptValue / ExpectedSecWebSocketAccept / VerifyHandshakeAccept), "
+                "not a second unaudited implementation")
+    if "local.ws_accept_invalid" in hct:
+        problems.append(
+            f"  {HCT} - CHECK70 R2: the SyncPlayTask-owned census code local.ws_accept_invalid "
+            "appears at the relay site — its emit gate lives under m.wsAcceptFailed on the "
+            ":8097 dial (Check 46 R3); the command channel refuses into the backoff ladder "
+            "and Check 70's sanctioned divergence keeps it that way")
+    if re.search(r"do NOT verify[\s\S]{0,80}?Sec-WebSocket-Accept", hct):
+        problems.append(
+            f"  {HCT} - CHECK70 R2: the era's \"do NOT verify the Sec-WebSocket-Accept\" "
+            "claim is back at the relay site")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK70: %d hub-relay accept-proof pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK70: the hub-relay dial proves Sec-WebSocket-Accept before any")
+print("           frame byte reaches the session accumulator — fail-closed,")
+print("           ordered, bound to the key THIS handshake offered, proof")
+print("           riding the tested trio, and the SyncPlayTask emit idiom")
+print("           staying SyncPlayTask-only (the :8804 command channel can")
+print("           never again accept a status-line-only handshake)")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

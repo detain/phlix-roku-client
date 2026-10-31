@@ -18,7 +18,10 @@
 '   2. CONNECTS to the relay with the token on the `Authorization: Bearer`
 '      header — a raw RFC6455 handshake can carry any header, which is why the
 '      Roku client uses the header carrier (the browser subprotocol carrier is
-'      a web-only surface).
+'      a web-only surface). The upgrade is PROVED before it is trusted
+'      (R-ROKU-05): the 101 must carry Sec-WebSocket-Accept equal to
+'      Base64(SHA1(our offered key + RFC6455 GUID)) — fail-closed via
+'      SyncPlayProtocol.VerifyHandshakeAccept, the twin of the :8097 dial law.
 '   3. CONSUMES only `pending_command` / `play_media` frames, forwarding them
 '      to the scene as { kind: "pending_command", mediaId, title, ... }. Every
 '      other relay frame (`group_join`, `playback_*`, `room_state`, ...) is
@@ -236,7 +239,9 @@ end function
 
 ' Block (bounded) until the socket reports connected, then send the WS upgrade
 ' request (with the Authorization header) and read until "\r\n\r\n", validating
-' the 101 response. Returns true on a successful upgrade.
+' the 101 status line AND — R-ROKU-05 — its Sec-WebSocket-Accept proof
+' (fail-closed, twin of the :8097 dial law). Returns true only on an upgrade
+' answered by a server that demonstrably saw the key THIS handshake offered.
 function WaitForConnect(host as String, port as Integer, path as String, relayToken as String) as Boolean
     deadline = 0
     while deadline < 100
@@ -303,6 +308,24 @@ function WaitForConnect(host as String, port as Integer, path as String, relayTo
 
     headerText = HeaderSliceToString(headerBytes, termIdx + 4)
     if not m.proto.HandshakeAccepted(headerText) then return false
+
+    ' R-ROKU-05 (review roku__exploiter M3 class, fixlog/R-ROKU-05__fix.md;
+    ' triage .reviews/ledger-exec/E-rok0507-triage.md): a 101 status line says
+    ' A server answered; ONLY the Sec-WebSocket-Accept hash proves it saw OUR
+    ' random key. Fail-closed twin of the SyncPlayTask dial (:8097 law,
+    ' M-ROKU-14) — an absent header, a non-computable expectation (no
+    ' roEVPDigest / Setup refusal) or any mismatch refuses the upgrade BEFORE
+    ' a single frame byte reaches the accumulator, so a blind injector that
+    ' forges "HTTP/1.1 101" never opens this command channel and the scoped
+    ' relay token never rides a forged handshake. The refusal is the file's
+    ' own idiom — return false into the backoff ladder (no m.wsAcceptFailed
+    ' tag: the SyncPlayTask emit path has no consumer on this side, and
+    ' Check 70 R2 keeps that divergence sanctioned). Proof, not transport:
+    ' the hub's :8804 responder is RFC6455-conformant (phlix-hub vendor
+    ' Protocols/Websocket.php echoes base64(SHA1(key + GUID)) on every 101),
+    ' so live relays are unaffected. keyB64 is the SAME key offered to
+    ' BuildHandshakeRequest above.
+    if not m.proto.VerifyHandshakeAccept(headerText, keyB64) then return false
 
     AppendRemainderBytes(headerBytes, termIdx + 4)
 
