@@ -9542,4 +9542,166 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 68: restoreSession keeps credentials on server_error; only verdict arms wipe (R-ROKU-24) ==="
+# NUMBERING (disclosed, CHECK62/CHECK66/CHECK67 collision-probe precedent): at
+# composition time the highest header in this script is Check 67, and neither
+# 'Check 68' nor 'CHECK68' appears anywhere in scripts/, tests/, docs/ or
+# README.md (grep rc=1, measured this lane) — 68 is clean.
+#
+# WHY THE LEG EXISTS (R-ROKU-24, the named-candidate follow-up from
+# fixlog/M-ROKU-04__fix-r2.md Issue 2). M-ROKU-04 r1 review issue 2 disclosed
+# that the "server_error" bucket — a 2xx /auth/me with no user payload, or a
+# non-401/403 answered failure — fell through to the credential wipe, and the
+# r2 lane deliberately LIMITED the keep-allowance to transport arms: "A
+# keep-on-server_error policy is a candidate follow-up, not silently folded in
+# here." This rider IS that follow-up, folded openly: a shape failure or a 5xx
+# answers "the server is broken", never "this token is dead", so the arm now
+# preserves the stored credentials exactly like the transport arm it sits
+# beside. The only wipe-authorized arms are the two VERDICT arms: 401/403
+# ("session_invalid" — the server pronounced on THIS token) and the
+# empty-state "no_session" (partial leftovers, as always). Cross-host safety
+# is not this function's burden: CHECK53 pins PersistAndGo's write-site
+# custody wipe, which clears the trio whenever the user points the client at a
+# different server, so kept credentials can never ride to an unauthenticated
+# host. The behavior's device tests are authored in tests/unit/ApiClient.test.brs
+# (the suite is function-object-state EXCLUDED under brs and hardware-gated in
+# CI — M-ROKU-04 Discovery.test.brs precedent), so THIS leg is the gate today
+# (CHECK50-53 precedent: statement-presence legs, device honesty disclosed).
+#
+# WHAT IT PINS — over the comment-stripped restoreSession body only:
+#   R1  ANTI-VACUITY + keep-shape: the function is found, exactly the TWO
+#       server_error assignments the law names stand, and EACH is immediately
+#       followed by `return false` — an arm that falls through to the wipe
+#       tail regrows the M-ROKU-04 candidate policy.
+#   R2  verdict arms stay fall-through: "session_invalid" and "no_session"
+#       assignments are NOT followed by `return false` (an early return there
+#       would spread the keep to arms the server DID pronounce on).
+#   R3  the wipe tail stands and sits downstream: setToken/setRefreshToken/
+#       setSession each exactly once in the body, after the session_invalid
+#       arm, with the tail `return false` as the body's last statement.
+#   R4  the neighbors are untouched: the 401/403 gate literal and the
+#       transport arm's `return false` keep (M-ROKU-04's original law) are
+#       still present — this rider extends the keep family, it does not
+#       relocate it.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+
+def read(*parts):
+    return open(os.path.join(repo, *parts), encoding="utf-8").read()
+
+
+def strip_comments(text):
+    return "\n".join(l for l in text.splitlines()
+                     if not l.lstrip().startswith("'"))
+
+
+AC = "source/lib/ApiClient.brs"
+code = strip_comments(read(AC))
+m = re.search(r"restoreSession: function\(\) as Boolean\n(.*?)\n        end function",
+              code, re.DOTALL)
+if m is None:
+    # R0 (anti-vacuity): the leg's whole subject is this function's shape.
+    problems.append(f"  {AC} - CHECK68: restoreSession() not found (or its "
+                    "signature drifted) — the credential-retention law has "
+                    "no host and this leg must not pass quietly")
+else:
+    lines = [l.strip() for l in m.group(1).splitlines() if l.strip()]
+
+    def next_line(i):
+        return lines[i + 1] if i + 1 < len(lines) else "<end-of-body>"
+
+    # R1: exactly the two server_error sites, each followed by its keep-return.
+    se = [i for i, l in enumerate(lines) if l == 'm.restoreReason = "server_error"']
+    if len(se) != 2:
+        problems.append(f'  {AC} - CHECK68 R1: expected exactly 2 '
+                        f'"server_error" assignments (the 2xx-no-user shape '
+                        "arm + the no-verdict else arm), found "
+                        f"{len(se)} — the bucket's producers must stay the "
+                        "two arms R-ROKU-24 rules on")
+    for i in se:
+        if next_line(i) != "return false":
+            problems.append('  ' + AC + ' - CHECK68 R1: a "server_error" '
+                            "assignment is followed by [" + next_line(i) +
+                            "] instead of `return false` — that arm falls "
+                            "through to the wipe tail, which regrows the "
+                            "M-ROKU-04 candidate policy R-ROKU-24 closed "
+                            '(the "kept" allowance was deliberately limited '
+                            "in fixlog/M-ROKU-04__fix-r2.md and folded here)")
+
+    # R2: the verdict arms keep reaching the wipe tail (no early return).
+    for verdict in ('m.restoreReason = "session_invalid"',
+                    'm.restoreReason = "no_session"'):
+        vs = [i for i, l in enumerate(lines) if l == verdict]
+        if not vs:
+            problems.append(f"  {AC} - CHECK68 R2: {verdict} is gone — the "
+                            "boot taxonomy lost a verdict arm")
+            continue
+        for i in vs:
+            if next_line(i).startswith("return"):
+                problems.append(f"  {AC} - CHECK68 R2: {verdict} now "
+                                "early-returns — the server PRONOUNCED on "
+                                "this token (or storage is empty); the wipe "
+                                "tail is that arm's law and keeping would "
+                                "strand dead credentials")
+
+    # R3: the wipe tail stands, downstream, single-valued, tail-terminated.
+    for stmt in ('m.setToken("")', 'm.setRefreshToken("")', 'm.setSession("")'):
+        if lines.count(stmt) != 1:
+            problems.append(f"  {AC} - CHECK68 R3: the wipe tail must carry "
+                            f"{stmt} exactly once (found "
+                            f"{lines.count(stmt)}) — credential deletion "
+                            "lives in ONE place downstream of the verdict arms")
+    if lines:
+        wipe_i = lines.index('m.setToken("")')
+        si = [i for i, l in enumerate(lines) if l == 'm.restoreReason = "session_invalid"']
+        if si and not (wipe_i > si[0]):
+            problems.append(f"  {AC} - CHECK68 R3: the wipe no longer sits "
+                            "downstream of the session_invalid verdict arm")
+        if lines[-1] != "return false":
+            problems.append(f"  {AC} - CHECK68 R3: restoreSession's body no "
+                            "longer ends in the tail `return false` — the "
+                            "false-path contract every boot consumer reads")
+
+    # R4: neighbors untouched — the verdict gate and the transport keep.
+    if "env.status = 401 or env.status = 403" not in code:
+        problems.append(f"  {AC} - CHECK68 R4: the 401/403 gate literal "
+                        "drifted — the ONLY answered responses that may "
+                        "pronounce a token dead")
+    tr = [i for i, l in enumerate(lines) if l == 'm.restoreReason = transportReason']
+    if not tr:
+        problems.append(f"  {AC} - CHECK68 R4: the transport keep arm is "
+                        "gone — M-ROKU-04's original preservation law")
+    else:
+        for i in tr:
+            if next_line(i) != "return false":
+                problems.append(f"  {AC} - CHECK68 R4: the transport arm no "
+                                "longer returns before the wipe — a router "
+                                "blip would wipe credentials again")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK68: %d credential-retention pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK68: every restoreSession failure that carries NO verdict on this")
+print("           token (2xx-no-user shape, non-401/403 answer, unclassifiable")
+print("           envelope, transport bucket) PRESERVES the stored credentials;")
+print("           only 401/403 and the empty-state arm reach the single wipe")
+print("           tail — the keep family extends M-ROKU-04's transport law to")
+print("           the answer R-ROKU-24 names, and CHECK53's write-site custody")
+print("           wipe keeps cross-host safety independent of this choice")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

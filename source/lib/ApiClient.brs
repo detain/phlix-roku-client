@@ -168,15 +168,23 @@ function ApiClient(baseUrl as String) as Object
         ' A transport failure PRESERVES stored credentials: the server never
         ' proved them dead, and wiping them turned a router blip into a forced
         ' re-login behind the fake network error.
-        ' Honest disclosure (review M-ROKU-04 r1, issue 2): "server_error"
-        ' (a 2xx /auth/me with no user payload, or a non-401 answered failure)
-        ' falls through to the credential wipe below - a server that answers
-        ' with a malformed body forces a re-login. Kept deliberately: the
-        ' server PROVED it is talking and rejected the session shape, so
-        ' clearing is the safe read; pre-M-ROKU-04 code wiped on every false
-        ' path, so this arm is strictly not-worse and the taxonomy names the
-        ' cause honestly. A keep-on-server_error policy is a candidate
-        ' follow-up, not silently folded in here.
+        ' R-ROKU-24 (folds in the keep-on-server_error policy that the
+        ' M-ROKU-04 r2 disclosure named as a CANDIDATE follow-up - folded
+        ' here, openly, by the lane whose ask it is): "server_error" never
+        ' pronounces on THIS token. A 2xx /auth/me with no user payload is a
+        ' server SHAPE failure; a non-401/403 answered failure (the 5xx
+        ' class, or an envelope the transport layer could not even
+        ' classify) is the server admitting IT is broken. Neither is the
+        ' server proving the credentials dead, so those arms PRESERVE the
+        ' stored credentials - exactly the transport-arm law above, one
+        ' step further along the same principle. The wipe tail below is now
+        ' reached by the two VERDICT arms only: "session_invalid" (401/403
+        ' is the single answer that says THIS token is dead) and
+        ' "no_session" (clears partial-state leftovers, as it always did).
+        ' Cross-host safety is not this function's burden: PersistAndGo's
+        ' write-site custody wipe (CHECK53) already guarantees preserved
+        ' credentials can never ride to a server the user has not
+        ' authenticated against. Shape pinned by CHECK68.
         restoreSession: function() as Boolean
             token = GetStorage().get("auth_token")
             refreshToken = GetStorage().get("refresh_token")
@@ -204,8 +212,11 @@ function ApiClient(baseUrl as String) as Object
                         return true
                     end if
                     ' A healthy response with no user payload is a server
-                    ' shape failure, not an expired session.
+                    ' shape failure, not an expired session. R-ROKU-24: a
+                    ' shape failure is no verdict on this token - keep the
+                    ' credentials and report the honest bucket.
                     m.restoreReason = "server_error"
+                    return false
                 else if env <> invalid and env.ok = false and IsTransportReason(transportReason) then
                     ' The server never answered. Keep the credentials; the
                     ' boot retry surface can restore them when it wakes up.
@@ -213,9 +224,15 @@ function ApiClient(baseUrl as String) as Object
                     return false
                 else if env <> invalid and (env.status = 401 or env.status = 403) then
                     ' Server answered and rejected THIS token - it is dead.
+                    ' The one verdict arm: falls through to the wipe below.
                     m.restoreReason = "session_invalid"
                 else
+                    ' R-ROKU-24: an answered failure with no token verdict
+                    ' (the 5xx class, or an env this layer cannot classify)
+                    ' means the SERVER is broken, not the session on trial -
+                    ' keep the credentials and report the honest bucket.
                     m.restoreReason = "server_error"
+                    return false
                 end if
             else
                 ' Never logged in on this install (or explicitly logged out).
@@ -224,6 +241,10 @@ function ApiClient(baseUrl as String) as Object
                 m.restoreReason = "no_session"
             end if
 
+            ' Wipe tail: reached by the VERDICT arms only - "session_invalid"
+            ' (the server answered 401/403: this token is dead) and
+            ' "no_session" (partial-state leftovers). Every keep arm above
+            ' has already returned (CHECK68 pins both directions).
             m.setToken("")
             m.setRefreshToken("")
             m.setSession("")

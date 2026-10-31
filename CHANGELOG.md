@@ -51,6 +51,42 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — an answered-but-broken /auth/me no longer wipes the session: keep-on-server_error folded in (R-ROKU-24 rider) — 2026-10-31
+
+- **R-ROKU-24 (cured; the named candidate from fixlog/M-ROKU-04__fix-r2.md
+  Issue 2, folded in by the lane whose ask it is).** M-ROKU-04's taxonomy
+  preserved stored credentials across TRANSPORT failures but let the
+  "server_error" bucket — a 2xx /auth/me with no user payload, a non-401/403
+  answered failure (the 5xx class), or an envelope the transport layer could
+  not classify — fall through to the credential wipe, the r2 disclosure
+  deliberately limiting the keep-allowance: "A keep-on-server_error policy is
+  a candidate follow-up, not silently folded in here." This rider IS that
+  follow-up: both server_error arms now report the honest bucket and return
+  WITHOUT the wipe, so a transient server bug recovers on a later boot instead
+  of forcing a re-login; the boot ladder's routing is unchanged
+  (HandleBootAuthFailure still shows the server-problem dialog + login). The
+  wipe tail is reached by the two VERDICT arms only: "session_invalid" (401/
+  403 — the single answer that pronounces THIS token dead) and "no_session"
+  (partial-state leftovers, as always). Cross-host safety is untouched:
+  ConnectScene's PersistAndGo write-site custody wipe (CHECK53) clears the
+  trio whenever the server URL changes, so kept credentials can never ride to
+  a host the user has not authenticated against.
+- **Gate:** NEW Check 68 in the battery pins the law in BOTH directions over
+  the comment-stripped restoreSession body — every server_error assignment
+  immediately followed by its keep-return, the verdict arms NOT early-returning,
+  the single wipe tail downstream and tail-terminated, the 401/403 literal and
+  the M-ROKU-04 transport keep intact (battery 67→68 legs). The portable
+  harness gains the red-plant/green-restore twin: stripping both keep-returns
+  and spreading the keep to the verdict arm fire R1 twice + R2 once naming each
+  plant, with CHECK36/CHECK44/CHECK48 gate independence on the same file.
+- **Tests:** tests/unit/ApiClient.test.brs gains two restoreSession subs that
+  drive the whole arm ladder through a stubbed request member — shape/5xx/
+  invalid-envelope keeps, the timeout regression fence, the 401/403 wipes,
+  no_session, authenticated. Venue (M-ROKU-04 Discovery.test.brs precedent):
+  the suite is EXCLUDED under the headless runner (function-object state at
+  construction) and rooibos needs hardware CI has none of, so Check 68 is the
+  gate today and the subs are the device-lane deliverable.
+
 ### Fixed — the battery can read a locale VALUE now (R-ROKU-11 rider) — 2026-10-30
 
 - **R-ROKU-11 (cured; a new gate, because this rider's ask IS the gate).** The

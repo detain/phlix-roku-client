@@ -103,3 +103,98 @@ sub TestApiClientParseVariantsLegacy()
     assertEqual(out[0].label, "480p")
     print "TestApiClientParseVariantsLegacy passed"
 end sub
+
+' R-ROKU-24 — the keep-on-server_error law (folds in the candidate follow-up
+' named by the M-ROKU-04 r2 disclosure). Every restoreSession failure arm that
+' carries NO verdict on this token preserves the stored credentials; only the
+' 401/403 verdict ("session_invalid") and the empty-state ("no_session") arms
+' reach the wipe tail. request() is stubbed through the client's own member
+' slot (m.stubEnv) so the ladder is driven end-to-end without a server.
+' Venue (M-ROKU-04 Discovery.test.brs precedent): the suite constructs through
+' ApiClient() which attaches function-object state brs cannot carry (runner
+' EXCLUDED census), and rooibos needs hardware the CI has none of — CHECK68
+' holds the static teeth meanwhile; these subs are the device-lane deliverable.
+sub TestRestoreSessionKeepsOnServerError()
+    client = ApiClient("http://localhost:8096")
+    client.setToken("rok24-token")
+    client.setRefreshToken("rok24-refresh")
+    client.setSession("rok24-session")
+    client.request = function(method as String, path as String, body as Object) as Object
+        return m.stubEnv
+    end function
+
+    ' Arm 1: 2xx /auth/me with no user payload — server shape failure.
+    client.stubEnv = { ok: true, status: 200, data: {} }
+    assertEqual(client.restoreSession(), false)
+    assertEqual(client.restoreReason, "server_error")
+    assertEqual(GetStorage().get("auth_token"), "rok24-token")
+    assertEqual(GetStorage().get("refresh_token"), "rok24-refresh")
+    assertEqual(GetStorage().get("session_id"), "rok24-session")
+
+    ' Arm 2: answered failure without a token verdict (5xx class).
+    client.stubEnv = { ok: false, status: 500, error: "Server Error" }
+    assertEqual(client.restoreSession(), false)
+    assertEqual(client.restoreReason, "server_error")
+    assertEqual(GetStorage().get("auth_token"), "rok24-token")
+
+    ' Arm 3: the transport layer handed back nothing classifiable (invalid
+    ' envelope) — still no verdict on the token, so still keep.
+    client.stubEnv = invalid
+    assertEqual(client.restoreSession(), false)
+    assertEqual(client.restoreReason, "server_error")
+    assertEqual(GetStorage().get("auth_token"), "rok24-token")
+
+    ' Regression fence (M-ROKU-04): the transport arm keeps, untouched by the
+    ' rider — the law this lane extends, not replaces.
+    client.stubEnv = { ok: false, status: 0, error: "timeout" }
+    assertEqual(client.restoreSession(), false)
+    assertEqual(client.restoreReason, "timeout")
+    assertEqual(GetStorage().get("auth_token"), "rok24-token")
+    print "TestRestoreSessionKeepsOnServerError passed"
+end sub
+
+sub TestRestoreSessionWipesOnVerdictsOnly()
+    client = ApiClient("http://localhost:8096")
+    client.request = function(method as String, path as String, body as Object) as Object
+        return m.stubEnv
+    end function
+
+    ' session_invalid: 401 — the server answered and rejected THIS token.
+    client.setToken("rok24v-token")
+    client.setRefreshToken("rok24v-refresh")
+    client.setSession("rok24v-session")
+    client.stubEnv = { ok: false, status: 401, error: "unauthorized" }
+    assertEqual(client.restoreSession(), false)
+    assertEqual(client.restoreReason, "session_invalid")
+    assertEqual(GetStorage().get("auth_token"), invalid)
+    assertEqual(GetStorage().get("refresh_token"), invalid)
+    assertEqual(GetStorage().get("session_id"), invalid)
+
+    ' session_invalid: 403 — same verdict, same wipe.
+    client.setToken("rok24v-token")
+    client.stubEnv = { ok: false, status: 403, error: "forbidden" }
+    assertEqual(client.restoreSession(), false)
+    assertEqual(client.restoreReason, "session_invalid")
+    assertEqual(GetStorage().get("auth_token"), invalid)
+
+    ' no_session: empty storage is the login answer, not a network accusation.
+    client.setToken("rok24v-token")
+    client.setToken("")
+    client.stubEnv = { ok: true, status: 200, data: { user: { id: "nobody" } } }
+    assertEqual(client.restoreSession(), false)
+    assertEqual(client.restoreReason, "no_session")
+
+    ' authenticated: the one true path, user payload lands on the client.
+    client.setToken("rok24v-token")
+    client.stubEnv = { ok: true, status: 200, data: { user: { id: "u-rok24" } } }
+    assertEqual(client.restoreSession(), true)
+    assertEqual(client.restoreReason, "authenticated")
+    assertEqual(client.user.id, "u-rok24")
+
+    ' Leave storage as found: the authenticated arm persisted nothing, but the
+    ' seeded test token is still riding in the registry — clear the trio.
+    client.setToken("")
+    client.setRefreshToken("")
+    client.setSession("")
+    print "TestRestoreSessionWipesOnVerdictsOnly passed"
+end sub
