@@ -17,8 +17,19 @@
 ' hop loops) live in component scope and are statically pinned by CHECK48 in
 ' scripts/verify-runtime.sh - the WireGuard/SyncPlayWsTls.test.brs precedent.
 '
-' Venue: rooibos on-device (`make test-unit` with ROKU_HOST); authored and
-' compile-covered via `npx bsc` here.
+' Venue (R-ROKU-18 truth pass): the obs3 theater is cured at the roots —
+' six of these seven subs execute in CI on EVERY push through the device-
+' free headless brs gate (`make test-unit` device-free arm and
+' .github/workflows/test.yml both run run-headless-unit.mjs, whose
+' ALLOWED list names this suite), and TestResolveRedirectTargetShapes is
+' excluded THERE for the MEASURED brs gap recorded in that script's
+' EXCLUDED_TESTS (Chr(0) collapses to "" headless, so the CR/LF/NUL guard
+' would fire on every input), its law staying pinned by the CHECK48 leg.
+' The device-dead members the expectations once collided with (.Lower,
+' zero-based member .Mid) are extinct — CHECK65 R1 sweeps source/,
+' components/ AND tests/, and CHECK65 R5 guards the headless wiring
+' against re-deadening. rooibos on-device (`make test-unit` with
+' ROKU_HOST) remains the venue that executes all seven subs for real.
 ' ===========================================
 
 sub TestHostOfUrlVectors()
