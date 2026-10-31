@@ -1926,9 +1926,10 @@ end function
 ' see edbbd8a's law on the :8097 leg). http:// / scheme-less legacy origins
 ' keep dialling 8804 exactly as before: their REST lane is already cleartext,
 ' so the dial adds no NEW exposure class. Pure: string in, boolean out.
-' GLOBAL string functions only — member .Mid/.Lower are OFF-LIMITS in this
-' family (ifStringOps indices are 0-based and .Lower() does not exist on Roku
-' strings; see the M-ROKU-23 fixlog Observations).
+' Globals LCase/Left do the comparison — the OFF-LIMITS ban is scoped to the
+' member forms .Mid/.Lower (ifStringOps indices are 0-based; .Lower() is no
+' Roku string member at all; see the M-ROKU-23 fixlog Observations). The
+' body's only member call, .Trim(), is a legitimate ifStringOps member.
 ' @param hubUrl String - the persisted hub origin (GetServerUrl())
 ' @return Boolean - true ONLY for an https:// origin
 function HubRelayCleartextRefusedForOrigin(hubUrl as String) as Boolean
