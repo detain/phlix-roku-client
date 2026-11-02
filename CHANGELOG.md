@@ -51,6 +51,34 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Checks — the portable twin's PASS narration becomes an output of its own asserts (Check 73, R-ROKU-29) — 2026-11-02
+
+- **Verify-first, then the cure.** The rider (RIDERS_QUEUE.md R-ROKU-29,
+  disclosed by `fixlog/M-ROKU-04__fix-r2.md` as pre-existing prose staleness
+  predating the later legs, "candidate for a future checks-doc pass") named
+  the twin's final PASS echo still narrating an era range of header pins —
+  measured live at `1c3ce2d`: the echo claimed a set frozen before the check
+  family grew past the twenties, while the CI-layout positive block pins far
+  more, and `docs/static-checks.md`'s Regression-test sentence carried the
+  same stale range. Both surfaces were stale; neither was on any leg's pins.
+- **The cure is self-derivation, not re-typing.** Check 73 recomputes the
+  pinned-header set from the twin's OWN assert inventory — every `seq` loop
+  paired with its `=== Check $VAR:` body pin, plus every individual literal
+  header pin over `$POSITIVE_OUT` — compacts it to canonical range form, and
+  demands equality from both prose surfaces: the twin's PASS echo (R1) and
+  the ledger sentence (R2), with R3 pinning this era's own ledger row and
+  cure markers (CHECK44 R5 / CHECK71 R4 / CHECK72 R4 precedent). A future
+  header assert added without rotating the prose reddens CI — in both
+  directions: the claim can lag the pins or outrun them, both convict.
+- **Proof.** Twin plant-and-restore carries four scratch reds — era
+  under-report re-grown in the echo (R1 alone), an over-report (R1 alone —
+  bidirectional equality), the ledger sentence reverted (R2 alone), row 73
+  deleted (R3 alone) — with CHECK71/CHECK72 green on all four (gate
+  independence: prose surfaces only, no shipped-code read), and restore →
+  exit 0 doubles as the amnesty measurement. Red-on-parent at `1c3ce2d`
+  measured exactly 3 named CHECK73 convictions (R1 + R2 + R3) as the run's
+  only non-PASS leg.
+
 ### Docs — the checks ledger fills its surviving gap: table row 68 restored from the Check 68 leg's own words (R-ROKU-28 landing debt) — 2026-11-02
 
 - **The gap moved, so the lane verified before curing.** The rider's ask

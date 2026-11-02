@@ -10596,4 +10596,179 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 73: the portable twin's PASS narration and the ledger sentence state exactly the header pins the positive run executes (R-ROKU-29) ==="
+# NUMBERING (CHECK62/66/69/70/71/72 collision-probe precedent): at composition
+# time the highest header in this script is Check 72, and neither 'Check 73'
+# nor 'CHECK73' appears anywhere in scripts/, tests/, docs/, README.md or
+# CHANGELOG.md of the anchor tree (git grep rc=1 at 1c3ce2d, measured this
+# lane) — 73 is next-FREE.
+#
+# WHY THE LEG EXISTS (R-ROKU-29, ask RIDERS_QUEUE.md R-ROKU-29; disclosed by
+# fixlog/M-ROKU-04__fix-r2.md as "pre-existing prose staleness predating
+# checks 35-37 ... candidate for a future checks-doc pass"). The twin's final
+# PASS echo narrated the CI-layout positive run with an era range of header
+# pins while the run's own assert inventory had long grown past it — every
+# leg added since silently escaped the summary a human reads to learn what
+# the portability proof covers. Re-typing the range is exactly the class
+# that re-rotts on the next leg added, so the cure is self-derivation: this
+# leg recomputes the pinned-header set FROM the twin's own asserts, compacts
+# it to canonical range form, and demands equality from BOTH prose surfaces —
+# the twin's PASS echo and the ledger's Regression-test sentence. Prose can
+# no longer lag the pins, in either direction, on either surface.
+#
+# WHAT IT PINS (fail-loud on unreadable inputs and on ambiguous anchors;
+# the claim needle is assembled from adjacent literals — CHECK69 SELF-BURN
+# law — so this script's bytes never carry the phrase the twin is parsed on):
+#   R1  twin PASS-echo equality — the phrase the single PASS echo carries
+#       between its last 'Check ' lead-in and the header-pin claim needle
+#       must equal the derived canonical range (under-report AND over-report
+#       convict: the claim may neither lag the pins nor claim pins the run
+#       never executes). Derivation: every `for VAR in $(seq A B)` loop whose
+#       body pins "=== Check $VAR:" on $POSITIVE_OUT contributes A-B; every
+#       individual literal header pin over $POSITIVE_OUT contributes itself.
+#       Zero pins, or a second PASS echo carrying the claim, convicts loudly.
+#   R2  ledger equality — docs/static-checks.md's Regression-test sentence
+#       must carry the SAME derived range (the checks-doc pass rides the
+#       leg: the two prose surfaces cannot rotate independently of the
+#       harness they describe).
+#   R3  docs truth — docs/static-checks.md row 73 exists and carries its
+#       cure markers (R-ROKU-29 + Check 73) — the ledger cannot under-claim
+#       the shipped law (CHECK44 R5 / CHECK71 R4 / CHECK72 R4 precedent).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK73: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def compact(pins):
+    """Sorted int set -> canonical '11-26 + 35 + 37-41 + 43-61' range form."""
+    runs = []
+    start = prev = None
+    for n in sorted(pins):
+        if start is None:
+            start = prev = n
+            continue
+        if n == prev + 1:
+            prev = n
+            continue
+        runs.append((start, prev))
+        start = prev = n
+    if start is not None:
+        runs.append((start, prev))
+    return " + ".join(("%d-%d" % (a, b)) if b > a else "%d" % a for a, b in runs)
+
+
+# The claim needle the twin's PASS echo rides, assembled from adjacent
+# literals (SELF-BURN law): contiguous, it would collide with the very
+# surface this leg parses.
+CLAIM = "headers " + "present"
+
+INDIV = re.compile(r'assert_contains "=== Check (\d+):" "\$POSITIVE_OUT"')
+LOOP = re.compile(r'for\s+(\w+)\s+in\s+\$\(\s*seq\s+(\d+)\s+(\d+)\s*\)')
+
+derived = None
+TWIN = read("tests/scripts/verify-runtime-portable.sh")
+if TWIN is not None:
+    lines = TWIN.splitlines()
+    pins = set()
+    for i, line in enumerate(lines):
+        m = INDIV.search(line)
+        if m:
+            pins.add(int(m.group(1)))
+            continue
+        ml = LOOP.search(line)
+        if ml:
+            var, a, b = ml.group(1), int(ml.group(2)), int(ml.group(3))
+            body = "\n".join(lines[i + 1:])
+            cut = body.find("\ndone")
+            if cut != -1:
+                body = body[:cut]
+            if ('assert_contains "=== Check $%s:" "$POSITIVE_OUT"' % var) in body:
+                pins.update(range(a, b + 1))
+    if not pins:
+        problems.append(
+            "  tests/scripts/verify-runtime-portable.sh - CHECK73: zero CI-layout header "
+            "pins derived — the twin's positive block changed shape; update this leg's "
+            "derivation in lockstep, never let it go vacuous (R-ROKU-29)")
+    else:
+        derived = compact(pins)
+        echoes = [l for l in lines
+                  if l.startswith('echo "PASS: verify-runtime.sh is portable')
+                  and CLAIM in l]
+        if len(echoes) != 1:
+            problems.append(
+                f"  tests/scripts/verify-runtime-portable.sh - CHECK73 R1: {len(echoes)}/1 "
+                "PASS-echo lines carry the header-pin claim — the narration anchor must be "
+                "unique (R-ROKU-29)")
+        else:
+            pre = echoes[0][:echoes[0].find(CLAIM)]
+            j = pre.rfind("Check ")
+            if j == -1:
+                problems.append(
+                    "  tests/scripts/verify-runtime-portable.sh - CHECK73 R1: the PASS echo "
+                    "holds the header-pin claim without a 'Check ' lead-in — rotate the "
+                    "narration shape in lockstep with this leg (R-ROKU-29)")
+            else:
+                narrated = pre[j + len("Check "):].strip().rstrip(",")
+                if narrated != derived:
+                    problems.append(
+                        f"  tests/scripts/verify-runtime-portable.sh - CHECK73 R1: the PASS "
+                        f"narration claims \"{narrated}\" but the twin's own CI-layout header "
+                        f"pins derive \"{derived}\" — narration must equal the executed pins; "
+                        "rotate the phrase in the same commit that adds or removes a header "
+                        "assert, never after (R-ROKU-29)")
+
+DOC = read("docs/static-checks.md")
+if DOC is not None:
+    sent = re.findall(r"asserts checks (.+?) all execute", DOC)
+    if len(sent) != 1:
+        problems.append(
+            f"  docs/static-checks.md - CHECK73 R2: {len(sent)}/1 Regression-test header-pin "
+            "sentences found — the ledger anchor must be unique for this pin (R-ROKU-29)")
+    elif derived is not None and sent[0] != derived:
+        problems.append(
+            f"  docs/static-checks.md - CHECK73 R2: the Regression-test sentence claims "
+            f"\"asserts checks {sent[0]} all execute\" while the twin's executed header pins "
+            f"derive \"{derived}\" — the checks-doc may not lag (or outrun) the harness it "
+            "describes; rotate both prose surfaces in the same commit (R-ROKU-29)")
+    rows = [l for l in DOC.splitlines() if re.match(r"^\|\s*73\s*\|", l)]
+    if not rows:
+        problems.append(
+            "  docs/static-checks.md - CHECK73 R3: row 73 vanished — the checks ledger must "
+            "enumerate this shipped leg (CHECK66-era landing law) (R-ROKU-29)")
+    for l in rows:
+        for marker in ("R-ROKU-29", "Check 73"):
+            if marker not in l:
+                problems.append(
+                    "  docs/static-checks.md - CHECK73 R3: row 73 lost its cure marker "
+                    f"\"{marker}\" — the ledger may not under-claim the shipped law")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK73: %d portable-narration-truth pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK73: the twin's PASS narration and the ledger sentence both equal")
+print("           the header-pin set derived from the twin's own assert")
+print(f"           inventory ({derived}); ledger row 73 keeps its cure markers")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
