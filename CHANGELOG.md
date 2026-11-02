@@ -51,6 +51,67 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the boot-auth Timer stops faking its methods: ms-setter and stop-call rotated to the documented fields, banned one-way by Check 71 (R-ROKU-06 rider) — 2026-11-02
+
+- **R-ROKU-06 (cured; triage `.reviews/ledger-exec/E-rok0507-triage.md`, class
+  OPEN-FIXABLE; the ask's "node never appended" half proven ALREADY-CURED at
+  `a1ec49a` this lane — cat-file rc=0, merge-base --is-ancestor rc=0, no
+  `-q`).** The boot-auth path called two methods the Roku Timer node does not
+  have: `SetDuration(20000)` at `components/PhlixApp.brs` :195/:229 and a bare
+  `.Stop()` at four handlers (:291/:308/:325/:381, OnAuthTimeout /
+  OnBootRetryButton / OnAuthResponse / OnHubAuthResponse). Authority is this
+  repo's own lock-pinned vendored types — bsc 0.72.5 `roku-types/data.json`
+  models Timer with the fields control/duration/fire/repeat and ZERO
+  interfaces; the setter name occurs ZERO times in the file. The calls were
+  runtime no-ops at best (if the runtime errored instead, StartAuthCheck died
+  before arming — either reading leaves the 20 s boot timeout the source
+  claimed never actually held its unit or its cancel), and docs row 49's law
+  "the fabricated `SetDuration` method stays dead" was aspirational beyond the
+  toast coordinator — exactly what `M-ROKU-17__r2` MINOR-2 convicted. Cure
+  rotates all six sites to the file's own field idiom 30 lines away
+  (`ArmToastDismiss`: stop → `duration` in SECONDS → start): `duration = 20`
+  at both start sites (20000 was ms; the seconds unit is read from the vendored
+  field docs and the repo's /1000 toastTimer law, not guessed),
+  `control = "stop"` at all four cancels. Zero wire codes, zero behavior
+  regression intent — the shipped timeout window is unchanged at 20 s, now
+  actually expressed in the model that runs it.
+- **Gate:** battery 70→71 legs — NEW Check 71 (next-FREE numbering probed:
+  highest header 70, `git grep 'Check 71|CHECK71'` rc=1 at the anchor tip
+  `c7bfebd8` across scripts/, tests/, docs/, README.md and CHANGELOG.md).
+  R1 comment-masked extinction of both fabricated-method shapes over every
+  `.brs` under components/ + source/ (file:line named; banned needles
+  assembled from adjacent literals in the gate scripts — CHECK69 SELF-BURN
+  law); R2 pins each start site to EXACTLY ONE duration assignment on the
+  unit-boundary-checked seconds literal (the ms value cannot be laundered
+  back under the correct field name) with duration-before-start ordering;
+  R3 pins each of the four handlers to exactly one `control = "stop"`; R4
+  pins row 49's law sentence to its cure markers so "stays dead" cannot
+  drift back to aspiration. Same-lane micro shipped (triage-ratified,
+  `W-min94-roku__r1:31`): CHECK66 R8 gained the missing attach needle —
+  both Start* sites must `AppendChild(m.authTimer)`, so the detach law and
+  the W-min94 attach cure are now pinned as a pair.
+- **Twin and measured figures:** tests/scripts/verify-runtime-portable.sh
+  gains the CHECK71 leg: three scratch reds — ms-setter re-grown at a start
+  site → R1+R2 (exactly two convictions); stop-method re-grown in
+  OnAuthTimeout → R1+R3 (exactly two); `duration = 20000` unit-laundering →
+  R2 boundary ALONE (exactly one) — with CHECK47 and CHECK66 (both read the
+  very bodies these plants edit) green on all three reds (gate
+  independence), and restore returning exit 0 across all 71 legs
+  (falsifiability; the restore doubles as the amnesty measurement).
+  Red-on-parent MEASURED at `c7bfebd8`: 14 named CHECK71 convictions
+  (R1 ×6, R2 ×2, R3 ×4, R4 ×2 — one per missing cure marker), zero
+  collateral legs (other 70 green). docs/static-checks.md: row 49 rotated to cure-attached truth, row
+  71 added (the table's pre-existing row-68 gap remains R-ROKU-28 landing
+  debt — disclosed, not silently filled).
+- **Unit teeth and era hold:** no headless test touches the boot-auth timer
+  (`grep -rln authTimer|StartAuthCheck|StartHubAuthCheck|OnAuthTimeout
+  tests/` = zero hits), so the statics carry the law (CHECK50-53
+  statement-presence precedent); the field idiom itself is exercised
+  on-device daily by the toastTimer family CHECK49 already pins. The
+  headless gate holds at total=210 failed=0 excluded=53 before and after —
+  no counts moved by this change.
+
+
 ### Fixed — the hub-relay dial proves Sec-WebSocket-Accept before trusting the 101 (R-ROKU-05 rider, security class) — 2026-11-01
 
 - **R-ROKU-05 (cured; triage `.reviews/ledger-exec/E-rok0507-triage.md`, class

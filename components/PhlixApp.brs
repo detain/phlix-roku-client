@@ -190,9 +190,12 @@ sub StartAuthCheck()
     ' was never appended, and a Timer only ticks while attached (the repo's own
     ' toastTimer law, PhlixApp.brs:101) — on device the boot timeout chrome was
     ' fiction. Attaching restores the documented behavior the handlers already
-    ' implement.
+    ' implement. [R-ROKU-06] The duration rides the documented field: Roku's
+    ' Timer model is control/duration/fire/repeat with duration in SECONDS
+    ' (vendored bsc data.json) — the era's fabricated ms-method call never
+    ' existed on the node. 20 s is the arm the handlers already implement.
     m.authTimer = CreateObject("roSGNode", "Timer")
-    m.authTimer.SetDuration(20000)
+    m.authTimer.duration = 20
     m.top.AppendChild(m.authTimer)
     m.authTimer.ObserveField("fire", "OnAuthTimeout")
     m.authTimer.control = "start"
@@ -225,8 +228,9 @@ sub StartHubAuthCheck()
     m.authTask.ObserveField("response", "OnHubAuthResponse")
     m.top.Append(m.authTask)
 
+    ' Same 20 s timeout, same field idiom [R-ROKU-06, mirror of StartAuthCheck].
     m.authTimer = CreateObject("roSGNode", "Timer")
-    m.authTimer.SetDuration(20000)
+    m.authTimer.duration = 20
     m.top.AppendChild(m.authTimer)
     m.authTimer.ObserveField("fire", "OnAuthTimeout")
     m.authTimer.control = "start"
@@ -288,7 +292,7 @@ sub OnAuthTimeout()
         m.authTask = invalid
     end if
     if m.authTimer <> invalid then
-        m.authTimer.Stop()
+        m.authTimer.control = "stop"
     end if
 
     m.retryCount = m.retryCount + 1
@@ -305,7 +309,7 @@ sub OnBootRetryButton()
     m.authCheckDone = false
     ' Stop any stale timer before starting a fresh one
     if m.authTimer <> invalid then
-        m.authTimer.Stop()
+        m.authTimer.control = "stop"
     end if
     StartAuthCheck()
 end sub
@@ -322,7 +326,7 @@ sub OnAuthResponse(event as Object)
     m.authCheckDone = true
 
     if m.authTimer <> invalid then
-        m.authTimer.Stop()
+        m.authTimer.control = "stop"
     end if
 
     if m.authTask = invalid or m.authTask <> event.GetNode() then return
@@ -378,7 +382,7 @@ sub OnHubAuthResponse(event as Object)
     m.authCheckDone = true
 
     if m.authTimer <> invalid then
-        m.authTimer.Stop()
+        m.authTimer.control = "stop"
     end if
 
     if m.authTask = invalid or m.authTask <> event.GetNode() then return

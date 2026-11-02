@@ -9209,8 +9209,11 @@ echo "=== Check 66: WS accumulator caps, destructive-op consent, en_US copy pair
 #   R7  the consent key family is speakable in all seven locales and each
 #       named message carries exactly one {name} token.
 #   R8  the W-min94 batch shapes, completing that lane's rider (a) ("CHECK66
-#       pin-leg covers BOTH batches"): auth-check DETACH (both Start* sites
-#       RemoveChild the replaced task AND timer), the screenStack depth cap +
+#       pin-leg covers BOTH batches"): auth-check ATTACH+DETACH (both Start*
+#       sites RemoveChild the replaced task AND timer, and re-attach the boot
+#       Timer — the attach half of the W-min94 cure was the unpinned seam,
+#       forward-fixed here per the W-min94-roku__r1:31 same-lane candidate),
+#       the screenStack depth cap +
 #       named-reference bootstrap removals (the "whatever is last child"
 #       positional invariant stays extinct), and SearchScene's keyboard-to-
 #       results down-binding.
@@ -9358,6 +9361,8 @@ if APP is not None:
             continue
         if "RemoveChild(m.authTask)" not in body.group(1) or "RemoveChild(m.authTimer)" not in body.group(1):
             problems.append(f"  components/PhlixApp.brs - CHECK66 R8: {fn} re-grows orphaned auth tasks — retry-mashing must DETACH the replaced task AND timer (M-ROKU-25)")
+        if "AppendChild(m.authTimer)" not in body.group(1):
+            problems.append(f"  components/PhlixApp.brs - CHECK66 R8: {fn} no longer attaches its boot Timer — a detached Timer never ticks, so the timeout chrome re-becomes fiction (W-min94-roku__r1:31 forward-fix, R-ROKU-06 lane: the detach half was pinned, the attach cure was not)")
     if "m.screenStack.Count() >= 12" not in APP:
         problems.append("  components/PhlixApp.brs - CHECK66 R8: the screenStack depth cap vanished — deep-link floods must stay bounded (M-ROKU-28)")
     named = len(re.findall(r"m\.top\.RemoveChild\(m\.(connectScene|loginScene|pickerScene)\)", APP))
@@ -10149,6 +10154,197 @@ print("           ordered, bound to the key THIS handshake offered, proof")
 print("           riding the tested trio, and the SyncPlayTask emit idiom")
 print("           staying SyncPlayTask-only (the :8804 command channel can")
 print("           never again accept a status-line-only handshake)")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 71: the boot-auth Timer rides the documented field idiom; the fabricated ms-method and stop-method stay extinct (R-ROKU-06) ==="
+# NUMBERING (CHECK62/66/69/70 collision-probe precedent): at composition time the
+# highest header in this script is Check 70, and neither 'Check 71' nor
+# 'CHECK71' appears anywhere in scripts/, tests/, docs/, README.md or
+# CHANGELOG.md of the anchor tree (git grep rc=1 at c7bfebd8, measured this
+# lane; the single working-tree hit is this family's own row-49 forward
+# reference) — 71 is next-FREE.
+#
+# WHY THE LEG EXISTS (R-ROKU-06, triage .reviews/ledger-exec/E-rok0507-triage.md;
+# ask RIDERS_QUEUE.md R-ROKU-06). The boot-auth path carried fabricated
+# METHOD calls on an roSGNode "Timer": a ms-based duration setter at the two
+# Start* sites and a bare stop-method call at the four timeout/response
+# handlers. The vendored authority this repo's own lock pins (bsc 0.72.5
+# roku-types/data.json) models Timer with the fields control/duration/fire/
+# repeat, ZERO interfaces, and the setter name occurs ZERO times in that
+# file — the calls are runtime no-ops (at best), so the armed 20 s boot
+# timeout never actually held the unit or the cancel its source claimed.
+# W-min94 (a1ec49a) made the timer REAL (attach half); docs row 49 already
+# legislated "the fabricated setter method stays dead" — aspirational beyond
+# the toast coordinator until this lane rotated all six sites to the file's
+# own field idiom (ArmToastDismiss: control stop, duration SECONDS, control
+# start) and this leg made the ban one-way.
+#
+# WHAT IT PINS (fail-loud on unreadable inputs; comment-masked scans; the
+# two banned needles are assembled from adjacent literals — CHECK69
+# SELF-BURN law — so no contiguous banned byte exists in this script):
+#   R1  fabricated-method extinction over the shipped CODE surface: every
+#       .brs under components/ + source/ (true file:line named). Scope is
+#       the code view on purpose — the no-op class lives there; docs and
+#       CHANGELOG name the dead method verbatim as law/history (the
+#       verbatim-history precedent, CHECK59 row).
+#   R2  start-site shape (two arms): StartAuthCheck and StartHubAuthCheck
+#       each carry EXACTLY ONE duration assignment on the seconds literal —
+#       unit-boundary checked, so the ms era cannot be laundered back under
+#       the correct field name (20 passes, 20000 does not) — and the
+#       duration write precedes the control start write (a field set after
+#       start cannot re-time the run in flight).
+#   R3  stop-site shape (four arms): OnAuthTimeout, OnBootRetryButton,
+#       OnAuthResponse and OnHubAuthResponse each cancel through exactly
+#       one control-field stop — the same file's replace-block idiom.
+#   R4  docs truth: the row-49 law sentence carries its cure-attached
+#       markers (R-ROKU-06 + Check 71), so "stays dead" cannot silently
+#       drift back to aspiration — docs may not under-claim shipped
+#       behavior (CHECK44 R5 precedent).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK71: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+# Banned needles assembled from adjacent literals (SELF-BURN law): the
+# contiguous forms never exist in this script's own bytes.
+SD = "Set" + "Dura" + "tion("
+AS = "authTimer." + "Sto" + "p("
+
+
+def code_lines(code):
+    """(line_number, line) for non-comment lines — TRUE file line numbers."""
+    for i, line in enumerate(code.splitlines(), 1):
+        t = line.strip()
+        if t.startswith("'") or t.startswith("Rem") or t.startswith("rem "):
+            continue
+        yield i, line
+
+
+# ---- R1 fabricated-method extinction over the shipped code surface -------
+targets = []
+for root in ("components", "source"):
+    for dirpath, _dirnames, filenames in os.walk(root):
+        for name in filenames:
+            if name.endswith(".brs"):
+                targets.append(os.path.join(dirpath, name))
+if not targets:
+    problems.append(
+        "  CHECK71 R1: no shipped .brs found under components/ + source/ — the "
+        "extinction walk cannot run vacuously")
+for path in sorted(targets):
+    code = read(path)
+    if code is None:
+        continue
+    for i, line in code_lines(code):
+        if SD in line:
+            problems.append(
+                f"  {path}:{i} - CHECK71 R1: the Timer's fabricated ms-setter is back — the "
+                "vendored bsc 0.72.5 model is fields control/duration/fire/repeat with NO "
+                "methods; the call is a runtime no-op. Arm the timeout through the "
+                "duration field in SECONDS (R-ROKU-06)")
+        if AS in line:
+            problems.append(
+                f"  {path}:{i} - CHECK71 R1: the fabricated stop-method is back on the "
+                "boot-auth Timer — the node model has no methods; cancel through "
+                "control = \"stop\" (R-ROKU-06)")
+
+# ---- R2/R3 boot-auth Timer shapes in components/PhlixApp.brs -------------
+APP = read("components/PhlixApp.brs")
+if APP is not None:
+    code = "\n".join(line for _i, line in code_lines(APP))
+
+    def body(name):
+        m = re.search(r"(?:function |sub )" + name + r"\(.*?\)(.*?)end (?:function|sub)",
+                      code, re.DOTALL)
+        return m.group(1) if m else None
+
+    for fn in ("StartAuthCheck", "StartHubAuthCheck"):
+        b = body(fn)
+        if b is None:
+            problems.append(
+                f"  components/PhlixApp.brs - CHECK71 R2: {fn} vanished — the boot-auth timer "
+                "lost the home that arms its 20 s timeout (R-ROKU-06)")
+            continue
+        durs = list(re.finditer(r"m\.authTimer\.duration\s*=\s*20(?![0-9])", b))
+        starts = list(re.finditer(r"m\.authTimer\.control\s*=\s*\"start\"", b))
+        if len(durs) != 1:
+            problems.append(
+                f"  components/PhlixApp.brs - CHECK71 R2: {fn} carries {len(durs)}/1 duration "
+                "assignments on the seconds literal 20 — the Timer arms through the "
+                "duration field in SECONDS; the ms era cannot return, under the field "
+                "name or any other (unit boundary pinned) (R-ROKU-06)")
+        if len(starts) != 1:
+            problems.append(
+                f"  components/PhlixApp.brs - CHECK71 R2: {fn} carries {len(starts)}/1 "
+                "control start writes — exactly one Timer arm is the shipped shape "
+                "(R-ROKU-06)")
+        if len(durs) == 1 and starts and durs[0].start() > starts[-1].start():
+            problems.append(
+                f"  components/PhlixApp.brs - CHECK71 R2: {fn} writes duration AFTER "
+                "control = \"start\" — a field set after start cannot re-time the run "
+                "in flight; order duration-then-start (R-ROKU-06)")
+
+    for fn in ("OnAuthTimeout", "OnBootRetryButton", "OnAuthResponse", "OnHubAuthResponse"):
+        b = body(fn)
+        if b is None:
+            problems.append(
+                f"  components/PhlixApp.brs - CHECK71 R3: {fn} vanished — a boot-auth "
+                "timer-cancel home is gone (R-ROKU-06)")
+            continue
+        stops = len(re.findall(r"m\.authTimer\.control\s*=\s*\"stop\"", b))
+        if stops != 1:
+            problems.append(
+                f"  components/PhlixApp.brs - CHECK71 R3: {fn} carries {stops}/1 "
+                "control-field stops — the Timer cancels through control = \"stop\", "
+                "the same file's replace-block idiom (R-ROKU-06)")
+
+# ---- R4 docs row-49 law sentence carries its cure markers -----------------
+DOC = read("docs/static-checks.md")
+if DOC is not None:
+    rows = [l for l in DOC.splitlines()
+            if "Timer model is control/duration/fire/repeat" in l]
+    if not rows:
+        problems.append(
+            "  docs/static-checks.md - CHECK71 R4: the row-49 Timer-model law sentence "
+            "vanished — the repo-wide ban must stay written down (R-ROKU-06)")
+    for l in rows:
+        for marker in ("R-ROKU-06", "Check 71"):
+            if marker not in l:
+                problems.append(
+                    "  docs/static-checks.md - CHECK71 R4: the row-49 \"stays dead\" claim "
+                    f"drifted back toward aspiration — the cure marker {marker} vanished "
+                    "from the law sentence; docs may not under-claim shipped behavior")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK71: %d boot-auth Timer idiom pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK71: the boot-auth Timer arms through the seconds `duration` field")
+print("           and cancels through `control` at all six sites — the fabricated")
+print("           ms-setter and stop-method are extinct in every shipped code")
+print("           view, the ms era cannot be laundered back under the field name")
+print("           (unit boundary pinned), duration-before-start ordering holds,")
+print("           and the row-49 law keeps its cure-attached marker")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
