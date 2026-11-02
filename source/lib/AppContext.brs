@@ -211,6 +211,30 @@ function GetDeviceMemoryTier() as String
     return DeviceInfoData().memoryTier
 end function
 
+' The codec the direct-play capability gate probes for - single named source.
+'
+' R-ROKU-27: PlayerScene gates direct play by asking this device, through
+' DeviceCanDecodeVideo below, whether it can decode the codec about to be
+' delivered. The original file's real codec never reaches this client: the
+' server exposes per-file codec only in its admin-gated files block, and
+' playback-info carries no video-track codec a non-admin client could
+' consume. So the gate cannot probe the true codec - it bets on the estate's
+' canonical delivery codec, and this function is where that bet is named.
+' Why h264 is that bet: every server device profile transcodes to h264, the
+' quality ladder's stream-copy branch admits only h264 sources, and h264 is
+' the modal codec of direct-playable originals. A mis-bet (an hevc original
+' on a device missing hevc) costs one player error, recovered by
+' PlayerScene's OnPlayerStateChange error-to-transcode fallback; a device
+' that cannot decode even this codec cannot play any server output directly,
+' so the straight-to-transcode route the gate then chooses is already the
+' best it gets. Naming the constant beats laundering it through a call site
+' as a magic literal: one docblock owns the rationale, one leg (Check 72)
+' owns the shape.
+' @return String - the codec name to hand DeviceCanDecodeVideo's codec argument
+function DirectPlayProbeCodec() as String
+    return "h264"
+end function
+
 ' Check whether the device reports it can decode a specific video format.
 ' R6.8: Gates direct play - if this returns false, PlayerScene goes straight
 ' to transcode.

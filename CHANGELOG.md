@@ -51,6 +51,69 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the direct-play gate stops asserting a codec it cannot know: the canonical delivery codec is named, not magic-literalled (R-ROKU-27 rider) — 2026-11-02
+
+- **R-ROKU-27 (cured; ask RIDERS_QUEUE.md R-ROKU-27; the M-ROKU-05 lane's own
+  disclosed out-of-scope find, kept alive by fixlog/M-ROKU-05__r1.md note 4).**
+  The direct-play capability gate probed a quoted literal:
+  `DeviceCanDecodeVideo("h264", streamFormat, "")` at `components/PlayerScene.brs:373`,
+  behind a comment claiming a "default ... if not specified" branch — a lookup
+  no caller, wire field, or device surface ever supplied. Server cross-read
+  (phlix-server master, this lane): the claim was structurally unknowable
+  client-side — `GET /media/{id}/playback-info` carries no video-track codec,
+  and per-file codec exists ONLY in the admin-gated `files` block
+  (`MediaItemShaper::buildFilesBlock`); a fully codec-aware gate would be a
+  cross-repo wire addition, outside a single-repo rider. The estate truth the
+  magic string stood for is real and is now said out loud where it is used:
+  h264 is the estate's canonical delivery codec — every server device profile
+  transcodes to h264 (`QualitySelector::loadDefaultProfiles`) and the quality
+  ladder's stream-copy branch admits only h264 sources
+  (`AbrLadder::buildOriginal`) — so the probe is the max-likelihood bet, a
+  mis-bet costs one player error recovered by the verified
+  `OnPlayerStateChange` error→transcode fallback, and a device that cannot
+  decode even this codec cannot play ANY server output directly. Cure:
+  `DirectPlayProbeCodec()` — one documented accessor in
+  `source/lib/AppContext.brs` beside its gate, following the file's own
+  `GetDeviceVideoMode`-family idiom — consumed at the sole call site; the
+  comment states the real rationale; the transcode-path print names the probed
+  codec next to the container it was probed in. Zero wire codes, zero wire
+  fields, zero behavior change on the green path (same probe, same answer).
+- **Gate:** battery 71→72 legs — NEW Check 72 (next-FREE numbering probed:
+  highest header 71, `git grep 'Check 72|CHECK72'` rc=1 at the anchor tip
+  `5423b75d` across scripts/, tests/, docs/, README.md and CHANGELOG.md).
+  R1 walks every shipped `.brs` under components/ + source/: no
+  DeviceCanDecodeVideo call may take a quoted first argument, and
+  PlayerScene.brs carries EXACTLY ONE gate call in the shipped accessor shape;
+  R2 pins the accessor as the single named source (one `as String`
+  definition, body exactly one return of the canonical literal — value drift
+  convicts, rotation requires a measured red — docblock markers
+  R-ROKU-27 / Check 72 / canonical delivery codec / transcode / non-admin);
+  R3 bans the phantom-conditional sentence (assembled fragments, joined on
+  one comment line) across the shipped code view's comment surface; R4 pins
+  this ledger row's own cure markers.
+- **Twin and measured figures:** tests/scripts/verify-runtime-portable.sh
+  gains the CHECK72 leg: four scratch reds — era magic literal re-grown →
+  R1's three faces jointly (literal ban, shipped-shape 0/1, deviating call;
+  exactly three); accessor value re-pointed → R2 value ALONE (exactly one,
+  R1 silent); phantom sentence re-grown → R3 ALONE (exactly one, comment-only
+  and inert to the code walk); Check 72 docblock marker stripped → R2 marker
+  ALONE (exactly one) — with CHECK35 and CHECK69 (both read the very files
+  these plants edit) green on all four reds (gate independence), and restore
+  returning exit 0 across all 72 legs (falsifiability; the restore doubles as
+  the amnesty measurement). Red-on-parent MEASURED at `5423b75d`: 6 named
+  CHECK72 convictions (R1 ×3, R2 ×1, R3 ×1, R4 ×1), the run's only non-PASS
+  leg — zero collateral from the other 71. docs/static-checks.md row 72
+  added.
+- **Unit teeth and era hold:** a device-roster sub
+  (`TestDirectPlayProbeCodecIsNamedEstateCanonicalCodec` in
+  `tests/unit/AppContext.test.brs`) pins the accessor's runtime value on
+  hardware; the brs headless gate runs the AppContext suite EXCLUDED wholesale
+  (measured `Storage()`-class function-object gap unrelated to this pure sub,
+  no EXCLUSION_CHECKS content pin), so the headless gate holds at
+  total=210 failed=0 excluded=53 before and after — no counts moved. The CI
+  value law is carried by CHECK72 R2's body pin (CHECK50-53/71
+  statement-presence precedent).
+
 ### Fixed — the boot-auth Timer stops faking its methods: ms-setter and stop-call rotated to the documented fields, banned one-way by Check 71 (R-ROKU-06 rider) — 2026-11-02
 
 - **R-ROKU-06 (cured; triage `.reviews/ledger-exec/E-rok0507-triage.md`, class

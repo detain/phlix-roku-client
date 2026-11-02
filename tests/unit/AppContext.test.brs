@@ -95,3 +95,16 @@ sub TestAppContextHubApiClientVsMediaApiClient()
     assertTrue(mediaApi.baseUrl <> invalid)
     print "TestAppContextHubApiClientVsMediaApiClient passed"
 end sub
+
+sub TestDirectPlayProbeCodecIsNamedEstateCanonicalCodec()
+    ' R-ROKU-27: the direct-play capability gate probes a NAMED single-source
+    ' codec. The value is part of the law: every server device profile's
+    ' transcode target is h264 (the estate's canonical delivery codec), so the
+    ' client-side bet the accessor names must stay exactly that - a silently
+    ' moved value would mis-close or mis-open the gate with no wire evidence
+    ' behind it (shape + docblock markers are pinned by Check 72).
+    codec = DirectPlayProbeCodec()
+    assertTrue(type(codec) = "String")
+    assertTrue(codec = "h264")
+    print "TestDirectPlayProbeCodecIsNamedEstateCanonicalCodec passed"
+end sub

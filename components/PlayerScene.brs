@@ -368,11 +368,14 @@ sub Show(itemId as String, args as Object)
 
     ' R6.8: Gate direct play on device capability check.
     ' DeviceCanDecodeVideo: https://developer.roku.com/dev/docs/ifdeviceinfo
-    ' Default codec to "h264" (most common) if not specified; empty profile = "any".
-    ' If the device cannot decode this format, go straight to transcode.
-    canDirectPlay = DeviceCanDecodeVideo("h264", streamFormat, "")
+    ' The probe codec is the estate's canonical delivery codec, named by
+    ' DirectPlayProbeCodec - its docblock owns the rationale (the source's
+    ' true codec never reaches this client); empty profile means "any".
+    ' If the device cannot decode that codec in this container, go straight
+    ' to transcode.
+    canDirectPlay = DeviceCanDecodeVideo(DirectPlayProbeCodec(), streamFormat, "")
     if not canDirectPlay then
-        print "Device cannot decode " streamFormat ", starting transcode immediately"
+        print "Device cannot decode " DirectPlayProbeCodec() " in " streamFormat ", starting transcode immediately"
         m.transcodeAttempted = true
         if m.titleLabel <> invalid and m.item <> invalid then
             m.titleLabel.text = m.item.name + " (Preparing...)"

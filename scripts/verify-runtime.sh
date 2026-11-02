@@ -10350,4 +10350,250 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 72: the direct-play gate probes the named canonical codec; the call-site magic literal and the phantom-conditional comment stay extinct (R-ROKU-27) ==="
+# NUMBERING (CHECK62/66/69/70/71 collision-probe precedent): at composition time
+# the highest header in this script is Check 71, and neither 'Check 72' nor
+# 'CHECK72' appears anywhere in scripts/, tests/, docs/, README.md or
+# CHANGELOG.md of the anchor tree (git grep rc=1 at 5423b75d, measured this
+# lane) — 72 is next-FREE.
+#
+# WHY THE LEG EXISTS (R-ROKU-27, ask RIDERS_QUEUE.md R-ROKU-27; disclosed
+# out-of-scope by fixlog/M-ROKU-05__fix.md and kept alive by
+# fixlog/M-ROKU-05__r1.md note 4). The direct-play capability gate probed a
+# quoted "h264" literal AT THE CALL SITE while its comment claimed a
+# default-when-unspecified branch that no caller, wire field, or device
+# surface ever supplied: the server exposes per-file codec only in the
+# admin-gated files block (MediaItemShaper::buildFilesBlock) and
+# playback-info carries no video-track codec a non-admin client could
+# consume, so the call asserted knowledge the client structurally cannot
+# have. The estate truth the magic string stood for: h264 IS the canonical
+# delivery codec — every server device profile transcodes to h264
+# (QualitySelector::loadDefaultProfiles) and the quality ladder's
+# stream-copy branch admits only h264 sources (AbrLadder::buildOriginal).
+# The cure moves the bet into the file's own accessor idiom
+# (DirectPlayProbeCodec in source/lib/AppContext.brs, beside
+# DeviceCanDecodeVideo) with its honest rationale in ONE docblock, and this
+# leg makes the shape one-way: probes name the codec, they do not guess it
+# inline, and the phantom-conditional sentence cannot re-grow.
+#
+# WHAT IT PINS (fail-loud on unreadable inputs; comment-masked code walks;
+# banned comment fragments assembled from adjacent literals — CHECK69
+# SELF-BURN law):
+#   R1  call-site law over every shipped .brs under components/ + source/:
+#       no DeviceCanDecodeVideo CALL may take a quoted-string first argument
+#       (the definition line carries no quote and is structurally exempt;
+#       file:line named) — and PlayerScene.brs's code view carries EXACTLY
+#       ONE gate call, in the shipped accessor shape
+#       DeviceCanDecodeVideo(DirectPlayProbeCodec(), streamFormat, ""), so
+#       the sole consumer cannot vanish or multiply silently.
+#   R2  the single named source in source/lib/AppContext.brs: exactly one
+#       DirectPlayProbeCodec() definition, typed 'as String', whose body is
+#       exactly one return of the canonical "h264" literal (value drift is
+#       conviction, not re-derivation), whose rationale docblock sits
+#       directly above it and carries the cure markers R-ROKU-27 + Check 72
+#       plus the rationale phrases (canonical delivery codec / transcode /
+#       non-admin) — the bet may move only where it is named.
+#   R3  phantom-conditional extinction over the shipped code view's COMMENT
+#       surface: no single comment line may again join the fabricated
+#       "…ault codec to…" claim with its "if not spe…cified" escape hatch —
+#       the sentence that dressed a static guess as a defaulted lookup.
+#       Docs and CHANGELOG may narrate the era verbatim (CHECK71 R1
+#       precedent: history lives outside the code view on purpose).
+#   R4  docs truth: docs/static-checks.md row 72 exists and carries its
+#       cure markers (R-ROKU-27 + Check 72) — the ledger cannot under-claim
+#       the shipped law (CHECK44 R5 / CHECK71 R4 precedent).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK72: unreadable: {err} — the pin cannot run vacuously")
+        return None
+
+
+def code_lines(code):
+    """(line_number, line) for non-comment lines — TRUE file line numbers."""
+    for i, line in enumerate(code.splitlines(), 1):
+        t = line.strip()
+        if t.startswith("'") or t.startswith("Rem") or t.startswith("rem "):
+            continue
+        yield i, line
+
+
+def comment_lines(code):
+    """(line_number, line) for comment lines only — R3's banned sentence era."""
+    for i, line in enumerate(code.splitlines(), 1):
+        t = line.strip()
+        if t.startswith("'") or t.startswith("Rem") or t.startswith("rem "):
+            yield i, line
+
+
+# Fragments of the fabricated sentence, assembled from adjacent literals
+# (SELF-BURN law): the contiguous forms never exist in this script's bytes.
+PH1 = "ault codec " + "to"
+PH2 = "if not spe" + "cified"
+
+MAGIC = re.compile(r"(?i)(?<![A-Za-z0-9_])DeviceCanDecodeVideo\s*\(\s*\"")
+GATE = re.compile(r"(?i)(?<![A-Za-z0-9_])DeviceCanDecodeVideo\s*\(")
+SHIPPED = re.compile(
+    r"(?i)DeviceCanDecodeVideo\s*\(\s*DirectPlayProbeCodec\s*\(\s*\)\s*,\s*"
+    r"streamFormat\s*,\s*\"\"\s*\)")
+
+# ---- R1 call-site law over the shipped code view --------------------------
+targets = []
+for root in ("components", "source"):
+    for dirpath, _dirnames, filenames in os.walk(root):
+        for name in filenames:
+            if name.endswith(".brs"):
+                targets.append(os.path.join(dirpath, name))
+if not targets:
+    problems.append(
+        "  CHECK72 R1: no shipped .brs found under components/ + source/ — the "
+        "call-site walk cannot run vacuously")
+scene = read("components/PlayerScene.brs")
+for path in sorted(targets):
+    code = scene if path == os.path.join("components", "PlayerScene.brs") else None
+    if code is None:
+        code = read(path)
+    if code is None:
+        continue
+    for i, line in code_lines(code):
+        if MAGIC.search(line):
+            problems.append(
+                f"  {path}:{i} - CHECK72 R1: a quoted codec literal is back at a "
+                "DeviceCanDecodeVideo call site — the direct-play probe may only "
+                "name the codec through DirectPlayProbeCodec(); no wire field gives "
+                "this client the source's true codec, and an inline literal launders "
+                "the estate bet into an unsourced guess (R-ROKU-27)")
+
+if scene is not None:
+    gates = [(i, l) for i, l in code_lines(scene) if GATE.search(l) and not SHIPPED.search(l)]
+    shipped = [(i, l) for i, l in code_lines(scene) if SHIPPED.search(l)]
+    if len(shipped) != 1:
+        problems.append(
+            f"  components/PlayerScene.brs - CHECK72 R1: {len(shipped)}/1 gate calls in "
+            "the shipped accessor shape DeviceCanDecodeVideo(DirectPlayProbeCodec(), "
+            "streamFormat, \"\") — the sole direct-play consumer must probe through "
+            "the named codec (R-ROKU-27)")
+    for i, _l in gates:
+        problems.append(
+            f"  components/PlayerScene.brs:{i} - CHECK72 R1: a DeviceCanDecodeVideo call "
+            "in this file deviates from the shipped accessor shape — the probe codec "
+            "is named by DirectPlayProbeCodec(), not improvised per call site "
+            "(R-ROKU-27)")
+
+# ---- R2 the single named source in source/lib/AppContext.brs --------------
+CTX = read("source/lib/AppContext.brs")
+if CTX is not None:
+    lines = CTX.splitlines()
+    defs = [i for i, l in enumerate(lines, 1)
+            if re.search(r"(?i)^\s*function\s+DirectPlayProbeCodec\s*\(\s*\)", l)]
+    if len(defs) != 1:
+        problems.append(
+            f"  source/lib/AppContext.brs - CHECK72 R2: {len(defs)}/1 "
+            "DirectPlayProbeCodec definitions — the probe codec has exactly one "
+            "named home beside its consumer's gate (R-ROKU-27)")
+    else:
+        d = defs[0]
+        if not re.search(r"(?i)^\s*function\s+DirectPlayProbeCodec\s*\(\s*\)\s*as\s+String\s*$",
+                         lines[d - 1]):
+            problems.append(
+                f"  source/lib/AppContext.brs:{d} - CHECK72 R2: the accessor's return "
+                "contract moved off 'as String' — callers feed the literal straight "
+                "into the CanDecodeVideo options AA (R-ROKU-27)")
+        end = None
+        for j in range(d, len(lines)):
+            if re.search(r"(?i)^\s*end\s+function", lines[j]):
+                end = j
+                break
+        if end is None:
+            problems.append(
+                "  source/lib/AppContext.brs - CHECK72 R2: DirectPlayProbeCodec never "
+                "closes — the accessor body is unreadable as a shape (R-ROKU-27)")
+        else:
+            body = "\n".join(lines[d:end])
+            rets = re.findall(r"(?i)^\s*return\s+(.*)$", body, re.M)
+            if len(rets) != 1 or rets[0].strip() != '"h264"':
+                problems.append(
+                    "  source/lib/AppContext.brs - CHECK72 R2: the accessor's body is "
+                    f"not exactly one 'return \"h264\"' (found {len(rets)} return arm(s)) "
+                    "— h264 is the estate's canonical delivery codec (every server "
+                    "profile transcodes to it); the value moves ONLY by rotating this "
+                    "pin from a measured red, with the docblock rationale rewritten to "
+                    "match (R-ROKU-27)")
+        doc = []
+        k = d - 2
+        while k >= 0:
+            t = lines[k].strip()
+            if t.startswith("'"):
+                doc.append(t)
+                k -= 1
+            else:
+                break
+        joined = "\n".join(doc)
+        for marker in ("R-ROKU-27", "Check 72", "canonical delivery codec", "transcode",
+                       "non-admin"):
+            if marker not in joined:
+                problems.append(
+                    f"  source/lib/AppContext.brs - CHECK72 R2: the accessor docblock "
+                    f"lost its rationale marker \"{marker}\" — the named bet must keep "
+                    "the reasoning that makes it honest, not decay into a second magic "
+                    "constant (R-ROKU-27)")
+
+# ---- R3 phantom-conditional extinction over the comment surface -----------
+for path in sorted(targets):
+    code = read(path)
+    if code is None:
+        continue
+    for i, line in comment_lines(code):
+        if PH1 in line and PH2 in line:
+            problems.append(
+                f"  {path}:{i} - CHECK72 R3: the fabricated phantom-conditional codec "
+                "comment is back — the gate has no defaulted lookup to describe: no "
+                "caller, wire field, or device surface ever supplies a codec here. "
+                "The rationale lives in DirectPlayProbeCodec's docblock (R-ROKU-27)")
+
+# ---- R4 docs row 72 carries its cure markers -------------------------------
+DOC = read("docs/static-checks.md")
+if DOC is not None:
+    rows = [l for l in DOC.splitlines() if re.match(r"^\|\s*72\s*\|", l)]
+    if not rows:
+        problems.append(
+            "  docs/static-checks.md - CHECK72 R4: row 72 vanished — the checks ledger "
+            "must enumerate this shipped leg (CHECK66-era landing law) (R-ROKU-27)")
+    for l in rows:
+        for marker in ("R-ROKU-27", "Check 72"):
+            if marker not in l:
+                problems.append(
+                    "  docs/static-checks.md - CHECK72 R4: row 72 lost its cure marker "
+                    f"\"{marker}\" — the ledger may not under-claim the shipped law")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK72: %d direct-play codec-probe pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK72: the direct-play gate probes the named canonical delivery codec")
+print("           through exactly one accessor-shaped call; the accessor is the")
+print("           single 'h264' home with its rationale markers intact, no quoted")
+print("           codec literal survives at any DeviceCanDecodeVideo call site, the")
+print("           phantom-conditional comment family stays extinct in the shipped")
+print("           code view, and ledger row 72 keeps its cure markers")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
