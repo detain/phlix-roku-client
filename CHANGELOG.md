@@ -51,6 +51,37 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Docs — the checks ledger fills its surviving gap: table row 68 restored from the Check 68 leg's own words (R-ROKU-28 landing debt) — 2026-11-02
+
+- **The gap moved, so the lane verified before curing.** The rider's ask
+  named the static-checks table's rows 32-38 — that debt was already
+  collected by the M-ROKU-28 docs-truth lane (`f39ce22`), which restored
+  those seven rows from their in-script docblocks. Re-verification at tip
+  found the table's surviving enumeration debt had rotated: **row 68** —
+  Check 68 (`restoreSession` credential retention, R-ROKU-24, leg landed in
+  `d82d594`) shipped with no ledger row, and row 69's own numbering cell
+  had disclosed the absence as "the R-ROKU-28 landing-debt lane's
+  territory." Rows 1-72 now enumerate contiguously; no leg counts rows
+  (grep-verified), so the cure adds rather than rotates.
+- **The cure.** Row 68 restored by transcription from the leg's own
+  in-script header docblock (R0 anti-vacuity, R1 keep-shape, R2
+  verdict-fall-through, R3 wipe-tail-downstream, R4 neighbors-untouched,
+  the WHY, the NUMBERING collision-probe disclosure) and the committed
+  CHECK68 twin comment (combined plant-A/plant-B, R1 twice naming successor
+  statements + R2 once, CHECK36/44/48 gate independence, green-on-restore)
+  — the `f39ce22` collection technique, not a re-derivation: nothing the
+  shipped prose does not say. Row 69's disclosure tail rotated with the
+  fill so the ledger cannot claim an unfilled gap this commit closes.
+- **Honesty by construction.** Row 66's disclosed-gap entry stays exactly
+  as its owner wrote it — its per-arm semantics belong to the W-min95
+  prose per the one-fixer law this lane does not breach; this commit fills
+  the gap the table itself assigned to it, nothing else.
+- **Gate.** No leg reads the ledger's row COUNT; CHECK54/56/71/72's
+  row-scoped prose pins and CHECK69's docs-surface scan hold unchanged
+  over the insertion. No `.brs`/`.xml` byte moved, so make lint,
+  validate-xml and the headless era counts are structurally untouched
+  (each still re-run/spot-checked at the candidate tree, this lane).
+
 ### Fixed — the direct-play gate stops asserting a codec it cannot know: the canonical delivery codec is named, not magic-literalled (R-ROKU-27 rider) — 2026-11-02
 
 - **R-ROKU-27 (cured; ask RIDERS_QUEUE.md R-ROKU-27; the M-ROKU-05 lane's own
