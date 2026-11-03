@@ -297,10 +297,16 @@ function resolvePathChain(lines, callIndex, varName = 'path') {
  * blind on a new call shape (NOT legit: find out why before touching numbers).
  * W-min92: 91→92 / ApiClient 83→84 — the M-ROKU-13 cure made the scanner see
  * the sendRawWithDeviceId("POST", "/auth/login") site; it is served @ 412.
+ * review CR-1: 92→89 / ApiClient 84→81 — commit 4316872 deleted the three
+ * fabricated-shape enrichment fetch builders (ratings/trailers/extras: their
+ * DTOs ship nothing a Roku Video can play, and cast/crew had no route since
+ * S280); the deleted sites are the ONLY delta (rotation measured from this
+ * gate's own red at the CR-2 tree: got exactly {ApiClient:81, ApiTask:8}),
+ * the distinct-tuple set stays 79 and tuple-exact against the manifest.
  */
 const CHECK_COUNTS = {
-  totalSites: 92,
-  perFile: { 'source/lib/ApiClient.brs': 84, 'components/ApiTask.brs': 8 },
+  totalSites: 89,
+  perFile: { 'source/lib/ApiClient.brs': 81, 'components/ApiTask.brs': 8 },
 };
 
 function selfTest() {
