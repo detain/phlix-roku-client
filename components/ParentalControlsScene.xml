@@ -48,9 +48,19 @@
             <!-- List of existing schedules -->
             <LabelList height="200" width="1200" id="schedulesList" />
 
-            <!-- Add new schedule form -->
+            <!-- Add new schedule form. [review roku__gameux CR-2] TextFormDialog
+                 is not a Roku node type and is not defined in this project (nor
+                 are ToggleButton/HStack elsewhere) — on device these nodes fail
+                 to instantiate and every `.text` read below silently sees
+                 invalid, i.e. a form that cannot be typed into. Replaced with
+                 the repo-proven Label + TextEditBox idiom (LoginScene); the
+                 .brs contract (.text reads/writes) is unchanged. hintText
+                 (not hint=) and secureMode (not secure=) are the real
+                 TextEditBox attributes — the dead names silently never render
+                 [reviews gameux CR-2 / MROKU-14/15]. -->
             <LayoutGroup itemSpacings="[8]" layoutDirection="horizontal">
-                <TextFormDialog id="scheduleNameInput" label="Name:" hint="e.g. Weekday Bedtime" width="400" />
+                <Label id="scheduleNameLabel" text="Name:" height="36" width="80" font="font:MediumSystemFont" color="#AAAAAA" vertAlign="center" />
+                <TextEditBox id="scheduleNameInput" hintText="e.g. Weekday Bedtime" maxLength="80" width="320" />
             </LayoutGroup>
 
             <!-- Day-of-week checkboxes: Mon-Sun -->
@@ -67,8 +77,10 @@
 
             <!-- Time pickers (using text input for HH:MM format) -->
             <LayoutGroup itemSpacings="[8]" layoutDirection="horizontal">
-                <TextFormDialog id="startTimeInput" label="Start:" hint="HH:MM" width="200" />
-                <TextFormDialog id="endTimeInput" label="End:" hint="HH:MM" width="200" />
+                <Label id="startTimeLabel" text="Start:" height="36" width="80" font="font:MediumSystemFont" color="#AAAAAA" vertAlign="center" />
+                <TextEditBox id="startTimeInput" hintText="HH:MM" maxLength="5" width="130" />
+                <Label id="endTimeLabel" text="End:" height="36" width="60" font="font:MediumSystemFont" color="#AAAAAA" vertAlign="center" />
+                <TextEditBox id="endTimeInput" hintText="HH:MM" maxLength="5" width="130" />
             </LayoutGroup>
 
             <!-- Add schedule button -->
@@ -89,7 +101,8 @@
 
             <!-- Add new tag form -->
             <LayoutGroup itemSpacings="[8]" layoutDirection="horizontal">
-                <TextFormDialog id="tagNameInput" label="Tag:" hint="e.g. restricted" width="400" />
+                <Label id="tagNameLabel" text="Tag:" height="36" width="60" font="font:MediumSystemFont" color="#AAAAAA" vertAlign="center" />
+                <TextEditBox id="tagNameInput" hintText="e.g. restricted" maxLength="64" width="300" />
                 <Button width="200" height="48" title="Add Blocked Tag" id="addTagButton" />
                 <Button width="200" height="48" title="Remove Selected" id="removeTagButton" />
             </LayoutGroup>
@@ -107,7 +120,8 @@
 
             <!-- Max concurrent streams input -->
             <LayoutGroup itemSpacings="[8]" layoutDirection="horizontal">
-                <TextFormDialog id="maxStreamsInput" label="Max Streams:" hint="1-10" width="200" />
+                <Label id="maxStreamsLabel" text="Max Streams:" height="36" width="130" font="font:MediumSystemFont" color="#AAAAAA" vertAlign="center" />
+                <TextEditBox id="maxStreamsInput" hintText="1-10" maxLength="2" width="90" />
                 <Button width="200" height="48" title="Update Limit" id="updateStreamLimitButton" />
             </LayoutGroup>
         </LayoutGroup>

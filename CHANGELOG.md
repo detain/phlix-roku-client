@@ -51,6 +51,85 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the detail screen's enrichment rows become one working Similar grid (review roku__gameux CR-1) — 2026-11-02
+
+- **Verify-first.** The review charged DetailScene with four `<Row>` nodes
+  bolted to a fixed 580 px rectangle at y-460/640/820/1000 — three of them
+  permanently off-canvas and none reachable by focus. The cross-read found a
+  deeper truth: the rows were never fillable anyway. `castRow`/`crewRow` had
+  no wire at all (the `getItemCast` builder documents its endpoint removed
+  per S280 — the route rides neither server registry); the
+  ratings/trailers/extras arms parsed shapes (`{items:[{name,url}]}`) the
+  server never sends (ExtrasController returns `{trailers:[...]}` of
+  YouTube/file-path rows no Roku player can open). One endpoint on the four
+  is real and playable: `GET /media/{id}/similar`
+  (`WebPortalRouter.php:2287`, `{items:[{id,title,posterUrl,year,...}]}`).
+- **The cure collapses four fiction rows into one real grid.** DetailScene
+  now fetches similar titles only, renders them in a PosterGrid inside a
+  full-screen `similarPanel` reached by Down from the action strip (focus
+  law: none → favorite → rating → similar, Up/back retraces, a nested
+  detail child re-focuses the grid on close), and selecting a tile opens a
+  real child DetailScene. The dead enrichment builders and their three ApiTask
+  dispatch arms are deleted with the S280 precedent's documentation kept
+  verbatim. (Landed at `4316872`; this entry records it at the lane's first
+  CHANGELOG-touching commit — the verbatim-history rule keeps the record
+  forward, never back-edited.)
+
+### Fixed — the parental form is typeable, the password masks, placeholders render; phantom node types go extinct (Check 74, review roku__gameux CR-2 / M-ROKU-14 / M-ROKU-15) — 2026-11-02
+
+- **Verify-first.** Three XML tags this repo shipped — `TextFormDialog`,
+  `ToggleButton`, `HStack` — are neither Roku built-ins nor project
+  components: they instantiate as nothing, so the ParentalControls form's
+  five `.text` reads returned invalid (the PIN could never be typed) and the
+  sync-play room toggle's `.checked` was never there. Separately
+  `hint="`/`secure="` are not TextEditBox fields at all — the real fields are
+  `hintText`/`secureMode` — so the login password was never masked, the
+  login/server placeholders never rendered, and Check 25 (which scans only
+  title=/text=) was blind to every one of it.
+- **The cure replaces phantoms with shapes this repo already proves:**
+  Label+TextEditBox pairs across the five ParentalControls fields (ids and
+  the `.text` contract unchanged; maxLength caps added — MN-6's input-custody
+  half), a Button toggle backed by a `.brs` bool for the room-privacy switch,
+  and `LayoutGroup layoutDirection="horizontal"` for the transport cluster.
+  Every hint now rides the locale catalog: 10 new keys × 7 families
+  (`parentalcontrols_label_*`/`hint_*`, `syncplay_hint_group_name`),
+  `_metadata.version` lifted with the CHECK48 R3 pin re-anchored in the
+  same stroke (the ladder lands at 1.17.0: 1.16.0 is the era of these keys,
+  1.17.0 the era of MJ-4's `home_start_failed`, same batch).
+- **Check 74 (next-FREE after 73, collision-probed)** closes the class from
+  four directions: R1 convicts bare `hint=`/`secure=` markup anywhere in
+  `components/`; R2 pulls every hintText into Check 25's translate net
+  (catalog byte-match + findNode + Translate override path, with a
+  stale-exemption arm); R3 floors the census at 6 so the scan cannot go
+  vacuous; R4 walks every XML element and demands curated built-in or
+  project component — the phantom-node class itself is now extinct in CI.
+  Red-on-parent measured 15 named convictions at `4316872` — including the
+  discovery that the era `hintText="Enter room name..."` on the sync panel
+  was itself never catalog-backed, a fourth fiction Check 25 could not see.
+  Portable twin carries the four-plant leg (one named conviction per arm,
+  gate independence vs CHECK25/56/63/66/73).
+
+### Fixed — a dead resume tile stops being a dead button: launch failures toast (review roku__casualgamer MJ-4) — 2026-11-03
+
+- **Verify-first.** The review charged the home screen's resume and up-next
+  paths with going silent on failure. The cross-read found the exact shape:
+  four response arms in `HomeScene.brs` (`OnResumeItemResponse`,
+  `OnResumePlaybackInfoResponse`, `OnUpNextItemLoaded`,
+  `OnUpNextPlaybackInfoLoaded`) each cleared the pending chain on
+  `not resp.ok or resp.data = invalid` and returned with zero feedback —
+  the row read as a dead button with no reason.
+- **Cure.** One `RaiseLaunchFailedToast()` helper at all four arms, following
+  the PlayerScene R3.4 toast idiom: the scene attaches itself to the
+  `ToastManager` singleton before `showWarning`, because the lib singleton
+  starts scene-less and pre-attach notices queue rather than drop
+  (CHECK49's drain law). The copy rides the catalog as
+  `home_start_failed` × 7 locales, so Check 25's translate-net gives the
+  key teeth on every battery run.
+- **Ledger.** The catalog version ladder moves 1.15.0→1.16.0→1.17.0 in one
+  batch — 1.16.0 is the era of CR-2's ten form-chrome keys, 1.17.0 the era
+  of `home_start_failed`; CHECK48's R3 pin lands at 1.17.0 carrying that
+  era history in its own disclosure text.
+
 ### Checks — the portable twin's PASS narration becomes an output of its own asserts (Check 73, R-ROKU-29) — 2026-11-02
 
 - **Verify-first, then the cure.** The rider (RIDERS_QUEUE.md R-ROKU-29,

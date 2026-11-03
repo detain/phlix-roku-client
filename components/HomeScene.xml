@@ -9,6 +9,11 @@
     <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/ApiClient.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/AppContext.brs" />
+    <!-- [review roku__casualgamer MJ-4] the launch-failure toast rides the
+         ambient-feedback layer; the lib is per-scope included (PlayerScene
+         idiom), so HomeScene must declare it or GetToastManager is out of
+         scope (BS1140). -->
+    <script type="text/brightscript" uri="pkg:/source/lib/ToastManager.brs" />
     <script type="text/brightscript" uri="pkg:/components/HomeScene.brs" />
     <children>
         <!-- Header -->

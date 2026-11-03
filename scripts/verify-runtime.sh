@@ -6057,10 +6057,14 @@ echo "=== Check 48: connect/pair credential custody - redirect law + cleartext c
 #       (NormalizeServerUrl delegates - re-rolled octet logic is how
 #       "10th-street.example.com" was once misclassified); the
 #       redirect_refused bucket carries its classifier arm, transport guard,
-#       ladder line and catalog message x7; catalogs bump as a set (1.15.0 —
-#       rotated by R-ROKU-10 (riders W10): one generic-notice catalog key
-#       entered the set — the hub-mode dialog title plus the chapter-picker
-#       pair now ride common_notice x7 — disclosed per this arm's own law).
+#       ladder line and catalog message x7; catalogs bump as a set (1.16.0 —
+#       rotated by the review CR-2/Check74 batch: ten form-chrome keys entered
+#       the set — the ParentalControls label/hint keys x9 plus the group-name
+#       hint x7 — Check 74 R2's translate net cannot be satisfied without
+#       them; previously 1.15.0, rotated by R-ROKU-10 (riders W10): one
+#       generic-notice catalog key entered the set — the hub-mode dialog title
+#       plus the chapter-picker pair now ride common_notice x7; disclosed per
+#       this arm's own law).
 #   R4  the device harness pins the law: tests/unit/RedirectCustody.test.brs
 #       and all seven Test subs.
 PYRET=0
@@ -6225,8 +6229,8 @@ for L in LOCALES:
     for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
         if cat.get("connect", {}).get(key, "") == "":
             problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
-    if cat.get("_metadata", {}).get("version") != "1.15.0":
-        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.15.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, disclosed)")
+    if cat.get("_metadata", {}).get("version") != "1.17.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.17.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, then by the review CR-2/Check74 batch with the ten form-chrome keys, then by the MJ-4 batch with home_start_failed, disclosed)")
 
 # ---- R4 the device harness pins the law -----------------------------------
 test = read(TEST)
@@ -10766,6 +10770,211 @@ if problems:
 print("  CHECK73: the twin's PASS narration and the ledger sentence both equal")
 print("           the header-pin set derived from the twin's own assert")
 print(f"           inventory ({derived}); ledger row 73 keeps its cure markers")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+# ============================================================================
+# CHECK74 — form-input attribute truth + node-type existence (review
+#           roku__gameux CR-2 / M-ROKU-14 / M-ROKU-15, R-ROKU-30 class).
+# NUMBERING (CHECK62/66/69/70/71/72/73 collision-probe precedent): at
+#           composition time the highest header in this script is Check 73,
+#           and neither 'Check 74' nor 'CHECK74' appears anywhere in
+#           scripts/, tests/, docs/, README.md or CHANGELOG.md of the anchor
+#           tree (git grep rc=1 at 4316872, measured this lane) — 74 is
+#           next-FREE.
+#
+# WHY THE LEG EXISTS. Three node types used by shipped XML (TextFormDialog,
+# ToggleButton, HStack) are neither Roku built-ins nor project components —
+# they instantiate as nothing, and every `.text`/`.checked` contract riding
+# them silently reads invalid: the ParentalControls form could not be typed
+# into on device. Separately, `hint=` and `secure=` are not TextEditBox
+# fields either (the real fields are hintText/secureMode), so the login
+# placeholders and the password masking were markup fiction — and invisible
+# to Check 25, which scans title=/text= only. This leg closes the whole
+# class from three directions: dead attributes are extinct (R1), hintText is
+# pulled INTO the Check 25 translate net with the same teeth (R2), the scan
+# itself is pinned non-vacuous (R3), and no XML tag may exist outside
+# curated built-ins ∪ project-defined names (R4 — phantom instantiation
+# itself goes extinct, not just these three).
+echo "=== Check 74: form-input attribute truth and node-type existence (CR-2/M-ROKU-14/15) ==="
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import glob, html, json, os, re, sys
+import xml.parsers.expat as expat
+
+repo = os.environ["REPO"]
+os.chdir(repo)
+problems = []
+
+XMLS = sorted(glob.glob("components/**/*.xml", recursive=True))
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+# ---- R1: dead TextEditBox attribute names are extinct ---------------------
+# `hint="` / `secure="` are NOT TextEditBox fields (the real fields are
+# hintText / secureMode). A word-boundary regex cannot fire on the real
+# names, because there `hint`/`secure` is followed by letters, not `="`.
+DEAD = re.compile(r'(?<![A-Za-z])(hint|secure)="')
+for path in XMLS:
+    src = read(path)
+    if src is None:
+        problems.append(f"  {path} - CHECK74: unreadable")
+        continue
+    for i, line in enumerate(src.splitlines(), 1):
+        if DEAD.search(line):
+            problems.append(
+                f"  {path}:{i} - CHECK74 R1: dead markup attribute on the "
+                "line — TextEditBox speaks hintText= / secureMode=; the bare "
+                "hint=/secure= names silently never render [CR-2/M-ROKU-14/15]")
+
+# ---- R2: every hintText= literal rides the Check 25 translate net ---------
+en = json.loads(read("locale/en_US/strings.json"))
+en_values = {}
+for section, data in en.items():
+    if section == "_metadata" or not isinstance(data, dict):
+        continue
+    for bare, leaf in data.items():
+        if isinstance(leaf, str):
+            en_values.setdefault(leaf, set()).add(f"{section}_{bare}")
+
+# Per-file exemptions for hintText literals that are never localized
+# (example URLs are brand-shaped content, not prose). Stale exemptions are
+# themselves violations, mirroring Check 25's no-rot law.
+HINT_EXEMPT = {
+    "components/ConnectScene.xml": {
+        "https://my.phlix.server": "example URL placeholder — identical in "
+                                   "every locale, not translatable prose"},
+}
+
+SKIP_TAGS = {"interface", "field", "event", "component", "script", "function",
+             "children", "annotation"}
+
+hint_count = 0
+seen_hints = {}
+BUILTIN_TAGS = {
+    # Curated Roku built-ins (SceneGraph component reference) covering every
+    # tag this repo uses plus its immediate neighbours; growth requires an
+    # act of review, which is exactly the point [CR-2].
+    "ArrayGrid", "Audio", "Button", "ContentNode", "Dialog", "Group",
+    "Keyboard", "Label", "LabelList", "LayoutGroup", "List", "MarkupGrid",
+    "MarkupList", "MaskGroup", "Panel", "Poster", "PosterGrid", "Rectangle",
+    "Row", "RowList", "Scene", "ScrollStrategy", "SimpleLabel",
+    "SimpleKeyboard", "Spinner", "StatefulRow", "StyledKeyboard", "Task",
+    "TextEditBox", "Timer", "Video", "VideoGroup",
+}
+
+project_tags = set()
+for path in XMLS:
+    src = read(path) or ""
+    for m in re.finditer(r'<component\s+name="([^"]+)"', src):
+        project_tags.add(m.group(1))
+
+for path in XMLS:
+    src = read(path)
+    if src is None:
+        continue
+    tags, hints = [], []
+    parser = expat.ParserCreate()
+
+    def start(tag, att, _tags=tags, _hints=hints):
+        if tag in SKIP_TAGS:
+            return
+        _tags.append(tag)
+        h = att.get("hintText")
+        if h is not None and h.strip():
+            _hints.append((parser.CurrentLineNumber, tag, att.get("id"),
+                           html.unescape(h)))
+
+    parser.StartElementHandler = start
+    try:
+        parser.Parse(src, True)
+    except expat.ExpatError as err:
+        problems.append(f"  {path} - CHECK74: unparseable: {err}")
+        continue
+
+    # R4: node-type existence — every element tag must be a curated built-in
+    # or a project-defined component. Phantom tags (TextFormDialog et al.)
+    # instantiate as nothing on device; CI could not see the class before.
+    for tag in set(tags):
+        if tag not in BUILTIN_TAGS and tag not in project_tags:
+            problems.append(
+                f"  {path} - CHECK74 R4: <{tag}> is neither a curated Roku "
+                "built-in nor a project component — it renders NOTHING on "
+                "device (the CR-2 phantom class)")
+
+    # R2/R3: hintText net + non-vacuity census
+    hint_count += len(hints)
+    for lineno, tag, nid, value in hints:
+        if value in HINT_EXEMPT.get(path, set()) or \
+           HINT_EXEMPT.get(path, {}).get(value) is not None:
+            continue
+        if not nid:
+            problems.append(
+                f"  {path}:{lineno} - CHECK74 R2: hintText on an id-less node "
+                "— the translate net addresses chrome by id (Check 25 idiom)")
+            continue
+        keys = en_values.get(value)
+        if not keys:
+            problems.append(
+                f"  {path}:{lineno} - CHECK74 R2: hintText literal {value!r} "
+                "is not a catalog value — XML chrome literals ride the "
+                "locale catalog (Check 25 law extended to hints)")
+            continue
+        base = os.path.basename(path)[:-4]
+        paired = f"components/{base}.brs"
+        if not os.path.exists(paired):
+            paired = f"source/{base}.brs"
+        brs = read(paired)
+        if brs is None:
+            problems.append(f"  {paired} - CHECK74 R2: unreadable pair for {path}")
+            continue
+        if re.search(r'(?i)findNode\("%s"\)' % re.escape(nid), brs) is None:
+            problems.append(
+                f"  {path}:{lineno} - CHECK74 R2: id '{nid}' is never "
+                f"addressed in {paired} — no override path exists")
+            continue
+        if not any(f'Translate("{k}")' in brs for k in keys):
+            problems.append(
+                f"  {path}:{lineno} - CHECK74 R2: no Translate() call for any "
+                f"catalog key carrying {value!r} in {paired} — the hint "
+                "escapes the translate net")
+    seen_hints[path] = {v for (_, _, _, v) in hints}
+
+for path, exempt in HINT_EXEMPT.items():
+    for value, reason in exempt.items():
+        if value not in seen_hints.get(path, set()):
+            problems.append(
+                f"  {path} - CHECK74 R2: exemption for {value!r} ({reason}) "
+                "is stale — the literal no longer rides hintText= on this "
+                "file; carve-outs must rot with their markup")
+
+if hint_count < 6:
+    problems.append(
+        f"  CHECK74 R3: the hintText scan observed {hint_count} occurrences "
+        "(floor 6, set by measurement at ship time) — the scan or the markup "
+        "changed shape; rotate the floor in lockstep with disclosure, never "
+        "let this leg go vacuous")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK74: %d form-input/node-type pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK74: hint=/secure= extinct, hintText rides the translate net")
+print(f"           ({hint_count} occurrences scanned, floor 6), and every")
+print("           XML tag is a curated built-in or a project component —")
+print("           the CR-2 phantom-node class cannot regrow silently")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

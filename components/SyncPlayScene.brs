@@ -35,6 +35,12 @@ sub Init()
     m.backButton = m.top.FindNode("backButton")
     m.roomNameInput = m.top.FindNode("roomNameInput")
     m.publicToggle = m.top.FindNode("publicToggle")
+    ' [CR-2] Button-backed toggle state (the phantom ToggleButton's `checked`
+    ' never existed on device). Default matches the old declared default=true.
+    m.publicRoom = true
+    if m.publicToggle <> invalid then
+        m.publicToggle.ObserveField("buttonSelected", "OnPublicTogglePressed")
+    end if
     m.createButton = m.top.FindNode("createButton")
     m.roomList = m.top.FindNode("roomList")
     m.statusLabel = m.top.FindNode("statusLabel")
@@ -147,6 +153,19 @@ function MembersCountText(n as Object) as String
     return TranslateWithParams("syncplay_members_count", { count: count })
 end function
 
+' Toggle the room-visibility Button (CR-2: replaces the phantom ToggleButton's
+' `checked` field with the model bool + caption swap).
+sub OnPublicTogglePressed()
+    m.publicRoom = not m.publicRoom
+    if m.publicToggle <> invalid then
+        if m.publicRoom then
+            m.publicToggle.title = Translate("settings_button_caption_on")
+        else
+            m.publicToggle.title = Translate("settings_button_caption_off")
+        end if
+    end if
+end sub
+
 ' Create a new room
 sub OnCreatePressed()
     if m.roomNameInput = invalid then return
@@ -157,8 +176,8 @@ sub OnCreatePressed()
     end if
 
     isPublic = true
-    if m.publicToggle <> invalid then
-        isPublic = m.publicToggle.checked
+    if m.publicRoom <> invalid then
+        isPublic = m.publicRoom
     end if
 
     SetStatus(Translate("syncplay_status_creating_group"))
@@ -268,6 +287,7 @@ end sub
 sub Teardown()
     if m.backButton <> invalid then m.backButton.UnObserveField("buttonSelected")
     if m.createButton <> invalid then m.createButton.UnObserveField("buttonSelected")
+    if m.publicToggle <> invalid then m.publicToggle.UnObserveField("buttonSelected")
     if m.leaveButton <> invalid then m.leaveButton.UnObserveField("buttonSelected")
     if m.roomList <> invalid then m.roomList.UnObserveField("itemSelected")
 end sub
@@ -311,6 +331,14 @@ sub ApplyXmlChrome()
     if n <> invalid then n.text = Translate("syncplay_label_room_name")
     n = m.top.findNode("publicRoomLabel")
     if n <> invalid then n.text = Translate("syncplay_label_public_room")
+    ' [CR-2] Initial caption for the Button-backed visibility toggle; the
+    ' toggle handler keeps it in sync with m.publicRoom afterwards.
+    n = m.top.findNode("publicToggle")
+    if n <> invalid then n.title = Translate("settings_button_caption_on")
+    ' [CR-2/Check74 R2] The room-name placeholder was already a real hintText=
+    ' but sat OUTSIDE the translate net (Check 74's first day caught it).
+    n = m.top.findNode("roomNameInput")
+    if n <> invalid then n.hintText = Translate("syncplay_hint_group_name")
     n = m.top.findNode("createButton")
     if n <> invalid then n.title = Translate("syncplay_create_room")
     n = m.top.findNode("publicRoomsLabel")

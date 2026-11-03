@@ -255,6 +255,14 @@ sub ApplyXmlChrome()
     if n <> invalid then n.text = Translate("login_username")
     n = m.top.findNode("passwordLabel")
     if n <> invalid then n.text = Translate("login_password")
+    ' [MJ-15] hintText is the real TextEditBox field; the old `hint=` never
+    ' existed, so these placeholders rendered nothing and were invisible to
+    ' the CHECK25 translate net (fixed by CHECK74). English XML values are
+    ' the fallback; the same catalog keys as the labels above speak them.
+    n = m.top.findNode("usernameInput")
+    if n <> invalid then n.hintText = Translate("login_username")
+    n = m.top.findNode("passwordInput")
+    if n <> invalid then n.hintText = Translate("login_password")
     n = m.top.findNode("loginButton")
     if n <> invalid then n.title = Translate("login_button")
 end sub

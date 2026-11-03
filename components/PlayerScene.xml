@@ -52,12 +52,17 @@
                    color="#FFFFFF"
                    id="titleLabel" />
 
-            <!-- Center Controls -->
-            <HStack height="120" width="400" translation="[440,300]">
+            <!-- Center Controls. [review roku__gameux CR-2] <HStack> is a
+                 phantom node type — not a Roku built-in, not project-defined —
+                 so the entire transport cluster failed to instantiate and the
+                 three Buttons (focused by the replay-key handlers) vanished on
+                 device. LayoutGroup layoutDirection="horizontal" is the repo's
+                 real row primitive (ParentalControlsScene idiom). -->
+            <LayoutGroup height="120" width="420" translation="[440,300]" layoutDirection="horizontal" itemSpacings="[20]">
                 <Button height="100" width="100" id="rewindButton" />
                 <Button height="120" width="120" id="playPauseButton" />
                 <Button height="100" width="100" id="forwardButton" />
-            </HStack>
+            </LayoutGroup>
 
             <!-- Bottom Bar -->
             <Rectangle height="120" width="1280" translation="[0,580]">

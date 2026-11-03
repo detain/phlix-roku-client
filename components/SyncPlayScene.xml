@@ -61,24 +61,29 @@ Displays:
                     <TextEditBox height="40" width="560" translation="[10,0]"
                                   id="roomNameInput"
                                   text=""
-                                  hintText="Enter room name..."
+                                  hintText="Enter group name…"
                                   hintColor="#666666"
                                   color="#FFFFFF"
                                   font="font:MediumSystemFont" />
                 </Rectangle>
             </Rectangle>
 
-            <!-- Public/Private toggle -->
+            <!-- Public/Private toggle. [review roku__gameux CR-2] <ToggleButton>
+                 is a phantom node type (see PlayerScene HStack note): on device
+                 it never instantiated, `checked` was unreadable, and the room
+                 visibility froze at the .brs default. Replaced with the repo's
+                 real Button + explicit boolean state (On/Off captions ride the
+                 existing settings_button_caption_on/off catalog keys). -->
             <Rectangle height="60" width="300" translation="[40,110]" color="#1a1a2e">
                 <Label height="40" width="150" translation="[10,10]"
                        id="publicRoomLabel"
                        text="Public Room"
                        font="font:MediumSystemFont"
                        color="#FFFFFF" />
-                <Rectangle height="40" width="80" translation="[160,10]" color="#2a2a3e">
-                    <ToggleButton height="40" width="80"
-                                  id="publicToggle"
-                                  checked="true" />
+                <Rectangle height="40" width="110" translation="[160,10]" color="#2a2a3e">
+                    <Button height="40" width="110"
+                            title="On"
+                            id="publicToggle" />
                 </Rectangle>
             </Rectangle>
 

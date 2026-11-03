@@ -641,6 +641,7 @@ sub OnResumeItemResponse(resp as Object)
 
     if not resp.ok or resp.data = invalid then
         m.pendingResume = invalid
+        RaiseLaunchFailedToast()
         return
     end if
 
@@ -654,6 +655,7 @@ sub OnResumePlaybackInfoResponse(resp as Object)
 
     if not resp.ok or resp.data = invalid then
         m.pendingResume = invalid
+        RaiseLaunchFailedToast()
         return
     end if
 
@@ -675,6 +677,7 @@ sub OnUpNextItemLoaded(resp as Object)
 
     if not resp.ok or resp.data = invalid then
         m.pendingUpNext = invalid
+        RaiseLaunchFailedToast()
         return
     end if
 
@@ -689,6 +692,7 @@ sub OnUpNextPlaybackInfoLoaded(resp as Object)
 
     if not resp.ok or resp.data = invalid then
         m.pendingUpNext = invalid
+        RaiseLaunchFailedToast()
         return
     end if
 
@@ -703,6 +707,18 @@ sub OnUpNextPlaybackInfoLoaded(resp as Object)
     })
 
     m.pendingUpNext = invalid
+end sub
+
+' [review roku__casualgamer MJ-4] A failed resume/up-next launch after OK must
+' speak. All four !resp.ok arms used to clear the pending chain and return with
+' zero feedback — the tile read as a dead button. Toast pattern per PlayerScene
+' R3.4: this scope attaches its scene before showWarning, because the lib
+' singleton starts scene-less and pre-attach notices queue rather than drop
+' (CHECK49's drain law).
+sub RaiseLaunchFailedToast()
+    toast = GetToastManager()
+    toast.setScene(m.top)
+    toast.showWarning(Translate("home_start_failed"))
 end sub
 
 sub ShowLibrary(libraryId as String, libraryName as String)

@@ -45,7 +45,7 @@
                    font="font:SmallSystemFont"
                    color="#AAAAAA" />
             <TextEditBox height="50" width="520" translation="[20,120]"
-                         hint="https://my.phlix.server"
+                         hintText="https://my.phlix.server"
                          id="serverInput" />
 
             <!-- M-ROKU-04: LAN discovery - the Roku-idiomatic way to avoid

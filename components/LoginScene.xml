@@ -38,7 +38,7 @@
                    font="font:SmallSystemFont"
                    color="#AAAAAA" />
             <TextEditBox height="50" width="460" translation="[20,120]"
-                         hint="Username"
+                         hintText="Username"
                          id="usernameInput" />
 
             <!-- Password -->
@@ -48,8 +48,8 @@
                    font="font:SmallSystemFont"
                    color="#AAAAAA" />
             <TextEditBox height="50" width="460" translation="[20,210]"
-                         hint="Password"
-                         secure="true"
+                         hintText="Password"
+                         secureMode="true"
                          id="passwordInput" />
 
             <!-- Status Label (shown during async operations) -->
