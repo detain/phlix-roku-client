@@ -216,6 +216,10 @@ cp "$REAL_REPO/source/lib/AuthManager.brs" "$FAKE_REPO/source/lib/AuthManager.br
 mkdir -p "$FAKE_REPO/source/player"
 cp "$REAL_REPO/source/player/SkipButton.brs" "$FAKE_REPO/source/player/SkipButton.brs"
 cp "$REAL_REPO/source/player/SleepTimer.brs" "$FAKE_REPO/source/player/SleepTimer.brs"
+# MJ-12 era: the panel-stack decision module rides too — PlayerScene.xml lists
+# it as a scoped script and Check 60 convicts it as a phantom landmark without
+# it (the new-files-join-the-stage-list law, :213 comment).
+cp "$REAL_REPO/source/player/PanelStack.brs" "$FAKE_REPO/source/player/PanelStack.brs"
 # Check 42 (M-ROKU-11) pins the three ApiClient send sites, the roAppInfo
 # single source and the docs/debugging.md support story: both ride along.
 cp "$REAL_REPO/source/lib/ApiClient.brs" "$FAKE_REPO/source/lib/ApiClient.brs"

@@ -51,6 +51,26 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the portable twin's fake checkout stages the panel-stack module; Check 60 stops convicting it as a phantom landmark (MJ-12 era housekeeping) — 2026-11-03
+
+- **The defect (lane-disclosed).** The first full-twin run after MJ-12 landed
+  went RED on its own positive leg: `verify-runtime.sh` exiting 1 from the CI
+  layout, with exactly one conviction — Check 60 R1 naming
+  `source/player/PanelStack.brs` a phantom landmark, because the twin's
+  `FAKE_REPO` stage list still enumerated only the two older `source/player/`
+  modules while README (rotated in the same batch) lists all three. The
+  MJ-12 commit message's twin-proof claim was written against the pre-MJ-12
+  green twin and its battery; the stage-list law the twin header itself
+  recites ("new files join the stage list") was simply not honored.
+- **The cure.** One staging `cp` for `PanelStack.brs` beside its two sibling
+  modules, with the why-in-a-comment this check class keeps demanding. The
+  reproduction is scriptable and was executed twice: the twin's own setup
+  slice (lines 145-312 with the derivation pins) rebuilt the fake layout, and
+  the battery run from `/tmp` went 1-broken → `POS_RC=0` with all 81 PASS
+  legs; the full twin (plants J/K, negative legs, both mutation eggs) re-ran
+  end-to-end green on the committed tip. No shipped code moved; this entry
+  exists so the historical twin claim above reads true the moment after it.
+
 ### Fixed — the player panel stack unwinds child-first and focus follows the stack (MJ-12, review roku__gameux) — 2026-11-03
 
 - **The defect.** `OnKeyEvent` tested the settings panel before its
