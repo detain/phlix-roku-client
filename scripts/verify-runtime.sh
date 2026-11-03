@@ -2529,7 +2529,8 @@ echo ""
 echo "=== Check 29: home header focus chain reaches Settings (C21) ==="
 # Focus-chain law (C21, 2026-10-29, review roku__gameux C2): HomeScene's
 # hand-rolled left/right header walk must visit EVERY header button declared
-# in the XML header row (the Button nodes at y=20), in visual x-order, so the
+# in the XML header row (the Button nodes at y=36 since the MN-9 safe-area cure
+# moved the row down from y=20; the law itself is coordinate-agnostic), in x-order so the
 # Settings entry — and the SettingsScene behind it (logout, caption mode,
 # server switch, playback prefs) — is reachable with the remote d-pad alone.
 # The era chain skipped settingsButton entirely: Right stepped collections->
@@ -2537,7 +2538,7 @@ echo "=== Check 29: home header focus chain reaches Settings (C21) ==="
 # returned handled=true, so Roku's spatial-search fallback never fired and
 # Settings was HARD unreachable for admins (and desynced m.headerCol for
 # non-admins that fell through to it). Rules:
-#   R1  header candidates parsed from HomeScene.xml y=20 Buttons, ordered by x;
+#   R1  header candidates parsed from HomeScene.xml y=36 Buttons, ordered by x;
 #       settingsButton is one of them; adminButton ships visible="false"
 #   R2  the Right walk's edges equal the consecutive x-order pairs
 #   R3  the Left walk's edges are that chain's exact inverse
@@ -2582,15 +2583,16 @@ brs = open(brs_path, encoding="utf-8").read()
 code = strip_comment_lines(brs)
 xml = open(xml_path, encoding="utf-8").read()
 
-# R1: header candidates are the Button nodes riding the y=20 row; the remote's
+# R1: header candidates are the Button nodes riding the y=36 row (MN-9 era);
+# the remote's
 # natural horizontal order is their x order.
 head = []
-for m in re.finditer(r'<Button[^>]*?translation="\[(\d+),20\]"[^>]*?id="(\w+)"', xml):
+for m in re.finditer(r'<Button[^>]*?translation="\[(\d+),36\]"[^>]*?id="(\w+)"', xml):
     head.append((int(m.group(1)), m.group(2)))
 head.sort()
 cols = [nid[:-len("Button")] for _, nid in head]
 if "settings" not in cols:
-    problems.append('HomeScene.xml: CHECK29 R1: header row (y=20 Buttons) has no '
+    problems.append('HomeScene.xml: CHECK29 R1: header row (y=36 Buttons) has no '
                     'settingsButton; candidates parsed: %s' % cols)
 admin_tag = re.search(r'<Button[^>]*?id="adminButton"[^>]*/?>', xml)
 if admin_tag is not None and 'visible="false"' not in admin_tag.group(0):
@@ -4088,7 +4090,8 @@ echo "=== Check 38: ui_resolutions agrees with the hardcoded 1280x720 design pla
 #   R2  while P holds, FHD-plane-only literals are extinct in the markup: no
 #       width="1920"/height="1080" attribute and no translation starting "[960"
 #       (960 is the 1920-plane center x; the 720p house center convention is
-#       640 — cf. DetailScene.xml's loadingLabel [640,340]). XML comments are
+#       640 — cf. DetailScene.xml's loadingLabel, a 1280-wide box at [0,340] "
+#       since MN-10: centered by width, not by an x-anchor). XML comments are
 #       blanked BEFORE scanning (line counts preserved) so explanatory prose
 #       may quote the dead literals without tripping the gate
 #   R3  the contiguous run of manifest comment lines ('-prefixed) sitting
@@ -8846,7 +8849,8 @@ echo "$PYOUT"
 #       one-sentence copy "The server rejected an unrecognized request." is
 #       convicted (the review's dead-end prose), and every locale's value stays
 #       non-empty.
-#   R4 (M-ROKU-30) header containment: every HomeScene.xml y=20 header Button
+#   R4 (M-ROKU-30) header containment: every HomeScene.xml y=36 header Button
+#       (row rode y=20 until the MN-9 safe-area cure; rotation disclosed in Check 85 era)
 #       (CHECK29's own parse shape) satisfies x + width <= 1280 - the admin step
 #       ran off the 1280 canvas before this batch; a row that re-grows past the
 #       edge reddens. Fail-loud: fewer than six parsed header buttons is itself
@@ -8984,7 +8988,7 @@ except OSError as err:
 if xml is not None:
     xclean = re.sub(r"<!--.*?-->", " ", xml, flags=re.S)
     row = []
-    for m in re.finditer(r'<Button[^>]*?translation="\[(\d+),20\]"[^>]*?id="(\w+)"', xclean):
+    for m in re.finditer(r'<Button[^>]*?translation="\[(\d+),36\]"[^>]*?id="(\w+)"', xclean):
         tag_full = re.search(r'<Button[^>]*?id="' + m.group(2) + r'"[^>]*/?>', xclean, re.S)
         w = re.search(r'width="(\d+)"', tag_full.group(0)) if tag_full else None
         if w is None:
@@ -8992,7 +8996,7 @@ if xml is not None:
             continue
         row.append((int(m.group(1)), int(w.group(1)), m.group(2)))
     if len(row) < 6:
-        problems.append(f"  components/HomeScene.xml - CHECK64 R4: only {len(row)} header-row (y=20) Buttons parsed - the containment law lost its subjects (six ship)")
+        problems.append(f"  components/HomeScene.xml - CHECK64 R4: only {len(row)} header-row (y=36) Buttons parsed - the containment law lost its subjects (six ship)")
     for x, w, nid in row:
         if x + w > 1280:
             problems.append(f"  components/HomeScene.xml - CHECK64 R4: {nid} spans x={x}..{x + w} - past the 1280 design plane (M-ROKU-30: the admin step ran off-canvas; the plane is fixed, the OS upscales)")
@@ -12103,6 +12107,211 @@ if problems:
 print('  CHECK84: the nested probe walks EVERY shipped section; the en_US copy law is')
 print('           total; the synopsis reads at couch distance; the README names the')
 print('           password the installer authenticates with.')
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 85: dead-pane node swap, safe-area chrome, honest fetch cues (MN-7/MN-9/MN-10 era) ==="
+# WHY: three review findings, one era. MN-7: the audiobook chapters pane was
+# a plain <List> - it renders no rows and never fires itemSelected, while the
+# .brs observer and ContentNode feed were always MarkupList-shaped (the dead
+# pane the [review roku__qa] walk flagged). MN-9: HomeScene's header chrome
+# sat at y=20 inside the top overscan band, the description strip at y=680
+# clipped 8px OFF a 720 plane, and the M-ROKU-21 retry button bottom-right
+# was the one recovery control a television could hide - cert reviewers and
+# 4:3 sets both lose it. MN-10: three "Loading…" labels were auto-width at
+# x=640 (horizAlign="center" centers INSIDE the box - the box began at the
+# center), Detail/Series shipped them default-visible (boot flicker), no
+# scene had motion, and Detail's getItem failure early-returned BEFORE the
+# hide - the cue stranded on "Loading" forever once default-visible dropped.
+# Cures: MarkupList node swap (attrs kept, zero .brs change); coordinates
+# moved inside [64,36,1152,648] with grid height abutting the strip; labels
+# full-plane + initially hidden + a Spinner the PlayerScene visible-drive
+# idiom already ships, toggled beside every label write, failure retract
+# included. Each arm below is one law; convictions stay one-line each so the
+# twin plants (X chapter-node re-regrow / Y retry overscan re-escape) each
+# fire exactly one.
+# NUMBERING: 81/82/83/84 taken by prior eras; 85 collision-probed at the
+# batch-13 tip (grep -c 'Check 85' == 0), highest prior 84.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+problems = []
+
+
+def read(p):
+    with open(p, encoding="utf-8") as f:
+        return f.read()
+
+
+# ---- R1: MN-7 chapters pane is the component its observer was written for
+ax = read("components/AudiobookPlayerScene.xml")
+ab = read("components/AudiobookPlayerScene.brs")
+tags = re.findall(r"<(\w+)\b[^>]*id=\"chapterList\"[^>]*/?>", ax)
+if tags != ["MarkupList"]:
+    problems.append("  components/AudiobookPlayerScene.xml - CHECK85 R1: chapterList "
+                    "renders through %s, not MarkupList - a plain List draws no rows "
+                    "and never fires itemSelected (MN-7 dead pane)" % (tags or "nothing"))
+ml = re.search(r"<MarkupList\b[^>]*id=\"chapterList\"[^>]*/?>", ax)
+if ml and ('numRows="5"' not in ml.group(0) or 'itemSize="[840, 40]"' not in ml.group(0)):
+    problems.append("  components/AudiobookPlayerScene.xml - CHECK85 R1: the chapter "
+                    "MarkupList lost the numRows/itemSize the pane is sized by (MN-7 cure "
+                    "keeps every attribute - the feed below still builds .Title rows)")
+if 'ObserveField("itemSelected"' not in ab:
+    problems.append("  components/AudiobookPlayerScene.brs - CHECK85 R1: the itemSelected "
+                    "observer vanished - the MarkupList swap presumes it (MN-7)")
+
+# ---- R2: MN-9 home chrome lives inside the overscan bands
+hx = read("components/HomeScene.xml")
+if 'translation="[40,20]"' in hx:
+    problems.append("  components/HomeScene.xml - CHECK85 R2: brand label back at "
+                    "[40,20] - inside the top overscan band; MN-9 moves header chrome "
+                    "to the [64,36] safe origin")
+if 'translation="[0,680]"' in hx or 'translation="[0,636]"' not in hx:
+    problems.append("  components/HomeScene.xml - CHECK85 R2: description strip is no "
+                    "longer safe-area-flush at [0,636] (h40 -> 676; it used to sit at "
+                    "680 with 8px off a 720 plane)")
+if 'translation="[1100,682]"' in hx:
+    problems.append("  components/HomeScene.xml - CHECK85 R2: retryButton escaped to "
+                    "[1100,682] again - bottom 718/right 1260 is overscan territory; "
+                    "the recovery control must live where a set can show it (MN-9)")
+
+
+def box(tag_pat, kind, path="components/HomeScene.xml", src=None):
+    m = re.search(tag_pat, src if src is not None else read(path), re.S)
+    if not m:
+        problems.append("  %s - CHECK85 R2: %s tag vanished (MN-9 chrome)" % (path, kind))
+        return None
+    tr = re.search(r'translation="\[(-?\d+),\s?(-?\d+)\]"', m.group(0))
+    wh = re.search(r'width="(\d+)"', m.group(0))
+    ht = re.search(r'height="(\d+)"', m.group(0))
+    if not (tr and wh and ht):
+        problems.append("  %s - CHECK85 R2: %s lost translation/width/height - the "
+                        "safe-area arithmetic needs all three (MN-9)" % (path, kind))
+        return None
+    return tuple(int(g.group(1)) for g in (tr, wh, ht))
+
+
+# Safe area on the 720 plane: [64,36,1152,648] -> x in [64,1216], y in [36,684].
+rt = box(r'<Button\b[^>]*id="retryButton"[^>]*>', "retryButton", src=hx)
+if rt:
+    x, w, h = rt
+    m = re.search(r'<Button\b[^>]*id="retryButton"[^>]*>', hx, re.S)
+    y = int(re.search(r'translation="\[\d+,\s?(\d+)\]"', m.group(0)).group(1))
+    # the escape-absence law above owns the [1100,682] revert; arithmetic
+    # convicts only NEW offenders so one revert fires one line (twin law)
+    if not (x + w <= 1216 and y + h <= 684) and 'translation="[1100,682]"' not in hx:
+        problems.append("  components/HomeScene.xml - CHECK85 R2: retryButton box "
+                        "(%d..%d, %d..%d) leaves the safe area (right 1216/bottom 684) "
+                        "- the M-ROKU-21 recovery control is lost to overscan (MN-9)"
+                        % (x, x + w, y, y + h))
+st = box(r'<Rectangle\b[^>]*translation="\[\d+,\s?\d+\]"[^>]*color="#0d0d1a"', "description strip", src=hx)
+if st:
+    x, w, h = st
+    m = re.search(r'<Rectangle\b[^>]*translation="\[\d+,\s?(\d+)\]"[^>]*color="#0d0d1a"', hx, re.S)
+    ty = int(m.group(1))
+    if not (ty >= 36 and ty + h <= 684) and 'translation="[0,636]"' in hx:
+        problems.append("  components/HomeScene.xml - CHECK85 R2: description strip at "
+                        "y=%d (h%d) no longer ends inside the safe bottom 684 (MN-9)"
+                        % (ty, h))
+# Grid must abut the strip: [0,484] + height <= strip top 636.
+gm = re.search(r'<PosterGrid\b[^>]*id="libraryGrid"[^>]*>|<PosterGrid\b[^>]*translation="\[0,484\]"[^>]*>', hx, re.S)
+if gm is None:
+    gm = re.search(r'<PosterGrid height="(\d+)" width="1280" translation="\[0,484\]"', hx)
+    ght = int(gm.group(1)) if gm else None
+else:
+    ght = int(re.search(r'height="(\d+)"', gm.group(0)).group(1)) if gm else None
+if ght is None:
+    problems.append("  components/HomeScene.xml - CHECK85 R2: libraryGrid tag "
+                    "unfindable - its height law cannot run (MN-9)")
+elif ght + 484 > 636:
+    problems.append("  components/HomeScene.xml - CHECK85 R2: libraryGrid height=%d "
+                    "reaches y=%d past the description strip top 636 - the pre-MN-9 "
+                    "overlap is back (claimed window was already fiction; now it is "
+                    "arithmetic)" % (ght, 484 + ght))
+for nid in ("Search", "ForYou", "Favorites", "Collections", "Settings"):
+    pass  # header buttons are pinned by the next arithmetic law:
+
+hb = re.findall(r'<Button\b[^>]*?height="60"[^>]*?translation="\[\d+,\s?(\d+)\]"[^>]*?>', hx, re.S)
+hb += re.findall(r'<Button\b[^>]*?translation="\[\d+,\s?(\d+)\]"[^>]*?height="60"[^>]*?>', hx, re.S)
+if len(hb) < 6:
+    problems.append("  components/HomeScene.xml - CHECK85 R2: only %d header buttons "
+                    "parse (six are shipped) - the y>=36 top-band law cannot run" % len(hb))
+elif any(int(y) < 36 for y in hb):
+    problems.append("  components/HomeScene.xml - CHECK85 R2: a header button sits at "
+                    "y<36 - back inside the top overscan band MN-9 pulled chrome out of "
+                    "(got %s)" % sorted(set(hb)))
+
+# ---- R3: MN-10 fetch cues center, start hidden, spin, and retract
+cues = (
+    ("components/HomeScene.xml", "components/HomeScene.brs", 2),
+    ("components/DetailScene.xml", "components/DetailScene.brs", 2),
+    ("components/SeriesScene.xml", "components/SeriesScene.brs", 1),
+)
+for xmlp, brsp, false_min in cues:
+    xs = read(xmlp)
+    tag = re.search(r'<Label id="loadingLabel"[^>]*>', xs, re.S)
+    if tag is None:
+        problems.append("  %s - CHECK85 R3: loadingLabel vanished (MN-10 cue family)" % xmlp)
+    else:
+        t = tag.group(0)
+        if 'width="1280"' not in t or 'translation="[0, 340]"' not in t or 'visible="false"' not in t:
+            problems.append("  %s - CHECK85 R3: loadingLabel lost its full-plane "
+                            "centering or the hidden default - an auto-width label at "
+                            "x=640 renders right-of-center, and a default-visible cue "
+                            "flickers at boot (MN-10)" % xmlp)
+    if xs.count('<Spinner id="fetchSpinner"') != 1:
+        problems.append("  %s - CHECK85 R3: the fetchSpinner sibling is missing or "
+                        "duplicated - motion is the repo's PlayerScene visible-drive "
+                        "idiom (MN-10)" % xmlp)
+    bs = read(brsp)
+    if bs.count('FindNode("fetchSpinner")') != 1:
+        problems.append("  %s - CHECK85 R3: no single fetchSpinner wiring line "
+                        "(MN-10)" % brsp)
+    if bs.count("fetchSpinner.visible = true") < 1:
+        problems.append("  %s - CHECK85 R3: nothing ever starts the spinner - the label "
+                        "spins its partner law (MN-10)" % brsp)
+    if bs.count("fetchSpinner.visible = false") < false_min:
+        problems.append("  %s - CHECK85 R3: fewer than %d spinner retract sites - every "
+                        "loadingLabel hide must retract the cue with it, and Detail's "
+                        "failure arm counts (MN-10)" % (brsp, false_min))
+
+db = read("components/DetailScene.brs")
+failarm = re.search(
+    r"if not resp\.ok or resp\.data = invalid then\n(.*?)return\n\s*end if", db, re.S)
+if failarm is None:
+    problems.append("  components/DetailScene.brs - CHECK85 R3: the getItem failure "
+                    "early-return is gone or reshaped - with it the cue-strand fix "
+                    "(hide label + spinner before returning, MN-10) has no home")
+elif "fetchSpinner.visible = false" not in failarm.group(1) or "loadingLabel.visible = false" not in failarm.group(1):
+    problems.append("  components/DetailScene.brs - CHECK85 R3: a failed getItem no "
+                    "longer retracts BOTH cue halves before returning - a default-hidden "
+                    "cue that shows on request and never hides on failure is the same "
+                    "perpetual Loading with new steps (MN-10)")
+
+# ---- R4: the era's docs carry the era
+sx = read("docs/static-checks.md")
+row = re.search(r"^\|\s*85\s*\|[^\n]*$", sx, re.M)
+if not row or not all(k in row.group(0) for k in ("MN-7", "MN-9", "MN-10")):
+    problems.append("  docs/static-checks.md - CHECK85 R4: row 85 missing or not "
+                    "naming MN-7/MN-9/MN-10 - Check 85 has no ledger entry")
+ch = read("CHANGELOG.md")
+if "MN-7" not in ch or "fetchSpinner" not in ch:
+    problems.append("  CHANGELOG.md - CHECK85 R4: no changelog entry names the "
+                    "MN-7 chapters pane or the fetchSpinner cue (era record)")
+
+if problems:
+    print("\n".join(problems))
+    print("  CHECK85: %d pin(s) broken" % len(problems))
+    sys.exit(1)
+print("  CHECK85: the chapters pane renders through the component its observer was")
+print("           written for; the home chrome (brand, six header buttons, strip,")
+print("           retry, grid) lives inside the [64,36,1152,648] safe area with the")
+print("           grid abutting the strip; every fetch cue is full-plane centered,")
+print("           starts hidden, spins beside its label, and retracts on failure.")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

@@ -22,6 +22,7 @@ sub Init()
     m.ratingBadge = m.top.FindNode("ratingBadge")
     m.contentRatingLabel = m.top.FindNode("contentRatingLabel")
     m.loadingLabel = m.top.FindNode("loadingLabel")
+    m.fetchSpinner = m.top.FindNode("fetchSpinner")
     m.watchedButton = m.top.FindNode("watchedButton")
     m.likeButton = m.top.FindNode("likeButton")
     m.collectionButton = m.top.FindNode("collectionButton")
@@ -127,6 +128,7 @@ sub LoadItem(itemId as String)
     if m.loadingLabel <> invalid then
         m.loadingLabel.visible = true
     end if
+    if m.fetchSpinner <> invalid then m.fetchSpinner.visible = true
 
     m.apiTask.request = { op: "getItem", itemId: itemId }
     m.apiTask.control = "run"
@@ -187,12 +189,21 @@ sub OnApiResponse(event as Object)
     if resp = invalid then return
 
     if resp.op = "getItem" then
-        if not resp.ok or resp.data = invalid then return
+        if not resp.ok or resp.data = invalid then
+            ' MN-10: failure must retract the cue too, or the detail pane
+            ' sits at "Loading" forever once the default-visible flicker
+            ' is gone — the strand was pre-existing, the cure makes it
+            ' impossible rather than merely rarer.
+            if m.loadingLabel <> invalid then m.loadingLabel.visible = false
+            if m.fetchSpinner <> invalid then m.fetchSpinner.visible = false
+            return
+        end if
 
         ' Hide loading indicator.
         if m.loadingLabel <> invalid then
             m.loadingLabel.visible = false
         end if
+        if m.fetchSpinner <> invalid then m.fetchSpinner.visible = false
 
         m.item = resp.data
         RenderItem()

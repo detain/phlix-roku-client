@@ -51,6 +51,16 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the chapters pane finally draws its rows, the home chrome fits inside the safe area, and fetch cues center, hide, spin, and retract (MN-7 MN-9 MN-10, reviews roku__qa/gameux) — 2026-11-03
+
+- The audiobook chapter list rendered nothing: the XML shipped a plain `<List>` wearing RowList-era attributes (`numRows`, `itemSize`) while the .brs observed `itemSelected` — a field only `MarkupList` ever fires. The node swapped to `<MarkupList>` (same id, same attrs, same ContentNode title feed); zero behavior lines moved in the .brs because the observer and feed were always the right shape — the component was the lie (MN-7).
+- HomeScene chrome lived partly off-screen: the brand label and six header buttons rode y=20 inside the top overscan band, the bottom description strip sat at [0,680] with its label ending 8px off a 720 plane, and the Retry button at [1100,682] lost its right edge to overscan on legacy sets. Everything moved inside [64,36,1152,648]: brand to [64,36], the row to y=36, the strip up to [0,636], the grid height 200→152 so it abuts the strip (its claimed 200 was already fiction — row two clipped), Retry home at [1056,644] (MN-9). Two gate legs that parse the header row by its literal y=20 — CHECK29 (focus-chain reachability) and CHECK64 R4 (1280-plane containment) — rotated their coordinate anchor to y=36 in the same commit, measured-red first; the laws are unchanged and still convict.
+- The three browse surfaces (Home/Detail/Series) drew their `Loading…` label with `horizAlign="center"` but no width — an auto-width label anchors at x=640 and renders right-of-center — Detail and Series shipped the cue default-visible so it flickered before the first fetch, and Detail’s failure path returned while the label was still up. Each label now carries `width="1280"`, starts hidden, gains a sibling `fetchSpinner` (`<Spinner>` on the PlayerScene buffering idiom) that starts and retracts beside it, and the failure arm hides both before returning (MN-10).
+
+### Added — Check 85: dead-pane component law, safe-area chrome arithmetic, and fetch-cue custody (MN-7/9/10 era) — 2026-11-03
+
+- R1 pins the chapters pane to `<MarkupList>` keeping its observer contract; R2 re-derives the safe-area box arithmetic for strip/retry/grid/header row and bans the overscan coordinates outright; R3 walks the three fetch-cue pairs (label box, hidden default, spinner wiring, retract sites, Detail’s hide-both failure arm); R4 carries the era record (row 85 + CHANGELOG). Twin plants X/Y convict exactly one law each and prove gate independence; red-parent over e41f925 measured exactly 24 convictions (R1×1 R2×5 R3×16 R4×2); post-cure battery rc=0 with 85 strict PASS.
+
 ### Fixed — no signed media URL can leave the TLS session in cleartext; the tuner Location, audiobook and direct-play lanes all pass an admissibility gate (MJ-19, review roku__secnet) — 2026-11-03
 
 - Three sites lifted a server-supplied stream URL straight onto a Video/Audio

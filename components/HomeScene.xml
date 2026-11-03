@@ -18,7 +18,7 @@
     <children>
         <!-- Header -->
         <Rectangle height="100" width="1280" color="#1a1a2e">
-            <Label height="60" width="240" translation="[40,20]"
+            <Label height="60" width="240" translation="[64,36]"
                    text="Phlix"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF" />
@@ -28,22 +28,22 @@
                  hid behind the isAdmin gate). Repacked inside 1280; the
                  x-ORDER and names are untouched (CHECK29 walks edges by
                  x-order), heights/gap rhythm kept. -->
-            <Button height="60" width="160" translation="[300,20]"
+            <Button height="60" width="160" translation="[300,36]"
                     title="Search"
                     id="searchButton" />
-            <Button height="60" width="160" translation="[470,20]"
+            <Button height="60" width="160" translation="[470,36]"
                     title="For You"
                     id="forYouButton" />
-            <Button height="60" width="170" translation="[640,20]"
+            <Button height="60" width="170" translation="[640,36]"
                     title="Favorites"
                     id="favoritesButton" />
-            <Button height="60" width="190" translation="[820,20]"
+            <Button height="60" width="190" translation="[820,36]"
                     title="Collections"
                     id="collectionsButton" />
-            <Button height="60" width="120" translation="[1020,20]"
+            <Button height="60" width="120" translation="[1020,36]"
                     title="Settings"
                     id="settingsButton" />
-            <Button height="60" width="110" translation="[1150,20]"
+            <Button height="60" width="110" translation="[1150,36]"
                     title="Admin"
                     visible="false"
                     id="adminButton" />
@@ -88,37 +88,49 @@
         </PosterGrid>
 
         <!-- Libraries label -->
-        <Label height="32" width="1200" translation="[40,448]"
+        <Label height="32" width="1200" translation="[64,448]"
                text="Libraries"
                font="font:MediumBoldSystemFont"
                color="#FFFFFF"
                id="libraryLabel" />
-        <!-- Library Grid -->
-        <PosterGrid height="200" width="1280" translation="[0,484]"
+        <!-- Library Grid — MN-9: honest geometry. The description strip
+             below used to sit at y=680 (8px of it off-canvas), so the
+             grid's claimed 200 height ended below the strip top; the
+             strip is now safe-area-flush at 636 and the grid abuts it.
+             Row 2 was already clipped before this change (180px posters
+             + 15px spacing in a 200px window); row 1 now clips 28px
+             deeper — disclosed visible trade for reachable chrome. -->
+        <PosterGrid height="152" width="1280" translation="[0,484]"
                     numColumns="5" numRows="2"
                     itemSpacing="[20, 15]"
                     basePosterSize="[220, 180]"
                     id="libraryGrid">
         </PosterGrid>
         <!-- Description Area -->
-        <Rectangle height="40" width="1280" translation="[0,680]" color="#0d0d1a">
-            <Label height="40" width="1200" translation="[40,8]"
+        <Rectangle height="40" width="1280" translation="[0,636]" color="#0d0d1a">
+            <Label height="40" width="1200" translation="[64,8]"
                    text="Select a library"
                    font="font:MediumSystemFont"
                    color="#AAAAAA"
                    id="descriptionLabel" />
         </Rectangle>
-        <!-- Loading Indicator -->
+        <!-- Loading Indicator — MN-10: the label now spans the plane so
+             horizAlign="center" actually centers (an auto-width label
+             rendered right-of-center from its x anchor), and it rides
+             beside a Spinner: the repo's PlayerScene buffering idiom —
+             visible drives the animation. -->
         <Label id="loadingLabel" text="Loading…"
-               translation="[640, 340]"
+               width="1280" translation="[0, 340]"
                horizAlign="center" color="#888888" visible="false" />
+        <Spinner id="fetchSpinner" spinDuration="1" color="#FFFFFF"
+                 translation="[624, 384]" visible="false" />
         <!-- M-ROKU-21 recovery control: hidden until a home rail read fails,
              then revealed + focused (the M16 boot-retry idiom, Check 47) so
              "the fetch failed" carries a pressable way back. It rides the right
              end of the description strip and never overlays populated grid
              content. ApplyXmlChrome overrides the title via
              Translate("common_retry"). -->
-        <Button id="retryButton" translation="[1100,682]" width="160" height="36"
+        <Button id="retryButton" translation="[1056,644]" width="160" height="36"
                 title="Retry" focusable="true" visible="false" />
     </children>
 </component>

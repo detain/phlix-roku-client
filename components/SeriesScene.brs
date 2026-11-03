@@ -27,6 +27,7 @@ sub Init()
     m.titleLabel = m.top.FindNode("titleLabel")
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
     m.loadingLabel = m.top.FindNode("loadingLabel")
+    m.fetchSpinner = m.top.FindNode("fetchSpinner")
 
     if m.backButton <> invalid then
         m.backButton.ObserveField("buttonSelected", "OnBackPressed")
@@ -80,6 +81,7 @@ sub RefreshItems()
     ' Show loading indicator while data loads off the render thread.
     if m.loadingLabel <> invalid then
         m.loadingLabel.visible = true
+        if m.fetchSpinner <> invalid then m.fetchSpinner.visible = true
         if m.offset > 0 then
             m.loadingLabel.text = Translate("common_loading_more")
         else
@@ -116,6 +118,7 @@ sub OnListContent(event as Object)
     if m.loadingLabel <> invalid then
         m.loadingLabel.visible = false
     end if
+    if m.fetchSpinner <> invalid then m.fetchSpinner.visible = false
 
     ' m.listTask.items holds the raw sorted items for navigation (id, name, type).
     ' m.listTask.content holds the ready-to-assign ContentNode for display.

@@ -73,6 +73,7 @@ sub Init()
 
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
     m.loadingLabel = m.top.FindNode("loadingLabel")
+    m.fetchSpinner = m.top.FindNode("fetchSpinner")
 
     ' M-ROKU-21 [review roku__gameux M6]: failure and emptiness must be distinct
     ' states. Each parallel home-rail load records whether its read FAILED (as
@@ -125,6 +126,7 @@ sub LoadMe()
     if m.loadingLabel <> invalid then
         m.loadingLabel.visible = true
     end if
+    if m.fetchSpinner <> invalid then m.fetchSpinner.visible = true
 
     m.apiTask.request = { op: "getMe" }
     m.apiTask.control = "run"
@@ -210,6 +212,7 @@ sub OnMeResponse(resp as Object)
     if m.loadingLabel <> invalid then
         m.loadingLabel.visible = false
     end if
+    if m.fetchSpinner <> invalid then m.fetchSpinner.visible = false
 
     if resp.ok and resp.data <> invalid then
         m.isAdmin = IsAdminUser(resp.data)
@@ -276,6 +279,7 @@ end sub
 ' control, not prose [Check 47's lesson]).
 sub ShowHomeRailFailure()
     if m.loadingLabel <> invalid then m.loadingLabel.visible = false
+    if m.fetchSpinner <> invalid then m.fetchSpinner.visible = false
     if m.descriptionLabel <> invalid then m.descriptionLabel.text = Translate("home_rail_failed")
     if m.retryButton <> invalid then
         m.retryButton.visible = true

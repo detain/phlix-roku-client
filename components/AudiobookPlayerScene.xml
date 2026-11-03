@@ -81,11 +81,15 @@
                    horizAlign="right"
                    id="durationLabel" />
 
-            <!-- Chapter List -->
-            <List height="200" width="840" translation="[10,240]"
-                  id="chapterList"
-                  numRows="5"
-                  itemSize="[840, 40]" />
+            <!-- Chapter List — MN-7: a plain <List> renders no rows and
+                 never fires itemSelected; the observer below and the
+                 ContentNode feed were always written against MarkupList
+                 (the working SettingsScene precedent). Node swap only —
+                 every attribute below is a valid MarkupList field. -->
+            <MarkupList height="200" width="840" translation="[10,240]"
+                        id="chapterList"
+                        numRows="5"
+                        itemSize="[840, 40]" />
         </Rectangle>
 
         <!-- Playback Controls -->

@@ -39,9 +39,15 @@
         </PosterGrid>
 
         <!-- Loading Indicator -->
+        <!-- Loading Indicator — MN-10: full-plane centering,
+             hidden until a fetch starts (no boot-time flicker),
+             paired with the PlayerScene Spinner visible-drive
+             idiom. -->
         <Label id="loadingLabel" text="Loading…"
-               translation="[640, 340]"
-               horizAlign="center" color="#888888" />
+               width="1280" translation="[0, 340]"
+               horizAlign="center" color="#888888" visible="false" />
+        <Spinner id="fetchSpinner" spinDuration="1" color="#FFFFFF"
+                 translation="[624, 384]" visible="false" />
 
         <!-- Description Area -->
         <Rectangle height="40" width="1280" translation="[0,640]" color="#0d0d1a">
