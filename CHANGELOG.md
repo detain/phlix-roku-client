@@ -51,6 +51,16 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — a held transport key is one broadcast, not a storm; the follower keeps its deadband (MJ-10) — 2026-11-03
+
+- Review MJ-10: every seek-key press on the host re-buffered EVERY follower - holding rewind for a three-second skim emitted fifteen ±10 s broadcasts, and `ApplyRemotePlayback` seeked unconditionally per message (echoes and jitter included). The sender now coalesces: `SeekRelative` schedules a 250 ms TRAILING broadcast (the burst latches its leading edge, every press re-arms the timer, the flush broadcasts leading-edge to wherever the playhead settled) and `SyncBroadcastSeekMs` refuses from=to no-ops. A pending burst FLUSHES ahead of any play/pause command so ordering survives.
+- The receiver grows a 0.75 s deadband plus duplicate-target memory: a remote seek within three quarters of a second of where the player already sits is already in effect - no re-buffer, no banner. And when a remote seek lands while the LOCAL viewer is mid-burst (press-stamped on a `NowMs()` clock), the follower defers it and retries exactly once after a second instead of fighting the thumb frame-for-frame. Leave/close buries both timers and both pendings.
+- Gates: Check 89 five-piece; red-parent measured exactly 5 convictions; battery exit 0 with 89 strict-PASS lines; `make lint`, validate-xml, route-manifest (+ self-test) and the 214-case headless suite all green; catalogs stay v1.19.0 (no new keys; the 250 ms window trades a sub-second seek-lag tail for an order-of-magnitude drop in follower re-buffers - disclosed).
+
+### Added — Check 89: the coalesced burst, the deadband and the bounded defer (MJ-10 era) — 2026-11-03
+
+- The schedule-not-spam tail, the flush-before-state-change law, the three-arm deadband census, the one-retry custody and the stop-path timer burial are pinned as one mechanism; twin plants GG/HH prove each half independently and restore to green.
+
 ### Fixed — the watch-party leg reconnects: a transient drop is a backoff, not a funeral (MJ-8 MN-11) — 2026-11-03
 
 - Review roku__asphp MJ-8: `SyncPlayTask` single-shot its connection while its sibling `HubCommandTask` shipped a full five-rung reconnect ladder — one Wi-Fi hiccup ended the party permanently and the scene merely banners "disconnected". The rung table moved shared into `SyncPlayProtocol.brs` (`SyncPlayBackoffMs` / `SyncPlayMaxAttempts`), `RunSocket` became an open-whenever ladder around a new `DialAndConsume` (socket + handshake + consume loop), and the server-learned group id is RE-JOINED behind every fresh handshake before the scene sees "open" — MJ-9's anchor law then re-adopts the party position exactly as at first join.

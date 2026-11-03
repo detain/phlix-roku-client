@@ -12661,4 +12661,126 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 89: the host seek storm lands as one trailing broadcast - bursts coalesce, the receiver keeps its deadband (MJ-10 era) ==="
+# WHY: MJ-10 found every transport-key press seeking AND broadcasting on the
+# host while the follower seeked UNCONDITIONALLY per message - holding rewind
+# flooded the party with re-buffer storms. The cure is one mechanism:
+#   - send side: SeekRelative schedules a 250 ms TRAILING broadcast (latched
+#     leading edge m.syncSeekPendingFromMs + re-armed m.syncSeekTimer); play/
+#     pause FLUSH the pending burst first; SyncBroadcastSeekMs refuses no-ops;
+#   - receive side: a 0.75 s deadband + duplicate-target memory
+#     (m.lastRemoteSeekSec) absorb echoes and jitter, and a remote seek that
+#     arrives while the LOCAL thumb is mid-burst (m.userSeekInteractMs,
+#     NowMs-based) is deferred with ONE bounded retry (ArmSyncSeekRetry), never
+#     fought frame-for-frame;
+#   - stop custody: StopSyncTaskNow buries both timers and both pendings.
+# NUMBERING: 89 collision-probed at a86483c, highest prior 88.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+def read(p):
+    try:
+        with open(p, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        return None
+
+def sub_body(src, name):
+    m = re.search(r"\nsub " + name + r"\(.*?\nend sub\n", src, re.S)
+    return m.group(0) if m else None
+
+problems = []
+
+SCENE = read("components/PlayerScene.brs")
+if SCENE is None:
+    print("  components/PlayerScene.brs - CHECK89: unreadable")
+    sys.exit(1)
+
+# ---- R1 send-side coalescing custody --------------------------------------
+missing1 = []
+sr = sub_body(SCENE, "SeekRelative")
+if sr is None or "ScheduleSyncSeekBroadcast(position, newPosition)" not in sr:
+    missing1.append("SeekRelative no longer SCHEDULES its broadcast (per-key spam is back)")
+if sr is None or "m.userSeekInteractMs = NowMs()" not in sr:
+    missing1.append("SeekRelative lost the local-interaction stamp (defer-while-interacting is blind)")
+for needle in (
+    "sub ScheduleSyncSeekBroadcast(fromSeconds as Float, toSeconds as Float)",
+    "    if m.syncSeekPendingFromMs = invalid then\n        m.syncSeekPendingFromMs = Int(fromSeconds * 1000.0)",
+    "m.syncSeekTimer.duration = 0.25",
+    "SyncBroadcastSeekMs(fromMs, SyncPositionMs())",
+    "if fromMs = toMs then return",
+):
+    if needle not in SCENE:
+        missing1.append(needle if len(needle) < 60 else needle[:57] + "...")
+if SCENE.count("FlushSyncSeekBroadcast()") != 3:
+    missing1.append(f"flush custody is {SCENE.count('FlushSyncSeekBroadcast()')} sites, expected 3 (def + play + pause)")
+if "SyncBroadcastSeek(position" in SCENE:
+    missing1.append("the direct per-key SyncBroadcastSeek call survived")
+if missing1:
+    problems.append("  components/PlayerScene.brs - CHECK89 R1: " + "; ".join(missing1) + " (the burst coalescer is the whole cure - MJ-10)")
+
+# ---- R2 receive-side deadband + dup laws -----------------------------------
+missing2 = []
+arp = sub_body(SCENE, "ApplyRemotePlayback")
+if arp is None:
+    missing2.append("ApplyRemotePlayback vanished")
+else:
+    if "pos# = m.videoPlayer.position" not in arp:
+        missing2.append("the deadband lost its live-position read")
+    if arp.count("seconds# <> m.lastRemoteSeekSec and Abs(seconds# - pos#) >= 0.75 then") != 3:
+        missing2.append(f"the dup+deadband gate is {arp.count('seconds# <> m.lastRemoteSeekSec and Abs(seconds# - pos#) >= 0.75 then')} arms, expected 3 (play/pause/seek)")
+    if "if NowMs() - m.userSeekInteractMs < 1500& then" not in arp:
+        missing2.append("defer-while-interacting is gone - remote seeks fight the local thumb again")
+    if "m.pendingRemoteSeekSec = seconds#" not in arp or "ArmSyncSeekRetry()" not in arp:
+        missing2.append("the deferred seek lost its retry latch")
+if missing2:
+    problems.append("  components/PlayerScene.brs - CHECK89 R2: " + "; ".join(missing2) + " (a follower seek is worth 0.75 s of distance - MJ-10 era law)")
+
+# ---- R3 retry + stop custody ------------------------------------------------
+missing3 = []
+rt = sub_body(SCENE, "OnSyncSeekRetryFired")
+if rt is None or "if target# <> m.lastRemoteSeekSec and Abs(target# - m.videoPlayer.position) >= 0.75 then" not in rt:
+    missing3.append("the retry skipped re-checking the deadband laws (it would storm on its own)")
+if "m.syncSeekRetryTimer.duration = 1" not in SCENE:
+    missing3.append("ArmSyncSeekRetry lost its 1 s bound")
+sp = sub_body(SCENE, "StopSyncTaskNow")
+if sp is None:
+    missing3.append("StopSyncTaskNow vanished")
+else:
+    for needle in (
+        "m.syncSeekTimer.control = \"stop\"",
+        "    m.syncSeekPendingFromMs = invalid\n",
+        "m.syncSeekRetryTimer.control = \"stop\"",
+        "    m.pendingRemoteSeekSec = invalid\n",
+    ):
+        if needle not in sp:
+            missing3.append("the leave/close path no longer buries " + needle.strip()[:40])
+if SCENE.count("    m.syncSeekPendingFromMs = invalid\n") != 2:
+    missing3.append(f"pending-burst wipes are {SCENE.count('    m.syncSeekPendingFromMs = invalid')} statements, expected 2 (flush + stop)")
+if missing3:
+    problems.append("  components/PlayerScene.brs - CHECK89 R3: " + "; ".join(missing3) + " (a left party must not outlive its timers - MJ-10)")
+
+# ---- R4 docs -----------------------------------------------------------------
+docs = read("docs/static-checks.md")
+if docs is None or not re.search(r"^\|\s*89\s*\|.*MJ-10", docs, re.M):
+    problems.append("  docs/static-checks.md - CHECK89 R4: row 89 is missing or does not name MJ-10")
+cl = read("CHANGELOG.md")
+if cl is None or "MJ-10" not in cl or "coalesc" not in cl.lower():
+    problems.append("  CHANGELOG.md - CHECK89 R4: the entry must name MJ-10 and the coalesced burst")
+
+if problems:
+    print("  CHECK89: %d pin group(s) broken:" % len(problems))
+    for line in problems:
+        print(line)
+    sys.exit(1)
+
+print('  CHECK89: the host seek storm lands as one trailing broadcast -')
+print('  250 ms coalescing on the sender, deadband + dup memory + bounded defer on the follower')
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

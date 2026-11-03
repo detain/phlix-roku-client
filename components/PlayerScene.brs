@@ -187,6 +187,12 @@ sub Init()
     m.yourId = ""                   ' our member id (from group_state.your_id)
     m.applyingRemote = false        ' guard: a remote-driven change must NOT rebroadcast
     m.syncAnchorApplied = false     ' MJ-9: the group anchor is adopted once per (re)join (Check 80)
+    m.syncSeekTimer = invalid         ' MJ-10: 250 ms trailing coalescer for host seek bursts
+    m.syncSeekPendingFromMs = invalid ' leading edge of the burst not yet broadcast
+    m.syncSeekRetryTimer = invalid    ' MJ-10: one-shot retry for a deferred remote seek
+    m.pendingRemoteSeekSec = invalid
+    m.lastRemoteSeekSec = invalid     ' MJ-10: duplicate-seek suppression memory
+    m.userSeekInteractMs = 0&         ' last LOCAL seek press (NowMs base - Check 89)
     m.syncGroupIds = []             ' parallel array of group ids for syncGroupList rows
 
     m.syncPanel = m.top.FindNode("syncPanel")
@@ -1602,6 +1608,10 @@ sub SeekRelative(seconds as Float)
 
     m.videoPlayer.seek = newPosition
 
+    ' MJ-10: stamp the press. A follower mid-burst defers incoming remote
+    ' seeks (ApplyRemotePlayback) instead of fighting the thumb frame-for-frame.
+    m.userSeekInteractMs = NowMs()
+
     ' P2-S5: show chapter label if we landed near a chapter boundary.
     chapter = GetChapterAtPosition(newPosition, duration)
     if chapter <> invalid and chapter.title <> invalid then
@@ -1609,7 +1619,9 @@ sub SeekRelative(seconds as Float)
     end if
 
     ' F13 SyncPlay: a host's local seek is broadcast (from old -> new position).
-    SyncBroadcastSeek(position, newPosition)
+    ' MJ-10: bursts coalesce - the party gets ONE trailing broadcast ~250 ms
+    ' after the last press, not a re-buffer storm per key.
+    ScheduleSyncSeekBroadcast(position, newPosition)
 end sub
 
 ' R6.9: Instant replay caption flash. If captions are off, briefly enable them
@@ -2073,6 +2085,21 @@ sub StopSyncTaskNow()
         m.top.RemoveChild(m.syncStopTimer)
         m.syncStopTimer = invalid
     end if
+    ' MJ-10: a leave/close buries any pending coalesced burst and retry.
+    if m.syncSeekTimer <> invalid then
+        m.syncSeekTimer.control = "stop"
+        m.syncSeekTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.syncSeekTimer)
+        m.syncSeekTimer = invalid
+    end if
+    m.syncSeekPendingFromMs = invalid
+    if m.syncSeekRetryTimer <> invalid then
+        m.syncSeekRetryTimer.control = "stop"
+        m.syncSeekRetryTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.syncSeekRetryTimer)
+        m.syncSeekRetryTimer = invalid
+    end if
+    m.pendingRemoteSeekSec = invalid
     if m.syncTask <> invalid then
         ' F13 pairing: the ObserveField from ConnectSyncTask ends here too.
         m.syncTask.UnObserveField("event")
@@ -2098,6 +2125,36 @@ end sub
 
 sub OnSyncStopTimerFired(event as Object)
     if m.syncUserStopped and m.syncTask <> invalid then StopSyncTaskNow()
+end sub
+
+' MJ-10: one-shot retry for a remote seek deferred while the local viewer was
+' mid-burst. The retry re-checks the deadband laws and defers no further.
+sub ArmSyncSeekRetry()
+    if m.syncSeekRetryTimer = invalid then
+        m.syncSeekRetryTimer = CreateObject("roSGNode", "Timer")
+        m.top.AppendChild(m.syncSeekRetryTimer)
+        m.syncSeekRetryTimer.ObserveField("fire", "OnSyncSeekRetryFired")
+    end if
+    m.syncSeekRetryTimer.control = "stop"
+    m.syncSeekRetryTimer.duration = 1
+    m.syncSeekRetryTimer.repeat = false
+    m.syncSeekRetryTimer.control = "start"
+end sub
+
+sub OnSyncSeekRetryFired(event as Object)
+    if m.pendingRemoteSeekSec = invalid then return
+    target# = m.pendingRemoteSeekSec
+    m.pendingRemoteSeekSec = invalid
+    if not m.syncFollowing then return
+    if m.videoPlayer = invalid then return
+    if m.applyingRemote then return
+    if target# <> m.lastRemoteSeekSec and Abs(target# - m.videoPlayer.position) >= 0.75 then
+        m.applyingRemote = true
+        m.videoPlayer.seek = target#
+        m.lastRemoteSeekSec = target#
+        m.applyingRemote = false
+        NotifyPartyEvent(Translate("player_party_host_position"), 2.5!)
+    end if
 end sub
 
 ' Task->scene event observer. THREAD-SAFE: only assoc/string/number cross. The
@@ -2297,22 +2354,41 @@ sub ApplyRemotePlayback(ev as Object)
     if seconds# < 0 then seconds# = 0.0
 
     m.applyingRemote = true
+    pos# = m.videoPlayer.position
 
     if t = "syncplay_playback_play" then
-        m.videoPlayer.seek = seconds#
+        ' MJ-10: the STATE always lands; a seek inside the 0.75 s deadband (or
+        ' the target already applied) would only re-buffer what is right there.
+        if seconds# <> m.lastRemoteSeekSec and Abs(seconds# - pos#) >= 0.75 then
+            m.videoPlayer.seek = seconds#
+            m.lastRemoteSeekSec = seconds#
+        end if
         m.videoPlayer.control = "play"
         m.isPlaying = true
         ' M-ROKU-19: the picture changed with no explanation before this leg —
         ' attribute host-driven transport changes on screen while watching.
         NotifyPartyEvent(Translate("player_party_host_resumed"), 2.5!)
     else if t = "syncplay_playback_pause" then
-        m.videoPlayer.seek = seconds#
+        if seconds# <> m.lastRemoteSeekSec and Abs(seconds# - pos#) >= 0.75 then
+            m.videoPlayer.seek = seconds#
+            m.lastRemoteSeekSec = seconds#
+        end if
         m.videoPlayer.control = "pause"
         m.isPlaying = false
         NotifyPartyEvent(Translate("player_party_host_paused"), 2.5!)
     else if t = "syncplay_playback_seek" then
-        m.videoPlayer.seek = seconds#
-        NotifyPartyEvent(Translate("player_party_host_position"), 2.5!)
+        if seconds# <> m.lastRemoteSeekSec and Abs(seconds# - pos#) >= 0.75 then
+            if NowMs() - m.userSeekInteractMs < 1500& then
+                ' MJ-10 defer-while-interacting: the local thumb is mid-burst;
+                ' retry ONCE shortly instead of fighting it frame-for-frame.
+                m.pendingRemoteSeekSec = seconds#
+                ArmSyncSeekRetry()
+            else
+                m.videoPlayer.seek = seconds#
+                m.lastRemoteSeekSec = seconds#
+                NotifyPartyEvent(Translate("player_party_host_position"), 2.5!)
+            end if
+        end if
     end if
 
     m.applyingRemote = false
@@ -2339,20 +2415,57 @@ function SyncPositionMs() as LongInteger
 end function
 
 sub SyncBroadcastPlay()
+    FlushSyncSeekBroadcast()
     if not SyncShouldBroadcast() then return
     m.syncTask.command = { kind: "play", group_id: m.syncGroupId, position_ms: SyncPositionMs() }
 end sub
 
 sub SyncBroadcastPause()
+    FlushSyncSeekBroadcast()
     if not SyncShouldBroadcast() then return
     m.syncTask.command = { kind: "pause", group_id: m.syncGroupId, position_ms: SyncPositionMs() }
 end sub
 
-sub SyncBroadcastSeek(fromSeconds as Float, toSeconds as Float)
+sub SyncBroadcastSeekMs(fromMs as LongInteger, toMs as LongInteger)
     if not SyncShouldBroadcast() then return
-    fromMs = Int(fromSeconds * 1000.0)
-    toMs = Int(toSeconds * 1000.0)
+    if fromMs = toMs then return
     m.syncTask.command = { kind: "seek", group_id: m.syncGroupId, from_ms: fromMs, to_ms: toMs }
+end sub
+
+' MJ-10: schedule (never spam) a host seek. The first press of a burst latches
+' the leading edge; every press re-arms a 250 ms trailing timer; the flush
+' broadcasts leading-edge -> wherever the playhead settled. Worst case (a pause
+' within the 250 ms window) the coalesced seek rides the SAME command channel
+' law every broadcast already depends on, and the server heartbeat corrects.
+sub ScheduleSyncSeekBroadcast(fromSeconds as Float, toSeconds as Float)
+    if not SyncShouldBroadcast() then return
+    if m.syncSeekPendingFromMs = invalid then
+        m.syncSeekPendingFromMs = Int(fromSeconds * 1000.0)
+    end if
+    if m.syncSeekTimer = invalid then
+        m.syncSeekTimer = CreateObject("roSGNode", "Timer")
+        m.top.AppendChild(m.syncSeekTimer)
+        m.syncSeekTimer.ObserveField("fire", "OnSyncSeekCoalesceFired")
+    end if
+    m.syncSeekTimer.control = "stop"
+    m.syncSeekTimer.duration = 0.25
+    m.syncSeekTimer.repeat = false
+    m.syncSeekTimer.control = "start"
+end sub
+
+sub OnSyncSeekCoalesceFired(event as Object)
+    if m.syncSeekPendingFromMs = invalid then return
+    fromMs = m.syncSeekPendingFromMs
+    m.syncSeekPendingFromMs = invalid
+    SyncBroadcastSeekMs(fromMs, SyncPositionMs())
+end sub
+
+' MJ-10: flush a pending burst NOW - a play/pause command must land AFTER the
+' seeks it follows, never after their timer expires.
+sub FlushSyncSeekBroadcast()
+    if m.syncSeekPendingFromMs = invalid then return
+    if m.syncSeekTimer <> invalid then m.syncSeekTimer.control = "stop"
+    OnSyncSeekCoalesceFired(invalid)
 end sub
 
 sub SetSyncStatus(text as String)
