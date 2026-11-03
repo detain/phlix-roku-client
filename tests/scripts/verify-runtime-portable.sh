@@ -455,7 +455,7 @@ assert_contains "CHECK58: the stand-down guard restores the default strip" "$POS
 # complete source/ tree beside the whole-components cp -a) pin the structure map
 # bidirectionally — the fake CI layout must see exactly the same 57 .brs names.
 assert_contains "=== Check 60:" "$POSITIVE_OUT"
-assert_contains "CHECK60: the Project Structure map lists exactly the 57 shipped .brs" "$POSITIVE_OUT"
+assert_contains "CHECK60: the Project Structure map lists exactly the 58 shipped .brs" "$POSITIVE_OUT"
 
 # M-ROKU-37: Check 61's inputs (README.md, docs/i18n.md and the locale/ set are
 # all staged already) — the locale-family enumeration law — Overview total in
@@ -2378,7 +2378,7 @@ GREEN60_OUT=$(bash "$RED60_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
 GREEN60_RC=$?
 set -e
 [ "$GREEN60_RC" -eq 0 ] || fail "verify-runtime.sh must return to exit 0 after the structure-map plants are removed (got $GREEN60_RC): $(grep -B1 -A6 '^  CHECK' <<<"$GREEN60_OUT" | tail -30)"
-assert_contains "CHECK60: the Project Structure map lists exactly the 57 shipped .brs" "$GREEN60_OUT"
+assert_contains "CHECK60: the Project Structure map lists exactly the 58 shipped .brs" "$GREEN60_OUT"
 # --- CHECK61 plants (M-ROKU-37): the locale-family enumeration law on an
 # independent scratch copy (CHECK58/59/60 scaffolding precedent), four arms each
 # restored. P1 reverts README.md's locale/ block to the pre-M32 one-row era —
@@ -2915,7 +2915,7 @@ sed -n '/=== Check 56:/,/=== Check 57:/p' <<<"$RED62_OUT" | grep -qF "CHECK56: t
 	fail "Check 56 must stay PASS while Check 62 is red (gate independence — README plant touches only CHECK62 surfaces)"
 sed -n '/=== Check 58:/,/=== Check 59:/p' <<<"$RED62_OUT" | grep -qF "CHECK58: the stand-down guard restores the default strip" ||
 	fail "Check 58 must stay PASS while Check 62 is red (gate independence)"
-sed -n '/=== Check 60:/,/=== Check 61:/p' <<<"$RED62_OUT" | grep -qF 'CHECK60: the Project Structure map lists exactly the 57 shipped .brs' ||
+sed -n '/=== Check 60:/,/=== Check 61:/p' <<<"$RED62_OUT" | grep -qF 'CHECK60: the Project Structure map lists exactly the 58 shipped .brs' ||
 	fail "Check 60 (M-ROKU-32 sibling) must stay PASS while Check 62 is red (gate independence — different README section)"
 sed -n '/=== Check 61:/,/=== Check 62:/p' <<<"$RED62_OUT" | grep -qF "CHECK61: the family set is the directory" ||
 	fail "Check 61 (M-ROKU-37 sibling) must stay PASS while Check 62 is red (gate independence — locale rows untouched)"
