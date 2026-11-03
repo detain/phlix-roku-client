@@ -51,6 +51,37 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the buried key stays buried, the manifest ships discipline, and the inputs carry caps (MN-26 MN-21 MN-6) — 2026-11-03
+
+- `detail.error_favorite_save` — a bare "Error" line with zero consumers, the abandoned-draft
+  duplicate of `common.error` — is retired from all seven catalogs; the live
+  `detail_error_favorite_save_message`/`_remove_message` pair is untouched (Check 87 R1 pins both
+  directions: dead key buried, live sibling present). The catalogs set-bump to v1.19.0 — removal,
+  no mint, per the M-ROKU-20/R-ROKU-10 precedent; CHECK48 R3's version literal rotates in the same
+  commit (pre-rotation red measured exactly 7 R3 convictions against the bumped set, disclosed).
+- The manifest now ships only documented, hd-relevant keys: `splash_width`/`splash_height`/
+  `screensaver_private` (undocumented — the firmware ignores them but certification review bounces
+  unrecognized keys, and this channel declares certification intent) and `mm_icon_focus_sd` (dead
+  weight: `ui_resolutions=hd` makes every `*_sd` entry moot and the symmetric `mm_icon_side_sd`
+  never existed) are retired; `images/icon-focus-sd.png` stays on disk unreferenced, disclosed.
+- The five remaining naked text inputs gained `maxLength`: `serverInput`/`usernameInput`/
+  `passwordInput` at 255 (the server-column class), `roomNameInput` at 100, and SearchScene's
+  on-screen `Keyboard` at 128 (layout distance honesty on the fixed 720 plane). This closes the
+  client-side half of MN-6; the registry-crypto half stays deferred (platform-inherent custody).
+
+### Added — Check 87: catalog, manifest and input-field hygiene legs (MN-26 MN-21 MN-6 era) — 2026-11-03
+
+- Four arms, each an aggregate single conviction per the twin law: R1 parses all seven catalogs
+  (dead key absent, live `_message` sibling present, `_metadata.version == 1.19.0`); R2 reads the
+  manifest as lines (banned keys extinct AND the documented survivors present — absence laws alone
+  cannot tell a cure from an accident); R3 scans every `<TextEditBox>`/`<Keyboard>` opening tag in
+  `components/*.xml` for a `maxLength` attribute; R4 the era's docs rows. Twin plants BB (re-grow
+  the dead key across all seven catalogs — R1 alone, Checks 21/48/86 green because the set moves
+  symmetrically), CC (re-add `splash_width` — R2 alone, the two living manifest readers stay
+  green), DD (strip the password cap — R3 alone naming `passwordInput`). Red-parent over a86483c
+  measured exactly 5 convictions (R1+R2+R3 aggregates + R4 x2); era gates: battery rc=0 at 87
+  strict PASS, bsc/validate-xml/route-manifest green, headless 214/0/53 unmoved.
+
 ### Fixed — the browse path speaks: every media-grid item mirrors its title into the Roku screen-reader's explicit label, and the home rails name themselves (MJ-13, review roku__gameux) — 2026-11-03
 
 - The gameux review counted `accessibleLabel` zero times across the channel: speakability leaned entirely on per-component title fallback the review could not verify on device. Every grid builder that hands a PosterGrid a titled ContentNode now mirrors the SAME expression into `accessibleLabel` — ten files from the audiobook shelves to the search results — with DetailScene's similar-grid guarded-write idiom mirrored in kind.

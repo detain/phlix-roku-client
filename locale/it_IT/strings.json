@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.18.0",
+    "version": "1.19.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -130,7 +130,6 @@
     "rating_label": "Valutazione: {rating}/10",
     "rated_label": "Classificato {rating}",
     "chapters_count": "{count} capitoli",
-    "error_favorite_save": "Errore",
     "error_favorite_save_message": "Impossibile salvare il preferito. Riprova.",
     "error_favorite_remove_message": "Impossibile rimuovere il preferito. Riprova.",
     "error_rating_save_message": "Impossibile salvare la valutazione. Riprova.",

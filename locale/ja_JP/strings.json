@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.18.0",
+    "version": "1.19.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -130,7 +130,6 @@
     "rating_label": "評価: {rating}/10",
     "rated_label": "{rating} レーティング",
     "chapters_count": "{count} 章",
-    "error_favorite_save": "エラー",
     "error_favorite_save_message": "お気に入りを保存できませんでした。もう一度お試しください。",
     "error_favorite_remove_message": "お気に入りを削除できませんでした。もう一度お試しください。",
     "error_rating_save_message": "評価を保存できませんでした。もう一度お試しください。",

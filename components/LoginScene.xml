@@ -39,6 +39,7 @@
                    color="#AAAAAA" />
             <TextEditBox height="50" width="460" translation="[20,120]"
                          hintText="Username"
+                         maxLength="255"
                          id="usernameInput" />
 
             <!-- Password -->
@@ -49,6 +50,7 @@
                    color="#AAAAAA" />
             <TextEditBox height="50" width="460" translation="[20,210]"
                          hintText="Password"
+                         maxLength="255"
                          secureMode="true"
                          id="passwordInput" />
 

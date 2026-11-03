@@ -60,6 +60,7 @@ Displays:
                 <Rectangle height="40" width="580" translation="[10,30]" color="#2a2a3e">
                     <TextEditBox height="40" width="560" translation="[10,0]"
                                   id="roomNameInput"
+                                  maxLength="100"
                                   text=""
                                   hintText="Enter group name…"
                                   hintColor="#666666"

@@ -6236,8 +6236,8 @@ for L in LOCALES:
     for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
         if cat.get("connect", {}).get(key, "") == "":
             problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
-    if cat.get("_metadata", {}).get("version") != "1.18.0":
-        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.18.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, then by the review CR-2/Check74 batch with the ten form-chrome keys, then by the MJ-4 batch with home_start_failed, then by the MJ-20 pass (no mint), then by the MJ-11 batch with the four transport-label keys, disclosed)")
+    if cat.get("_metadata", {}).get("version") != "1.19.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.19.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, then by the review CR-2/Check74 batch with the ten form-chrome keys, then by the MJ-4 batch with home_start_failed, then by the MJ-20 pass (no mint), then by the MJ-11 batch with the four transport-label keys, then by the MN-26 batch retiring the dead detail.error_favorite_save key (removal, no mint), disclosed)")
 
 # ---- R4 the device harness pins the law -----------------------------------
 test = read(TEST)
@@ -12397,6 +12397,132 @@ if problems:
 
 print("  CHECK86: every grid item and the home rails carry an explicit spoken label -")
 print("           MJ-13 mirror custody holds (data/Translate values only, zero literals).")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 87: catalog, manifest and input-field hygiene - retired keys stay buried, undocumented keys stay out, naked fields stay capped (MN-21/MN-26/MN-6 era) ==="
+# THE HYGIENE TRIO (MN-26, MN-21, MN-6 length-cap half; reviews roku__writer,
+# roku__crossfe, roku__exploiter+secnet - 2026-11-03 fix lane):
+#   R1  `detail.error_favorite_save` ("Error", an abandoned-draft duplicate of
+#       common.error) is REMOVED from all seven catalogs - the live
+#       `detail_error_favorite_save_message` consumer path is pinned present -
+#       and the set rides v1.19.0 (CHECK48 R3's literal rotated with it, per
+#       the M-ROKU-20/R-ROKU-10 set-bump precedent: removal, no mint).
+#   R2  the manifest ships only documented, hd-relevant keys: splash_width,
+#       splash_height, screensaver_private (all ignored by firmware, all
+#       cert-review bounce risks) and mm_icon_focus_sd (dead weight beside the
+#       absent side_sd under ui_resolutions=hd) are extinct; the documented
+#       set that must survive is positively pinned too - absence laws alone
+#       cannot tell a cure from an accident.
+#   R3  every TextEditBox/Keyboard input field in components/ carries
+#       maxLength: the registry-crypto half of MN-6 stays deferred (platform
+#       custody), but "unbounded text flows into server columns and the fixed
+#       720 layout" is pure client hygiene and is closed here (serverInput/
+#       usernameInput/passwordInput 255 - the column class; roomNameInput 100;
+#       search Keyboard 128 - layout distance).
+#   R4  this era's rows: docs/static-checks.md row 87 and the CHANGELOG entry.
+# NUMBERING: 87 collision-probed at d87d253 (highest prior 86); twin plant
+# letters BB/CC/DD continue the static-checks.md series (Z/AA = Check 86).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+LOCALES = ("de_DE", "en_US", "es_ES", "fr_FR", "it_IT", "ja_JP", "pt_BR")
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+# ---- R1 the retired favorite-save key stays buried, set rides v1.19.0 ----
+r1 = []
+for loc in LOCALES:
+    path = f"locale/{loc}/strings.json"
+    raw = read(path)
+    if raw is None:
+        r1.append(f"{path} unreadable")
+        continue
+    try:
+        cat = json.loads(raw)
+    except ValueError as err:
+        r1.append(f"{path} unparseable ({err})")
+        continue
+    detail = cat.get("detail", {})
+    if "error_favorite_save" in detail:
+        r1.append(f"{path} dead detail.error_favorite_save re-grown")
+    if "error_favorite_save_message" not in detail:
+        r1.append(f"{path} live detail.error_favorite_save_message vanished")
+    if cat.get("_metadata", {}).get("version") != "1.19.0":
+        r1.append(f"{path} _metadata.version is not 1.19.0")
+if r1:
+    problems.append("  locale/* - CHECK87 R1: catalog hygiene broken: " + "; ".join(r1))
+
+# ---- R2 the manifest ships only documented, hd-relevant keys ----
+BANNED = ("splash_width=", "splash_height=", "screensaver_private=", "mm_icon_focus_sd=")
+REQUIRED = ("mm_icon_focus_hd=", "mm_icon_side_hd=", "splash_color=",
+            "splash_min_time=", "screensaver_title=", "ui_resolutions=hd")
+r2 = []
+mani = read("manifest")
+if mani is None:
+    r2.append("manifest unreadable")
+else:
+    lines = [ln.strip() for ln in mani.splitlines()]
+    for key in BANNED:
+        if any(ln.startswith(key) for ln in lines):
+            r2.append(f"undocumented/dead key {key[:-1]} re-shipped")
+    for key in REQUIRED:
+        if not any(ln.startswith(key) for ln in lines):
+            r2.append(f"documented key {key} went missing")
+if r2:
+    problems.append("  manifest - CHECK87 R2: " + "; ".join(r2))
+
+# ---- R3 no input field takes unbounded text ----
+TAG_RE = re.compile(r'<(TextEditBox|Keyboard)\b(((?!>).)*)>', re.S)
+r3 = []
+for name in sorted(os.listdir("components")):
+    if not name.endswith(".xml"):
+        continue
+    xml = read(f"components/{name}")
+    if xml is None:
+        continue
+    for mm in TAG_RE.finditer(xml):
+        body = mm.group(2)
+        if "maxLength" not in body:
+            idm = re.search(r'id="([^"]+)"', body)
+            r3.append(f"{name} {idm.group(1) if idm else 'unnamed'} has no maxLength")
+if r3:
+    problems.append("  components/*.xml - CHECK87 R3: " + "; ".join(r3))
+
+# ---- R4 the era's docs rows ----
+sc = read("docs/static-checks.md") or ""
+cl = read("CHANGELOG.md") or ""
+row = None
+for ln in sc.splitlines():
+    if re.match(r"^\|\s*87\s*\|", ln):
+        row = ln
+        break
+if row is None or not all(tok in row for tok in ("MN-21", "MN-26", "MN-6")):
+    problems.append("  docs/static-checks.md - CHECK87 R4: row 87 is missing or does not name MN-21/MN-26/MN-6")
+if "MN-26" not in cl or "maxLength" not in cl:
+    problems.append("  CHANGELOG.md - CHECK87 R4: the entry must name MN-26 and the maxLength caps")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK87: %d hygiene pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK87: the buried catalog key stays buried, the manifest ships only its")
+print("           documented set, and no input field takes unbounded text - the")
+print("           MN-21/MN-26/MN-6 trio (catalog set v1.19.0).")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

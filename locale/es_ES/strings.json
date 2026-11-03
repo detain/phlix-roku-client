@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "es_ES",
     "language_name": "Español (España)",
-    "version": "1.18.0",
+    "version": "1.19.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -130,7 +130,6 @@
     "rating_label": "Valoración: {rating}/10",
     "rated_label": "Clasificación {rating}",
     "chapters_count": "{count} capítulos",
-    "error_favorite_save": "Error",
     "error_favorite_save_message": "No se pudo guardar tu favorito. Inténtalo de nuevo.",
     "error_favorite_remove_message": "No se pudo quitar tu favorito. Inténtalo de nuevo.",
     "error_rating_save_message": "No se pudo guardar tu valoración. Inténtalo de nuevo.",

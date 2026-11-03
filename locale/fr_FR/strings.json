@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.18.0",
+    "version": "1.19.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -130,7 +130,6 @@
     "rating_label": "Note : {rating}/10",
     "rated_label": "Classé {rating}",
     "chapters_count": "{count} chapitres",
-    "error_favorite_save": "Erreur",
     "error_favorite_save_message": "Impossible d'enregistrer votre favori. Veuillez réessayer.",
     "error_favorite_remove_message": "Impossible de retirer votre favori. Veuillez réessayer.",
     "error_rating_save_message": "Impossible d'enregistrer votre note. Veuillez réessayer.",

@@ -3,17 +3,19 @@ major_version=1
 minor_version=0
 build_version=1
 
+' MN-21 (review roku__crossfe): cert hygiene - the *_sd icon family is dead
+' weight under the hd-only plane (M-ROKU-06 below); focus_sd retired rather
+' than side_sd minted, so the declared family stays symmetric.
 mm_icon_focus_hd=images/icon-focus-hd.png
-mm_icon_focus_sd=images/icon-focus-sd.png
 mm_icon_side_hd=images/icon-side-hd.png
 
 splash_screen_sd=images/splash-sd.png
 splash_screen_hd=images/splash-hd.png
 splash_screen_fhd=images/splash-fhd.png
 
+' MN-21: splash_width/splash_height are not documented manifest keys - the
+' firmware ignores them and cert review bounces unrecognized ones. Retired.
 splash_color=#1a1a2e
-splash_width=1280
-splash_height=720
 splash_min_time=2000
 
 ' M-ROKU-06 (review roku__crossfe M6): design-plane law — the WHOLE channel is
@@ -51,8 +53,8 @@ ui_resolutions=hd
 ' comment's presence and the Eval() extinction.
 rsg_version=1.3
 
+' MN-21: screensaver_private is not a documented manifest key - retired.
 screensaver_title=Phlix
-screensaver_private=false
 
 ' R6.4: Required for ECP input command to reach the channel when already running.
 ' Without this, roInput never receives events and warm deep links are impossible.

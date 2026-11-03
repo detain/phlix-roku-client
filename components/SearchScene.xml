@@ -25,6 +25,7 @@
 
         <!-- On-screen keyboard (left) -->
         <Keyboard height="540" width="600" translation="[40,120]"
+                  maxLength="128"
                   id="keyboard" />
 
         <!-- Results grid (right) -->

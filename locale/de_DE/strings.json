@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.18.0",
+    "version": "1.19.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -130,7 +130,6 @@
     "rating_label": "Bewertung: {rating}/10",
     "rated_label": "Eingestuft als {rating}",
     "chapters_count": "{count} Kapitel",
-    "error_favorite_save": "Fehler",
     "error_favorite_save_message": "Ihr Favorit konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "error_favorite_remove_message": "Ihr Favorit konnte nicht entfernt werden. Bitte erneut versuchen.",
     "error_rating_save_message": "Ihre Bewertung konnte nicht gespeichert werden. Bitte erneut versuchen.",
