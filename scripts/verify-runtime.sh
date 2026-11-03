@@ -2651,9 +2651,13 @@ else:
     for col in cols:
         if col == "search":
             continue  # search is the default fallback arm of the restore chain
-        # The admin arm may additionally require adminButton.visible (the
-        # post-demotion restore guard; CHECK32 R1 pins that it DOES).
-        guard = r'( and m\.adminButton\.visible)?' if col == "admin" else r''
+        # The hidden-by-default entries may additionally require their own
+        # .visible (the post-demotion restore guard; the family is {admin, tv}
+        # since MN-3 - CHECK32 R1 pins admin's gate exists, CHECK93 R2 pins
+        # tv's does. A future hidden entry joins the family in the same commit
+        # that adds its restore arm.)
+        guard = (r'( and m\.' + col + r'Button\.visible)?'
+                 if col in ("admin", "tv") else r'')
         pat = (r'm\.headerCol = "' + col + r'" and m\.' + col +
                r'Button <> invalid' + guard + r' then\s*\n\s*m\.' + col + r'Button\.SetFocus\(true\)')
         if re.search(pat, fhz) is None:
@@ -13146,6 +13150,239 @@ if problems:
 print("  CHECK92: the empty hand gets a nudge and the pre-consent origin meets the gate at boot -")
 print("  keep-the-sentence copy law x7, the ShowLogin predicate re-application, and a docblock")
 print("  that finally tells today's truth")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 93: the resume rail says where you left off and the admin meets Live TV without the menu hop (MN-2 + MN-3) ==="
+# NUMBERING: 93 is the next-FREE leg (92 taken by the batch-21 era, measured
+# on this lane at 562e8a8; 'Check 93'/'CHECK93' appeared nowhere in scripts/,
+# tests/ or docs/ before this commit).
+#
+# WHY THE LEG EXISTS (review roku__casualgamer m2/MN-2 + m3/MN-3, batch 22):
+# the "Continue Watching" tiles carried no progress cue at all - the rail
+# that promises "where you left off" rendered tiles indistinguishable from
+# fresh posters, while the wire rows it builds from DO carry position_ticks
+# AND duration_ticks (the server re-attaches both per row; probed this lane).
+# And the Live TV family hid behind exactly one door - the AdminScene menu -
+# so an admin walked Home -> Admin -> menu row 4 -> channels for the surface
+# they reach every day. The cure is chrome the repo already owns: the same
+# ShortDescriptionLine2 the Library/Photos/Collection/Audiobook grids render,
+# and the same admin-gated header reveal + scene-launch idioms adminButton
+# ships. Zero new catalog strings: the percent is numeric chrome and the
+# button title rides the shipped common.live_tv key x7.
+#
+# WHAT IT PINS (fail-loud on unreadable inputs):
+#   R1 percent custody - the builder hands every continue tile its second
+#      description line from ONE function, and that function keeps every
+#      decision the cure made: boxed-type numeric lift on BOTH ticks, the
+#      degenerate-pair refusals, the exact ratio, the 1..100 clamps, the
+#      Str().trim() era idiom and the "%" suffix.
+#   R2 admin-route custody - tvButton ships hidden on the y=36 row in x-order
+#      position six; init wires the observer; OnMeResponse reveals it on the
+#      SAME isAdmin proof as adminButton and hides it in the fail-closed else
+#      branch; OnTvPressed launches LiveTvScene through the four-shape scene
+#      launch with requestClose custody; both walks step settings <-> tv <->
+#      admin with every edge INTO a hidden-by-default entry gated on m.isAdmin
+#      (both sides - a mid-session demotion cannot strand focus by walking it
+#      onto a hidden node); FocusHeaderZone restores tv through its .visible
+#      gate (the CHECK29 R5 guard family is {admin, tv} since this commit);
+#      ApplyXmlChrome speaks the shipped key; README walks the real chain.
+#   R3 keyset-held absence law - the cure minted NOTHING: en_US catalog says
+#      v1.19.0, all seven ships hold exactly 387 leaf keys (the measured
+#      batch-21 census), common.live_tv is present and non-empty in all seven,
+#      and no percent-flavored key may squat in any catalog (ban arm - the
+#      absence is the point).
+#   R4 docs pair - static-checks row 93 names MN-2 + MN-3; the CHANGELOG
+#      entry names both, the percent function and the button.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import io, json, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        return None
+
+
+def strip_comment_lines(text):
+    return "\n".join(l for l in text.splitlines()
+                     if not l.lstrip().startswith("'"))
+
+
+def sub_body(src, name):
+    m = re.search(r"^(?:sub|function)\s+" + name + r"\b[^\n]*\n(.*?)^end (?:sub|function)",
+                  src, re.MULTILINE | re.DOTALL)
+    return m.group(1) if m else None
+
+
+problems = []
+LOCALES = ("en_US", "de_DE", "es_ES", "fr_FR", "it_IT", "ja_JP", "pt_BR")
+
+# ---- R1 percent custody (MN-2) -------------------------------------------------
+HOME = read("components/HomeScene.brs")
+if HOME is None:
+    problems.append("  components/HomeScene.brs - CHECK93: unreadable")
+    HOME = ""
+hc = strip_comment_lines(HOME)
+missing1 = []
+builder = sub_body(hc, "OnContinueWatchingResponse")
+if builder is None or "ShortDescriptionLine2: ContinueWatchPercent(item)" not in builder:
+    missing1.append("the continue builder no longer feeds the tile its second description line")
+cw = sub_body(hc, "ContinueWatchPercent")
+if cw is None:
+    missing1.append("ContinueWatchPercent vanished")
+else:
+    if 'item.DoesExist("position_ticks")' not in cw or 'item.DoesExist("duration_ticks")' not in cw:
+        missing1.append("the missing-field refusal left")
+    if 'positionType <> "roLongInteger"' not in cw or 'durationType <> "roLongInteger"' not in cw:
+        missing1.append("the boxed-type numeric lift (or one of its two arms) left - JSON ticks are not trusted blind")
+    if "if duration <= 0 or position <= 0 then return" not in cw:
+        missing1.append("the degenerate-pair refusal (zero/negative denominator or position) left")
+    if "Int(position / duration * 100.0)" not in cw:
+        missing1.append("the percent ratio drifted from the single honest formula")
+    if "if percent < 1 then percent = 1" not in cw or "if percent > 100 then percent = 100" not in cw:
+        missing1.append("a 1..100 clamp left - a started row shows at least 1, a corrupt ratio never shows 400")
+    if 'Str(percent).trim() + "%"' not in cw:
+        missing1.append("the Str().trim() era stringing or its % suffix drifted")
+if missing1:
+    problems.append("  components/HomeScene.brs - CHECK93 R1: " + "; ".join(missing1) + " (the rail may not lie about where you left off - MN-2)")
+
+# ---- R2 admin-route custody (MN-3) ----------------------------------------------
+missing2 = []
+XMLS = read("components/HomeScene.xml")
+if XMLS is None:
+    missing2.append("HomeScene.xml unreadable")
+else:
+    row = [(int(m.group(1)), m.group(2)) for m in
+           re.finditer(r'<Button[^>]*?translation="\[(\d+),36\]"[^>]*?id="(\w+)"', XMLS)]
+    cols = [nid[:-len("Button")] for _, nid in sorted(row)]
+    if cols != ["search", "forYou", "favorites", "collections", "settings", "tv", "admin"]:
+        missing2.append("the header x-order is %s, not search/forYou/favorites/collections/settings/tv/admin" % cols)
+    tag = re.search(r'<Button[^>]*?id="tvButton"[^>]*/?>', XMLS)
+    if tag is None:
+        missing2.append("tvButton vanished from the header")
+    else:
+        if 'visible="false"' not in tag.group(0):
+            missing2.append("tvButton no longer ships visible=\"false\" (the isAdmin gate only hides the step)")
+        if 'title="Live TV"' not in tag.group(0):
+            missing2.append("tvButton lost its en-fallback title")
+if HOME:
+    if 'm.tvButton.ObserveField("buttonSelected", "OnTvPressed")' not in hc:
+        missing2.append("the tvButton buttonSelected observer is unwired (a focused dead button)")
+    om = sub_body(hc, "OnMeResponse")
+    if om is None:
+        missing2.append("OnMeResponse vanished")
+    else:
+        if "if m.isAdmin and m.tvButton <> invalid then m.tvButton.visible = true" not in om:
+            missing2.append("the isAdmin reveal arm for tvButton left - the hop may only ride the SAME proof as the Admin entry")
+        hide = om.find("SetIsAdmin(false)")
+        tvhide = om.find("m.tvButton.visible = false")
+        if hide == -1 or tvhide == -1 or tvhide < hide:
+            missing2.append("the fail-closed else branch no longer hides tvButton after SetIsAdmin(false)")
+    otv = sub_body(hc, "OnTvPressed")
+    if otv is None:
+        missing2.append("OnTvPressed vanished")
+    else:
+        for needle, why in (
+            ('CreateObject("roSGNode", "LiveTvScene")', "the direct Live TV scene launch is no longer the destination"),
+            ("m.top.Append(scene)", "the launch bypasses the append custody"),
+            ('scene.ObserveField("requestClose", "OnChildRequestClose")', "the child close signal is unwired (a Back that dies on the floor)"),
+            ("scene.SetFocus(true)", "the launched scene never takes focus"),
+        ):
+            if needle not in otv:
+                missing2.append(why)
+    RIGHT = None
+    m = re.search(r'if key = "right" and m\.currentRail = "search" then(.*?)else if key = "down"', hc, re.S)
+    LEFT = None
+    m2 = re.search(r'if key = "left" and m\.currentRail = "search" then(.*?)else if key = "right"', hc, re.S)
+    if m is None or m2 is None:
+        missing2.append("the header walk branches drifted (the tv steps can no longer be verified)")
+    else:
+        RIGHT, LEFT = m.group(1), m2.group(1)
+        for src, dst, text, label in (
+            ("settings", "tv", RIGHT, "right"),
+            ("tv", "admin", RIGHT, "right"),
+            ("admin", "tv", LEFT, "left"),
+            ("tv", "settings", LEFT, "left"),
+        ):
+            edge = re.search(r'm\.headerCol = "' + src + r'"([^\n]*)\n\s*m\.' + dst + r'Button\.SetFocus\(true\)\s*\n\s*m\.headerCol = "' + dst + '"', text)
+            if edge is None:
+                missing2.append("the %s step %s->%s vanished from the header walk" % (label, src, dst))
+            elif dst in ("tv", "admin") and "m.isAdmin" not in edge.group(1):
+                missing2.append("the %s step into %s is not gated on m.isAdmin - focus can land on a hidden button" % (label, dst))
+    fhz = sub_body(HOME, "FocusHeaderZone")
+    if fhz is None or not re.search(r'm\.headerCol = "tv" and m\.tvButton <> invalid and m\.tvButton\.visible then\s*\n\s*m\.tvButton\.SetFocus\(true\)', fhz, re.S):
+        missing2.append("FocusHeaderZone cannot restore tv through its .visible gate - a grid->header return after a demotion would strand focus on a hidden node")
+    if not re.search(r'findNode\("tvButton"\)[\s\S]{0,80}n\.title = Translate\("common_live_tv"\)', HOME):
+        missing2.append("ApplyXmlChrome no longer speaks the shipped key - a chrome literal the mirror law convicts")
+README = read("README.md")
+if README is None:
+    missing2.append("README.md unreadable")
+else:
+    if "`Search ↔ For You ↔ Favorites ↔ Collections ↔ Settings ↔ Live TV ↔ Admin`" not in README:
+        missing2.append("the README header chain line does not walk the real seven-title x-order")
+    if "up to seven buttons" not in README:
+        missing2.append("the README header section still counts the row wrong")
+if missing2:
+    problems.append("  components/HomeScene + README - CHECK93 R2: " + "; ".join(missing2) + " (the admin hop must exist, speak, and stay gated - MN-3)")
+
+# ---- R3 keyset-held absence law -------------------------------------------------
+missing3 = []
+for loc in LOCALES:
+    path = f"locale/{loc}/strings.json"
+    try:
+        with open(path, encoding="utf-8") as f:
+            cat = json.load(f)
+    except (OSError, ValueError):
+        missing3.append(f"{loc} unreadable")
+        continue
+    leaves = {s + "_" + k: v for s, sub in cat.items()
+              if s != "_metadata" and isinstance(sub, dict)
+              for k, v in sub.items() if isinstance(v, str)}
+    if len(leaves) != 384:
+        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 384 - the keyset moved")
+    if not leaves.get("common_live_tv", "").strip():
+        missing3.append(f"{loc} lost the shipped common_live_tv value")
+    percent_keys = [k for k in leaves if "percent" in k.lower() or "progress_" in k.lower()]
+    if percent_keys:
+        missing3.append(f"{loc} re-minted progress copy {percent_keys} - the percent is NUMERIC chrome, no key may exist")
+en = None
+try:
+    with open("locale/en_US/strings.json", encoding="utf-8") as f:
+        en = json.load(f)
+except (OSError, ValueError):
+    missing3.append("en_US unreadable for the version pin")
+if en is not None and en.get("_metadata", {}).get("version") != "1.19.0":
+    missing3.append("en_US _metadata.version is not 1.19.0 - the keyset-held law says the catalog may not have moved")
+if missing3:
+    problems.append("  locale catalogs - CHECK93 R3: " + "; ".join(missing3) + " (batch 22 ships ZERO new strings; the census proves the absence)")
+
+# ---- R4 docs pair ----------------------------------------------------------------
+docs = read("docs/static-checks.md")
+if docs is None or not re.search(r"^\|\s*93\s*\|.*MN-2\b.*MN-3\b", docs, re.M):
+    problems.append("  docs/static-checks.md - CHECK93 R4: row 93 is missing or does not name MN-2 + MN-3")
+cl = read("CHANGELOG.md")
+if cl is None or not re.search(r"MN-2\b", cl) or not re.search(r"MN-3\b", cl) or "ContinueWatchPercent" not in cl or "tvButton" not in cl:
+    problems.append("  CHANGELOG.md - CHECK93 R4: the entry must name MN-2 + MN-3, the percent function and the button")
+
+if problems:
+    print("  CHECK93: %d pin group(s) broken:" % len(problems))
+    for line in problems:
+        print(line)
+    sys.exit(1)
+
+print("  CHECK93: the resume rail says where you left off and the admin meets Live TV")
+print("  in one hop - percent custody, the gated tv walk with hidden-entry law on both")
+print("  sides, the 387-key v1.19.0 absence census, and the docs pair")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

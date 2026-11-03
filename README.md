@@ -602,10 +602,10 @@ Per Roku's [remote control UX guidelines](https://developer.roku.com/dev/docs/re
 
 ### Home Header Navigation
 
-The Home screen header has up to six buttons. Use Left/Right to walk them in visual x-order (stops
+The Home screen header has up to seven buttons. Use Left/Right to walk them in visual x-order (stops
 at the ends — never wraps):
 
-`Search ↔ For You ↔ Favorites ↔ Collections ↔ Settings ↔ Admin`
+`Search ↔ For You ↔ Favorites ↔ Collections ↔ Settings ↔ Live TV ↔ Admin`
 
 - **Search** — open the search screen.
 - **For You** — open the personalized Recommendations screen.
@@ -615,7 +615,11 @@ at the ends — never wraps):
   exactly like Library/Favorites (series → series view, season → season view, otherwise → detail).
 - **Settings** — open the settings screen: account/logout, server URL, playback preferences,
   captions mode, notifications, clear watch history, and PiP. Every user gets it — the walk steps into Settings
-  from both sides (Collections ↔ Settings ↔ Admin), and for non-admins the chain simply ends there.
+  from both sides (Collections ↔ Settings, and for admins Settings ↔ Live TV), and for non-admins the chain
+  simply ends there.
+- **Live TV** — shown **only for admin users** (revealed on the same `GET /auth/me` proof of `is_admin` as
+  Admin, hidden by default). Opens the Live TV channel list directly, skipping the Admin-menu hop; the Admin
+  menu keeps its row as the longer route. Non-admins never see it and the walk never steps onto it.
 - **Admin** — shown **only for admin users**. On Home init the app calls `GET /auth/me` and reveals
   the button when the returned user is `is_admin`; for non-admins the button stays hidden and the
   Right-nav skips it (no dead end / no focus on a hidden node). Opens the read-only admin flow:

@@ -27,23 +27,39 @@
                  past the 1280 edge (visible only for admins, so the overflow
                  hid behind the isAdmin gate). Repacked inside 1280; the
                  x-ORDER and names are untouched (CHECK29 walks edges by
-                 x-order), heights/gap rhythm kept. -->
-            <Button height="60" width="160" translation="[300,36]"
+                 x-order), heights/gap rhythm kept.
+                 MN-3 re-repack (review roku__casualgamer m3): the admin-only
+                 Live TV hop gains its OWN revealed entry (tvButton, shipped
+                 hidden exactly like adminButton), so the row carries seven
+                 buttons. The old six shipped widths left no legal slot - the
+                 row is repacked with the SAME rhythm: 10px gaps, one row,
+                 every button still >=15px per title character, and the
+                 rightmost edge now lands at 1265 (<= the 1280 plane CHECK64
+                 R4 pins - five px tighter to the plane than admin's old
+                 1260 edge, still clear of it). x-ORDER becomes
+                 Search/For You/Favorites/Collections/Settings/Live TV/Admin -
+                 the two admin-only entries ride the far end, non-admins
+                 still stop at Settings. -->
+            <Button height="60" width="130" translation="[250,36]"
                     title="Search"
                     id="searchButton" />
-            <Button height="60" width="160" translation="[470,36]"
+            <Button height="60" width="140" translation="[390,36]"
                     title="For You"
                     id="forYouButton" />
-            <Button height="60" width="170" translation="[640,36]"
+            <Button height="60" width="155" translation="[540,36]"
                     title="Favorites"
                     id="favoritesButton" />
-            <Button height="60" width="190" translation="[820,36]"
+            <Button height="60" width="175" translation="[705,36]"
                     title="Collections"
                     id="collectionsButton" />
-            <Button height="60" width="120" translation="[1020,36]"
+            <Button height="60" width="120" translation="[890,36]"
                     title="Settings"
                     id="settingsButton" />
-            <Button height="60" width="110" translation="[1150,36]"
+            <Button height="60" width="125" translation="[1020,36]"
+                    title="Live TV"
+                    visible="false"
+                    id="tvButton" />
+            <Button height="60" width="110" translation="[1155,36]"
                     title="Admin"
                     visible="false"
                     id="adminButton" />

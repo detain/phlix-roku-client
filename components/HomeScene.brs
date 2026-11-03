@@ -65,6 +65,15 @@ sub Init()
         m.adminButton.ObserveField("buttonSelected", "OnAdminPressed")
     end if
 
+    ' Live TV entry (header, beside Admin) - MN-3. Same admin-gated reveal law
+    ' as the adminButton: hidden by XML default, shown only on proof of
+    ' is_admin (OnMeResponse). Saves the Admin-menu hop: press opens
+    ' LiveTvScene directly while the menu row stays the longer route.
+    m.tvButton = m.top.FindNode("tvButton")
+    if m.tvButton <> invalid then
+        m.tvButton.ObserveField("buttonSelected", "OnTvPressed")
+    end if
+
     ' Settings entry (header, beside Collections). Opens the SettingsScene.
     m.settingsButton = m.top.FindNode("settingsButton")
     if m.settingsButton <> invalid then
@@ -219,6 +228,9 @@ sub OnMeResponse(resp as Object)
         ' R7.9: Persist admin state for AdminScene menu filtering
         SetIsAdmin(m.isAdmin)
         if m.isAdmin and m.adminButton <> invalid then m.adminButton.visible = true
+        ' MN-3: the Live TV hop obeys the SAME reveal law as the Admin entry -
+        ' it rides the same proof of is_admin, never a separate decision.
+        if m.isAdmin and m.tvButton <> invalid then m.tvButton.visible = true
     else
         ' R4 (fail closed): a failed/!ok getMe must NOT leave a previous
         ' SetIsAdmin(true) standing - without proof of is_admin the profile is
@@ -226,6 +238,7 @@ sub OnMeResponse(resp as Object)
         m.isAdmin = false
         SetIsAdmin(false)
         if m.adminButton <> invalid then m.adminButton.visible = false
+        if m.tvButton <> invalid then m.tvButton.visible = false
     end if
 
     ' getMe is done - launch BOTH row loads in parallel (not chained anymore).
@@ -357,6 +370,13 @@ sub OnContinueWatchingResponse(resp as Object)
             Title: item.name
             accessibleLabel: item.name
             ShortDescriptionLine1: item.name
+            ' MN-2: the honest "where you left off" cue - a whole-percent
+            ' string on the tile's second description line (the SAME
+            ' ShortDescriptionLine2 the Library/Photos/Collection/Audiobook
+            ' grids already render through this PosterGrid family), or ""
+            ' - which draws nothing - when the row carries no usable
+            ' numbers. Numeric chrome: crosses all seven locales untouched.
+            ShortDescriptionLine2: ContinueWatchPercent(item)
             Type: "continue"
         })
         ' R5: Lazy image loading — resolve URL first, then store for later activation
@@ -559,6 +579,37 @@ function ContinuePosterUrl(item as Object) as String
         end if
     end if
     return "pkg:/images/placeholder.png"
+end function
+
+' MN-2 [review roku__casualgamer + gameux]: a "where you left off" rail whose
+' tiles look identical to fresh posters lies about the library. The continue-
+' watching wire rows already carry position_ticks + duration_ticks (the server
+' re-attaches both per row - the same 100ns ticks convention MJ-1's DetailScene
+' resume read divides by 10_000_000 for); this computes the honest whole-percent
+' string for the tile's second description line. Returns "" - no line, not a
+' lie - when either number is missing, non-numeric, or the position/duration
+' pair is degenerate (zero or negative either way is not a watchable row).
+' Percent is clamped into 1..100: a row that started earns at least 1, and a
+' corrupt ratio can never render "400%". Numeric chrome, not prose - it crosses
+' all seven locales untouched and mints no catalog key (CHECK93 R3 holds the
+' keyset law).
+function ContinueWatchPercent(item as Object) as String
+    if item = invalid or type(item) <> "roAssociativeArray" then return ""
+    if not item.DoesExist("position_ticks") or not item.DoesExist("duration_ticks") then return ""
+    ' Numeric lift per the repo's boxed-type idiom (JSON numbers arrive as
+    ' roInteger/roLongInteger/roDouble; hand-built assocarrays in unit paths
+    ' carry the intrinsic names) - the same law the MJ-1 read enforces.
+    position = item.position_ticks
+    duration = item.duration_ticks
+    positionType = type(position)
+    durationType = type(duration)
+    if positionType <> "Integer" and positionType <> "roInt" and positionType <> "LongInteger" and positionType <> "roLongInteger" and positionType <> "Float" and positionType <> "roFloat" and positionType <> "Double" and positionType <> "roDouble" then return ""
+    if durationType <> "Integer" and durationType <> "roInt" and durationType <> "LongInteger" and durationType <> "roLongInteger" and durationType <> "Float" and durationType <> "roFloat" and durationType <> "Double" and durationType <> "roDouble" then return ""
+    if duration <= 0 or position <= 0 then return ""
+    percent = Int(position / duration * 100.0)
+    if percent < 1 then percent = 1
+    if percent > 100 then percent = 100
+    return Str(percent).trim() + "%"
 end function
 
 sub OnLibraryItemSelected(event as Object)
@@ -789,6 +840,20 @@ sub OnAdminPressed(event as Object)
     scene.SetFocus(true)
 end sub
 
+' Open Live TV directly (MN-3). Only reachable via the tv header button, which
+' ships hidden and is revealed on the same proof of is_admin as the Admin
+' entry. The launch mirrors the AdminScene scene-launch pattern - create,
+' append, wire the close, focus - so the child rides HomeScene's existing
+' OnChildRequestClose removal custody (a scene must never unobserve the field
+' from an arm registered before its own Teardown - the CHECK27 R6 law that
+' very custody docblock states).
+sub OnTvPressed(event as Object)
+    scene = CreateObject("roSGNode", "LiveTvScene")
+    m.top.Append(scene)
+    scene.ObserveField("requestClose", "OnChildRequestClose")
+    scene.SetFocus(true)
+end sub
+
 ' Open the settings menu (SettingsScene). Available to all users.
 sub OnSettingsPressed(event as Object)
     scene = CreateObject("roSGNode", "SettingsScene")
@@ -808,6 +873,12 @@ sub FocusHeaderZone()
         m.collectionsButton.SetFocus(true)
     else if m.headerCol = "settings" and m.settingsButton <> invalid then
         m.settingsButton.SetFocus(true)
+    ' MN-3: the tv arm carries the SAME post-demotion .visible gate as the
+    ' admin arm below (both entries ship hidden and are revealed only on
+    ' proof of is_admin; CHECK29 R5's guard family is {admin, tv} - restoring
+    ' onto either hidden node would strand the header in the void).
+    else if m.headerCol = "tv" and m.tvButton <> invalid and m.tvButton.visible then
+        m.tvButton.SetFocus(true)
     ' The .visible gate on the admin arm is the post-demotion edge: if a later
     ' getMe round flips isAdmin false while m.headerCol still says "admin"
     ' (OnMeResponse hides the button in that branch), restoring focus to a
@@ -855,15 +926,26 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
     if press then
         ' Horizontal header nav: while in the "search" (header) zone, Left/Right
         ' walk the header buttons in visual x-order (Search <-> For You <->
-        ' Favorites <-> Collections <-> Settings <-> Admin), stopping at the ends
-        ' (never wrapping). Settings reaches every user, not just admins — the
-        ' era chain skipped it, and because these steps return handled=true the
-        ' platform spatial fallback never fired to rescue it [review
-        ' roku__gameux C2]. The Admin button is only entered (Right from
-        ' Settings) when m.isAdmin, so focus never lands on the hidden button.
+        ' Favorites <-> Collections <-> Settings <-> Live TV <-> Admin), stopping
+        ' at the ends (never wrapping). Settings reaches every user, not just
+        ' admins — the era chain skipped it, and because these steps return
+        ' handled=true the platform spatial fallback never fired to rescue it
+        ' [review roku__gameux C2]. The two admin-only entries (MN-3's Live TV
+        ' and the Admin menu) are only entered when m.isAdmin, so focus never
+        ' lands on a hidden button.
         ' The header buttons never consume left/right themselves, so they bubble.
         if key = "left" and m.currentRail = "search" then
-            if m.headerCol = "admin" and m.settingsButton <> invalid then
+            ' The tv step is gated on both sides (MN-3): a demotion round can
+            ' flip isAdmin false WHILE the user stands on adminButton, and an
+            ' ungated left step would move that stranded focus from one hidden
+            ' node to another. Failing the gate leaves the key unhandled - the
+            ' same posture CHECK29 R4's gated right step into admin already
+            ' ships toward.
+            if m.headerCol = "admin" and m.isAdmin and m.tvButton <> invalid then
+                m.tvButton.SetFocus(true)
+                m.headerCol = "tv"
+                handled = true
+            else if m.headerCol = "tv" and m.settingsButton <> invalid then
                 m.settingsButton.SetFocus(true)
                 m.headerCol = "settings"
                 handled = true
@@ -901,7 +983,11 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
                 m.settingsButton.SetFocus(true)
                 m.headerCol = "settings"
                 handled = true
-            else if m.headerCol = "settings" and m.isAdmin and m.adminButton <> invalid then
+            else if m.headerCol = "settings" and m.isAdmin and m.tvButton <> invalid then
+                m.tvButton.SetFocus(true)
+                m.headerCol = "tv"
+                handled = true
+            else if m.headerCol = "tv" and m.isAdmin and m.adminButton <> invalid then
                 m.adminButton.SetFocus(true)
                 m.headerCol = "admin"
                 handled = true
@@ -979,6 +1065,8 @@ sub ApplyXmlChrome()
     if n <> invalid then n.title = Translate("common_settings")
     n = m.top.findNode("adminButton")
     if n <> invalid then n.title = Translate("common_admin")
+    n = m.top.findNode("tvButton")
+    if n <> invalid then n.title = Translate("common_live_tv")
     n = m.top.findNode("continueLabel")
     if n <> invalid then n.text = Translate("home_continue_watching")
     n = m.top.findNode("upNextLabel")
