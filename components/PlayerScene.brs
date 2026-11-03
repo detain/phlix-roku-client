@@ -372,8 +372,18 @@ sub Show(itemId as String, args as Object)
         print "[MJ-19] refusing cleartext or malformed stream URL across the TLS origin boundary"
         streamUrl = invalid
     end if
+    ' MN-24 (review roku__qa): a root-relative survivor of the MJ-19 gate
+    ' (relative paths are origin-safe by doctrine) still cannot be fetched
+    ' by the Video node - refuse it through the same no-stream dialog and
+    ' never strand the party behind it (MJ-7 stop custody).
+    if streamUrl <> "" and Left(LCase(streamUrl), 6) <> "https:" and Left(LCase(streamUrl), 5) <> "http:" then
+        print "[MN-24] refusing scheme-less stream URL at the Video boundary"
+        streamUrl = ""
+    end if
     if streamUrl = invalid or streamUrl = "" then
         ShowErrorDialog(m.top, Translate("common_error"), Translate("player_err_no_stream"))
+        ' MJ-7: never strand the party behind a refused stream.
+        if m.syncActive then CloseSyncPanel()
         return
     end if
 

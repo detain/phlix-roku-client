@@ -61,6 +61,15 @@ sub LoadStream(streamUrl as String, title as String)
         return
     end if
 
+    ' MN-24 (review roku__qa): a root-relative survivor of the MJ-19 gate
+    ' (the tuner's relative Location, if it ever reaches here) cannot be
+    ' fetched by the Video node - same no-stream status, never silence.
+    if Left(LCase(streamUrl), 6) <> "https:" and Left(LCase(streamUrl), 5) <> "http:" then
+        print "[MN-24] live: refusing scheme-less stream URL"
+        SetStatus(Translate("player_err_no_stream"))
+        return
+    end if
+
     fmt = "mpegts"
     if Instr(1, streamUrl, ".m3u8") > 0 then fmt = "hls"
 

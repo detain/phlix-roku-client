@@ -497,7 +497,13 @@ function BuildSceneEvent(jsonText as String) as Object
         else if msg.DoesExist("code") and msg.code <> invalid then
             codeStr = StringifyId(msg.code)
         end if
-        print "SyncPlay error_code: " + codeStr
+        ' MN-22: only the bounded code alphabet may reach the log;
+        ' message-sized wire text gets a count, never content.
+        if IsErrorCodeToken(codeStr) then
+            print "SyncPlay error_code: " + codeStr
+        else
+            print "SyncPlay error_code: <wire text " + Str(Len(codeStr)).Trim() + " chars suppressed>"
+        end if
         ' W5 error-code-first: a recognized code resolves to the localized catalog
         ' line; the server message is only the debug fallback for unknown codes.
         ' Utilities.brs is in this component's script closure (SyncPlayTask.xml).

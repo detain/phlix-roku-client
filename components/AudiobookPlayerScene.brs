@@ -157,6 +157,13 @@ sub StartPlayback()
         streamUrl = ""
     end if
 
+    ' MN-24 (review roku__qa): a root-relative survivor of the MJ-19 gate
+    ' still cannot be fetched by the Audio node - refuse it through the
+    ' same no-stream dialog.
+    if streamUrl <> "" and Left(LCase(streamUrl), 6) <> "https:" and Left(LCase(streamUrl), 5) <> "http:" then
+        print "[MN-24] refusing scheme-less stream URL at the Audio boundary"
+        streamUrl = ""
+    end if
     if streamUrl = "" then
         if m.loadingLabel <> invalid then
             m.loadingLabel.visible = false

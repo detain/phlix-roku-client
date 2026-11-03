@@ -1353,6 +1353,12 @@ function ApiClient(baseUrl as String) as Object
             end if
 
             if location = invalid then location = ""
+            ' MN-24 (review roku__qa): the tuner lane commonly answers with a
+            ' RELATIVE Location ("/streams/x.m3u8"). Returning it raw hands the
+            ' Video node a scheme-less string it cannot fetch (silent live-TV
+            ' breakage). Absolutize against the url that produced the 3xx - the
+            ' same ResolveRedirectTarget law sendRaw obeys at :370/:622.
+            if location <> "" then location = ResolveRedirectTarget(url, location)
             return location
         end function
 

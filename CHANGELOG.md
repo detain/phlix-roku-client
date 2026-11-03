@@ -95,6 +95,47 @@ claim below re-checkable the same way:
   green across both reds; dry-run proven in scratch before shipping.
   Red-parent over the Batch-10 tip measured exactly 4 convictions.
 
+### Fixed — the debug log never repeats wire prose, a relative stream Location reaches its player, and the dead room recites its revival law (MN-16 MN-22 MN-24 MN-25 MN-29, reviews roku__srphp/secnet/qa) — 2026-11-03
+
+- MN-22: M-ROKU-03 killed the raw-wire echo on the UI side; two DEBUG-LOG
+  echoes stayed alive — SyncPlayTask's error arm printed `msg.error_code`
+  content raw, and GetErrorMessage's suppressed-detail arm printed the whole
+  (capped) wire string. Now a shared `IsErrorCodeToken` shape gate decides:
+  bounded snake-case codes may echo; anything message-sized gets a char
+  count, never content.
+- MN-24: `resolveLocation` returned the 3xx `Location` verbatim, so a
+  relative "/streams/x.m3u8" reached the tuner lane and the Video node
+  silently never played. It now absolutizes through `ResolveRedirectTarget`
+  (the sendRaw :370/:622 law) before returning. Belt on top: the MJ-19
+  doctrine ADMITS root-relative paths (they ride the origin scheme), so all
+  three playback surfaces gained scheme custody at the node boundary — a
+  scheme-less candidate is refused through the file's own existing
+  no-stream dialog (no new codes, no new keys), and PlayerScene's refusal
+  never strands a party (MJ-7 stop custody).
+- MN-16: the dead `SyncPlayManager` path carries four blocking
+  `wait(35000)` REST calls; its header now states the REVIVAL LAW — no
+  revival commit may land while a wait() rides a visible-thread path; move
+  the calls to a background task (ApiTask idiom) or refuse them.
+- MN-25/MN-29: README's settings row and nav walk now name all SEVEN shipped
+  sections (Notifications was missing); docs/i18n.md's Check 19 scope is now
+  the four files it actually scans (PlayerScene joined at R-ROKU-08).
+- Gates: `make lint` rc=0 (zero new diagnostics), Check 83 green (battery 83
+  strict PASS), full battery rc=0, headless 214/0/53 EXACT (no new suite),
+  portable twin over the committed tip (result appended to the fix ledger).
+
+### Added — Check 83: log-custody, Location-custody, revival-law and docs-count truths (MN-16/22/24/25/29 era) — 2026-11-03
+
+- R1: the token-gate trio — predicate presence, gated echo shape, count-only
+  suppressed-detail arm — with the two convicted content-bearing legacy shapes
+  pinned by name (plants re-growing them convict alone).
+- R2: `resolveLocation`'s regex-slice must contain the absolutize call, and
+  each playback file's scheme refusal appears exactly once.
+- R3: manager header revival marker + clause; R4: the three docs truths plus
+  the certification 7.8 row naming MN-24/ResolveRedirectTarget.
+- Twin plants T (Utilities echo re-grown → R1 alone) and U (absolutize line
+  deleted → R2 alone); gate-independence greps pin Checks 79/80/81/82 green
+  across both; red-parent over 4d143c9 measured exactly 8 convictions.
+
 ### Fixed — the syncplay handshake key and every frame mask behind it now ride a stream re-seeded on each dial; boot-window guesses can no longer forge the accept proof (MJ-17, review roku__secnet) — 2026-11-03
 
 - `RandomByte` was `Rnd(256) - 1` over the platform LCG and the factory's only

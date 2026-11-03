@@ -11831,4 +11831,152 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 83: logs keep wire content out, relative Locations absolutize, the dead room stays documented dead - the MN-16/MN-22/MN-24/MN-25/MN-29 era ==="
+# WHY: MN-22 (review roku__secnet): the UI-side raw-wire echo was convicted by
+# M-ROKU-03 but two DEBUG-LOG echoes of wire content lingered - SyncPlayTask's
+# error arm printed msg.error_code raw (message-sized payload reaches the log
+# whenever a server misuses the code field) and GetErrorMessage's suppressed
+# detail arm printed the entire (already length-capped) safeError. MN-24
+# (review roku__qa): resolveLocation returned the 3xx Location verbatim, so a
+# relative "/streams/x.m3u8" reached getChannelStreamUrl and the Video node
+# silently never played; and the MJ-19 gate ADMITS root-relative paths by
+# doctrine, so a scheme-less survivor still reached playback nodes. MN-16
+# (review roku__srphp): the dead SyncPlayManager path carries blocking
+# wait(35000) REST calls a revival would inherit - the header must state the
+# revival law. MN-25/MN-29: README claimed 6 settings sections (7 ship) and
+# i18n.md claimed Check 19 scans three files (four since R-ROKU-08).
+#   R1: log custody - IsErrorCodeToken stands and the SyncPlayTask echo is gated
+#       by it; GetErrorMessage's diagnostic carries a COUNT, never content (the
+#       old echo shape is convicted by name, plant-safe).
+#   R2: Location custody - resolveLocation absolutizes via ResolveRedirectTarget
+#       before returning, and all three playback surfaces refuse scheme-less
+#       stream urls at the node boundary.
+#   R3: the dead manager's header carries the REVIVAL LAW (MN-16 marker + the
+#       background-task clause).
+#   R4: docs truth - README's settings row names 7 sections incl Notifications,
+#       the nav walk lists notifications, i18n.md names four scoped files, and
+#       the certification media-lane row 7.8 names the MN-24 custody.
+# NUMBERING: 83 collision-probed at 4d143c9, highest prior 82.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        return None
+
+problems = []
+
+# --- R1: log custody (MN-22) ---
+task = read("components/SyncPlayTask.brs")
+utils = read("source/lib/Utilities.brs")
+laws = []
+if task is None or utils is None:
+    problems.append("  CHECK83 R0: cannot read the syncplay task or utilities - the pin cannot run vacuously")
+else:
+    if "function IsErrorCodeToken(value as String) as Boolean" not in utils:
+        laws.append("IsErrorCodeToken predicate lost")
+    if "        if IsErrorCodeToken(codeStr) then" not in task:
+        laws.append("SyncPlayTask error echo no longer gated by the token shape")
+    if 'print "SyncPlay error_code: " + codeStr' in task and "if IsErrorCodeToken(codeStr) then\n            print \"SyncPlay error_code: \" + codeStr" not in task:
+        laws.append("ungated raw error_code echo re-grown")
+    if "suppressed wire detail (\" + Str(Len(safeError)).Trim() + \" chars)\"" not in utils:
+        laws.append("GetErrorMessage detail no longer count-only")
+    if 'print "GetErrorMessage suppressed wire detail: " safeError' in utils:
+        laws.append("content-bearing suppressed-detail echo re-grown")
+    if laws:
+        problems.append(
+            "  components/SyncPlayTask.brs - CHECK83 R1: " + "; ".join(laws)
+            + " (wire message content must never ride the debug log - only bounded "
+            "code tokens or a char count - MN-22)")
+
+# --- R2: Location custody (MN-24) ---
+api = read("source/lib/ApiClient.brs")
+laws = []
+if api is None:
+    problems.append("  CHECK83 R0: cannot read ApiClient - the pin cannot run vacuously")
+else:
+    m = re.search(r"\n        resolveLocation: function\(path as String\) as String\n(.*?)\n        end function", api, re.S)
+    if m is None:
+        problems.append("  source/lib/ApiClient.brs - CHECK83 R2: resolveLocation vanished - the 302 custody pin cannot run vacuously")
+    else:
+        if "if location <> \"\" then location = ResolveRedirectTarget(url, location)" not in m.group(1):
+            laws.append("resolveLocation stopped absolutizing the 3xx Location")
+if laws:
+    problems.append(
+        "  source/lib/ApiClient.brs - CHECK83 R2: " + "; ".join(laws)
+        + " (a relative Location hands the Video node a scheme-less url and live "
+        "TV silently never plays - MN-24)")
+laws = []
+for path in (
+    "components/PlayerScene.brs",
+    "components/AudiobookPlayerScene.brs",
+    "components/LivePlayerScene.brs",
+):
+    t = read(path)
+    if t is None:
+        continue
+    if t.count('Left(LCase(streamUrl), 6) <> "https:"') != 1:
+        laws.append(path + ": scheme custody lost or duplicated")
+if laws:
+    problems.append(
+        "  components - CHECK83 R2: " + "; ".join(laws)
+        + " (a root-relative survivor of the MJ-19 gate cannot be fetched by a "
+        "playback node - refuse at the boundary, never silence - MN-24)")
+
+# --- R3: revival law (MN-16) ---
+mgr = read("source/lib/SyncPlayManager.brs")
+if mgr is None:
+    problems.append("  CHECK83 R0: cannot read SyncPlayManager - the pin cannot run vacuously")
+else:
+    laws = []
+    if "REVIVAL LAW (MN-16" not in mgr:
+        laws.append("revival-law marker missing")
+    if "background task" not in mgr:
+        laws.append("blocking-REST clause missing")
+    if laws:
+        problems.append(
+            "  source/lib/SyncPlayManager.brs - CHECK83 R3: " + "; ".join(laws)
+            + " (the dead room's blocking wait(35000) calls must be named before "
+            "any revival - MN-16)")
+
+# --- R4: docs truth (MN-25/MN-29 + certification 7.8) ---
+readme = read("README.md")
+if readme is None or "# Settings, 7 sections (Account / Server / Playback / Captions / Notifications /" not in readme:
+    problems.append("  README.md - CHECK83 R4: the settings row lost its 7-section/Notifications truth (MN-25)")
+if readme is not None and "captions mode, notifications, clear watch history, and PiP" not in readme:
+    problems.append("  README.md - CHECK83 R4: the nav walk lost notifications (MN-25)")
+i18n = read("docs/i18n.md")
+if i18n is None or "The four scoped files" not in i18n:
+    problems.append("  docs/i18n.md - CHECK83 R4: Check 19's scope lost its four-file truth (MN-29)")
+cert = read("docs/certification.md")
+row = ""
+if cert is not None:
+    mm = re.search(r"^\|\s*7\.8\s*\|.*$", cert, re.M)
+    if mm:
+        row = mm.group(0)
+if "MN-24" not in row or "ResolveRedirectTarget" not in row:
+    problems.append("  docs/certification.md - CHECK83 R4: the 7.8 row is missing or no longer names its MN-24 custody (ResolveRedirectTarget)")
+
+if problems:
+    for p in problems:
+        print(p)
+    print("  CHECK83: %d log-custody/Location/revival/docs pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK83: the debug log never carries message-sized wire content; a 302 Location")
+print("           absolutizes before it reaches a playback node; the dead room's revival")
+print("           law and the docs counts stand.")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

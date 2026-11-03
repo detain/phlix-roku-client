@@ -10,6 +10,13 @@
 ' components/SyncPlayTask directly (PlayerScene.brs:1800). Retained for a possible
 ' room revival; owner wire-vs-retire decision open. See README §6 "Room-scene
 ' retention" and Check 56 (scripts/verify-runtime.sh), which pins both directions.
+'
+' REVIVAL LAW (MN-16, review roku__srphp): reviving this path REQUIRES replacing
+' its blocking REST calls first - the four wait(35000) sites inside this file run
+' synchronous roUrlTransfer handshakes on the CALLING thread, and the scene thread
+' would freeze for the full socket timeout on every call once the room scene is
+' wired. No revival commit may land while any wait() here rides a visible-thread
+' path; move the calls to a background task (the ApiTask idiom) or refuse them.
 
 ' copyright 2026 Joe Huss
 '

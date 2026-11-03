@@ -607,7 +607,7 @@ at the ends — never wraps):
   collection names) → a collection's items (poster grid) → item detail`. Items are type-routed
   exactly like Library/Favorites (series → series view, season → season view, otherwise → detail).
 - **Settings** — open the settings screen: account/logout, server URL, playback preferences,
-  captions mode, clear watch history, and PiP. Every user gets it — the walk steps into Settings
+  captions mode, notifications, clear watch history, and PiP. Every user gets it — the walk steps into Settings
   from both sides (Collections ↔ Settings ↔ Admin), and for non-admins the chain simply ends there.
 - **Admin** — shown **only for admin users**. On Home init the app calls `GET /auth/me` and reveals
   the button when the returned user is `is_admin`; for non-admins the button stays hidden and the
@@ -752,7 +752,7 @@ phlix-roku/
 │   ├── PhotosScene.brs           # Photo date-album grid (entry point of a photo library)
 │   ├── PhotoAlbumScene.brs       # One date album's thumbnail grid (signed thumbnail_urls)
 │   ├── PhotoViewerScene.brs      # Full-screen photo viewer (caption/info chrome)
-│   ├── SettingsScene.brs         # Settings, 6 sections (Account / Server / Playback / Captions / Watch History / About; R7.1)
+│   ├── SettingsScene.brs         # Settings, 7 sections (Account / Server / Playback / Captions / Notifications / Watch History / About; R7.1)
 │   ├── ParentalControlsScene.brs # Parental controls, 3 sections (access Schedules / blocked Tags / Stream Limits; P5-S5)
 │   ├── LiveTvScene.brs           # Admin Live TV channels list (one-shot LabelList; row-select resolves stream → live player)
 │   ├── LivePlayerScene.brs       # Dedicated lightweight live Video player (no sessions/progress/transcode/markers)

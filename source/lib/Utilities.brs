@@ -1243,7 +1243,8 @@ function GetErrorMessage(apiError as Object) as String
     ' replaced by the generic caption.
     if len(safeError) > 0 then
         if IsTransportReason(safeError) then return TranslateTransportReason(safeError)
-        print "GetErrorMessage suppressed wire detail: " safeError
+        ' MN-22: even the capped diagnostic keeps content out of the log.
+        print "GetErrorMessage suppressed wire detail (" + Str(Len(safeError)).Trim() + " chars)"
     end if
     return "An error occurred. Please try again."
 end function
@@ -1307,6 +1308,20 @@ function IsSafeContentId(contentId as Dynamic) as Boolean
         ' continuation operator — bsc parses it as an identifier.)
         ok = (c >= 48 and c <= 57) or (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or c = 45 or c = 95
         if not ok then return false
+    end for
+    return true
+end function
+
+' MN-22 (review roku__secnet): bounded SHAPE test for wire error codes.
+' Log lines may echo text that passes this gate - anything longer than 64
+' chars or carrying a character outside the snake-case code alphabet is
+' message-sized payload and gets a count, never content (SyncPlayTask's
+' error arm shares this predicate with the GetErrorMessage detail sink).
+function IsErrorCodeToken(value as String) as Boolean
+    if Len(value) < 1 or Len(value) > 64 then return false
+    allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-"
+    for i = 0 to Len(value) - 1
+        if InStr(allowed, Mid(value, i + 1, 1)) = 0 then return false
     end for
     return true
 end function
