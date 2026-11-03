@@ -130,6 +130,29 @@ claim below re-checkable the same way:
   of `home_start_failed`; CHECK48's R3 pin lands at 1.17.0 carrying that
   era history in its own disclosure text.
 
+### Fixed — the auth path type-gates every JSON lift: hostile payloads can no longer kill the ApiTask thread (review roku__exploiter MJ-5) — 2026-11-03
+
+- **Verify-first.** The review charged the API client with dot-accessing
+  `ParseJSON` output blind: a hostile server answer of `[]` (roArray) or
+  `{"libraries":42}` raises a Type mismatch mid-property-access, and on the
+  ApiTask thread that is a silent transport death — the session, the
+  refresh 401-retry, and the library rails all ride these lifts.
+- **Cure.** Five sites gain CHECK43's own type-gate idiom (the law that
+  guarded wire-bound Strings but never scanned the auth path): the
+  restore-session lift, both token lifts in `refreshAccessToken`
+  (access/refresh gated to `roString` so a numeric token cannot coerce
+  through padded `str()` form into custody), the login-path lift (token
+  `roString`, `m.user` AA-or-invalid for its consumers), the sync-play
+  `session_id` lift, and the `libraries` shape check — a bad shape now
+  degrades exactly like emptiness (`return []`). The `UnwrapApiEnvelope`
+  and error-classification guards move from `<> invalid` to explicit
+  `type()` so `DoesExist` can never be reached on an roArray.
+- **No wire change.** Requests, bodies, headers and envelopes are byte
+  identical — this is consumer-side shape defense only. Headless suite
+  figures hold at the 210/0/53 baseline (the touched suites are excluded
+  under the headless runner; CHECK43's battery leg keeps the idiom law
+  enforced where it does run).
+
 ### Checks — the portable twin's PASS narration becomes an output of its own asserts (Check 73, R-ROKU-29) — 2026-11-02
 
 - **Verify-first, then the cure.** The rider (RIDERS_QUEUE.md R-ROKU-29,

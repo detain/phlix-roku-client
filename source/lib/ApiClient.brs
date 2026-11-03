@@ -76,7 +76,10 @@
 '                           source, e.g. getMe() -> user object, so
 '                           call sites can use one uniform idiom).
 ' Checking .ok is the CALLER's job: unwrap answers "where is the
-' payload", not "did the request succeed".
+' payload", not "did the request succeed". And since [review
+' roku__exploiter MJ-5] it is explicitly the CALLER's job too: .data is
+' ANY ParseJSON output, so every consumer must type()-gate (roString/
+' roAssociativeArray/roArray — CHECK43 idiom) before dot-accessing it.
 function UnwrapApiEnvelope(env as Object) as Object
     if env = invalid then return invalid
     if type(env) <> "roAssociativeArray" then return env
@@ -206,7 +209,12 @@ function ApiClient(baseUrl as String) as Object
                 transportReason = WireErrorText(env.error, "")
                 if env <> invalid and env.ok then
                     payload = UnwrapApiEnvelope(env)
-                    if payload <> invalid and payload.user <> invalid then
+                    ' [review roku__exploiter MJ-5] payload is ANY ParseJSON
+                    ' output — a hostile top-level `[]` dot-accessed raises on
+                    ' the ApiTask thread. AA-gate the lift; m.user must be an
+                    ' AA too, because consumers read m.user.email (CHECK43
+                    ' idiom, applied to the auth path).
+                    if type(payload) = "roAssociativeArray" and type(payload.user) = "roAssociativeArray" then
                         m.user = payload.user
                         m.restoreReason = "authenticated"
                         return true
@@ -403,9 +411,16 @@ function ApiClient(baseUrl as String) as Object
             if m.refreshToken = "" then return false
 
             raw = m.sendRaw("POST", "/auth/refresh", { refresh_token: m.refreshToken })
-            if raw.json <> invalid and raw.json.access_token <> invalid then
+            ' [review roku__exploiter/secnet MJ-5a] raw.json is ANY ParseJSON
+            ' output: a hostile `[]` answer is an roArray and dot-accessing it
+            ' raises a Type mismatch that kills the ApiTask thread every
+            ' auto-refresh 401-retry rides. Type-gate the body, and gate the
+            ' token lifts to roString so a numeric token can never coerce
+            ' through padded str() form into custody (CHECK43's law, applied
+            ' to the auth path it never scanned).
+            if type(raw.json) = "roAssociativeArray" and type(raw.json.access_token) = "roString" then
                 m.setToken(raw.json.access_token)
-                if raw.json.refresh_token <> invalid then
+                if type(raw.json.refresh_token) = "roString" then
                     m.setRefreshToken(raw.json.refresh_token)
                 end if
                 return true
@@ -509,7 +524,7 @@ function ApiClient(baseUrl as String) as Object
             if status < 200 then
                 error = ClassifyUrlFailure(raw.fail, raw.started)
             else if status >= 400 then
-                if payload <> invalid and payload.DoesExist("error") then
+                if type(payload) = "roAssociativeArray" and payload.DoesExist("error") then
                     ' M-ROKU-11 (M-ROKU-11 CHECK44 cure): type-safe lift, as
                     ' in sendRaw — a non-String error degrades to the bucket.
                     error = WireErrorText(payload.error, "http_" + str(status).trim())
@@ -518,12 +533,21 @@ function ApiClient(baseUrl as String) as Object
                 end if
             end if
 
-            if ok and payload <> invalid and payload.access_token <> invalid then
+            if ok and type(payload) = "roAssociativeArray" and type(payload.access_token) = "roString" then
+                ' [review roku__exploiter/secnet MJ-5b] the token lifts ride
+                ' into `as String` custody setters: a numeric token would
+                ' coerce through padded str() form, an AA/List payload raises
+                ' the Type mismatch on the ApiTask thread. Gate each value to
+                ' the type its setter demands (CHECK43's wire-bound-String
+                ' law); m.user is kept an AA-or-invalid for its consumers.
                 m.setToken(payload.access_token)
-                if payload.refresh_token <> invalid then
+                if type(payload.refresh_token) = "roString" then
                     m.setRefreshToken(payload.refresh_token)
                 end if
-                m.user = payload.user
+                m.user = invalid
+                if type(payload.user) = "roAssociativeArray" then
+                    m.user = payload.user
+                end if
             end if
 
             return { status: status, ok: ok, data: payload, error: error }
@@ -677,7 +701,7 @@ function ApiClient(baseUrl as String) as Object
             ' .data - the pre-unwrap read left every session unset (and
             ' progress reporting silently died with it).
             payload = UnwrapApiEnvelope(env)
-            if env <> invalid and env.ok and payload <> invalid and payload.session_id <> invalid then
+            if env <> invalid and env.ok and type(payload) = "roAssociativeArray" and type(payload.session_id) = "roString" then
                 m.setSession(payload.session_id)
             end if
 
@@ -698,7 +722,11 @@ function ApiClient(baseUrl as String) as Object
             env = m.request("GET", "/libraries", invalid)
             if env = invalid or not env.ok then return []
             payload = UnwrapApiEnvelope(env)
-            if payload <> invalid and payload.libraries <> invalid then
+            ' [review roku__exploiter MJ-5c] .libraries must be an roArray
+            ' before it is handed to consumers' For Each — a hostile
+            ' {"libraries":42} used to escape as a scalar the rails would
+            ' crash on; shape failure now degrades exactly like emptiness.
+            if type(payload) = "roAssociativeArray" and type(payload.libraries) = "roArray" then
                 return payload.libraries
             end if
             return []
