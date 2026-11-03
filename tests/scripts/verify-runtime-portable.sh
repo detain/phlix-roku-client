@@ -2901,7 +2901,7 @@ set -e
 [ "$RED62_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the review-era README inventories are re-planted (got 0 — the CHECK62 pin is toothless)"
 sed -n '/=== Check 62:/,$p' <<<"$RED62_OUT" | grep -qF "CHECK62 R1: the Test Structure block names phantom suites ['SessionManager.test.brs']" ||
 	fail "CHECK62 red must convict the phantom suite name naming it (got: $RED62_OUT)"
-sed -n '/=== Check 62:/,$p' <<<"$RED62_OUT" | grep -qF "CHECK62 R2: 19 shipped suite(s) are absent" ||
+sed -n '/=== Check 62:/,$p' <<<"$RED62_OUT" | grep -qF "CHECK62 R2: 20 shipped suite(s) are absent" ||
 	fail "CHECK62 red must convict the unlisted real suites (got: $RED62_OUT)"
 sed -n '/=== Check 62:/,$p' <<<"$RED62_OUT" | grep -qF "CHECK62 R3: the Unit Tests section claims 3 rooibos unit suites" ||
 	fail "CHECK62 red must convict the stale count literal against the census (got: $RED62_OUT)"
