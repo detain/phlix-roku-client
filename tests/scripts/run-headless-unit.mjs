@@ -53,7 +53,7 @@ const ALLOWED = [
     "Utilities", "Utilities2", "CaptionsMode", "SkipButton", "SleepTimer",
     "ContentIdGuard", "Discovery", "RedirectCustody", "Theme", "Storage",
     "HubRelayOriginLaw", "WireGuard", "AuthManager", "ApiClient",
-    "AppContext", "PhlixApp", "SyncPlayManager", "SyncPlayWsTls",
+    "AppContext", "PhlixApp", "SyncPlayManager", "SyncPlayWsTls", "PanelStack",
 ];
 // Suites kept off the headless list and why (measured, not assumed — each
 // entry was run and its crash reason recorded in the W-min91 fixlog).

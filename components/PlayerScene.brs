@@ -1428,20 +1428,25 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
             return handled
         end if
 
-        ' P3B-S7: settings panel (Audio / Subtitles) handling.
-        if m.settingsPanelOpen then
-            if key = "back" or key = "down" then
-                CloseSettingsPanel()
-                handled = true
-            end if
-            return handled
-        end if
-
-        ' P3B-S7: track list sub-panel (Audio tracks or Subtitles list).
-        if m.trackListPanelOpen then
-            if key = "back" then
-                CloseTrackListPanel()
-                handled = true
+        ' P3B-S7 + MJ-12 [review roku__gameux]: the panel stack unwinds
+        ' CHILD-FIRST. The track list is a child of the settings panel (both
+        ' flags are open while it rides); the pre-cure order tested the
+        ' parent first, so Back closed settings underneath a visible child
+        ' and stranded the track list over nothing. PlayerTopOpenPanel
+        ' (source/player/PanelStack.brs) is the unit-pinned stack decision
+        ' (tests/unit/PanelStack.test.brs); only the settings owner still
+        ' swallows "down".
+        if m.settingsPanelOpen or m.trackListPanelOpen then
+            if PlayerTopOpenPanel(m.settingsPanelOpen, m.trackListPanelOpen) = "trackList" then
+                if key = "back" then
+                    CloseTrackListPanel()
+                    handled = true
+                end if
+            else
+                if key = "back" or key = "down" then
+                    CloseSettingsPanel()
+                    handled = true
+                end if
             end if
             return handled
         end if
@@ -2602,7 +2607,17 @@ end sub
 sub CloseTrackListPanel()
     m.trackListPanelOpen = false
     if m.trackListPanel <> invalid then m.trackListPanel.visible = false
-    if m.settingsList <> invalid then m.settingsList.SetFocus(true)
+    ' MJ-12 [review roku__gameux]: focus follows the stack. The settings list
+    ' may hold focus only while the settings panel is actually open; the
+    ' chapter picker ("C") rides this same panel WITHOUT it, and the old
+    ' unconditional re-focus parked on the hidden settingsList — a write that
+    ' cannot land per this file's own ShowControls focus law. sceneRoot is
+    ' the shipped CloseSettingsPanel idiom's answer.
+    if PlayerPanelCloseFocus("trackList", m.settingsPanelOpen) = "settingsList" then
+        if m.settingsList <> invalid then m.settingsList.SetFocus(true)
+    else
+        m.top.SetFocus(true)
+    end if
 end sub
 
 ' P2-S5: Open/close the chapter picker. Shows a list of all chapters when

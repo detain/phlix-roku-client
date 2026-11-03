@@ -51,6 +51,35 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the player panel stack unwinds child-first and focus follows the stack (MJ-12, review roku__gameux) — 2026-11-03
+
+- **The defect.** `OnKeyEvent` tested the settings panel before its
+  track-list CHILD: while both flags were open Back closed the parent,
+  stranding the visible track list over nothing — and the following
+  `CloseTrackListPanel` then re-focused `m.settingsList` unconditionally,
+  a write that cannot land on the hidden panel per the file's own
+  ShowControls focus law (the chapter picker rides that panel with the
+  settings flag false). No test anywhere pinned the order.
+- **The cure carves the decision to headless-testable scope** (the
+  source/player/SleepTimer.brs split precedent): `PlayerTopOpenPanel`
+  answers the stack (child-first: trackList wins while open) and
+  `PlayerPanelCloseFocus` answers where focus goes on close (parent list
+  only while the parent is open, else sceneRoot — the shipped
+  CloseSettingsPanel idiom). `OnKeyEvent`/`CloseTrackListPanel` route
+  through them; key semantics for every single-panel state are preserved
+  exactly (settings-only still swallows down; track-list-only still
+  answers back only).
+- **Unit pins (the law now has teeth):** new suite `PanelStack` (4 tests)
+  pins child-first unwind, the singleton answers, and both focus
+  hand-off classes. RED-AT-PARENT measured: 4/4 unresolved-call failures
+  before `source/player/PanelStack.brs` joined; era rotated from the
+  measurement — headless unit 210→214 failed=0 excluded=53 (disclosed
+  re-pin; README suite census 22→23 and both structure blocks rotated
+  with it, CHECK60/62 green).
+- **Gates.** Battery 78 legs / 81 PASS rc=0; `bsc`/`bslint` clean;
+  `validate-xml` 48; routes + self-test green; portable twin re-run over
+  the committed tip (PlayerScene is a Check 19 staged file).
+
 ### Added — Check 78: settings-catalog custody over the MJ-20 rewire — 2026-11-03
 
 - **The gate.** R1 convicts raw `title:`/`description:` literals inside the

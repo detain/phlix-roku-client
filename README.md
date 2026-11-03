@@ -402,7 +402,7 @@ printf 'user = "rokudev:%s"\ndigest\nurl = "http://192.168.1.100/plugin_install"
 
 ### Unit Tests
 
-Unit tests live in `tests/unit/` — **22 rooibos unit suites** at time of writing, one
+Unit tests live in `tests/unit/` — **23 rooibos unit suites** at time of writing, one
 `*.test.brs` file per module. The full listing is the **Test Structure** block below;
 Check 62 pins this count and the listing to the shipped tree, so a re-drift reddens CI.
 
@@ -457,7 +457,7 @@ moment this block and the tree disagree, in either direction):
 
 ```
 tests/
-├── unit/                                  # 22 rooibos suites, one *.test.brs per module
+├── unit/                                  # 23 rooibos suites, one *.test.brs per module
 │   ├── ApiClient.test.brs
 │   ├── ApiEnvelope.test.brs
 │   ├── AppContext.test.brs
@@ -466,6 +466,7 @@ tests/
 │   ├── ContentIdGuard.test.brs
 │   ├── Discovery.test.brs
 │   ├── HubRelayOriginLaw.test.brs
+│   ├── PanelStack.test.brs
 │   ├── PhlixApp.test.brs
 │   ├── RedirectCustody.test.brs
 │   ├── SkipButton.test.brs
@@ -724,6 +725,7 @@ phlix-roku/
 │   │   ├── ToastManager.brs      # Toast/notification singleton for background errors (GetToastManager())
 │   │   └── Utilities.brs         # Helper functions (locale loader + Translate, SyncPlay error law)
 │   └── player/
+│       ├── PanelStack.brs        # PlayerScene panel-stack unwind law (child-first Back, focus follows the stack)
 │       ├── SkipButton.brs        # Skip intro/outro button (shared logic behind components/SkipButton)
 │       └── SleepTimer.brs        # Sleep timer
 ├── components/                   # SceneGraph nodes — each .brs pairs with its .xml (the exception is ToastScene: xml-only, no script)

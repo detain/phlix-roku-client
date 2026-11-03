@@ -21,6 +21,7 @@
     <script type="text/brightscript" uri="pkg:/source/lib/SyncPlayProtocol.brs" />
     <!-- R3.4: ToastManager for generalized toast/notification system -->
     <script type="text/brightscript" uri="pkg:/source/lib/ToastManager.brs" />
+    <script type="text/brightscript" uri="pkg:/source/player/PanelStack.brs" />
     <script type="text/brightscript" uri="pkg:/source/player/SleepTimer.brs" />
     <script type="text/brightscript" uri="pkg:/components/PlayerScene.brs" />
 
