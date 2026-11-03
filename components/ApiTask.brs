@@ -433,12 +433,6 @@ sub ExecRequest()
             ApplyEnvelope(result, api.getItemPlaybackInfo(req.itemId))
         else if req.op = "getItemSimilar" then
             ApplyEnvelope(result, api.getItemSimilar(req.itemId))
-        else if req.op = "getItemRatings" then
-            ApplyEnvelope(result, api.getItemRatings(req.itemId))
-        else if req.op = "getItemTrailers" then
-            ApplyEnvelope(result, api.getItemTrailers(req.itemId))
-        else if req.op = "getItemExtras" then
-            ApplyEnvelope(result, api.getItemExtras(req.itemId))
         else if req.op = "startTranscode" then
             ApplyEnvelope(result, api.startTranscode(req.itemId))
         else if req.op = "getTranscodeStatus" then

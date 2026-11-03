@@ -54,6 +54,17 @@ sub Init()
         m.collectionButton.ObserveField("buttonSelected", "OnCollectionPressed")
     end if
 
+    ' [review roku__gameux CR-1] "More Like This" overlay wiring: selection is
+    ' index-keyed into m.similarItems (the SearchScene results[] idiom), and
+    ' the panel is entered ONLY through the OnActionDown ladder once it has
+    ' content — visible is false until then, so no phantom focus stop exists.
+    m.similarGrid = m.top.FindNode("similarGrid")
+    m.similarPanel = m.top.FindNode("similarPanel")
+    m.similarItems = []
+    if m.similarGrid <> invalid then
+        m.similarGrid.ObserveField("itemSelected", "OnSimilarSelected")
+    end if
+
     ' Route all data access through the ApiTask node (off the render thread).
     m.apiTask = CreateObject("roSGNode", "ApiTask")
     m.apiTask.ObserveField("response", "OnApiResponse")
@@ -67,7 +78,8 @@ sub Init()
     m.autoPlayOnLoad = false
 
     ' Actions-strip focus state machine. "none" = scene holds focus (play-on-OK
-    ' works); "favorite"/"rating" = a strip button is focused.
+    ' works); "favorite"/"rating" = a strip button is focused; "similar" = the
+    ' "More Like This" overlay grid holds focus [CR-1].
     m.actionFocus = "none"
     m.pendingRating = 0
     m.userData = invalid
@@ -221,7 +233,11 @@ sub OnApiResponse(event as Object)
             ShowErrorDialog(m.top, Translate("common_error"), GetErrorMessage(resp.error))
         end if
     else if resp.op = "getItemSimilar" then
-        ' R7.4: Store similar items and display if available.
+        ' R7.4: "More Like This" enrichment — the one enrichment wire that is
+        ' both live (WebPortalRouter /media/{id}/similar) AND playable on this
+        ' platform (the items are media items; selecting one re-enters
+        ' DetailScene). Trailers/extras/cast/crew fetches were removed with
+        ' CR-1: no HTTP-playable url shape, cast/crew no route at all.
         if resp.ok and resp.data <> invalid then
             similarItems = invalid
             if type(resp.data) = "roAssociativeArray" then
@@ -231,42 +247,7 @@ sub OnApiResponse(event as Object)
                     similarItems = resp.data
                 end if
             end if
-            m.similarData = similarItems
             DisplaySimilar(similarItems)
-        end if
-    else if resp.op = "getItemRatings" then
-        ' R7.4: Store external ratings and display if available.
-        if resp.ok and resp.data <> invalid then
-            m.ratingsData = resp.data
-            DisplayRatings(resp.data)
-        end if
-    else if resp.op = "getItemTrailers" then
-        ' R7.4: Store trailers and display if available.
-        if resp.ok and resp.data <> invalid then
-            trailers = invalid
-            if type(resp.data) = "roAssociativeArray" then
-                if resp.data.DoesExist("items") then
-                    trailers = resp.data.items
-                else
-                    trailers = resp.data
-                end if
-            end if
-            m.trailersData = trailers
-            DisplayTrailers(trailers)
-        end if
-    else if resp.op = "getItemExtras" then
-        ' R7.4: Store extras and display if available.
-        if resp.ok and resp.data <> invalid then
-            extras = invalid
-            if type(resp.data) = "roAssociativeArray" then
-                if resp.data.DoesExist("items") then
-                    extras = resp.data.items
-                else
-                    extras = resp.data
-                end if
-            end if
-            m.extrasData = extras
-            DisplayExtras(extras)
         end if
     else if resp.op = "getCollections" then
         EndMutation()
@@ -756,6 +737,12 @@ sub OnChildRequestClose(event as Object)
     if child = invalid or child.GetParent() <> m.top then return
     m.top.RemoveChild(child)
     m.top.SetFocus(true)
+    ' [CR-1] Coming back from a "More Like This" child detail: the panel this
+    ' grid lives in is still open, so hand focus back where the user was
+    ' instead of the bare scene (the overlay's only stop is the grid).
+    if m.actionFocus = "similar" and m.similarGrid <> invalid then
+        m.similarGrid.SetFocus(true)
+    end if
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean
@@ -763,8 +750,17 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
 
     if press then
         if key = "back" then
-            m.top.requestClose = true
-            handled = true
+            ' [CR-1] Back inside the enrichment overlay closes the overlay,
+            ' not the scene — the panel is a mode of this page, and leaving
+            ' detail because a user backed out of "More Like This" is the
+            ' two-backs-for-one-exit trap the grid would otherwise create.
+            if m.actionFocus = "similar" then
+                CloseSimilarPanel()
+                handled = true
+            else
+                m.top.requestClose = true
+                handled = true
+            end if
         else if key = "play" then
             ' Dedicated Play remote button always plays.
             OnPlayPressed()
@@ -808,7 +804,10 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
     return handled
 end function
 
-' Move focus DOWN through the actions strip: scene -> favorite -> rating.
+' Move focus DOWN through the actions strip: scene -> favorite -> rating ->
+' "More Like This" grid (only once it has content — empty = no stop exists).
+' [review roku__gameux CR-1] The terminal stop is the enrichment overlay; the
+' old rows sat below this ladder's reach AND below the canvas - both gone.
 function OnActionDown() as Boolean
     if m.actionFocus = "none" then
         if m.favoriteButton <> invalid and m.favoriteButton.visible then
@@ -816,19 +815,33 @@ function OnActionDown() as Boolean
             m.actionFocus = "favorite"
             return true
         end if
+        ' No favorite stop (unauthenticated / store unwired): fall through to
+        ' rating, then the grid, so Down is never a dead end when targets exist.
+        if m.ratingButton <> invalid and m.ratingButton.visible then
+            m.ratingButton.SetFocus(true)
+            m.actionFocus = "rating"
+            return true
+        end if
+        return OpenSimilarPanel()
     else if m.actionFocus = "favorite" then
         if m.ratingButton <> invalid and m.ratingButton.visible then
             m.ratingButton.SetFocus(true)
             m.actionFocus = "rating"
             return true
         end if
+        return OpenSimilarPanel()
+    else if m.actionFocus = "rating" then
+        return OpenSimilarPanel()
     end if
     return false
 end function
 
-' Move focus UP through the actions strip: rating -> favorite -> scene.
+' Move focus UP through the actions strip: grid -> rating -> favorite -> scene.
 function OnActionUp() as Boolean
-    if m.actionFocus = "rating" then
+    if m.actionFocus = "similar" then
+        CloseSimilarPanel()
+        return true
+    else if m.actionFocus = "rating" then
         if m.favoriteButton <> invalid and m.favoriteButton.visible then
             m.favoriteButton.SetFocus(true)
             m.actionFocus = "favorite"
@@ -842,146 +855,103 @@ function OnActionUp() as Boolean
     return false
 end function
 
+' Enter the "More Like This" overlay. Honest Boolean: the stop exists only
+' when the similar fetch landed content — callers treat false as "Down is a
+' wall here", never as failure. The opaque Rectangle already covers the page
+' chrome; focus lands on the grid itself (index 0 default on first SetFocus).
+function OpenSimilarPanel() as Boolean
+    if m.similarPanel = invalid or m.similarGrid = invalid then return false
+    if m.similarItems.Count() = 0 then return false
+
+    m.similarPanel.visible = true
+    m.similarGrid.SetFocus(true)
+    m.actionFocus = "similar"
+    return true
+end function
+
+' Leave the overlay: hide the panel, restore the scene. The grid keeps its
+' last selection index, so re-entering lands where the user left off.
+sub CloseSimilarPanel()
+    if m.similarPanel <> invalid then m.similarPanel.visible = false
+    m.actionFocus = "none"
+    m.top.SetFocus(true)
+end sub
+
 ' ---------------------------------------------------------------------
 ' R7.4: Detail enrichment - fetch additional data after main item loads.
-' Fires multiple independent requests for lazy loading: similar items,
-' ratings, cast/crew, trailers, and extras load independently after
-' primary content. Each response triggers its display function when ready.
+' [review roku__gameux CR-1] This used to fire FOUR requests back-to-back
+' (similar, ratings, trailers, extras) by re-setting m.apiTask.request and
+' control="run" four times — on one serialized task node, so the later runs
+' raced the earlier ones, and three of the four fed display code written
+' against fabricated response shapes (cast/crew never had a route; trailers
+' and extras ship TMDB YouTube links / local file paths, which Roku Video
+' cannot play; the ratings fetch had no UI consumer). Only the similar wire
+' is both live and actionable on this platform, so it is the only fetch
+' that survives.
 ' ---------------------------------------------------------------------
 sub LoadAdditionalData()
     if m.itemId = "" or m.item = invalid then return
 
-    ' Fire enrichment requests off the render thread. Each fires independently
-    ' and OnApiResponse handles the response when it arrives. Requests are
-    ' fired in sequence but process in parallel on the task thread.
     m.apiTask.request = { op: "getItemSimilar", itemId: m.itemId }
-    m.apiTask.control = "run"
-    m.apiTask.request = { op: "getItemRatings", itemId: m.itemId }
-    m.apiTask.control = "run"
-    m.apiTask.request = { op: "getItemTrailers", itemId: m.itemId }
-    m.apiTask.control = "run"
-    m.apiTask.request = { op: "getItemExtras", itemId: m.itemId }
     m.apiTask.control = "run"
 end sub
 
 ' ---------------------------------------------------------------------
-' R7.4: Display "Similar" rail if similar items were returned.
-' Similar items structure: [{media_item_id, name, poster_url, year, ...}, ...]
+' R7.4: Render the "More Like This" overlay from the /similar response.
+' Similar items structure (server getSimilarItems): [{id, title, posterUrl,
+' year, score, reason}, ...]. [review roku__gameux CR-1] This used to be a
+' no-op that only parked the array on m.similarData ("displayed if UI nodes
+' existed" - none ever did, and the Row chrome that did exist was off-canvas
+' and unreachable); the cast/ratings/trailers/extras siblings that shared
+' this fetch were dead chrome over fabricated response shapes and are gone.
+' Now it actually feeds the PosterGrid the scene ships, so the enrichment is
+' real and reachable.
 ' ---------------------------------------------------------------------
 sub DisplaySimilar(similarItems as Object)
     if similarItems = invalid then return
     if type(similarItems) <> "roArray" then return
     if similarItems.count() = 0 then return
+    if m.similarGrid = invalid then return
 
-    ' Similar items display would be rendered here if UI nodes existed.
-    ' The similar items data is available at m.similarData for any UI to consume.
-    m.similarData = similarItems
-end sub
-
-' ---------------------------------------------------------------------
-' R7.4: Display external ratings if available.
-' Ratings structure: {rotten_tomatoes: {score, icon}, imdb: {score, icon}, ...}
-' ---------------------------------------------------------------------
-sub DisplayRatings(ratings as Object)
-    if ratings = invalid then return
-    if type(ratings) <> "roAssociativeArray" then return
-    if ratings.count() = 0 then return
-
-    ' External ratings display would be rendered here if UI nodes existed.
-    ' The ratings data is available at m.ratingsData for any UI to consume.
-    m.ratingsData = ratings
-end sub
-
-' ---------------------------------------------------------------------
-' R7.4: Display trailers row if trailers exist.
-' Trailers structure: [{name, description, thumbnail_url, poster_url}, ...]
-' Trailers are playable - each row item launches the trailer video.
-' ---------------------------------------------------------------------
-sub DisplayTrailers(trailers as Object)
-    if trailers = invalid then return
-
-    trailersArray = []
-    if type(trailers) = "roAssociativeArray" then
-        if trailers.DoesExist("items") then
-            trailersArray = trailers.items
-        else
-            trailersArray = trailers
-        end if
-    else if type(trailers) = "roArray" then
-        trailersArray = trailers
-    end if
-
-    if trailersArray.count() = 0 then return
-
-    m.trailersData = trailersArray
-
-    if m.trailersRow = invalid then m.trailersRow = m.top.FindNode("trailersRow")
-    if m.trailersRow = invalid then return
+    m.similarItems = similarItems
 
     content = CreateObject("roSGNode", "ContentNode")
-    for each trailer in trailersArray
-        item = content.CreateChild("ContentNode")
-        item.Title = trailer.name
-        if trailer.description <> invalid then
-            item.Description = trailer.description
-        end if
-        if trailer.thumbnail_url <> invalid and trailer.thumbnail_url <> "" then
-            item.HDPosterUrl = trailer.thumbnail_url
-        else if trailer.poster_url <> invalid and trailer.poster_url <> "" then
-            item.HDPosterUrl = trailer.poster_url
-        else
-            item.HDPosterUrl = "pkg:/images/placeholder.png"
+    for each sim in similarItems
+        if type(sim) = "roAssociativeArray" then
+            node = content.CreateChild("ContentNode")
+            if sim.title <> invalid then node.Title = sim.title
+            if sim.posterUrl <> invalid and sim.posterUrl <> "" then
+                node.HDPosterUrl = sim.posterUrl
+            else
+                node.HDPosterUrl = "pkg:/images/placeholder.png"
+            end if
+            ' Same numeric-year idiom as RenderItem above (str().trim()).
+            if sim.year <> invalid and type(sim.year) = "Int" then
+                node.ShortDescriptionLine1 = str(sim.year).trim()
+            end if
         end if
     end for
 
-    m.trailersRow.content = content
-    m.trailersRow.visible = (trailersArray.Count() > 0)
+    m.similarGrid.content = content
 end sub
 
-' ---------------------------------------------------------------------
-' R7.4: Display extras row if extras exist.
-' Extras structure: [{name, description, thumbnail_url, poster_url}, ...]
-' Extras are playable behind-the-scenes content, deleted scenes, etc.
-' ---------------------------------------------------------------------
-sub DisplayExtras(extras as Object)
-    if extras = invalid then return
+' Grid selection carries the focused index; resolve it back to the similar
+' item's media id and open a fresh DetailScene child (the child-scene +
+' OnChildRequestClose idiom this scene already uses for PlayerScene).
+sub OnSimilarSelected(event as Object)
+    index = event.getData()
+    if index < 0 or index >= m.similarItems.Count() then return
 
-    extrasArray = []
-    if type(extras) = "roAssociativeArray" then
-        if extras.DoesExist("items") then
-            extrasArray = extras.items
-        else
-            extrasArray = extras
-        end if
-    else if type(extras) = "roArray" then
-        extrasArray = extras
-    end if
+    sim = m.similarItems[index]
+    if sim = invalid or type(sim) <> "roAssociativeArray" then return
 
-    if extrasArray.count() = 0 then return
+    mediaId = sim.id
+    if mediaId = invalid or mediaId = "" then return
 
-    m.extrasData = extrasArray
-
-    if m.extrasRow = invalid then m.extrasRow = m.top.FindNode("extrasRow")
-    if m.extrasRow = invalid then return
-
-    content = CreateObject("roSGNode", "ContentNode")
-    for each extra in extrasArray
-        item = content.CreateChild("ContentNode")
-        item.Title = extra.name
-        if extra.description <> invalid then
-            item.Description = extra.description
-        end if
-        if extra.thumbnail_url <> invalid and extra.thumbnail_url <> "" then
-            item.HDPosterUrl = extra.thumbnail_url
-        else if extra.poster_url <> invalid and extra.poster_url <> "" then
-            item.HDPosterUrl = extra.poster_url
-        else
-            item.HDPosterUrl = "pkg:/images/placeholder.png"
-        end if
-    end for
-
-    m.extrasRow.content = content
-    m.extrasRow.visible = (extrasArray.Count() > 0)
+    child = CreateObject("roSGNode", "DetailScene")
+    m.top.Append(child)
+    child.ObserveField("requestClose", "OnChildRequestClose")
+    child.LoadItem(mediaId)
 end sub
 
 ' ApplyXmlChrome - localize the XML chrome literals (titles/labels that
@@ -995,14 +965,6 @@ sub ApplyXmlChrome()
     if n <> invalid then n.title = Translate("common_back")
     n = m.top.findNode("playButton")
     if n <> invalid then n.title = Translate("common_play")
-    n = m.top.findNode("castRow")
-    if n <> invalid then n.title = Translate("detail_row_cast")
-    n = m.top.findNode("extrasRow")
-    if n <> invalid then n.title = Translate("detail_row_extras")
-    n = m.top.findNode("trailersRow")
-    if n <> invalid then n.title = Translate("detail_row_trailers")
-    n = m.top.findNode("crewRow")
-    if n <> invalid then n.title = Translate("detail_row_crew")
     n = m.top.findNode("loadingLabel")
     if n <> invalid then n.text = Translate("common_loading")
 end sub

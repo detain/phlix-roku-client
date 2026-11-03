@@ -105,17 +105,33 @@
                         id="likeButton" />
             </Rectangle>
 
-            <!-- R7.4: Cast row - horizontal scrollable list of cast members -->
-            <Row id="castRow" title="Cast" visible="false" translation="[0,460]" />
+        </Rectangle>
 
-            <!-- R7.4: Extras row — bonus content like behind the scenes, interviews -->
-            <Row id="extrasRow" title="Extras" visible="false" translation="[0,640]" />
-
-            <!-- R7.4: Trailers row — trailers and promos -->
-            <Row id="trailersRow" title="Trailers &amp; Promo" visible="false" translation="[0,820]" />
-
-            <!-- R7.4: Crew row — director, writer, producer, etc. -->
-            <Row id="crewRow" title="Crew" visible="false" translation="[0,1000]" />
+        <!-- R7.4: "More Like This" enrichment overlay (review roku__gameux
+             CR-1 cure). Was: four <Row> chrome (Cast/Extras/Trailers/Crew)
+             hung inside the fixed 580-high content Rectangle at y
+             [0,460]/[0,640]/[0,820]/[0,1000] — absolute 560/740/920/1100 on
+             the 720p plane, i.e. clipped or fully off-canvas, and the
+             OnActionDown ladder never armed them: invisible-and-unreachable
+             chrome. Cast/crew have NO wire source at all (getItemCast was
+             retired per S280 — the route exists on neither server registry),
+             and the trailers/extras endpoints ship only TMDB YouTube links
+             and local file paths — nothing Roku Video can play — so the
+             fabricated-shape parsers came out instead of faking the feature.
+             This overlay is backed by the LIVE GET /media/{id}/similar wire
+             and built from node types already proven in this repo
+             (PosterGrid, HomeScene rail idiom). Enter via Down from the
+             action strip; Back/Up closes it. No static heading - a text
+             chrome would need a 7-locale catalog key (Check25/Check48R3 set
+             bump), deferred to a dedicated i18n batch rather than smuggled
+             into this reachability fix. -->
+        <Rectangle id="similarPanel" height="720" width="1280" color="#0d0d1a" visible="false">
+            <PosterGrid height="420" width="1160" translation="[60,120]"
+                        numColumns="4" numRows="1"
+                        itemSpacing="[24,0]"
+                        basePosterSize="[220,280]"
+                        captionPosition="bottom"
+                        id="similarGrid" />
         </Rectangle>
 
         <!-- Loading Indicator -->

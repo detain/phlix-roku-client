@@ -1592,18 +1592,23 @@ function ApiClient(baseUrl as String) as Object
         ' similar items, cast info, and external ratings.
         ' ---------------------------------------------------------------------
 
-        ' GET /media/{id}/similar -> {items:[...]} ; returns similar items array.
+        ' GET /media/{id}/similar -> {items:[{id,title,posterUrl,year,score,reason}]}
+        ' ; the live enrichment wire (CR-1: its only consumer is the DetailScene
+        ' "More Like This" overlay). The getItemRatings / getItemTrailers /
+        ' getItemExtras siblings were removed in the same cure: their fetch code
+        ' parsed shapes the server never sent (the real trailers/extras DTO is
+        ' {trailers:[{title,url,source,...}]}, not {items:[{name,thumbnail_url}]}),
+        ' the ratings fetch had no UI consumer, and neither trailers nor extras
+        ' is playable on Roku (TMDB YouTube links / local file paths — no HTTP
+        ' serving route). Fetching live-but-unusable data to render nothing was
+        ' the dead chrome review CR-1 convicted; deleting the inert builders is
+        ' its tail, mirroring the S280 getItemCast verdict below.
         getItemSimilar: function(mediaItemId as String) as Object
             return m.request("GET", "/media/" + mediaItemId + "/similar", invalid)
         end function
 
-        ' GET /media/{id}/ratings -> {ratings:{...}} ; returns external ratings.
-        getItemRatings: function(mediaItemId as String) as Object
-            return m.request("GET", "/media/" + mediaItemId + "/ratings", invalid)
-        end function
-
         ' ---------------------------------------------------------------------
-        ' R7.4: Detail enrichment - cast/crew, trailers, extras.
+        ' R7.4: Detail enrichment.
         ' ---------------------------------------------------------------------
 
         ' S280 REMOVED: getItemCast (GET /media/{id}/cast). The route is on
@@ -1616,18 +1621,6 @@ function ApiClient(baseUrl as String) as Object
         ' can never succeed. If the server ever registers a credits route
         ' (W19 routes-or-removal audit), re-add from git history against the
         ' manifest entry, never from the old URL.
-
-        ' GET /media/{id}/trailers -> {items:[{name,url,thumbnail_url}]} ; playable trailers.
-        getItemTrailers: function(mediaItemId as String) as Object
-            return m.request("GET", "/media/" + mediaItemId + "/trailers", invalid)
-        end function
-
-        ' GET /media/{id}/extras -> {items:[{name,url,thumbnail_url}]} ; behind-the-scenes etc.
-        getItemExtras: function(mediaItemId as String) as Object
-            return m.request("GET", "/media/" + mediaItemId + "/extras", invalid)
-        end function
-
-        ' ---------------------------------------------------------------------
         ' Audiobooks (R7.6). All /audiobooks/* JSON routes are Bearer-gated and
         ' return the WHOLE envelope; the scene reads the named key.
         ' ---------------------------------------------------------------------
