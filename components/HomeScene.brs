@@ -248,6 +248,7 @@ sub OnLibrariesResponse(resp as Object)
         for each library in m.libraries
             contentItem = content.AddChild({
                 Title: library.name
+                accessibleLabel: library.name
                 Description: "Library"
                 ShortDescriptionLine1: library.name
                 Type: "library"
@@ -354,6 +355,7 @@ sub OnContinueWatchingResponse(resp as Object)
     for each item in items
         contentItem = content.AddChild({
             Title: item.name
+            accessibleLabel: item.name
             ShortDescriptionLine1: item.name
             Type: "continue"
         })
@@ -406,6 +408,7 @@ sub OnUpNextResponse(resp as Object)
     content = CreateObject("roSGNode", "ContentNode")
     contentItem = content.AddChild({
         Title: item.name
+        accessibleLabel: item.name
         ShortDescriptionLine1: item.name
         Type: "upnext"
     })
@@ -988,4 +991,12 @@ sub ApplyXmlChrome()
     if n <> invalid then n.text = Translate("common_loading")
     n = m.top.findNode("retryButton")
     if n <> invalid then n.title = Translate("common_retry")
+    ' MJ-13: the rails themselves carry the spoken label of the heading
+    ' they already render — same catalog keys, mirrored, never minted.
+    n = m.top.findNode("continueGrid")
+    if n <> invalid then n.accessibleLabel = Translate("home_continue_watching")
+    n = m.top.findNode("upNextGrid")
+    if n <> invalid then n.accessibleLabel = Translate("common_up_next")
+    n = m.top.findNode("libraryGrid")
+    if n <> invalid then n.accessibleLabel = Translate("common_libraries")
 end sub

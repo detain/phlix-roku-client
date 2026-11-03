@@ -101,6 +101,7 @@ sub OnPhotoAlbumResponse(resp as Object)
 
             content.AddChild({
                 Title: title
+                accessibleLabel: title
                 ShortDescriptionLine1: title
                 HDPosterUrl: posterUrl
             })

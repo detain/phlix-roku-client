@@ -98,6 +98,7 @@ sub LoadList()
 
         contentItem = content.AddChild({
             Title: caption
+            accessibleLabel: caption
             ShortDescriptionLine1: caption
             Type: item.type
             id: item.id

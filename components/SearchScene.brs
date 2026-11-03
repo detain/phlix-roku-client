@@ -202,6 +202,7 @@ sub OnApiResponse(event as Object)
 
             contentItem = m.contentNode.AddChild({
                 Title: caption
+                accessibleLabel: caption
                 ShortDescriptionLine1: caption
                 Type: item.type
                 id: item.id

@@ -98,6 +98,7 @@ sub OnPhotoAlbumsResponse(resp as Object)
 
             content.AddChild({
                 Title: caption
+                accessibleLabel: caption
                 ShortDescriptionLine1: caption
                 ShortDescriptionLine2: str(count).trim() + " photos"
                 HDPosterUrl: posterUrl

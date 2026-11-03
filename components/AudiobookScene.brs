@@ -126,6 +126,7 @@ sub OnApiResponse(event as Object)
         for each item in newItems
             contentItem = m.contentNode.AddChild({
                 Title: item.name
+                accessibleLabel: item.name
                 Description: item.overview
                 ShortDescriptionLine1: item.name
                 ShortDescriptionLine2: item.author

@@ -996,6 +996,7 @@ sub DisplaySimilar(similarItems as Object)
         if type(sim) = "roAssociativeArray" then
             node = content.CreateChild("ContentNode")
             if sim.title <> invalid then node.Title = sim.title
+            if sim.title <> invalid then node.accessibleLabel = sim.title
             if sim.posterUrl <> invalid and sim.posterUrl <> "" then
                 node.HDPosterUrl = sim.posterUrl
             else

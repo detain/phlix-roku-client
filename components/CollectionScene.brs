@@ -110,6 +110,7 @@ sub OnApiResponse(event as Object)
         for each item in m.items
             contentItem = content.AddChild({
                 Title: item.name
+                accessibleLabel: item.name
                 ShortDescriptionLine1: item.name
                 Type: item.type
                 id: item.id

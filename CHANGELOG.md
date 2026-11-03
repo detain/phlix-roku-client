@@ -51,6 +51,17 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the browse path speaks: every media-grid item mirrors its title into the Roku screen-reader's explicit label, and the home rails name themselves (MJ-13, review roku__gameux) — 2026-11-03
+
+- The gameux review counted `accessibleLabel` zero times across the channel: speakability leaned entirely on per-component title fallback the review could not verify on device. Every grid builder that hands a PosterGrid a titled ContentNode now mirrors the SAME expression into `accessibleLabel` — ten files from the audiobook shelves to the search results — with DetailScene's similar-grid guarded-write idiom mirrored in kind.
+- Attribute-only by design: the values are data expressions (`item.name`, `caption`, `sim.title`) or the catalog keys the headings already render (`home_continue_watching`, `common_up_next`, `common_libraries` on the three HomeScene rails). Zero new strings, locale v1.18.0 untouched, wire untouched.
+- The no-literal law: `accessibleLabel` never takes a design-time English value — XML `accessibleLabel="` and `.accessibleLabel = "` raw assignments are convicted at the gate, so the CHECK25 catalog-mirror surface stays as clean as the visible text it governs.
+
+### Added — Check 86: the spoken-label custody of the browse path (MJ-13 era) — 2026-11-03
+
+- R1 census: all ten grid-builder files carry the mirror; R2: the HomeScene rail trio takes exactly three Translate()-backed container labels; R3: the no-literal scan across every XML and every BrightScript source; R4: this era's docs pair.
+- Portable twin plants Z (continue-rail mirror stripped — R1 convicts alone) and AA (one rail-label pair deleted — R2 convicts alone) prove each arm's teeth with gate independence; red-parent over d87d253 measured exactly 13 named convictions before the cure landed.
+
 ### Fixed — the chapters pane finally draws its rows, the home chrome fits inside the safe area, and fetch cues center, hide, spin, and retract (MN-7 MN-9 MN-10, reviews roku__qa/gameux) — 2026-11-03
 
 - The audiobook chapter list rendered nothing: the XML shipped a plain `<List>` wearing RowList-era attributes (`numRows`, `itemSize`) while the .brs observed `itemSelected` — a field only `MarkupList` ever fires. The node swapped to `<MarkupList>` (same id, same attrs, same ContentNode title feed); zero behavior lines moved in the .brs because the observer and feed were always the right shape — the component was the lie (MN-7).

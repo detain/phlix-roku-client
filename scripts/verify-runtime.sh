@@ -11632,7 +11632,7 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
- echo "=== Check 81: the syncplay key stream is seeded per dial - boot-window LCG guesses are the MJ-17 era (Sec-WebSocket-Key + frame masks) ==="
+echo "=== Check 81: the syncplay key stream is seeded per dial - boot-window LCG guesses are the MJ-17 era (Sec-WebSocket-Key + frame masks) ==="
 # WHY: RandomByte was Rnd(256)-1 over the platform LCG, and the factory's only
 # seeding was Rnd(0) - a RESEED-FROM-CLOCK call at seconds granularity. An
 # attacker who could not sniff the wire could still enumerate the LCG family
@@ -11731,7 +11731,7 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
- echo "=== Check 82: the media lane never rides a signed URL DOWN across the TLS boundary - cleartext stream targets are the MJ-19 era ==="
+echo "=== Check 82: the media lane never rides a signed URL DOWN across the TLS boundary - cleartext stream targets are the MJ-19 era ==="
 # WHY: three consumption sites lifted a server-supplied stream URL straight
 # onto a Video/Audio content node with no scheme custody: PlayerScene's direct
 # play lane, the audiobook lane, and the LiveTV tuner lane whose URL is the raw
@@ -12312,6 +12312,91 @@ print("           written for; the home chrome (brand, six header buttons, strip
 print("           retry, grid) lives inside the [64,36,1152,648] safe area with the")
 print("           grid abutting the strip; every fetch cue is full-plane centered,")
 print("           starts hidden, spins beside its label, and retracts on failure.")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+# --- Check 86: MJ-13 accessibleLabel custody (the browse path is speakable) ---
+echo "=== Check 86: spoken-label custody on the grid family and the home rails (MJ-13 era) ==="
+# WHY: the gameux review found accessibleLabel appearing ZERO times channel-wide —
+# no accessible browse -> detail -> play path. The cure mirrors the readable name
+# every media-grid builder already sets (Title:) into the explicit Roku
+# screen-reader field accessibleLabel, and labels the three HomeScene rails with
+# the SAME catalog keys their heading Labels render. Attribute-only by law: the
+# values are data expressions or Translate() calls — a design-time English literal
+# in an accessibleLabel (XML or .brs assignment) is a CHECK25-mirror breach the
+# runtime never needs. This leg pins the builder family, the rail trio, and the
+# no-literal law.
+# NUMBERING: 86 collision-probed at d87d253, highest prior 85.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import glob, os, re, sys
+
+problems = []
+
+# R1: per-file builder-mirror census (colon AA-key sites; DetailScene writes the
+# guarded '=' form once — named by shape). Builder sites and rail containers are
+# disjoint token forms so each twin plant fires exactly one arm.
+BUILDER_CENSUS = {
+    "components/AudiobookScene.brs": ("accessibleLabel:", 1),
+    "components/CollectionScene.brs": ("accessibleLabel:", 1),
+    "components/DetailScene.brs": ("node.accessibleLabel = sim.title", 1),
+    "components/EpisodeListTask.brs": ("accessibleLabel:", 1),
+    "components/FavoritesScene.brs": ("accessibleLabel:", 1),
+    "components/HomeScene.brs": ("accessibleLabel:", 3),
+    "components/LibraryScene.brs": ("accessibleLabel:", 1),
+    "components/PhotoAlbumScene.brs": ("accessibleLabel:", 1),
+    "components/PhotosScene.brs": ("accessibleLabel:", 1),
+    "components/SearchScene.brs": ("accessibleLabel:", 1),
+}
+for rel, (token, want) in BUILDER_CENSUS.items():
+    if not os.path.exists(rel):
+        problems.append("  %s - CHECK86 R1: the grid builder file vanished" % rel)
+        continue
+    with open(rel, encoding="utf-8") as f:
+        src = f.read()
+    got = src.count(token)
+    if got < want:
+        problems.append("  %s - CHECK86 R1: %d accessibleLabel builder mirror(s), expected %d (MJ-13 cure lost)" % (rel, got, want))
+
+# R2: the HomeScene rail trio carries container labels from the catalog.
+with open("components/HomeScene.brs", encoding="utf-8") as f:
+    home = f.read()
+n = home.count("n.accessibleLabel = Translate(")
+if n != 3:
+    problems.append("  components/HomeScene.brs - CHECK86 R2: expected 3 rail labels (continueGrid/upNextGrid/libraryGrid), found %d (MJ-13)" % n)
+
+# R3: no-literal law — accessibleLabel values are data or Translate, never raw English.
+for path in glob.glob("components/*.xml"):
+    with open(path, encoding="utf-8") as f:
+        if 'accessibleLabel="' in f.read():
+            problems.append("  %s - CHECK86 R3: design-time accessibleLabel literal bypasses the catalog mirror law" % path)
+for path in glob.glob("components/*.brs") + glob.glob("source/**/*.brs", recursive=True):
+    with open(path, encoding="utf-8") as f:
+        if re.search(r"accessibleLabel\s*=\s*\"", f.read()):
+            problems.append("  %s - CHECK86 R3: raw English literal assigned to accessibleLabel" % path)
+
+# R4: docs custody — the static-checks row and CHANGELOG entry name the era.
+with open("docs/static-checks.md", encoding="utf-8") as f:
+    rows = f.read()
+row = re.search(r"^\|\s*86\s*\|.*$", rows, re.M)
+if not row or "MJ-13" not in row.group(0):
+    problems.append("  docs/static-checks.md - CHECK86 R4: row 86 missing or not naming MJ-13")
+with open("CHANGELOG.md", encoding="utf-8") as f:
+    chg = f.read()
+if "MJ-13" not in chg or "accessibleLabel" not in chg:
+    problems.append("  CHANGELOG.md - CHECK86 R4: no entry naming MJ-13/accessibleLabel")
+
+if problems:
+    print("  CHECK86: %d accessibility custody law(s) broken:" % len(problems))
+    for p in problems:
+        print(p)
+    sys.exit(1)
+
+print("  CHECK86: every grid item and the home rails carry an explicit spoken label -")
+print("           MJ-13 mirror custody holds (data/Translate values only, zero literals).")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
