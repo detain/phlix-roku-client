@@ -51,6 +51,55 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — a member joining a watch party mid-film now adopts the group's position; nobody rides at zero until the host next touches transport (MJ-9, review roku__asphp) — 2026-11-03
+
+`group_state` carried `playback_position` + `playback_state` from day one and
+`PlayerScene.HandleSyncEvent` rendered chrome from them — group name, member count,
+host/guest role — without ever ADOPTING them. SPEC §4 names the field "what a joiner
+adopts as its starting point"; the joiner instead sat at 0:00 (or at whatever the local
+playback had wandered to) until the next host-driven play/pause/seek frame yanked it
+across the whole gap at once.
+
+- **The adoption block.** A new arm in the `group_state` handler applies
+  `playback_position` (ms -> seconds) to the Video node and mirrors the group's
+  definite `playing`/`paused` state, announced through the existing
+  `player_party_host_position` party notice — zero new catalog keys this era.
+- **Custody: once per (re)join, followers only.** The `m.syncAnchorApplied` register
+  is initialized on scene setup, reset when the socket `open` arm lands (a fresh
+  connection is a fresh join), and consumed by exactly two paths: the apply, and a
+  definite different-title match. The guard excludes the host — self-application was
+  the rubber-band class the server-side incident report names — and
+  `m.applyingRemote` wraps the seek so the local state change never re-broadcasts
+  through the host-gate family.
+- **Parsing law.** Every field read is type-gated on both box spellings (the
+  `:2164` bool precedent generalized), negative positions are dropped, and a
+  position beyond the cached `current_media_duration` clamps to it — the same
+  positionOrDrop law the shared syncplay library enforces. `buffering`/`stopped`
+  frames apply nothing and leave the register unset, so a later definite frame still
+  adopts.
+- **Mismatch suppression is silent.** A group whose `current_media_id` definitively
+  differs from the locally-loaded item flips the register WITHOUT seeking — dragging
+  a follower across titles on a join frame is not the cure's job — and a
+  "different title" notice would be new user-visible copy, which is owner-gated; the
+  disclosure rides the Check 80 leg docs and the certification row instead.
+- **UNSTAMPED on purpose.** SPEC §10.2 keeps the as-of reference an OPEN decision;
+  the reference law forbids a client inventing a drift adjustment, so the anchor is
+  adopted exactly as it ships, once, and the host's ongoing frames take over.
+
+### Added — Check 80: the join-anchor custody and parsing laws (MJ-9 era) — 2026-11-03
+
+`scripts/verify-runtime.sh` gained a fourth MJ-era leg: R1 pins the adoption custody
+family (register census of 5, the two `= false` reset sites, the follower one-shot
+guard inside `HandleSyncEvent`, the two `= true` set-sites, the `m.applyingRemote`
+wrap), R2 the anchor-parsing family (type-gate, negative drop, definite-state
+application, mismatch suppression, duration clamp, ms->s seek, attribution notice),
+R3 the new certification row 7.5, R4 the new `docs/static-checks.md` ledger row — each
+code family aggregating to one conviction. The portable twin plants N (register
+stripped from the guard) and O (clamp line deleted) each convict exactly once with
+Checks 79/46/50 green across both reds, and restore to exit 0; red-parent measured over
+`245ea95` before the cure landed: exactly four convictions (R1+R2+R3+R4), the cured
+tree exactly zero.
+
 ### Fixed — a first tap on a watch party can no longer be swallowed before the handshake; leaving flushes its own goodbye (MJ-6/MJ-7, review roku__asphp) — 2026-11-03
 
 Two live-SyncPlay defects in the roSGNode task mailbox, cured as one pair:

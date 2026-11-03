@@ -186,6 +186,7 @@ sub Init()
     m.syncGroupId = ""              ' the joined group_id
     m.yourId = ""                   ' our member id (from group_state.your_id)
     m.applyingRemote = false        ' guard: a remote-driven change must NOT rebroadcast
+    m.syncAnchorApplied = false     ' MJ-9: the group anchor is adopted once per (re)join (Check 80)
     m.syncGroupIds = []             ' parallel array of group ids for syncGroupList rows
 
     m.syncPanel = m.top.FindNode("syncPanel")
@@ -2112,6 +2113,9 @@ sub HandleSyncEvent(ev as Object)
     if kind = "open" then
         SetSyncStatus(Translate("player_sync_status_connected"))
         ShowPartyNotice(Translate("player_party_connected"), 4.0!)
+        ' MJ-9: a fresh connection is a fresh join - the anchor becomes
+        ' adoptable again once the task re-reads group_state on it.
+        m.syncAnchorApplied = false
 
     else if kind = "group_state" then
         group = invalid
@@ -2134,6 +2138,71 @@ sub HandleSyncEvent(ev as Object)
             role = Translate("syncplay_role_guest")
             if m.syncIsHost then role = Translate("syncplay_role_host")
             SetSyncStatus(TranslateWithParams("player_sync_status_group", { group: gname, members: count, role: role }))
+        end if
+
+        ' MJ-9: SPEC §4 declares group.playback_position "what a joiner adopts
+        ' as its starting point"; it carries no as-of stamp (§10.2 join catch-up
+        ' is an OPEN decision) so we adopt it UNSTAMPED - exactly once per
+        ' (re)join, only as a follower (the host owns the anchor; host-side
+        ' self-application is the rubber-band class), only from a definite
+        ' playing/paused frame, clamped to the cached duration (the
+        ' positionOrDrop law) with negatives dropped. A definite
+        ' different-title match suppresses adoption outright: seeking the wrong
+        ' film is worse than waiting, and a mismatch notice is owner-gated copy
+        ' - so suppression stays silent and the host's playback frames drive.
+        if group <> invalid and not m.syncIsHost and not m.syncAnchorApplied then
+            if m.videoPlayer <> invalid then
+                havePos = false
+                anchorMs# = 0.0
+                if group.DoesExist("playback_position") then
+                    tp = type(group.playback_position)
+                    if tp = "Int" or tp = "Long" or tp = "roInt" or tp = "roLong" then
+                        anchorMs# = group.playback_position
+                        havePos = anchorMs# >= 0
+                    end if
+                end if
+
+                st = ""
+                if group.DoesExist("playback_state") then
+                    ts = type(group.playback_state)
+                    if ts = "String" or ts = "roString" then st = group.playback_state
+                end if
+
+                gmedia = ""
+                if group.DoesExist("current_media_id") then
+                    tm = type(group.current_media_id)
+                    if tm = "String" or tm = "roString" then gmedia = group.current_media_id
+                end if
+                lmedia = ""
+                if m.itemId <> invalid then
+                    tl = type(m.itemId)
+                    if tl = "String" or tl = "roString" then lmedia = m.itemId
+                end if
+
+                if gmedia <> "" and lmedia <> "" and gmedia <> lmedia then
+                    m.syncAnchorApplied = true
+                else if havePos and (st = "playing" or st = "paused") then
+                    if group.DoesExist("current_media_duration") then
+                        td = type(group.current_media_duration)
+                        if td = "Int" or td = "Long" or td = "roInt" or td = "roLong" then
+                            dur# = group.current_media_duration
+                            if dur# > 0 and anchorMs# > dur# then anchorMs# = dur#
+                        end if
+                    end if
+                    m.applyingRemote = true
+                    m.videoPlayer.seek = anchorMs# / 1000.0
+                    if st = "playing" then
+                        m.videoPlayer.control = "play"
+                        m.isPlaying = true
+                    else
+                        m.videoPlayer.control = "pause"
+                        m.isPlaying = false
+                    end if
+                    m.applyingRemote = false
+                    m.syncAnchorApplied = true
+                    NotifyPartyEvent(Translate("player_party_host_position"), 2.5!)
+                end if
+            end if
         end if
 
     else if kind = "playback" then

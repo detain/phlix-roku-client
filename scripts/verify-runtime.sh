@@ -11515,4 +11515,113 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 80: the joiner adopts the group anchor exactly once - the at-zero joiner and the rubber-banding host are the MJ-9 era (SPEC §4 playback_position) ==="
+# WHY: group_state carried playback_position + playback_state from day one and
+# PlayerScene rendered chrome from them without ever ADOPTING them: a member who
+# joined mid-film (or re-opened after a drop) sat at position 0 while the party
+# played on, and the first host-driven playback frame yanked it - SPEC §4 names
+# the field "what a joiner adopts as its starting point". Cure = an adoption
+# block in HandleSyncEvent's group_state arm, one-shot per (re)join through the
+# syncAnchorApplied register (init + open-arm reset), follower-only (host self-
+# application is the rubber-band class), type-gated reads on both spellings,
+# negatives dropped, the cached duration as clamp (positionOrDrop law), a
+# definite different-title match suppressing adoption in silence (notice copy is
+# owner-gated), and the m.applyingRemote wrap so the local seek never
+# re-broadcasts. The anchor is adopted UNSTAMPED on purpose: SPEC §10.2 leaves
+# the as-of reference an OPEN decision and the reference law forbids inventing
+# a drift adjustment.
+# NUMBERING: 80 collision-probed at 245ea95 (grep 'Check 80'/'CHECK80' over
+# scripts tests Makefile docs -> zero hits). Highest prior header = 79.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import re, sys, os
+
+os.chdir(os.environ['REPO'])
+problems = []
+
+def read(path):
+    try:
+        return open(path, encoding="utf-8").read()
+    except OSError as exc:
+        problems.append(f"  CHECK80 R0: cannot read {path}: {exc}")
+        return None
+
+sc = read("components/PlayerScene.brs")
+if sc is not None:
+    hm = re.search(r'\nsub HandleSyncEvent\(ev as Object\)\n(.*?)\nend sub', sc, re.S)
+    if hm is None:
+        problems.append("  components/PlayerScene.brs - CHECK80 R1: sub HandleSyncEvent(ev as Object) vanished - the sync dispatcher is the only place the join anchor may lawfully be adopted")
+        region = ""
+    else:
+        region = hm.group(1)
+
+    # R1 - the adoption custody law: the register exists, resets on (re)join,
+    # and the follower one-shot guard stands. Multi-needle family aggregates to
+    # ONE conviction so a single-line plant can never double-report.
+    missing = []
+    if sc.count('m.syncAnchorApplied = false') != 2:
+        missing.append('register reset sites (init + open arm) - expected 2')
+    if sc.count('m.syncAnchorApplied') != 5:
+        missing.append('register census - expected 5 sites')
+    if 'if group <> invalid and not m.syncIsHost and not m.syncAnchorApplied then' not in region:
+        missing.append('the follower one-shot adoption guard')
+    if region.count('m.syncAnchorApplied = true') != 2:
+        missing.append('register set sites (mismatch suppress + apply) - expected 2')
+    if region.count('m.applyingRemote') != 2:
+        missing.append('the echo-suppression wrap (applyingRemote true+false around the adoption seek)')
+    if missing:
+        problems.append("  components/PlayerScene.brs - CHECK80 R1: " + str(len(missing)) +
+            " adoption-custody law(s) lost - " + "; ".join(missing) +
+            " (a joiner that never reads group.playback_position sits at zero while the party plays on - SPEC §4 makes the anchor the joiner's starting point; MJ-9)")
+
+    # R2 - the anchor parsing law: type-gated unboxed-safe reads, negative drop,
+    # definite-state application, duration clamp, mismatch suppression, ms->s
+    # seek and the existing-copy attribution notice.
+    missing2 = []
+    for needle in ('tp = type(group.playback_position)',
+                   'havePos = anchorMs# >= 0',
+                   'else if havePos and (st = "playing" or st = "paused") then',
+                   'if gmedia <> "" and lmedia <> "" and gmedia <> lmedia then',
+                   'if dur# > 0 and anchorMs# > dur# then anchorMs# = dur#',
+                   'm.videoPlayer.seek = anchorMs# / 1000.0',
+                   'NotifyPartyEvent(Translate("player_party_host_position"), 2.5!)'):
+        if needle not in region:
+            missing2.append(needle)
+    if missing2:
+        problems.append("  components/PlayerScene.brs - CHECK80 R2: " + str(len(missing2)) +
+            " anchor-parsing law(s) lost - " + "; ".join(missing2) +
+            " (unboxed wire reads, undropped negatives, unclamped positions, buffering/stopped frames applied as verdicts, or a seek onto a title the group left behind are each a live defect class - the clamp follows the positionOrDrop law; MJ-9)")
+
+# R3 docs cure marker: certification only gained row 7.5 because the scene now
+# adopts the anchor - the row must keep naming its cure (CHECK78 R3/CHECK79 R3
+# idiom).
+cert = read("docs/certification.md")
+if cert is not None:
+    row75 = re.search(r'^\|\s*7\.5\s*\|.*$', cert, re.MULTILINE)
+    if row75 is None or "MJ-9" not in row75.group(0) or "playback_position" not in row75.group(0):
+        problems.append("  docs/certification.md - CHECK80 R3: the 7.5 join-anchor row is missing or no longer names its MJ-9 cure ref and the playback_position field - the PASS claim is only honest while the adoption block stands")
+
+# R4 ledger truth (CHECK71/.../78/79 R4 precedent).
+led = read("docs/static-checks.md")
+if led is not None:
+    row = re.search(r'^\|\s*80\s*\|.*$', led, re.MULTILINE)
+    if row is None or "MJ-9" not in row.group(0):
+        problems.append("  docs/static-checks.md - CHECK80 R4: ledger row 80 is missing or no longer names its MJ-9 cure ref")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK80: %d join-anchor pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK80: the joiner adopts SPEC §4's group anchor once per (re)join - follower-")
+print("           only, type-gated, negatives dropped, duration-clamped, definite")
+print("           mismatches suppressed in silence, echoes wrapped; the rubber-")
+print("           banding host and the at-zero joiner are both shape-impossible now")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

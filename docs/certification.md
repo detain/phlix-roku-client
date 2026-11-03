@@ -122,6 +122,7 @@ exclusive behavior; 1.3 is declared for certification, not capability.
 | 7.2 | Progress buffered until session exists | PASS | R4.11: m.apiSessionReady tracking |
 | 7.3 | Heartbeat not sent when not joined | PASS | R4.12: m.yourId check in SendTimePing |
 | 7.4 | SyncPlay task lifecycle managed | PASS | R5.10 + MJ-7: the leave/close frame is flushed before the thread dies — control="stop" runs ONLY from StopSyncTaskNow, driven by the task's own "closed" event with a bounded 2s fallback Timer guarded on syncUserStopped (CHECK 79 pins the single custody sink; the era immediate stop was the ghost-member defect) |
+| 7.5 | Joiner adopts the group anchor on first group_state | PASS | MJ-9: SPEC §4 playback_position (ms, unstamped - §10.2 join-catch-up stays an OPEN decision and the reference law forbids inventing drift adjustment) applied exactly once per (re)join for followers only, type-gated, negatives dropped, clamped to current_media_duration, a definite different-title match silently suppresses adoption (notice copy is owner-gated), echoes wrapped in m.applyingRemote (CHECK 80 pins the custody and parsing families; the era at-zero joiner awaited the first host playback frame) |
 
 ---
 
