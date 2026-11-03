@@ -162,7 +162,6 @@ sub FireApiRequest(request as Object)
     task.ObserveField("response", "OnApiResponse")
     task.request = request
     if task.state = "run" then return
-    task.state = "run"
     task.control = "run"
 end sub
 

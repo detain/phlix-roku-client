@@ -51,6 +51,28 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the 17 dead Task `state = "run"` writes are gone; guards are firmware READS now (MJ-16, review roku__srphp) — 2026-11-03
+
+- **Measured, not copied.** The review counted "43" state assignments; the
+  disk census splits them: 17 are WRITES (LiveTvScene, AudiobookScene ×2,
+  SettingsScene ×3, SearchScene, LibraryScene, PlayerScene ×5, HomeScene ×4)
+  and the remainder are the functional guard READS (`if X.state = "run"
+  then return`), which all stay — `state` is readable and firmware-maintained
+  on Task nodes; writes to it are ignored by the firmware (the adjacent
+  `control = "run"` is what actually runs the task).
+- **SettingsScene Init nuance.** One write site (the boot `getMe` fetch)
+  carried the ONLY shape Check 11's busy-guard census recognized in that
+  function. Stripping it honestly reddened the leg; the dead write was
+  replaced with the leg's documented one-shot form — a negative-state READ
+  guard around the control write — so the marker now states real firmware
+  truth instead of a no-op the linter was over-trusting.
+- **Proof.** Zero writes remain (`grep` census over components/ + source/:
+  only reads and the two equality comparisons at ApiTask:717/ConnectScene:175,
+  both kept); no unit test pinned a write (grep-verified pre-delete); headless
+  210/0/53 EXACT; battery rc=0 78 PASS (incl. Check 11); lint/bslint rc=0.
+  Extinction CHECK deliberately not added — the shape is firmware-decided,
+  not prose-decided; noted in the fix ledger instead.
+
 ### Fixed — the published `latest` pointer is now gated by the device-free unit suite too (MJ-23, review roku__devops) — 2026-11-03
 
 - **Why it was broken.** `package.yml` gated the `package` job on the four

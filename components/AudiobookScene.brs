@@ -74,7 +74,6 @@ sub RefreshItems()
             limit: m.limit
         }
     }
-    m.apiTask.state = "run"
     m.apiTask.control = "run"
 end sub
 
@@ -166,7 +165,6 @@ sub OnItemSelected(event as Object)
     ' Fetch full audiobook details then launch player
     if m.apiTask.state = "run" then return
     m.apiTask.request = { op: "getAudiobook", audiobookId: item.id }
-    m.apiTask.state = "run"
     m.apiTask.control = "run"
 end sub
 

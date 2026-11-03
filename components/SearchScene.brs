@@ -127,7 +127,6 @@ sub OnSearchTimerFire(event as Object)
         options: { limit: m.limit, offset: m.offset }
         searchGen: m.searchGen
     }
-    m.apiTask.state = "run"
     m.apiTask.control = "run"
 end sub
 

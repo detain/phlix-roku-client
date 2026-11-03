@@ -387,7 +387,6 @@ sub Show(itemId as String, args as Object)
         if m.itemId <> "" and m.itemId <> invalid then
             if m.apiTask.state = "run" then return
             m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
-            m.apiTask.state = "run"
             m.apiTask.control = "run"
         end if
         return
@@ -925,7 +924,6 @@ sub OnProgressResponse(event as Object)
                 if m.progressTask.state = "run" then return
                 m.currentOp = "createSession"
                 m.progressTask.request = { op: "createSession" }
-                m.progressTask.state = "run"
                 m.progressTask.control = "run"
             else
                 ' R4.11: Retry exhausted - surface error to user.
@@ -3171,7 +3169,6 @@ sub OnPlaybackRetry(index as Integer)
     end if
     if m.apiTask.state = "run" then return
     m.apiTask.request = { op: "startTranscode", itemId: m.itemId }
-    m.apiTask.state = "run"
     m.apiTask.control = "run"
 end sub
 
@@ -3225,7 +3222,6 @@ sub ShowUpNextCard()
     ' The response is handled by OnUpNextResponse
     if m.apiTask.state = "run" then return
     m.apiTask.request = { op: "getNextUp" }
-    m.apiTask.state = "run"
     m.apiTask.control = "run"
 end sub
 
@@ -3379,7 +3375,6 @@ sub OnUpNextItemResponse(resp as Object)
     m.upNextItem = item
     if m.apiTask.state = "run" then return
     m.apiTask.request = { op: "getItemPlaybackInfo", itemId: mediaItemId }
-    m.apiTask.state = "run"
     m.apiTask.control = "run"
 end sub
 

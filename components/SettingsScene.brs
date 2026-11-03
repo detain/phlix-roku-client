@@ -49,8 +49,13 @@ sub Init()
     ' whole and nothing new leaks into plaintext storage.
     m.userEmail = ""
     m.apiTask.request = { op: "getMe" }
-    m.apiTask.state = "run"
-    m.apiTask.control = "run"
+    ' M-ROKU-16: a dead no-op field write used to sit here and was the only
+    ' shape Check 11's busy-guard census saw in this function. Init runs
+    ' exactly once per scene instantiation, so the truthful marker is the
+    ' documented negative-state guard — a firmware READ, not an ignored write.
+    if m.apiTask.state <> "run" then
+        m.apiTask.control = "run"
+    end if
 
     m.settingsList.observeField("itemSelected", "OnItemSelected")
     m.settingsList.observeField("itemFocused", "OnItemFocused")
@@ -200,7 +205,6 @@ sub ShowPlayback()
 
         if m.apiTask.state = "run" then return
         m.apiTask.request = { op: "getPlaybackPreferences" }
-        m.apiTask.state = "run"
         m.apiTask.control = "run"
 end sub
 
@@ -318,7 +322,6 @@ sub OnClearHistoryConfirmed(index as Integer)
 
         if m.apiTask.state = "run" then return
         m.apiTask.request = { op: "clearWatchHistory" }
-        m.apiTask.state = "run"
         m.apiTask.control = "run"
     end if
 end sub
