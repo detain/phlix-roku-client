@@ -11279,4 +11279,82 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 78: the Settings menu builder keeps riding its catalog — the MJ-20 rewire cannot paste back to raw English or silently shrink (era of the dead-mirrored keys) ==="
+# WHY: from the R7.12 baseline until the MJ-20 cure, docs/i18n.md advertised
+# SettingsScene catalog coverage while the builder shipped 17 raw title
+# literals and 10 raw description literals — and the 27 matching
+# settings.section_*/item_*/desc_* keys sat mirrored (and consumer-less) in
+# all seven locale files. The cure is a pure rewire: every entry rides
+# Translate() on the flattened underscore form the device loader resolves.
+# A paste-back of literals, a re-point to bare unprefixed keys, or a builder
+# that quietly loses entries would re-fictionalise that doc surface; this
+# leg pins the rewired shape itself. The raw-literal ban is region-scoped
+# (the array literal only): every other `{ title: ... }` shape in the repo
+# (runtime-built content rows) is legitimate.
+# NUMBERING: 78 collision-probed at 4c7ae09 (grep 'Check 78'/'CHECK78' over
+# scripts tests Makefile docs -> rc=1; the only mentions are this era's own
+# forward refs in the MJ-20 commit's docs). Highest prior header = Check 77.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import re, sys, os
+
+os.chdir(os.environ['REPO'])
+problems = []
+
+def read(path):
+    try:
+        return open(path, encoding="utf-8").read()
+    except OSError as exc:
+        problems.append(f"  CHECK78 R0: cannot read {path}: {exc}")
+        return None
+
+# R1 raw-literal ban inside the builder region + R2 Translate-census floor.
+ss = read("components/SettingsScene.brs")
+if ss is not None:
+    m = re.search(r'm\.settingsItems = \[(.*?)\n    \]', ss, re.S)
+    if m is None:
+        problems.append("  components/SettingsScene.brs - CHECK78 R0: the m.settingsItems builder array literal vanished — re-derive this leg against the new shape (the raw-ban and census floor both read the region it delimits)")
+    else:
+        region = m.group(1)
+        for hit in re.finditer(r'(title|description): "', region):
+            lineno = ss[:m.start(1) + hit.start()].count("\n") + 1
+            problems.append(
+                f'  components/SettingsScene.brs:{lineno} - CHECK78 R1: a raw {hit.group(1)}: literal is back in the '
+                "m.settingsItems builder — the 27 settings_section_*/item_*/desc_* keys are mirrored in all seven "
+                "locales precisely so this menu localises (MJ-20 regression: the pasted-back literal makes the "
+                "docs/i18n.md coverage claim fiction again)"
+            )
+        census = region.count("Translate(")
+        if census < 27:
+            problems.append(f"  components/SettingsScene.brs - CHECK78 R2: the builder makes only {census} Translate calls (floor 27 — 17 titles + 10 descriptions at ship-time measurement) — a catalog-backed entry was deleted or re-rawed; the menu can not go partially English again without reddening this floor")
+
+# R3 docs cure marker: the i18n.md bullet that turns the coverage claim true.
+doc = read("docs/i18n.md")
+if doc is not None:
+    if not re.search(r"\(MJ-20[^\n]*SettingsScene", doc):
+        problems.append("  docs/i18n.md - CHECK78 R3: the MJ-20 SettingsScene catalog-cure bullet is gone — the sentence that makes this repo's i18n truth for the Settings menu live is this leg's premise (and Check 78's own doc ref lives in it)")
+
+# R4 ledger truth (CHECK71/72/73/75/76/77 R4 precedent).
+led = read("docs/static-checks.md")
+if led is not None:
+    row = re.search(r'^\|\s*78\s*\|.*$', led, re.MULTILINE)
+    if row is None or "MJ-20" not in row.group(0):
+        problems.append("  docs/static-checks.md - CHECK78 R4: ledger row 78 is missing or no longer names its MJ-20 cure ref")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK78: %d settings-catalog pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK78: the settings builder carries zero raw title:/description: literals,")
+print("           its Translate census stands at the 27-call floor, the docs/i18n.md")
+print("           cure marker and ledger row 78 hold the MJ-20 truth — the dead-mirrored")
+print("           keys cannot re-orphan silently")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

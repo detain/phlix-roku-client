@@ -51,6 +51,33 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Added — Check 78: settings-catalog custody over the MJ-20 rewire — 2026-11-03
+
+- **The gate.** R1 convicts raw `title:`/`description:` literals inside the
+  `m.settingsItems` builder region (file:line named; region-scoped on
+  purpose — runtime-built content rows elsewhere are legitimate); R2 floors
+  the builder's Translate census at 27 call sites (ship-time measurement:
+  17 titles + 10 descriptions — a shrinking menu convicts as its own class,
+  separate from paste-back); R3 pins the docs/i18n.md cure bullet that makes
+  the coverage claim true; R4 ledger truth (CHECK71/…/77 R4 precedent).
+  Portable-twin plants: J pastes a raw header back beside the translated
+  rows -> R1 ALONE, exactly one, census/docs/ledger silent; K deletes a
+  builder entry wholesale -> R2 ALONE with R1 provably silent; CHECK20 (the
+  very keys' resolution law) and CHECK76 (adjacent MJ-era shape leg) stayed
+  green across both reds (gate independence); restore -> exit 0.
+- **Red-on-parent MEASURED** at `4c7ae09` (new leg over the pre-MJ-20 tree):
+  exactly 30 named convictions — 27× R1 (one per retired literal site) +
+  R2 + R3 + R4 — with zero collateral from the other 77 legs.
+- **Forward correction (count discipline).** The MJ-20 entry below says
+  "reviving the 27 dead" keys; the measured dead set was 26 —
+  `settings_item_caption_mode` already had one consumer (the PlayerScene
+  track-list title). The docs/i18n.md wording rotates with this commit; the
+  CHANGELOG history stays verbatim per the repo's own CHECK59 law.
+- **Gates.** Battery 78 legs / 81 PASS rc=0; no `.brs` moved (`bsc`/`bslint`
+  results inherit the MJ-20 green); validate-xml 48; routes + self-test
+  green; headless era unmoved 210/0/53 EXACT; portable twin re-run over the
+  committed tip proves plants J/K.
+
 ### Fixed — the Settings menu now rides the locale catalog it was supposed to own since R7.12 (MJ-20, review roku__casualgamer + writer) — 2026-11-03
 
 - **The defect.** `SettingsScene`'s `settingsItems` builder shipped 17 raw
