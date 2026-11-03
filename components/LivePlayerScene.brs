@@ -52,6 +52,15 @@ sub LoadStream(streamUrl as String, title as String)
         return
     end if
 
+    ' MJ-19: the tuner lane's raw 302 Location crosses here unchecked at
+    ' the wire boundary - same media-lane TLS-boundary law. A refused URL
+    ' shows the existing no-stream status (refusal copy owner-gated).
+    if not IsStreamUrlAdmissible(GetServerUrl(), streamUrl) then
+        print "[MJ-19] live: refusing cleartext or malformed stream URL"
+        SetStatus(Translate("player_err_no_stream"))
+        return
+    end if
+
     fmt = "mpegts"
     if Instr(1, streamUrl, ".m3u8") > 0 then fmt = "hls"
 

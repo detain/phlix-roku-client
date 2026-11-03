@@ -364,6 +364,14 @@ sub Show(itemId as String, args as Object)
     ' Signed direct-play URL (no Bearer needed).
     streamUrl = invalid
     if m.item <> invalid then streamUrl = m.item.stream_url
+    ' MJ-19: an https session never rides a signed media URL DOWN into
+    ' cleartext (media-lane TLS-boundary law, Utilities.brs). A refused URL
+    ' reuses the existing no-stream dialog - refusal-reason copy is
+    ' owner-gated; no new locale keys are minted this era.
+    if not IsStreamUrlAdmissible(GetServerUrl(), streamUrl) then
+        print "[MJ-19] refusing cleartext or malformed stream URL across the TLS origin boundary"
+        streamUrl = invalid
+    end if
     if streamUrl = invalid or streamUrl = "" then
         ShowErrorDialog(m.top, Translate("common_error"), Translate("player_err_no_stream"))
         return

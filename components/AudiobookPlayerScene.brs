@@ -149,6 +149,14 @@ sub StartPlayback()
         end if
     end if
 
+    ' MJ-19: same media-lane TLS-boundary law as PlayerScene; a refused
+    ' URL falls into the existing no-stream dialog (refusal copy is
+    ' owner-gated; no new locale keys this era).
+    if not IsStreamUrlAdmissible(GetServerUrl(), streamUrl) then
+        print "[MJ-19] audiobook: refusing cleartext or malformed stream URL"
+        streamUrl = ""
+    end if
+
     if streamUrl = "" then
         if m.loadingLabel <> invalid then
             m.loadingLabel.visible = false

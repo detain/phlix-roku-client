@@ -51,6 +51,86 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — no signed media URL can leave the TLS session in cleartext; the tuner Location, audiobook and direct-play lanes all pass an admissibility gate (MJ-19, review roku__secnet) — 2026-11-03
+
+- Three sites lifted a server-supplied stream URL straight onto a Video/Audio
+  content node with no scheme custody: `PlayerScene`'s direct-play lane
+  (`m.item.stream_url`), the audiobook lane (`stream_url`/`read_url`), and the
+  LiveTV tuner lane, whose URL is the raw 302 `Location` from
+  `ApiClient.resolveLocation`. On an https origin the REST answer could still
+  name `http://anywhere`: the TV issued the signed-URL-bearing media GET in
+  cleartext, leaking the media token and the viewing intent across exactly the
+  TLS boundary the session exists to keep. The repo's own plaintext-origin
+  doctrine (M-ROKU-14) already calls the scheme mismatch the exploitable
+  class - the media lane simply hadn't been brought under it.
+- Cure: `IsStreamUrlAdmissible(origin, url)` (Utilities.brs, pure): root-
+  relative paths ride the origin's scheme and stay admissible; any absolute
+  shape must parse to an http(s) origin (`OriginOfUrl` refuses `file://`,
+  `data://`, userinfo games and malformed hosts); an https origin refuses an
+  `http://` target - the same mixed-content rule browsers enforce. An http
+  origin keeps http media: the REST lane is already cleartext there, so the
+  media GET adds no new exposure class. The predicate self-guards non-String
+  wire shapes (the CHECK43 law).
+- Refusals degrade into each site's EXISTING localized no-stream chrome
+  (`player_err_no_stream` / the shared dialog) - a refusal-reason sentence
+  would grow the catalogs, so the visible copy for this class stays an owner
+  decision, disclosed here and on the certification row; zero new keys minted.
+- Gates: `make lint` rc=0, Check 82 leg green (battery 82 strict PASS), full
+  battery rc=0, headless 214/0/53 EXACT (no new suite), portable twin over the
+  committed tip (result appended to the fix ledger).
+
+### Added — Check 82: the media-lane admissibility and gate-custody laws (MJ-19 era) — 2026-11-03
+
+- `source/lib/Utilities.brs` R1: the predicate's four shipped arms (relative
+  accept, origin-parse refusal, TLS-downgrade refusal, non-String wire guard)
+  plus the MJ-19 section marker aggregate to one conviction.
+- R2: gate custody - all three consumption sites keep exactly one
+  `IsStreamUrlAdmissible(GetServerUrl(), streamUrl)` call and their refusal
+  markers; a lost or duplicated gate at any site reports jointly inside that
+  one conviction.
+- R3/R4: the certification 7.7 row and static-checks row 82 must keep naming
+  MJ-19 (the cert row carrying the mixed-content marker).
+- Twin plants R (relative-path arm deleted → R1 alone) and S (PlayerScene gate
+  block deleted → R2 alone), gate-independence greps pin Checks 79/80/81/43
+  green across both reds; dry-run proven in scratch before shipping.
+  Red-parent over the Batch-10 tip measured exactly 4 convictions.
+
+### Fixed — the syncplay handshake key and every frame mask behind it now ride a stream re-seeded on each dial; boot-window guesses can no longer forge the accept proof (MJ-17, review roku__secnet) — 2026-11-03
+
+- `RandomByte` was `Rnd(256) - 1` over the platform LCG and the factory's only
+  seeding was `Rnd(0)` — a reseed-from-clock at SECONDS granularity. An attacker
+  who could not sniff the wire could enumerate the LCG family from a coarse
+  boot-time window, predict the 16-byte `Sec-WebSocket-Key`, and answer the
+  upgrade with a correctly-hashed `Sec-WebSocket-Accept`: exactly the blind LAN
+  injection the R-ROKU-05 accept-hash defense-in-depth exists to refuse.
+- Cure: `SeedWebSocketEntropy` mixes the per-install channel client id
+  (`GetChannelClientId`), the device model and the millisecond wall clock,
+  folds them through SHA-1 (`roEVPDigest`, the same proven idiom as the accept
+  computation), and seeds via `Rnd(-n)` — the seeding verb the brighterscript
+  callable corpus itself declares (`RandomSeed` is not modelled by the vendored
+  bsc, so the corpus-truth path is the one shipped). Invoked at the head of
+  `NewWebSocketKey`, so every dial and every later mask inherits fresh
+  entropy; digest absence degrades to the time-only seed — still per-dial.
+- Gates: `make lint` rc=0 (zero new diagnostics), Check 81 leg green (battery
+  81 strict PASS), full battery rc=0, headless 214/0/53 EXACT (no new suite),
+  portable twin over the committed tip (result appended to the fix ledger).
+
+### Added — Check 81: the entropy-seeder and per-dial custody laws (MJ-17 era) — 2026-11-03
+
+- `source/lib/SyncPlayProtocol.brs` R1: seeder family — the eight needles
+  (definition, clock term, client-id read, low-4-byte fold, `Rnd(-seedVal)`
+  verb, docblock marker, exactly-one positive `Setup("sha1") = 0`, the intact
+  `Rnd(256) - 1` draw shape) aggregate to one conviction.
+- R2: per-dial custody — the seeding call must sit inside `NewWebSocketKey`
+  ahead of the first `ba.Push(m.RandomByte())`, and the draw loop's single call
+  site stands.
+- R3/R4: the certification 7.6 row and static-checks row 81 must keep naming
+  MJ-17 (with the `Rnd(-` verb in the cert row).
+- Twin plants P (call-line strip → R2 alone) and Q (client-id strip → R1
+  alone), gate-independence greps pin Checks 79/80/46/50 green across both;
+  dry-run proven in scratch before shipping. Red-parent over ded15c3 measured
+  exactly 4 convictions.
+
 ### Fixed — a member joining a watch party mid-film now adopts the group's position; nobody rides at zero until the host next touches transport (MJ-9, review roku__asphp) — 2026-11-03
 
 `group_state` carried `playback_position` + `playback_state` from day one and

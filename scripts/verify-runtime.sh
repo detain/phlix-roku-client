@@ -11624,4 +11624,211 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+ echo "=== Check 81: the syncplay key stream is seeded per dial - boot-window LCG guesses are the MJ-17 era (Sec-WebSocket-Key + frame masks) ==="
+# WHY: RandomByte was Rnd(256)-1 over the platform LCG, and the factory's only
+# seeding was Rnd(0) - a RESEED-FROM-CLOCK call at seconds granularity. An
+# attacker who could not sniff the wire could still enumerate the LCG family
+# from a coarse boot-time window, predict our 16-byte Sec-WebSocket-Key, and
+# answer the handshake with a correctly-hashed accept: exactly the blind LAN
+# injection the R-ROKU-05 accept-hash defense-in-depth exists to refuse. Cure =
+# SeedWebSocketEntropy folded from SHA-1 over per-install channel client id +
+# device model + millisecond wall clock, invoked at the head of NewWebSocketKey
+# so every dial - and every frame mask drawn after it - runs on a stream no
+# off-device observer can enumerate. The brighterscript callable corpus declares
+# Rnd(x <= 0) as the seeding verb (its RandomSeed is NOT modelled by the
+# vendored bsc), so the seed lands through Rnd(-n); roEVPDigest absence
+# degrades to the time-only seed - still per-dial, never constant.
+# NUMBERING: 81 collision-probed at ded15c3 (grep 'Check 81'/'CHECK81' over
+# scripts tests Makefile docs -> zero hits). Highest prior header = 80.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import re, sys, os
+
+os.chdir(os.environ['REPO'])
+problems = []
+
+def read(path):
+    try:
+        return open(path, encoding="utf-8").read()
+    except OSError as exc:
+        problems.append(f"  CHECK81 R0: cannot read {path}: {exc}")
+        return None
+
+proto = read("source/lib/SyncPlayProtocol.brs")
+if proto is not None:
+    # R1 - the seeder law: the entropy mix, the fold, the seeding verb and the
+    # untouched draw shapes. Multi-needle family aggregates to ONE conviction
+    # so a single-line plant can never double-report.
+    missing = []
+    for needle in ('        SeedWebSocketEntropy: function() as Void',
+                   '            seedVal = CInt(NowMs() and 2147483647)',
+                   '                clientId = dev.GetChannelClientId()',
+                   '                    seedVal = ((hexba[16] and 127) * 16777216) + (hexba[17] * 65536) + (hexba[18] * 256) + hexba[19]',
+                   '            Rnd(-seedVal)',
+                   "        ' MJ-17: the stream is re-seeded per dial by SeedWebSocketEntropy."):
+        if needle not in proto:
+            missing.append(needle.strip())
+    if proto.count('evp.Setup("sha1") = 0') != 1:
+        missing.append('exactly one positive Setup("sha1") = 0 arm (the accept side keeps <> 0) - expected 1')
+    if proto.count('            return Rnd(256) - 1') != 1:
+        missing.append('the RandomByte draw shape (Rnd(256) - 1, exactly 1 site)')
+    if missing:
+        problems.append("  source/lib/SyncPlayProtocol.brs - CHECK81 R1: " + str(len(missing)) +
+            " entropy-seeder law(s) lost - " + "; ".join(missing) +
+            " (an unseeded or clock-only LCG lets a blind LAN injector enumerate the Sec-WebSocket-Key family from a boot-time window and forge the R-ROKU-05 accept proof - MJ-17)")
+
+    # R2 - the per-dial custody law: the key draw is preceded by the seeding
+    # call INSIDE NewWebSocketKey, and the 16-byte draw loop itself stands.
+    km = re.search(r'\n        NewWebSocketKey: function\(\) as String\n(.*?)\n        end function', proto, re.S)
+    if km is None:
+        problems.append("  source/lib/SyncPlayProtocol.brs - CHECK81 R2: function NewWebSocketKey vanished - the key builder is the sole dial-side seeding custody point")
+    else:
+        body = km.group(1)
+        if body.count('m.SeedWebSocketEntropy()') != 1:
+            problems.append("  source/lib/SyncPlayProtocol.brs - CHECK81 R2: NewWebSocketKey lost its m.SeedWebSocketEntropy() call (count " +
+                str(body.count('m.SeedWebSocketEntropy()')) + " - expected 1) - a key drawn from the unseeded factory stream is family-guessable (MJ-17)")
+        elif body.find('m.SeedWebSocketEntropy()') > body.find('ba.Push(m.RandomByte())'):
+            problems.append("  source/lib/SyncPlayProtocol.brs - CHECK81 R2: the seeding call must precede the first RandomByte draw in NewWebSocketKey - seed-after-draw hands the key to the old stream")
+        if body.count('ba.Push(m.RandomByte())') != 1:
+            problems.append("  source/lib/SyncPlayProtocol.brs - CHECK81 R2: the 16-byte key draw loop (ba.Push(m.RandomByte())) lost its single call site")
+
+# R3 docs cure marker: certification gained row 7.6 because the stream is now
+# seeded per dial - the row must keep naming its cure (CHECK79/80 R3 idiom).
+cert = read("docs/certification.md")
+if cert is not None:
+    row76 = re.search(r'^\|\s*7\.6\s*\|.*$', cert, re.MULTILINE)
+    if row76 is None or "MJ-17" not in row76.group(0) or "Rnd(-" not in row76.group(0):
+        problems.append("  docs/certification.md - CHECK81 R3: the 7.6 entropy-custody row is missing or no longer names its MJ-17 cure ref and the Rnd(- seeding verb - the PASS claim is only honest while the per-dial seed stands")
+
+# R4 ledger truth (CHECK78/79/80 R4 precedent).
+led = read("docs/static-checks.md")
+if led is not None:
+    row = re.search(r'^\|\s*81\s*\|.*$', led, re.MULTILINE)
+    if row is None or "MJ-17" not in row.group(0):
+        problems.append("  docs/static-checks.md - CHECK81 R4: ledger row 81 is missing or no longer names its MJ-17 cure ref")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK81: %d entropy pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK81: the WS key and every mask drawn behind it ride an LCG re-seeded")
+print("           per dial from per-install client id + model + millisecond clock")
+print("           folded through SHA-1; a boot-window guess can no longer forge")
+print("           the R-ROKU-05 accept proof")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+ echo "=== Check 82: the media lane never rides a signed URL DOWN across the TLS boundary - cleartext stream targets are the MJ-19 era ==="
+# WHY: three consumption sites lifted a server-supplied stream URL straight
+# onto a Video/Audio content node with no scheme custody: PlayerScene's direct
+# play lane, the audiobook lane, and the LiveTV tuner lane whose URL is the raw
+# 302 Location from resolveLocation. On an https origin the REST answer can
+# still name http://anywhere - the TV then issues the signed-URL-bearing media
+# GET in cleartext, leaking the media token and viewing intent across the TLS
+# boundary the session was built to keep. The repo's own plaintext-origin
+# doctrine (SyncPlayWsRefusedForOrigin, M-ROKU-14) names the scheme mismatch
+# itself as the exploitable class; browsers enforce the same mixed-content
+# rule. Cure = IsStreamUrlAdmissible(origin, url): root-relative paths ride the
+# origin scheme (admissible), any absolute shape must parse to an http(s)
+# origin (OriginOfUrl refuses file://, data://, userinfo games, malformed
+# hosts), and an https origin refuses an http:// target; an http origin keeps
+# http media because the REST lane is already cleartext there - no NEW class.
+# The predicate self-guards non-String wire shapes (CHECK43 law) and every
+# refusal degrades into the site's EXISTING no-stream chrome - refusal-reason
+# copy is owner-gated, no locale keys are minted by this era.
+# NUMBERING: 82 collision-probed at the Batch-10 tip (grep 'Check 82'/'CHECK82'
+# over scripts tests Makefile docs -> zero hits). Highest prior header = 81.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import re, sys, os
+
+os.chdir(os.environ['REPO'])
+problems = []
+
+def read(path):
+    try:
+        return open(path, encoding="utf-8").read()
+    except OSError as exc:
+        problems.append(f"  CHECK82 R0: cannot read {path}: {exc}")
+        return None
+
+# --- R1: the media-lane predicate keeps its full shape in Utilities.brs ---
+u = read("source/lib/Utilities.brs")
+if u is not None:
+    laws = []
+    needles = [
+        "function IsStreamUrlAdmissible(originUrl as String, streamUrl as String) as Boolean",
+        '    if Left(s, 1) = "/" then return true',
+        '    if OriginOfUrl(s) = "" then return false',
+        '        if Left(LCase(originUrl.Trim()), 8) = "https://" and Left(s, 7) = "http://" then',
+    ]
+    for n in needles:
+        if u.count(n) != 1:
+            laws.append(n.strip()[:60])
+    if "if type(streamUrl) <> \"String\" then return false" not in u:
+        laws.append("non-String wire guard")
+    if "MEDIA LANE TLS-BOUNDARY LAW (MJ-19" not in u:
+        laws.append("MJ-19 section marker")
+    if laws:
+        problems.append(
+            "  source/lib/Utilities.brs - CHECK82 R1: admissibility law(s) lost - "
+            + "; ".join(laws)
+            + " (a server-answered cleartext or fabricated-scheme media URL can leak "
+            "signed tokens across the TLS boundary again - MJ-19)")
+
+# --- R2: all three consumption sites gate through the predicate ---
+site_laws = []
+for path, marker in (
+    ("components/PlayerScene.brs", "[MJ-19] refusing"),
+    ("components/AudiobookPlayerScene.brs", "[MJ-19] audiobook: refusing"),
+    ("components/LivePlayerScene.brs", "[MJ-19] live: refusing"),
+):
+    t = read(path)
+    if t is None:
+        continue
+    if t.count("if not IsStreamUrlAdmissible(GetServerUrl(), streamUrl) then") != 1:
+        site_laws.append(path + ": gate call lost or duplicated")
+    if t.count(marker) != 1:
+        site_laws.append(path + ": refusal marker lost")
+if site_laws:
+    problems.append(
+        "  CHECK82 R2: media-lane gate custody broken - " + "; ".join(site_laws)
+        + " (an ungated site re-opens the cleartext signed-URL leak the era closed - MJ-19)")
+
+# --- R3: the certification row names the cure ---
+c = read("docs/certification.md")
+if c is not None:
+    m = re.search(r"^\|\s*7\.7\s*\|.*$", c, re.M)
+    if not m or "MJ-19" not in m.group(0) or "mixed-content" not in m.group(0):
+        problems.append("  docs/certification.md - CHECK82 R3: the 7.7 media-lane custody row is missing or no longer names its MJ-19 cure")
+
+# --- R4: the static-checks ledger row exists and names the cure ref ---
+s = read("docs/static-checks.md")
+if s is not None:
+    m = re.search(r"^\|\s*82\s*\|.*$", s, re.M)
+    if not m or "MJ-19" not in m.group(0):
+        problems.append("  docs/static-checks.md - CHECK82 R4: ledger row 82 is missing or no longer names its MJ-19 cure ref")
+
+if problems:
+    print(f"  CHECK82: {len(problems)} media-lane custody pin(s) broken")
+    for p in problems:
+        print(p)
+    sys.exit(1)
+
+print("  CHECK82: every signed media URL is admitted or refused at the TLS boundary -")
+print("           Utilities' predicate keeps its relative-path, origin-parse,")
+print("           downgrade-refusal and wire-shape arms, all three consumption")
+print("           sites (direct play, audiobook, tuner Location) gate through it,")
+print("           and refusals degrade into existing localized no-stream chrome.")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

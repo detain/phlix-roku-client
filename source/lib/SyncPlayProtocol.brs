@@ -179,6 +179,7 @@ function SyncPlayProtocol() as Object
         end function
 
         ' A pseudo-random byte 0..255 (Rnd(256) returns 1..256).
+        ' MJ-17: the stream is re-seeded per dial by SeedWebSocketEntropy.
         RandomByte: function() as Integer
             return Rnd(256) - 1
         end function
@@ -328,8 +329,57 @@ function SyncPlayProtocol() as Object
         ' Handshake
         ' -----------------------------------------------------------------
 
+        ' Seed the Rnd stream from entropy the wire cannot see, immediately
+        ' before every fresh key draw (MJ-17). The factory's Rnd(0) re-seeds
+        ' from a SECONDS-granularity system clock — an LCG family predictable
+        ' inside a coarse boot-time window is exactly what let a blind LAN
+        ' injector guess our Sec-WebSocket-Key and forge the matching accept,
+        ' hollowing out the R-ROKU-05 defense-in-depth. The brighterscript
+        ' callable corpus declares Rnd(x <= 0) as the seeding verb: 'Generates
+        ' a pseudo-random number using the current pseudo-random "seed number"
+        ' (generated internally and not accessible to user)' — so we seed via
+        ' Rnd(-n) with n folded from a SHA-1 over the per-install channel
+        ' client id, the device model, and the millisecond wall clock. Every
+        ' dial — and every frame mask drawn after it — then runs on a stream
+        ' no off-device observer can enumerate. roEVPDigest absence degrades
+        ' to the time-only seed: still per-dial, never constant.
+        SeedWebSocketEntropy: function() as Void
+            dev = CreateObject("roDeviceInfo")
+            clientId = ""
+            model = ""
+            if dev <> invalid then
+                clientId = dev.GetChannelClientId()
+                model = dev.GetModel()
+            end if
+            seedVal = CInt(NowMs() and 2147483647)
+            digest = ""
+            evp = CreateObject("roEVPDigest")
+            if evp <> invalid then
+                if evp.Setup("sha1") = 0 then
+                    src = CreateObject("roByteArray")
+                    src.fromAsciiString(clientId + "|" + model + "|" + seedVal)
+                    hexStr = evp.Process(src)
+                    if hexStr <> invalid then
+                        digest = hexStr.Trim()
+                    end if
+                end if
+            end if
+            if digest.Len() = 40 then
+                hexba = CreateObject("roByteArray")
+                hexba.fromHexString(digest)
+                if hexba.Count() = 20 then
+                    ' Low 4 digest bytes, top bit cleared, as a safe positive
+                    ' Integer (pure-Int arithmetic, no 32-bit overflow).
+                    seedVal = ((hexba[16] and 127) * 16777216) + (hexba[17] * 65536) + (hexba[18] * 256) + hexba[19]
+                end if
+            end if
+            if seedVal = 0 then seedVal = 1
+            Rnd(-seedVal)
+        end function
+
         ' A fresh Sec-WebSocket-Key: 16 random bytes -> base64.
         NewWebSocketKey: function() as String
+            m.SeedWebSocketEntropy()
             ba = CreateObject("roByteArray")
             i = 0
             while i < 16

@@ -292,6 +292,42 @@ function ServerUrlUsesCleartextToRemoteHost(url as String) as Boolean
     return not IsPrivateHostAddress(HostOfUrl(u))
 end function
 
+' =============================================================================
+' MEDIA LANE TLS-BOUNDARY LAW (MJ-19, review roku__secnet item 19)
+' =============================================================================
+
+' True when a server-supplied media URL may ride the Video/Audio node from the
+' given API origin. The signed stream URL carries the media token and reveals
+' viewing intent the moment the TV issues the GET: on an https origin, an
+' http:// target would carry that signed URL ACROSS the TLS boundary in
+' cleartext - the repo's own plaintext-origin doctrine (SyncPlayWsRefused
+' ForOrigin, M-ROKU-14) names the scheme mismatch itself as the exploitable
+' class, and browsers enforce the same mixed-content rule. Refusing costs
+' playback only on servers that answer with mixed content (a misconfiguration
+' class); an http origin keeps http media - the REST lane is already cleartext
+' there, so the media GET adds no NEW exposure. Root-relative paths ride the
+' origin's own scheme, so they can never cross the boundary: admissible. Any
+' other absolute shape must name a parseable http(s) origin - OriginOfUrl
+' returns "" for file://, data://, userinfo games, bracket-less-broken hosts
+' and non-numeric ports, and this law refuses exactly those. Accepts ANY
+' wire shape defensively (the CHECK43 law: hostile untyped text never reaches
+' a String operation ungated): non-String, invalid and blank return false.
+' Pure: two values in, boolean out.
+function IsStreamUrlAdmissible(originUrl as String, streamUrl as String) as Boolean
+    if streamUrl = invalid then return false
+    if type(streamUrl) <> "String" then return false
+    s = LCase(streamUrl.Trim())
+    if s = "" then return false
+    if Left(s, 1) = "/" then return true
+    if OriginOfUrl(s) = "" then return false
+    if originUrl <> invalid and type(originUrl) = "String" then
+        if Left(LCase(originUrl.Trim()), 8) = "https://" and Left(s, 7) = "http://" then
+            return false
+        end if
+    end if
+    return true
+end function
+
 ' Manual redirect-hop budget for the send sites (CHECK48 pins the literal).
 function RedirectHopLimit() as Integer
     return 3
