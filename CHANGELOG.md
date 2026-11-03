@@ -51,6 +51,17 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the twin's sibling pins track the chrome count the scan actually prints (era rotation) — 2026-11-03
+
+- The batch-22 header repack added one XML chrome literal (the shipped Live TV
+  button title), moving the dynamic CHECK25 census 186 -> 187. Four CHECK74
+  gate-independence asserts in the portable twin hard-pinned the old count
+  string, so the twin died at its own prose while every battery leg stayed
+  green. Rotated the four pins to the measured 187 (era law: rotate only from
+  a measured red with attribution — twin-b24 died at the first pin solo, and a
+  plant-A scratch proof shows the battery printing 187 with exactly one CHECK74
+  R1 conviction and the sibling green).
+
 ### Fixed — the resume rail says how far you got, and the admin meets Live TV in one hop (MN-2 MN-3) — 2026-11-03
 
 - MN-2: the Continue Watching card showed the poster and the title but never HOW FAR the viewer had got - opening the item was the only way to learn it. The server already re-attaches `position_ticks` and `duration_ticks` to every GET /me/continue-watching row (PlaybackController.php:545-546) and the client passes rows through verbatim, so the truth rode in the payload and died at the builder. ContinueWatchPercent now folds the pair into the card's `ShortDescriptionLine2`: either tick missing, boxed non-numeric, or either <= 0 yields a BLANK line (never a lying 0%, never a NaN), otherwise an integer percent clamped 1..100. Zero new locale strings - the copy is digits and a percent sign, and R3 bans a key from growing to hold it.

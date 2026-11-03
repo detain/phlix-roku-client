@@ -3824,7 +3824,7 @@ sed -n '/=== Check 74:/,$p' <<<"$RED74A_OUT" | grep -qF 'CHECK74 R1: dead markup
 	fail "CHECK74 red-A must convict the re-grown dead attribute naming file:line (got: $RED74A_OUT)"
 [ "$(sed -n '/=== Check 74:/,$p' <<<"$RED74A_OUT" | grep -c 'CHECK74 R')" -eq 1 ] ||
 	fail "CHECK74 red-A must report exactly its 1 conviction — the hintText on the same element stays live and green (got: $RED74A_OUT)"
-sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74A_OUT" | grep -qF "CHECK25: all 186 XML chrome literals exempt or catalog-backed" ||
+sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74A_OUT" | grep -qF "CHECK25: all 187 XML chrome literals exempt or catalog-backed" ||
 	fail "Check 25 (the sibling XML-chrome law over the same file) must stay PASS while Check 74 is red (gate independence)"
 sed -n '/=== Check 66:/,/=== Check 67:/p' <<<"$RED74A_OUT" | grep -qF "CHECK66: both WS handshakes cap their header accumulator" ||
 	fail "Check 66 (the same file's copy-pair law) must stay PASS while Check 74 is red (gate independence)"
@@ -3847,7 +3847,7 @@ sed -n '/=== Check 74:/,$p' <<<"$RED74B_OUT" | grep -qF "CHECK74 R2: hintText li
 	fail "CHECK74 red-B must convict the unlocalized hint quoting the plant (got: $RED74B_OUT)"
 [ "$(sed -n '/=== Check 74:/,$p' <<<"$RED74B_OUT" | grep -c 'CHECK74 R')" -eq 1 ] ||
 	fail "CHECK74 red-B must report exactly its 1 conviction (got: $RED74B_OUT)"
-sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74B_OUT" | grep -qF "CHECK25: all 186 XML chrome literals exempt or catalog-backed" ||
+sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74B_OUT" | grep -qF "CHECK25: all 187 XML chrome literals exempt or catalog-backed" ||
 	fail "Check 25 must stay PASS while Check 74 is red — hint chrome is precisely the surface Check 25 never scanned (gate independence)"
 sed -n '/=== Check 56:/,/=== Check 57:/p' <<<"$RED74B_OUT" | grep -qF "CHECK56: the SyncPlay room scene has zero instantiation sites" ||
 	fail "Check 56 (the same scene's dead-path truth) must stay PASS while Check 74 is red (gate independence)"
@@ -3878,7 +3878,7 @@ sed -n '/=== Check 74:/,$p' <<<"$RED74C_OUT" | grep -qF "CHECK74 R4: <HStack> is
 	fail "CHECK74 red-C must report exactly its 1 conviction — attributes and children ride unchanged (got: $RED74C_OUT)"
 sed -n '/=== Check 63:/,/=== Check 64:/p' <<<"$RED74C_OUT" | grep -qF "CHECK63: GetErrorMessage echoes no wire prose" ||
 	fail "Check 63 (the same file's label-legibility law) must stay PASS while Check 74 is red (gate independence)"
-sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74C_OUT" | grep -qF "CHECK25: all 186 XML chrome literals exempt or catalog-backed" ||
+sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74C_OUT" | grep -qF "CHECK25: all 187 XML chrome literals exempt or catalog-backed" ||
 	fail "Check 25 must stay PASS while Check 74 is red (gate independence)"
 cp "$FAKE_REPO/components/PlayerScene.xml" "$PLAYER74"
 python3 - "$PARENT74" <<'PYEOF'
@@ -3904,7 +3904,7 @@ sed -n '/=== Check 74:/,$p' <<<"$RED74D_OUT" | grep -qF "CHECK74 R3: the hintTex
 	fail "CHECK74 red-D must convict the census naming the derived count (got: $RED74D_OUT)"
 [ "$(sed -n '/=== Check 74:/,$p' <<<"$RED74D_OUT" | grep -c 'CHECK74 R')" -eq 1 ] ||
 	fail "CHECK74 red-D must report exactly its 1 conviction — the surviving four hints stay catalog-clean (got: $RED74D_OUT)"
-sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74D_OUT" | grep -qF "CHECK25: all 186 XML chrome literals exempt or catalog-backed" ||
+sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74D_OUT" | grep -qF "CHECK25: all 187 XML chrome literals exempt or catalog-backed" ||
 	fail "Check 25 must stay PASS while Check 74 is red (gate independence)"
 sed -n '/=== Check 73:/,/=== Check 74:/p' <<<"$RED74D_OUT" | grep -qF "CHECK73: the twin's PASS narration and the ledger sentence both equal" ||
 	fail "Check 73 (narration prose only) must stay PASS while Check 74 is red (gate independence)"
