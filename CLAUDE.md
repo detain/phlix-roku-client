@@ -12,9 +12,9 @@ All workflows go through `Makefile`. `package.json` exists only to alias these f
 
 | Command | What it actually does |
 |---|---|
-| `make package` | Runs `_update-manifest` first (`scripts/derive-version.sh` rewrites `major_version`/`minor_version`/`build_version` into `build/manifest`), then `zip -r phlix.zip build/manifest source components images`. That zip is the entire build artifact. ⚠️ **Omitting `components` ships a UI-less channel** — the entire SceneGraph UI lives in `components/`, so a zip without it produces a black screen on the device. |
+| `make package` | Runs `_update-manifest` first (`scripts/derive-version.sh` rewrites `major_version`/`minor_version`/`build_version` into `build/manifest`), then stages `source components images locale` + that version-injected manifest under `build/pkg-stage/` and zips it C-sorted via `zip -X` so builds are reproducible — the archive root is `manifest` + the four trees (`locale/` omission convicts CHECK 61 R3). That zip is the entire build artifact. ⚠️ **Omitting `components` ships a UI-less channel** — the entire SceneGraph UI lives in `components/`, so a zip without it produces a black screen on the device. |
 | `make package-signed` | Runs `scripts/package-signed.sh` to build a signed store-submission package — see `docs/publishing.md`. |
-| `make install ROKU_IP=… ROKU_DEV=… ROKU_PASSWORD=…` | Packages, then POSTs the zip to `http://$ROKU_IP:8060/install/app`. |
+| `make install ROKU_IP=… ROKU_DEV=… ROKU_PASSWORD=…` | Packages, then POSTs the zip to the device's dev-mode installer — `http://$ROKU_IP/plugin_install` (port 80, HTTP digest; the request rides `curl --config -` on stdin, never argv). `:8060` is ECP only (launch/keypress/query) [review CR-3]. |
 | `make launch` / `make stop` | ECP keypress/launch calls — also need `ROKU_IP` etc. |
 | `make lint` | Runs `npx bsc --project bsconfig.json` (brighterscript type-check). This IS a hard gate — it exits non‑zero on any diagnostic (type error, missing field, malformed XML/component pairing). The old grep-script description is stale. |
 | `make bslint` | Runs `npx bslint --project bsconfig.json` (brighterscript style linter). A separate hard gate from `make lint` — exits non-zero on any error or warning. |

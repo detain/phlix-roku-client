@@ -1,4 +1,4 @@
-.PHONY: all package package-signed install dev clean test lint lint-fix validate-manifest validate-routes verify-package _run_rooibos _run_rooibos_unit _run_rooibos_integration
+.PHONY: all package package-signed install clean test lint lint-fix validate-manifest validate-routes verify-package _run_rooibos _run_rooibos_unit _run_rooibos_integration
 
 # Roku IP address (set via environment or edit here)
 ROKU_IP ?= 192.168.1.100
@@ -41,7 +41,7 @@ all: package
 # could keep old-layout entries after the recipe itself was fixed. The
 # target ends by opening its own output: scripts/verify-package.sh fails
 # loudly on any layout regression, so `make package` (and with it `make
-# install`, `make dev-install`, CI's package job, and package-signed.sh's
+# install`, CI's package job, and package-signed.sh's
 # phlix.zip input) can no longer produce a structurally invalid artifact
 # silently.
 # M-ROKU-20 (determinism): the same tree now rebuilds BYTE-IDENTICAL zips.
@@ -71,8 +71,11 @@ package: _update-manifest
 # device testing runs 'make install' with phlix.zip) — scripts/package-signed.sh
 # decides and states it.
 # Truth pass (M-ROKU-10): the old comment demanded a "ROKU_DEV_PASSWORD"
-# env var that no component ever read; credentials belong to the rokudev
-# CLI's interactive `rokudev auth` step. PKG_VERSION is passed explicitly
+# env var that no component ever read; signing credentials are the portal-
+# issued certificate at ~/.phlix/phlix-signing.pem, consumed by the signer
+# probe in scripts/package-signed.sh — no CLI auth session exists (the CLI
+# names that comment once promised are not published packages, review CR-4).
+# PKG_VERSION is passed explicitly
 # because make does not export ordinary variables into recipes — without
 # this the script could never stamp the real version.
 package-signed:
@@ -81,6 +84,12 @@ package-signed:
 	@echo "Done — see docs/publishing.md for artifact truth and submission steps."
 
 # Install to Roku device.
+# Review CR-3: Roku's dev-mode installer is the device's own web form on
+# port 80 at /plugin_install, HTTP digest auth (docs/device-verification.md
+# step 3) — :8060 is ECP and documents only launch/keypress/query, so the
+# old ':8060/install/app' Basic target could never have worked. MN-30: the
+# leg ran 'curl -v', echoing the digest user line into scrollback; now -sS
+# like its siblings.
 # M-ROKU-21: credentials no longer ride curl argv (-u user:pass is visible in
 # ps to every local user); the whole request is described on stdin via
 # 'curl --config -'. The raw-manifest form field was DROPPED too: since the
@@ -89,9 +98,9 @@ package-signed:
 # 'manifest' field re-created the dual-source shape the C1 law forbids.
 install: package
 	@echo "Installing to Roku at $(ROKU_IP)..."
-	@printf 'user = "%s:%s"\nurl = "http://%s:8060/install/app"\nrequest = "POST"\nform = "archive=@%s.zip"\n' \
+	@printf 'user = "%s:%s"\ndigest\nurl = "http://%s/plugin_install"\nrequest = "POST"\nform = "mysubmit=Install"\nform = "archive=@%s.zip"\nform = "passwd="\n' \
 		"$(ROKU_DEV)" "$(ROKU_PASSWORD)" "$(ROKU_IP)" "$(PKG_NAME)" \
-		| curl -v --config -
+		| curl -sS --config -
 
 # Launch the app (after install)
 launch:
@@ -104,11 +113,6 @@ stop:
 	@echo "Stopping $(PKG_NAME)..."
 	@printf 'user = "%s:%s"\nurl = "http://%s:8060/keypress/home"\nrequest = "POST"\n' \
 		"$(ROKU_DEV)" "$(ROKU_PASSWORD)" "$(ROKU_IP)" | curl -sS --config -
-
-# Development server (requires rokupkg)
-dev-install: package
-	@echo "Installing to dev mode..."
-	rokupkg --install $(PKG_NAME).zip
 
 # Clean build artifacts
 clean:

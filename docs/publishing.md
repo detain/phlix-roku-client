@@ -91,40 +91,41 @@ What exists **today** (pinned against drift by verify-runtime Check 40):
    - Sign up at https://developer.roku.com
    - Pay the one-time $50 registration fee (required to publish to the store)
 
-2. **rokudev CLI**
-   ```bash
-   npm install -g rokudev
-   ```
+2. **No CLI to install.** Signing runs through this repo's
+   `scripts/package-signed.sh`, which probes PATH for a signer CLI
+   (`rokudev`, then `rokupkg`) and fails loud — minting nothing — when
+   neither is present. **As of 2026-11-03 neither name resolves on the
+   public npm registry (both 404; control-probed), so no downloadable
+   signer matches the probe** [review CR-4]: treat `make package-signed`
+   as the signing-chain scaffold until a signer that satisfies the probe
+   is provisioned in your environment. An earlier revision told you to
+   `npm install -g rokudev` — that instruction was fiction and is deleted.
+   Store submission itself is a browser flow on the Roku portal (Step 2),
+   not a CLI flow.
 
-3. **Roku account credentials**
-   - You type them when `rokudev auth` prompts (item 5). There is **no
-     password environment variable to export** — nothing in the build or
-     signing chain reads one. (An earlier revision of this document claimed
-     the signing script required such a variable; no component ever read
-     it. The false claim was deleted under M-ROKU-10, and verify-runtime
-     Check 41 R1 keeps claim and behavior consistent.)
+3. **Roku account credentials.** You use them at the portal login for
+   submission and certificate requests. There is **no password
+   environment variable to export** — nothing in the build or signing
+   chain reads one. (An earlier revision of this document claimed the
+   signing script required such a variable; no component ever read it.
+   The false claim was deleted under M-ROKU-10, and verify-runtime
+   Check 41 R1 keeps claim and behavior consistent.)
 
-4. **Roku Device in Developer Mode**
-   - Enable developer mode on your Roku: https://developer.roku.com/docs/developer-program/getting-started.md
+4. **Roku Device in Developer Mode** — only for *sideload testing*, which
+   never involves a `.pkg`: enable developer mode on your Roku
+   (https://developer.roku.com/docs/developer-program/getting-started.md)
+   and run `make install` with the unsigned zip.
 
-5. **Authentication**
-   ```bash
-   rokudev auth
-   ```
-   This stores a session token so you don't need to retype credentials.
+5. **A code signing certificate at `~/.phlix/phlix-signing.pem`.** The
+   portal-issued one for store submission, or a self-signed one the
+   script can mint for the chain smoke test — see Certificate Details
+   below.
 
 ---
 
 ## Full Publishing Flow
 
-### Step 1 — Authenticate with rokudev (one-time)
-
-```bash
-rokudev auth
-# Enter your Roku developer email and password when prompted
-```
-
-### Step 2 — Build the signed package
+### Step 1 — Build the signed package
 
 ```bash
 make package-signed
@@ -147,7 +148,7 @@ The script:
    into a `.pkg`; that mislabel was the M-ROKU-10 defect), or when the
    certificate cannot be read
 
-### Step 3 — Submit to the Roku Developer Portal
+### Step 2 — Submit to the Roku Developer Portal
 
 1. Log in to https://developer.roku.com
 2. Go to **Dashboard → Channels → Phlix**
@@ -199,7 +200,7 @@ To get a real code signing certificate for store submission:
 **CI does not sign packages, by design of the credentials involved.** The
 `Package` workflow builds and publishes only the sideload `phlix.zip` (the
 rolling `latest` prerelease described above). Store packaging is a manual
-workstation step: `rokudev auth` once, the Roku-issued certificate at
+workstation step: the Roku-issued certificate at
 `~/.phlix/phlix-signing.pem`, then `make package-signed`.
 
 An earlier revision showed a CI snippet exporting a password secret into
@@ -208,9 +209,12 @@ set" — no component ever read that secret, and a workflow job that cannot
 install a signer is worse than no job: it lies green while skipped and
 blocks everything downstream the day its gate secret is armed. That stub
 job was deleted under M-ROKU-10. If CI signing is ever wanted, it must land
-with real signer provisioning (`npm ci`, `rokudev`, certificate handling)
-in the same job — verify-runtime Check 41 R4 reddens any workflow that runs
-`make package-signed` without one.
+with real signer provisioning in the same job: Check 41 R4 requires `npm ci`
+plus the literal token `rokudev` in that job's provisioning — a pin from the
+era when the CLI was believed installable (today no public package provides
+one, Prerequisites item 2). Re-arming therefore needs either a real signer
+shipped under exactly that name, or rotating the R4 pin together with the
+job.
 
 What the script genuinely fails loud about (each enforced in
 `scripts/package-signed.sh`): no signer CLI installed, signing command
@@ -223,7 +227,11 @@ undeterminable package version.
 
 ### "Authentication failed" / "Invalid credentials"
 
-Run `rokudev auth` again to refresh your session token.
+There is no CLI session token to refresh. These shapes come from the two
+real credential surfaces: the device dev-mode form (sideload — `ROKU_DEV`/
+`ROKU_PASSWORD` must match the developer-setup password on the TV, and the
+installer wants digest auth) or the portal login (submission). Sessions
+expire at both; retype, don't `auth`.
 
 ### "Certificate is not valid for signing"
 
@@ -248,4 +256,3 @@ Run `make validate` before packaging to catch manifest issues early.
 
 - [Roku Developer Program](https://developer.roku.com)
 - [Channel Certification Requirements](https://developer.roku.com/docs/developer-program/store-certification.md)
-- [rokudev CLI Reference](https://developer.roku.com/docs/developer-program/tools/rokudev.md)

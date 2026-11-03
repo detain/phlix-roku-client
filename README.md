@@ -39,7 +39,7 @@ The following features are not currently available:
 - **Roku Developer Account**: NOT needed for sideloading — device developer mode covers it (`make install`). The paid account is a store-submission prerequisite only (docs/publishing.md Prerequisites).
 
 ### Development Tools
-- **Roku SDK**: For packaging and deployment ( rokupkg )
+- **Toolchain in this repo**: `make package` (zip + `scripts/verify-package.sh`) builds, `make install` sideloads via curl to the device's dev-mode installer. There is **no external Roku SDK CLI to install** — neither `rokupkg` nor `rokudev` resolves on the public npm registry (404; control-probed 2026-11-03), so the old "( rokupkg )" prerequisite was fiction [review CR-4]
 - **BrightScript Editor**: the VS Code extension *BrightScript Language* by RokuDeveloper (the canonical marketplace extension) or any editor
 - **curl**: For direct device communication
 - **zip**: For creating packages
@@ -360,11 +360,8 @@ make package-signed
 ### Install to Device
 
 ```bash
-# Install to configured Roku IP
+# Install to configured Roku IP (device dev-mode password, not the portal one)
 make install ROKU_IP=192.168.1.100 ROKU_DEV=rokudev ROKU_PASSWORD=yourpass
-
-# Or install with rokupkg
-rokupkg --install phlix.zip
 ```
 
 ### Development Workflow
@@ -389,11 +386,16 @@ telnet 192.168.1.100 8080
 # the manifest version and verifies the layout via scripts/verify-package.sh)
 zip -r phlix.zip manifest source components images locale
 
-# Sideload via curl
-curl -v -u rokudev:password -X POST \
-    http://192.168.1.100:8060/install/app \
-    -F "archive=@phlix.zip" \
-    -F "manifest=@manifest"
+# Sideload via curl. The endpoint is the device's dev-mode installer — the
+# web form on port 80, /plugin_install, HTTP digest auth — NOT an ECP :8060
+# endpoint: :8060 documents only launch/keypress/query. Three laws in one
+# recipe [review CR-3 + MN-30, port truth per M-ROKU-21]: no 'manifest' form
+# field (the zip's root manifest is the single source the installer must
+# see — a raw second copy re-creates the dual-source shape the C1 law
+# forbids); credentials never ride argv (-u user:pass is visible in ps);
+# -sS, not -v (verbose echoes the auth header into scrollback).
+read -rs -p "Roku dev-mode password: " ROKU_PASS
+printf 'user = "rokudev:%s"\ndigest\nurl = "http://192.168.1.100/plugin_install"\nrequest = "POST"\nform = "mysubmit=Install"\nform = "archive=@phlix.zip"\nform = "passwd="\n' "$ROKU_PASS" | curl -sS --config -
 ```
 
 ## Testing

@@ -51,6 +51,43 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the install recipe targets the real device installer; the publishing toolchain stops promising two CLIs that do not exist (review roku__writer CR-3 + CR-4; roku__devops MN-30) — 2026-11-03
+
+- **CR-3 (endpoint truth).** `make install` and the README's manual recipe
+  POSTed the sideload zip to `http://<ip>:8060/install/app` with Basic auth
+  (README also sent a second raw `manifest` form field). Roku's dev-mode
+  installer is the device's own web form on port 80 at `/plugin_install`
+  with HTTP digest auth — `:8060` is ECP and documents only
+  launch/keypress/query (the sibling `launch`/`stop` recipes use it
+  correctly). Makefile, README (Manual Deployment), and the CLAUDE.md target
+  table now carry the digest recipe with `mysubmit=Install`, `archive=@zip`,
+  `passwd=`, and no manifest field — the zip's root manifest is the single
+  source the C1/C08 laws pin.
+- **MN-30 (log hygiene).** The install leg ran `curl -v` while its siblings
+  used `-sS`; verbose echoed the auth header into scrollback. Now `-sS`
+  everywhere, and the README manual recipe describes the request on stdin
+  (`curl --config -`) so credentials never ride argv (M-ROKU-21 law).
+- **CR-4 (phantom toolchain).** `npm install -g rokudev` and `rokupkg
+  --install` were fiction: live registry probes (2026-11-03, control
+  package 200) returned 404 for BOTH names on npm. Cured across surfaces:
+  README prerequisite bullet rewritten to name the in-repo toolchain, the
+  "Or install with rokupkg" block deleted, the Makefile's `dev-install`
+  target (which invoked the phantom `rokupkg`) deleted along with its
+  dangling `.PHONY` `dev` entry and comment reference, publishing.md's
+  Prerequisites/Step-1/session-troubleshooting rewritten around the two REAL
+  credential surfaces (device dev-mode form; portal), and the dead
+  "rokudev CLI Reference" link removed. `scripts/package-signed.sh` keeps
+  its probe — the review's own words: honest code — but its header comments
+  and fail-loud banner no longer advertise `rokudev auth` / an npm install
+  of a nonexistent package; the banner now states the probe is a
+  deliberately unsatisfied precondition and routes device testing to
+  `make install`. Check 41 R4's literal-token pin (future signing jobs must
+  name `rokudev`) is disclosed as a pin of the belief-era in both
+  publishing.md and the package.yml re-arm comment — re-arming needs a real
+  signer under that name or a coordinated pin rotation. CHECK41's positive
+  markers (signing-chain-smoke, `-dev-signed`, banner) untouched; zero
+  behavior changes to the script's branches.
+
 ### Fixed — the detail screen's enrichment rows become one working Similar grid (review roku__gameux CR-1) — 2026-11-02
 
 - **Verify-first.** The review charged DetailScene with four `<Row>` nodes

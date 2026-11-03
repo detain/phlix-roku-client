@@ -6,10 +6,13 @@
 # Honesty pass (M-ROKU-10, review roku__devops M3). The old header claimed a
 # dedicated Roku-dev PASSWORD environment variable had to be set and that the
 # script would fail without it — NO component in this repo ever read any
-# such variable. Authentication lives entirely in the external rokudev CLI's
-# stored session token (`rokudev auth`, where credentials are typed at its
-# own prompt); this script reads no password env var. The claim is deleted,
-# and every precondition listed below is actually enforced here.
+# such variable; this script reads no password env var. (The claim later
+# leaned on — that auth "lives in the rokudev CLI's stored session token" —
+# was itself fiction: no such session command exists on a package that can
+# actually be installed; the probed names 404 on npm. Review CR-4 cured the
+# prose; the probe below stays as the script's honest, deliberately
+# unsatisfiable signing precondition.) The claim deletion stands, and every
+# precondition listed below is actually enforced here.
 # verify-runtime Check 41 pins claim<->behavior so the false assurance
 # cannot return.
 #
@@ -17,7 +20,9 @@
 #   - Roku developer account (https://developer.roku.com). For STORE
 #     submission the certificate must be Roku-issued — see docs/publishing.md,
 #     "Certificate Details".
-#   - `rokudev auth` previously run (one-time, interactive) if you use rokudev.
+#   - a signer CLI satisfying the Step 3 probe on PATH. None currently
+#     installs (probe names 404 on npm, review CR-4) — without one this
+#     script fails loud and mints nothing, by design.
 #   - openssl — used both to generate a development certificate and to
 #     determine the certificate's nature before naming the artifact.
 #   - a code signing certificate at ~/.phlix/phlix-signing.pem — the
@@ -27,7 +32,8 @@
 #   1. Runs `make package` to produce the sideload phlix.zip
 #   2. Ensures a signing certificate exists, generating a self-signed
 #      development certificate when none is present (dev/CI use only)
-#   3. Signs with rokudev/rokupkg. The certificate's NATURE decides the
+#   3. Signs with the probed signer on PATH (fail-loud when none exists).
+#      The certificate's NATURE decides the
 #      artifact name and the printed next steps: a self-signed certificate
 #      can never produce a store-submittable package, so that artifact is
 #      named *-dev-signed.pkg and is explicitly marked NOT uploadable — its
@@ -168,9 +174,13 @@ elif command -v rokupkg >/dev/null 2>&1; then
 		exit 1
 	}
 else
-	echo "ERROR: Neither rokudev nor rokupkg is available." >&2
-	echo "Install rokudev CLI: npm install -g rokudev" >&2
-	echo "The unsigned zip (${PKG_NAME}.zip) is still available for sideloading." >&2
+	echo "ERROR: Neither signer CLI probed (rokudev, rokupkg) is on PATH." >&2
+	echo "       Neither name resolves on the public npm registry either (404 as of" >&2
+	echo "       2026-11-03) — see docs/publishing.md 'Prerequisites' item 2: there is" >&2
+	echo "       no downloadable signer that satisfies this probe today; provisioning" >&2
+	echo "       one is a deliberate, unsatisfied precondition, not an oversight." >&2
+	echo "The unsigned zip (${PKG_NAME}.zip) is still available for sideloading" >&2
+	echo "with 'make install'." >&2
 	exit 1
 fi
 
