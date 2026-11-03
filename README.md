@@ -231,9 +231,10 @@ or silently deleting these truth markers — reddens CI.
 > - **Hub mode: disabled.** The hub relay proxy is HTTP-only (it strips the `Upgrade` header), so
 >   there is no WebSocket path through the hub. In hub mode the overlay refuses to open with a
 >   friendly message ("Watch Together isn't available in hub mode yet").
-> - **Deferred:** chat / typing, host transfer, playback queue, periodic `playback_sync` broadcast,
->   group passwords (password-gated groups simply fail to join), WS reconnect/backoff (a disconnect
->   ends the session — no auto re-join).
+> - **Deferred:** chat / typing, host transfer, playback queue, and periodic `playback_sync`
+>   broadcast. Password-gated joining SHIPPED with the join-by-code form (MJ-2): the group's
+>   `sp_*` code is typed on the TV and the password is presented only as its SHA-256 digest
+>   (`syncplay_group_join.password_hash`, SPEC §4) — the plaintext never touches the socket.
 > - **Handshake proof is enforced (M-ROKU-14).** The client sends a random `Sec-WebSocket-Key` and
 >   validates the server's `Sec-WebSocket-Accept` hash (Base64 SHA-1 of key + the RFC6455 magic GUID)
 >   before treating the socket as a session — fail-closed: an absent header, a mismatch, or a device
@@ -244,10 +245,11 @@ or silently deleting these truth markers — reddens CI.
 
 1. **Open the overlay.** During playback, press the **`*` / Options** key to open the **Watch
    Together** overlay (direct mode only — in hub mode it shows the disabled message).
-2. **Pick or create a group.** The overlay lists existing groups (a read-only snapshot from
-   `GET /api/v1/syncplay/groups`, so no group-id typing on the TV). Select one to **Join**, press
-   **Create Group** to start a new group (named `"<device>'s Group"`, no keyboard), or **Leave** to
-   exit. A status line shows the connection state, group name, member count, and sync (offset/stable)
+2. **Pick, create, or join by code.** The overlay lists existing groups (a read-only snapshot from
+   `GET /api/v1/syncplay/groups`). Select one to **Join**, press **Join With Code** to type a
+   group's `sp_*` code shared from another device — plus its password when the room is protected
+   (the digest is computed on-device; the plaintext never leaves) — press **Create Group** to start a new group (named `"<device>'s Group"`, no keyboard), or **Leave** to exit. A status
+   line shows the connection state, group name, member count, and sync (offset/stable)
    indicator.
 3. **Watch together.** Playback follows the group **host**: inbound host `play` / `pause` / `seek`
    are applied to the local `Video` node with NTP drift correction (ms→s at the boundary) and
@@ -409,7 +411,7 @@ printf 'user = "rokudev:%s"\ndigest\nurl = "http://192.168.1.100/plugin_install"
 
 ### Unit Tests
 
-Unit tests live in `tests/unit/` — **23 rooibos unit suites** at time of writing, one
+Unit tests live in `tests/unit/` — **24 rooibos unit suites** at time of writing, one
 `*.test.brs` file per module. The full listing is the **Test Structure** block below;
 Check 62 pins this count and the listing to the shipped tree, so a re-drift reddens CI.
 
@@ -464,7 +466,7 @@ moment this block and the tree disagree, in either direction):
 
 ```
 tests/
-├── unit/                                  # 23 rooibos suites, one *.test.brs per module
+├── unit/                                  # 24 rooibos suites, one *.test.brs per module
 │   ├── ApiClient.test.brs
 │   ├── ApiEnvelope.test.brs
 │   ├── AppContext.test.brs
@@ -480,6 +482,7 @@ tests/
 │   ├── SleepTimer.test.brs
 │   ├── Storage.test.brs
 │   ├── SyncPlayErrors.test.brs
+│   ├── SyncPlayJoinCode.test.brs
 │   ├── SyncPlayManager.test.brs
 │   ├── SyncPlayProtocol.test.brs
 │   ├── SyncPlayWsTls.test.brs

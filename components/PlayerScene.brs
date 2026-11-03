@@ -200,6 +200,17 @@ sub Init()
     m.syncCreateButton = m.top.FindNode("syncCreateButton")
     m.syncLeaveButton = m.top.FindNode("syncLeaveButton")
     m.syncStatusLabel = m.top.FindNode("syncStatusLabel")
+    ' MJ-2: join-by-code mode. One visibility swap inside syncPanel — the list
+    ' and the code form are mutually exclusive; no new overlay, no stack move.
+    m.syncCodeMode = false
+    m.syncJoinCodeButton = m.top.FindNode("syncJoinCodeButton")
+    m.syncCodeGroup = m.top.FindNode("syncCodeGroup")
+    m.syncCodeLabel = m.top.FindNode("syncCodeLabel")
+    m.syncCodeInput = m.top.FindNode("syncCodeInput")
+    m.syncCodePasswordLabel = m.top.FindNode("syncCodePasswordLabel")
+    m.syncCodePasswordInput = m.top.FindNode("syncCodePasswordInput")
+    m.syncCodeJoinButton = m.top.FindNode("syncCodeJoinButton")
+    m.syncCodeCancelButton = m.top.FindNode("syncCodeCancelButton")
 
     ' M-ROKU-19: scene-level attribution banner (visible while the sync panel is
     ' closed) + its auto-hide timer. syncUserStopped suppresses the "disconnected"
@@ -212,6 +223,10 @@ sub Init()
     if m.syncGroupList <> invalid then m.syncGroupList.ObserveField("itemSelected", "OnSyncGroupSelected")
     if m.syncCreateButton <> invalid then m.syncCreateButton.ObserveField("buttonSelected", "OnSyncCreatePressed")
     if m.syncLeaveButton <> invalid then m.syncLeaveButton.ObserveField("buttonSelected", "OnSyncLeavePressed")
+    ' MJ-2: the join-by-code trio (same buttonSelected idiom - focus + OK).
+    if m.syncJoinCodeButton <> invalid then m.syncJoinCodeButton.ObserveField("buttonSelected", "OnSyncJoinCodePressed")
+    if m.syncCodeJoinButton <> invalid then m.syncCodeJoinButton.ObserveField("buttonSelected", "OnSyncCodeJoinPressed")
+    if m.syncCodeCancelButton <> invalid then m.syncCodeCancelButton.ObserveField("buttonSelected", "OnSyncCodeCancelPressed")
 
     ' REST group-list snapshot task is created LAZILY on first panel open (see
     ' ToggleSyncPanel) so the default playback path is truly byte-unchanged - no
@@ -1305,6 +1320,10 @@ sub ClosePlayer()
     if m.syncGroupList <> invalid then m.syncGroupList.UnObserveField("itemSelected")
     if m.syncCreateButton <> invalid then m.syncCreateButton.UnObserveField("buttonSelected")
     if m.syncLeaveButton <> invalid then m.syncLeaveButton.UnObserveField("buttonSelected")
+    ' MJ-2: pairs the join-by-code trio wired in Init.
+    if m.syncJoinCodeButton <> invalid then m.syncJoinCodeButton.UnObserveField("buttonSelected")
+    if m.syncCodeJoinButton <> invalid then m.syncCodeJoinButton.UnObserveField("buttonSelected")
+    if m.syncCodeCancelButton <> invalid then m.syncCodeCancelButton.UnObserveField("buttonSelected")
     if m.syncListTask <> invalid then m.syncListTask.UnObserveField("response")
 
     ' --- G4 Quality picker teardown (pairs the ObserveField from Init). ---
@@ -1447,10 +1466,18 @@ function OnKeyEvent(key as String, press as Boolean) as Boolean
         end if
 
         ' --- F13 SyncPlay: panel handling (additive). When the panel is open,
-        '     "back"/"options" close it and the panel widgets own the rest. ---
+        '     "back"/"options" close it and the panel widgets own the rest.
+        '     MJ-2: one unwind step first - while the join-by-code FORM is
+        '     showing, "back"/"options" return to the room list; closing the
+        '     whole panel from mid-form would strand the typed code. ---
         if m.syncPanelOpen then
             if key = "back" or key = "options" then
-                CloseSyncPanel()
+                if m.syncCodeMode then
+                    ShowSyncListMode()
+                    if m.syncJoinCodeButton <> invalid then m.syncJoinCodeButton.SetFocus(true)
+                else
+                    CloseSyncPanel()
+                end if
                 handled = true
             end if
             return handled
@@ -1829,6 +1856,8 @@ sub ToggleSyncPanel()
 
     m.syncPanelOpen = true
     if m.syncPanel <> invalid then m.syncPanel.visible = true
+    ' MJ-2: every open starts in list mode (the code form is per-open state).
+    ShowSyncListMode()
     SetSyncStatus(Translate("player_sync_status_loading"))
 
     ' Lazily create the REST group-list ApiTask + its observer on first open, so
@@ -1849,6 +1878,10 @@ end sub
 sub CloseSyncPanel()
     m.syncPanelOpen = false
     if m.syncPanel <> invalid then m.syncPanel.visible = false
+    ' MJ-2: the code form is per-open state — folding the panel always lands
+    ' back on the list shape (a stale mid-form visibility would re-appear on
+    ' the next open behind ToggleSyncPanel's own reset focus).
+    ShowSyncListMode()
     m.top.SetFocus(true)
 
     ' Stop the SyncPlayTask when the panel is closed. The user may re-open
@@ -2045,6 +2078,90 @@ sub OnSyncGroupSelected(event as Object)
 
     SetSyncStatus(Translate("player_sync_status_joining"))
     m.syncTask.command = { kind: "join", group_id: gid }
+end sub
+
+' MJ-2 (review roku__casualgamer deferred item): join by SHARED CODE. The
+' picker only lists discoverable public groups; a room created elsewhere
+' (a phone tab, another TV) is reachable by its sp_* id — that id IS the
+' invite the server's join gate accepts (SyncPlayManager::joinGroup, SPEC §4).
+' The form rides the panel's own coordinate space; the password field feeds
+' ONLY SyncPlayPasswordHash — the plaintext never enters the command dict and
+' never touches the socket (SPEC: "New clients MUST NOT send password on the
+' WebSocket"). A protected join on a device without SHA-256 custody fails
+' CLOSED with honest copy: we never present a forged or absent digest.
+sub OnSyncJoinCodePressed()
+    ShowSyncCodeMode()
+    if m.syncCodeInput <> invalid then m.syncCodeInput.SetFocus(true)
+end sub
+
+sub OnSyncCodeJoinPressed()
+    gid = ""
+    if m.syncCodeInput <> invalid then gid = m.syncCodeInput.text.Trim()
+    if gid = "" then
+        SetSyncStatus(Translate("syncplay_code_missing"))
+        if m.syncCodeInput <> invalid then m.syncCodeInput.SetFocus(true)
+        return
+    end if
+
+    cmd = { kind: "join", group_id: gid }
+    pw = ""
+    if m.syncCodePasswordInput <> invalid then pw = m.syncCodePasswordInput.text
+    if pw <> "" then
+        digest = SyncPlayPasswordHash(pw)
+        if digest = "" then
+            ' Fail-closed: this firmware cannot compute the canonical gate.
+            ' An ungated attempt would either ping-pong invalid_password or
+            ' (worse) join an unprotected id the user mistyped believing the
+            ' password "worked". Refuse the whole join, say why.
+            SetSyncStatus(Translate("syncplay_status_hash_unavailable"))
+            if m.syncCodePasswordInput <> invalid then m.syncCodePasswordInput.SetFocus(true)
+            return
+        end if
+        cmd.password_hash = digest
+    end if
+
+    ' Start the WS task on demand (same shape as the picker path).
+    if m.syncTask = invalid then ConnectSyncTask()
+    if m.syncTask = invalid then return
+
+    ' Fold the form back to the list BEFORE the write, so a fast "error"
+    ' event (bad code / bad gate) lands on the list view with its banner and
+    ' status line, not buried behind stale inputs. m.syncGroupId stays "" —
+    ' the group_state arm owns learning the joined id (picker precedent).
+    ShowSyncListMode()
+    SetSyncStatus(Translate("player_sync_status_joining"))
+    if m.syncGroupList <> invalid then m.syncGroupList.SetFocus(true)
+    m.syncTask.command = cmd
+end sub
+
+sub OnSyncCodeCancelPressed()
+    ShowSyncListMode()
+    if m.syncJoinCodeButton <> invalid then m.syncJoinCodeButton.SetFocus(true)
+end sub
+
+' Visibility swap: list widgets out, code form in. No SetFocus here - every
+' caller owns its focus landing (the panel already has three focus owners).
+sub ShowSyncCodeMode()
+    m.syncCodeMode = true
+    if m.syncGroupList <> invalid then m.syncGroupList.visible = false
+    if m.syncJoinCodeButton <> invalid then m.syncJoinCodeButton.visible = false
+    if m.syncCreateButton <> invalid then m.syncCreateButton.visible = false
+    if m.syncLeaveButton <> invalid then m.syncLeaveButton.visible = false
+    if m.syncCodeGroup <> invalid then m.syncCodeGroup.visible = true
+end sub
+
+sub ShowSyncListMode()
+    m.syncCodeMode = false
+    ' Typed custody: the form is per-open; folding it wipes both fields so a
+    ' cancelled or completed join never leaves a code/password on screen for
+    ' the next glance (secureMode hides rendering, not the .text field).
+    if m.syncCodeInput <> invalid then m.syncCodeInput.text = ""
+    if m.syncCodePasswordInput <> invalid then m.syncCodePasswordInput.text = ""
+    if m.syncGroupList <> invalid then m.syncGroupList.visible = true
+    if m.syncJoinCodeButton <> invalid then m.syncJoinCodeButton.visible = true
+    if m.syncCreateButton <> invalid then m.syncCreateButton.visible = true
+    if m.syncLeaveButton <> invalid then m.syncLeaveButton.visible = true
+    if m.syncCodeGroup <> invalid then m.syncCodeGroup.visible = false
 end sub
 
 ' Create a new group (no on-screen keyboard - name is derived from the device).
@@ -3774,6 +3891,20 @@ sub ApplyXmlChrome()
     if n <> invalid then n.title = Translate("player_create_group")
     n = m.top.findNode("syncLeaveButton")
     if n <> invalid then n.title = Translate("player_leave")
+    ' MJ-2: the join-by-code form speaks through the same override path as the
+    ' rest of the panel chrome (CHECK25's net; the XML literals are en-fallback).
+    n = m.top.findNode("syncJoinCodeButton")
+    if n <> invalid then n.title = Translate("syncplay_join_with_code")
+    n = m.top.findNode("syncCodeLabel")
+    if n <> invalid then n.text = Translate("syncplay_code_label")
+    n = m.top.findNode("syncCodeInput")
+    if n <> invalid then n.hintText = Translate("syncplay_code_hint")
+    n = m.top.findNode("syncCodePasswordLabel")
+    if n <> invalid then n.text = Translate("syncplay_password_label")
+    n = m.top.findNode("syncCodeJoinButton")
+    if n <> invalid then n.title = Translate("syncplay_join")
+    n = m.top.findNode("syncCodeCancelButton")
+    if n <> invalid then n.title = Translate("common_cancel")
     n = m.top.findNode("qualityHeaderLabel")
     if n <> invalid then n.text = Translate("player_video_quality")
     n = m.top.findNode("settingsHeaderLabel")

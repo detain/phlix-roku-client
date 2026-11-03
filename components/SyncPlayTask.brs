@@ -674,6 +674,15 @@ function HandleCommand(cmd as Object) as Boolean
         if cmd.DoesExist("group_id") and cmd.group_id <> invalid then groupId = StringifyId(cmd.group_id)
         payload = { group_id: groupId }
         AddMemberName(payload)
+        ' MJ-2: a password-protected join presents the SPEC §4 digest, never
+        ' the gate string itself (the plaintext never rides this socket). The
+        ' scene computed it; a present-but-malformed carry is DROPPED here -
+        ' the server refuses non-canonical shapes outright (fail-closed twice).
+        if cmd.DoesExist("password_hash") and type(cmd.password_hash) = "roString" then
+            if IsCanonicalPasswordHash(cmd.password_hash) then
+                payload.password_hash = cmd.password_hash
+            end if
+        end if
         ' MJ-8: the ladder replays exactly this join after a re-dial.
         m.replayCmd = { type: "syncplay_group_join", payload: payload }
         if not SendMessage("syncplay_group_join", payload) then return false

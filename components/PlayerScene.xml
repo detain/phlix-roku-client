@@ -124,7 +124,11 @@
         <!-- F13 SyncPlay "Watch Together" overlay. Hidden by default; the   -->
         <!-- entire SyncPlay path is gated behind opening this panel (the    -->
         <!-- "*"/options key), so the default playback path is unchanged     -->
-        <!-- when it is never shown.                                         -->
+        <!-- when it is never shown. MJ-2 adds the join-by-code mode: the    -->
+        <!-- list row above Create/Leave opens an in-panel code entry (the   -->
+        <!-- sp_* group code shared from another device + optional password  -->
+        <!-- presented as the SPEC §4 digest only). Code mode is a VISIBILITY -->
+        <!-- SWAP inside this panel - no new overlay, no focus-stack move.    -->
         <!-- ============================================================= -->
         <Rectangle height="720" width="1280" color="#000000" transparency="0.4" visible="false" id="syncPanel">
             <Rectangle height="640" width="600" translation="[40,40]" color="#0d0d1a">
@@ -133,12 +137,34 @@
                        text="Watch Together"
                        font="font:LargeBoldSystemFont"
                        color="#FFFFFF" />
-                <LabelList height="360" width="540" translation="[30,90]"
+                <LabelList height="290" width="540" translation="[30,90]"
                            id="syncGroupList" />
+                <Button height="60" width="540" translation="[30,400]"
+                        title="Join With Code" id="syncJoinCodeButton" />
                 <Button height="60" width="260" translation="[30,470]"
                         title="Create Group" id="syncCreateButton" />
                 <Button height="60" width="260" translation="[310,470]"
                         title="Leave" id="syncLeaveButton" />
+                <Group id="syncCodeGroup" translation="[30,90]" visible="false">
+                    <Label height="50" width="540" translation="[0,0]"
+                           id="syncCodeLabel"
+                           text="Group Code"
+                           font="font:MediumBoldSystemFont"
+                           color="#FFFFFF" />
+                    <TextEditBox id="syncCodeInput" hintText="Starts with sp_…" maxLength="40"
+                                 height="60" width="540" translation="[0,50]" />
+                    <Label height="50" width="540" translation="[0,140]"
+                           id="syncCodePasswordLabel"
+                           text="Password (optional)"
+                           font="font:MediumSystemFont"
+                           color="#AAAAAA" />
+                    <TextEditBox id="syncCodePasswordInput" secureMode="true" maxLength="255"
+                                 height="60" width="540" translation="[0,190]" />
+                    <Button height="60" width="260" translation="[0,290]"
+                            title="Join" id="syncCodeJoinButton" />
+                    <Button height="60" width="260" translation="[280,290]"
+                            title="Cancel" id="syncCodeCancelButton" />
+                </Group>
                 <Label height="80" width="540" translation="[30,550]"
                        wrap="true"
                        font="font:MediumSystemFont"

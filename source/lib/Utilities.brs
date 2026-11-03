@@ -1961,6 +1961,55 @@ function SyncPlayWsRefusedForOrigin(serverUrl as String) as Boolean
 end function
 
 ' ===========================================
+' JOIN-DIGEST CUSTODY (MJ-2, review roku__casualgamer deferred item)
+' ===========================================
+
+' True when s is EXACTLY the canonical password_hash shape phlix-server
+' demands (SyncPlayManager::joinGroup + GroupState::isCanonicalPasswordHash):
+' 64 chars, every one a LOWERCASE hex digit. The server refuses a present-but-
+' non-canonical digest (SPEC §4 "refused, never coerced"), so the client gates
+' the same way BEFORE the frame leaves the device: a malformed digest is
+' dropped, never sent. Pure string logic - unit-pinnable headless. The scan
+' uses the SyncPlayProtocol.IsHex40 range-compare idiom (Roku BrightScript
+' has no Asc(); the ranges are ASCII-ordered so the compares ARE the test).
+function IsCanonicalPasswordHash(s as String) as Boolean
+    if s = invalid then return false
+    if s.Len() <> 64 then return false
+    for i = 1 to 64
+        c = Mid(s, i, 1)
+        if not ((c >= "0" and c <= "9") or (c >= "a" and c <= "f")) then return false
+    end for
+    return true
+end function
+
+' The SPEC §4 password_hash a joiner presents for a password-protected group:
+' unsalted SHA-256 of the password, lowercase hex, 64 chars. The plaintext
+' NEVER rides the WebSocket (SPEC: "New clients MUST NOT send password on the
+' WebSocket") and never leaves this function. The platform digest is
+' roEVPDigest - the SAME component SyncPlayProtocol.VerifyHandshakeAccept
+' already relies on (Setup returns 0 on success, Process returns HEX), just
+' pinned to "sha256". Every failure mode (no component, Setup refusal, junk
+' shape) returns "" and the CALLER must fail closed: this is a device that
+' cannot prove it knows the gate, so the protected join is refused, never
+' attempted with a forged/absent digest. Empty input returns "" (a blank
+' password is not a gate; the caller only hashes a non-empty one).
+function SyncPlayPasswordHash(plain as String) as String
+    if plain = invalid or plain = "" then return ""
+    evp = CreateObject("roEVPDigest")
+    if evp = invalid then return ""
+    if evp.Setup("sha256") <> 0 then return ""
+    src = CreateObject("roByteArray")
+    src.fromAsciiString(plain)
+    hexStr = evp.Process(src)
+    if hexStr = invalid then return ""
+    ' The firmware returns the hex upper-cased (the IsHex40 sibling pinned this
+    ' shape in the handshake path); canonical form is lowercase.
+    h = LCase(hexStr.Trim())
+    if not IsCanonicalPasswordHash(h) then return ""
+    return h
+end function
+
+' ===========================================
 ' HUB RELAY PLAINTEXT-ORIGIN LAW (M-ROKU-23, review roku__secnet M2)
 ' ===========================================
 

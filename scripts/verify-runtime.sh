@@ -6247,8 +6247,8 @@ for L in LOCALES:
     for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
         if cat.get("connect", {}).get(key, "") == "":
             problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
-    if cat.get("_metadata", {}).get("version") != "1.19.0":
-        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.19.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, then by the review CR-2/Check74 batch with the ten form-chrome keys, then by the MJ-4 batch with home_start_failed, then by the MJ-20 pass (no mint), then by the MJ-11 batch with the four transport-label keys, then by the MN-26 batch retiring the dead detail.error_favorite_save key (removal, no mint), disclosed)")
+    if cat.get("_metadata", {}).get("version") != "1.20.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.20.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, then by the review CR-2/Check74 batch with the ten form-chrome keys, then by the MJ-4 batch with home_start_failed, then by the MJ-20 pass (no mint), then by the MJ-11 batch with the four transport-label keys, then by the MN-26 batch retiring the dead detail.error_favorite_save key (removal, no mint), then by the MJ-2 deferred-lane batch with the seven syncplay join-code keys (v1.20.0, 391 leaves), disclosed)")
 
 # ---- R4 the device harness pins the law -----------------------------------
 test = read(TEST)
@@ -8692,9 +8692,10 @@ echo "$PYOUT"
 #       SmallSystemFont on a 10-foot TV: sleepTimerLabel, syncStatusLabel,
 #       qualityStatusLabel, settingsStatusLabel, trackListStatusLabel,
 #       sleepTimerStatusLabel and upNextCardCountdown are enumerated (a vanished
-#       label is itself a red — the law loses its subjects); timeLabel keeps the
-#       Small face by the review's own digits-only carve-out and is deliberately
-#       NOT pinned either way.
+#       label is itself a red — the law loses its subjects); MJ-2's syncCodeLabel
+#       and syncCodePasswordLabel joined the enumeration in their minting commit;
+#       timeLabel keeps the Small face by the review's own digits-only carve-out
+#       and is deliberately NOT pinned either way.
 #   R5 (M-ROKU-57) the README internal-alias extinction holds: server-A7, F12a,
 #       F7a, F13, F9, F10, S280, "server SP5", "mobile E5 slice" and the
 #       "unscouted" typo stay gone, the demoted top-level "## SyncPlay (Watch
@@ -8792,6 +8793,10 @@ if xmltext is not None:
         "sleepTimerLabel", "syncStatusLabel", "qualityStatusLabel",
         "settingsStatusLabel", "trackListStatusLabel", "sleepTimerStatusLabel",
         "upNextCardCountdown",
+        # MJ-2 (join-by-code panel): the two new word-bearing labels join the
+        # enumerated set in their minting commit - the CHECK63 R4 docblock and
+        # the static-checks row moved with them, disclosed.
+        "syncCodeLabel", "syncCodePasswordLabel",
     )
     for label_id in WORD_BEARING:
         hits = labels.get(label_id)
@@ -12419,8 +12424,11 @@ echo "=== Check 87: catalog, manifest and input-field hygiene - retired keys sta
 #   R1  `detail.error_favorite_save` ("Error", an abandoned-draft duplicate of
 #       common.error) is REMOVED from all seven catalogs - the live
 #       `detail_error_favorite_save_message` consumer path is pinned present -
-#       and the set rides v1.19.0 (CHECK48 R3's literal rotated with it, per
-#       the M-ROKU-20/R-ROKU-10 set-bump precedent: removal, no mint).
+#       and the set has ridden every bump since - v1.19.0 at this commit
+#       (CHECK48 R3's literal rotated with it, per the M-ROKU-20/R-ROKU-10
+#       set-bump precedent: removal, no mint), v1.20.0 with the MJ-2
+#       join-code mint (deferred lane, 2026-11-03); R1's own version
+#       literal below is the CURRENT ride, not a historical claim.
 #   R2  the manifest ships only documented, hd-relevant keys: splash_width,
 #       splash_height, screensaver_private (all ignored by firmware, all
 #       cert-review bounce risks) and mm_icon_focus_sd (dead weight beside the
@@ -12453,7 +12461,7 @@ def read(path):
         return None
 
 
-# ---- R1 the retired favorite-save key stays buried, set rides v1.19.0 ----
+# ---- R1 the retired favorite-save key stays buried; set rides the current v1.20.0 ----
 r1 = []
 for loc in LOCALES:
     path = f"locale/{loc}/strings.json"
@@ -12471,8 +12479,8 @@ for loc in LOCALES:
         r1.append(f"{path} dead detail.error_favorite_save re-grown")
     if "error_favorite_save_message" not in detail:
         r1.append(f"{path} live detail.error_favorite_save_message vanished")
-    if cat.get("_metadata", {}).get("version") != "1.19.0":
-        r1.append(f"{path} _metadata.version is not 1.19.0")
+    if cat.get("_metadata", {}).get("version") != "1.20.0":
+        r1.append(f"{path} _metadata.version is not 1.20.0")
 if r1:
     problems.append("  locale/* - CHECK87 R1: catalog hygiene broken: " + "; ".join(r1))
 
@@ -12533,7 +12541,8 @@ if problems:
 
 print("  CHECK87: the buried catalog key stays buried, the manifest ships only its")
 print("           documented set, and no input field takes unbounded text - the")
-print("           MN-21/MN-26/MN-6 trio (catalog set v1.19.0).")
+print("           MN-21/MN-26/MN-6 trio (catalog set rides v1.20.0 - the current ride,")
+print("           rotated again by the MJ-2 join-code mint; see R1's provenance note).")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
@@ -13189,11 +13198,15 @@ echo "=== Check 93: the resume rail says where you left off and the admin meets 
 #      onto a hidden node); FocusHeaderZone restores tv through its .visible
 #      gate (the CHECK29 R5 guard family is {admin, tv} since this commit);
 #      ApplyXmlChrome speaks the shipped key; README walks the real chain.
-#   R3 keyset-held absence law - the cure minted NOTHING: en_US catalog says
-#      v1.19.0, all seven ships hold exactly 387 leaf keys (the measured
-#      batch-21 census), common.live_tv is present and non-empty in all seven,
-#      and no percent-flavored key may squat in any catalog (ban arm - the
-#      absence is the point).
+#   R3 keyset-held absence law - the cure minted NOTHING, but the census
+#      literal is the CURRENT state and rotates with every later set move:
+#      en_US rides v1.20.0 and all seven ships hold exactly 391 leaf keys
+#      (measured: 387 at batch-21, 384 after the MN-26 removal, 391 after the
+#      MJ-2 join-code mint - this era-pass retires the pre-rotation 387 that
+#      the docblock and the PASS narration recited while the pin enforced 384;
+#      the audit's OBS-1 drift, fixed at its true home), common.live_tv is
+#      present and non-empty in all seven, and no percent-flavored key may
+#      squat in any catalog (ban arm - the absence is the point).
 #   R4 docs pair - static-checks row 93 names MN-2 + MN-3; the CHANGELOG
 #      entry names both, the percent function and the button.
 PYRET=0
@@ -13348,8 +13361,8 @@ for loc in LOCALES:
     leaves = {s + "_" + k: v for s, sub in cat.items()
               if s != "_metadata" and isinstance(sub, dict)
               for k, v in sub.items() if isinstance(v, str)}
-    if len(leaves) != 384:
-        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 384 - the keyset moved")
+    if len(leaves) != 391:
+        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 391 - the keyset moved")
     if not leaves.get("common_live_tv", "").strip():
         missing3.append(f"{loc} lost the shipped common_live_tv value")
     percent_keys = [k for k in leaves if "percent" in k.lower() or "progress_" in k.lower()]
@@ -13361,8 +13374,8 @@ try:
         en = json.load(f)
 except (OSError, ValueError):
     missing3.append("en_US unreadable for the version pin")
-if en is not None and en.get("_metadata", {}).get("version") != "1.19.0":
-    missing3.append("en_US _metadata.version is not 1.19.0 - the keyset-held law says the catalog may not have moved")
+if en is not None and en.get("_metadata", {}).get("version") != "1.20.0":
+    missing3.append("en_US _metadata.version is not 1.20.0 - the census rides the CURRENT set (the literal rotated with the MJ-2 mint; batch-22 itself minted NOTHING and its absence law is what the census proves)")
 if missing3:
     problems.append("  locale catalogs - CHECK93 R3: " + "; ".join(missing3) + " (batch 22 ships ZERO new strings; the census proves the absence)")
 
@@ -13382,7 +13395,329 @@ if problems:
 
 print("  CHECK93: the resume rail says where you left off and the admin meets Live TV")
 print("  in one hop - percent custody, the gated tv walk with hidden-entry law on both")
-print("  sides, the 387-key v1.19.0 absence census, and the docs pair")
+print("  sides, the 391-key v1.20.0 absence census, and the docs pair")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+# =============================================================================
+# CHECK 94 (MJ-2, deferred lane): JOIN-BY-CODE CUSTODY - digest-only gate on
+# the WebSocket, a panel-owned code form, and the seven-key set move.
+#
+# Review roku__casualgamer deferred MJ-2 because the Live Watch Together panel
+# could only join what the picker LISTED, and a password-protected room was a
+# dead end (the join command carried no gate at all). The cure rides FROZEN
+# wire: syncplay_group_join already carries password_hash (SPEC section 4 -
+# unsalted SHA-256, lowercase 64-hex, compared VERBATIM; the plaintext arm is
+# DEPRECATED and "new clients MUST NOT send password on the WebSocket"), and
+# group ids ARE the shareable sp_* codes the other devices display. What had
+# to be built was CLIENT CUSTODY, not a contract:
+#   R1 join-arm wire law - the SyncPlayTask join branch forwards the digest
+#      ONLY through the canonical client gate (IsCanonicalPasswordHash) and
+#      the quoted plaintext key "password" stays extinct in that branch (the
+#      masked-code view: comments reciting the class buy nothing). In
+#      PlayerScene the join-by-code sub computes the digest via
+#      SyncPlayPasswordHash, lands a digest-less firmware on the cataloged
+#      refusal copy (syncplay_status_hash_unavailable), and NEVER lifts the
+#      raw password into the command dict (cmd.password= and a "password"
+#      dict key both convict).
+#   R2 digest-leaf custody - Utilities' SyncPlayPasswordHash is the
+#      roEVPDigest(Setup("sha256")) + LCase + canonical-recheck ladder,
+#      fail-closed "" on every inability path (no component, Setup refusal,
+#      junk shape) and never sha1/md5/roEncryptor; IsCanonicalPasswordHash
+#      scans exactly 64 chars with the protocol's range-compare idiom - the
+#      Asc( call is pinned EXTINCT here because Roku BrightScript has no
+#      Asc() (the class this deferred lane measured headless-first). The
+#      truth table ships in tests/unit/SyncPlayJoinCode.test.brs.
+#   R3 panel ownership - the code form is a VISIBILITY SWAP inside syncPanel
+#      (no new overlay, no focus stack): all eight nodes ship; both inputs
+#      ride maxLength (CHECK87 R3's census); the password arm carries the
+#      REAL secureMode="true" field (MJ-14 truth - secure= convicts); the
+#      trio's buttonSelected observers are Init-paired with the teardown
+#      unobserve; ToggleSyncPanel and CloseSyncPanel both fold to list mode
+#      (the form is per-open state); ShowSyncListMode wipes both fields
+#      (typed custody); the panel key branch unwinds code mode BEFORE
+#      closing the whole panel; and ApplyXmlChrome speaks every literal
+#      (CHECK25's net).
+#   R4 the seven-key set move - syncplay's code_hint/code_label/code_missing/
+#      join/join_with_code/password_label/status_hash_unavailable are present
+#      and non-empty in all seven ships and the en copy is pinned verbatim;
+#      the set rides v1.20.0 - CHECK48 R3, CHECK87 R1 and CHECK93 R3's
+#      literals rotated to it in this SAME commit (a bump that skips a pin
+#      site is not a bump, it is a drift) and the 391-leaf census moved with
+#      them (387 batch-21, 384 MN-26, 391 MJ-2 - the OBS-1 recital-drift the
+#      audit named died in that rotation, disclosed).
+#   R5 docs pair + README truth - row 94 exists naming MJ-2; the CHANGELOG
+#      names MJ-2, the digest function and the button; the README's SyncPlay
+#      block no longer LIES: the convicted "simply fail to join" clause and
+#      the stale "no group-id typing on the TV" claim are extinct, "Join With
+#      Code" is walked, and the pre-existing MJ-8-era "no auto re-join"
+#      drift (this lane's audit find, unrelated to MJ-2 but retired here,
+#      disclosed) stays retired.
+# =============================================================================
+echo "=== Check 94: join-by-code custody - digest-only gate, panel-owned form, seven-key mint (MJ-2 deferred) ==="
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import io
+import json
+import os
+import re
+import sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+LOCALES = ("en_US", "de_DE", "es_ES", "fr_FR", "it_IT", "ja_JP", "pt_BR")
+MINTED = {
+    "code_hint": "Starts with sp_\u2026",
+    "code_label": "Group Code",
+    "code_missing": "Enter the group code first",
+    "join": "Join",
+    "join_with_code": "Join With Code",
+    "password_label": "Password (optional)",
+    "status_hash_unavailable": "This device cannot unlock a password-protected group.",
+}
+
+problems = []
+
+
+def read(path):
+    try:
+        return io.open(path, encoding="utf-8").read()
+    except OSError as err:
+        problems.append(f"  {path} - CHECK94 R0: unreadable: {err} - the pin cannot run vacuously")
+        return None
+
+
+def mask_brs_comments(text):
+    # Same contract as Check 20/63's masker: a single quote outside a double-
+    # quoted string opens a comment that runs to end of line; comment runs
+    # become spaces of identical length. Prose that QUOTES a convicted shape
+    # can never convict.
+    out = []
+    for line in text.splitlines(keepends=True):
+        in_str = False
+        chars = list(line)
+        i = 0
+        while i < len(chars):
+            c = chars[i]
+            if c == '"':
+                in_str = not in_str
+            elif c == "'" and not in_str:
+                for j in range(i, len(chars)):
+                    if chars[j] not in ("\n", "\r"):
+                        chars[j] = " "
+                break
+            i += 1
+        out.append("".join(chars))
+    return "".join(out)
+
+
+def sub_body(src, name):
+    m = re.search(r"^(?:sub|function)\s+" + name + r"\b[^\n]*\n(.*?)^end (?:sub|function)",
+                  src, re.M | re.S)
+    return m.group(1) if m else None
+
+
+# ---- R1 join-arm wire law ------------------------------------------------------
+r1 = []
+task = read("components/SyncPlayTask.brs")
+if task is not None:
+    tmask = mask_brs_comments(task)
+    jm = re.search(r'else if kind = "join" then(.*?)\n    else if', tmask, re.S)
+    if jm is None:
+        r1.append("the join branch vanished from HandleCommand - the wire law lost its subject")
+    else:
+        body = jm.group(1)
+        if "password_hash" not in body:
+            r1.append("the join branch no longer forwards password_hash - protected joins are dead ends again (MJ-2 regression)")
+        if "IsCanonicalPasswordHash(" not in body:
+            r1.append("the join branch forwards a digest the client never canonical-checked - the server refuses non-canonical shapes, so the malformed carry would silently eat the gate")
+        if re.search(r'"password"', body):
+            r1.append('the quoted plaintext key "password" re-appeared in the join branch - SPEC section 4: new clients MUST NOT send password on the WebSocket')
+        if re.search(r"\bpayload\.password\b", body):
+            r1.append("payload.password re-grown in the join branch - the plaintext gate never rides the socket")
+scene = read("components/PlayerScene.brs")
+if scene is not None:
+    smask = mask_brs_comments(scene)
+    cbody = sub_body(smask, "OnSyncCodeJoinPressed")
+    if cbody is None:
+        r1.append("OnSyncCodeJoinPressed is gone - the join-by-code arm lost its owner")
+    else:
+        if "SyncPlayPasswordHash(" not in cbody:
+            r1.append("the code form no longer digests the password through SyncPlayPasswordHash")
+        if "password_hash" not in cbody:
+            r1.append('cmd.password_hash vanished - the join command carries no gate')
+        if 'syncplay_status_hash_unavailable' not in cbody:
+            r1.append("the digest-less fail-closed arm (syncplay_status_hash_unavailable) vanished - a device that cannot compute the gate must REFUSE the join, not attempt it ungated")
+        if re.search(r"\bcmd\.password\b(?!_)", cbody):
+            r1.append("the raw password was lifted into the command dict - plaintext custody defect (MJ-2's whole point)")
+        if re.search(r'\bpassword\s*:', cbody):
+            r1.append('a "password:" dict literal re-grew in the code-join arm')
+if r1:
+    problems.append("  join-arm wire - CHECK94 R1: " + "; ".join(r1))
+
+# ---- R2 digest-leaf custody ----------------------------------------------------
+r2 = []
+util = read("source/lib/Utilities.brs")
+if util is not None:
+    umask = mask_brs_comments(util)
+    hbody = sub_body(umask, "SyncPlayPasswordHash")
+    gbody = sub_body(umask, "IsCanonicalPasswordHash")
+    if hbody is None:
+        r2.append("SyncPlayPasswordHash vanished - the digest leaf lost its body")
+    else:
+        for tok, why in (
+            ('CreateObject("roEVPDigest")', "the platform digest component (the VerifyHandshakeAccept sibling)"),
+            ('Setup("sha256")', 'Setup("sha256") - the SPEC digest, not any other'),
+            ("LCase(", "lowercase normalization to the canonical form the server byte-compares"),
+            ("IsCanonicalPasswordHash(", "the canonical recheck before anything returns"),
+        ):
+            if tok not in hbody:
+                r2.append(f"SyncPlayPasswordHash lost {tok} ({why})")
+        for banned in ('Setup("sha1")', '"md5"', "roEncryptor"):
+            if banned in hbody:
+                r2.append(f"SyncPlayPasswordHash computes with {banned} - wrong digest family")
+    if gbody is None:
+        r2.append("IsCanonicalPasswordHash vanished - the client-side canonical gate is gone")
+    else:
+        if "<> 64" not in gbody or 'c >= "a" and c <= "f"' not in gbody:
+            r2.append("IsCanonicalPasswordHash no longer scans exactly 64 lowercase hex chars (range-idiom shape)")
+        if "Asc(" in gbody:
+            r2.append("Asc( re-grew in the canonical gate - Roku BrightScript HAS NO Asc(); this exact shape crashed headless during the MJ-2 lane (measured, never device-portable)")
+if r2:
+    problems.append("  digest leaves - CHECK94 R2: " + "; ".join(r2))
+
+# ---- R3 panel ownership ---------------------------------------------------------
+r3 = []
+xml = read("components/PlayerScene.xml")
+if xml is not None:
+    xclean = re.sub(r"<!--.*?-->", " ", xml, flags=re.S)
+    for node_id in ("syncJoinCodeButton", "syncCodeGroup", "syncCodeLabel", "syncCodeInput",
+                    "syncCodePasswordLabel", "syncCodePasswordInput", "syncCodeJoinButton",
+                    "syncCodeCancelButton"):
+        if f'id="{node_id}"' not in xclean:
+            r3.append(f"{node_id} vanished from syncPanel")
+    def tag_of(nid):
+        for tm in re.finditer(r"<[A-Za-z]+\b[^>]*>", xclean, re.S):
+            if f'id="{nid}"' in tm.group(0):
+                return tm.group(0)
+        return ""
+    tin = tag_of("syncCodeInput")
+    tpin = tag_of("syncCodePasswordInput")
+    if "maxLength" not in tin:
+        r3.append("syncCodeInput lost maxLength (the CHECK87 R3 census law)")
+    if "maxLength" not in tpin or 'secureMode="true"' not in tpin:
+        r3.append('syncCodePasswordInput lost maxLength or the REAL secureMode="true" field (MJ-14 truth)')
+    if re.search(r"\bsecure=", tin + tpin):
+        r3.append("the dead secure= attribute re-grew (Check 74 R1 family)")
+if scene is not None:
+    sinit = re.search(r"sub Init\(\)(.*?)^end sub", scene, re.S | re.M)
+    sinit = sinit.group(1) if sinit else ""
+    for nid in ("syncJoinCodeButton", "syncCodeGroup", "syncCodeInput", "syncCodePasswordInput",
+                "syncCodeJoinButton", "syncCodeCancelButton"):
+        if f'FindNode("{nid}")' not in sinit:
+            r3.append(f"Init no longer wires {nid}")
+    for cb, nid in (("OnSyncJoinCodePressed", "syncJoinCodeButton"),
+                    ("OnSyncCodeJoinPressed", "syncCodeJoinButton"),
+                    ("OnSyncCodeCancelPressed", "syncCodeCancelButton")):
+        if f'{nid}.ObserveField("buttonSelected", "{cb}")' not in scene:
+            r3.append(f"the {cb} observer pair is broken ({nid})")
+        if f'{nid}.UnObserveField("buttonSelected")' not in scene:
+            r3.append(f"{nid} is observed but never un-observed - the teardown pairing law (F13 block) is broken")
+    for tok, why in (
+        ("sub ShowSyncCodeMode", "the code-mode visibility swap"),
+        ("sub ShowSyncListMode", "the list-mode visibility swap"),
+    ):
+        if tok not in scene:
+            r3.append(f"{tok} is gone ({why})")
+    tp = sub_body(scene, "ToggleSyncPanel")
+    cs = sub_body(scene, "CloseSyncPanel")
+    if tp is None or "ShowSyncListMode()" not in tp:
+        r3.append("ToggleSyncPanel no longer folds to list mode on open")
+    if cs is None or "ShowSyncListMode()" not in cs:
+        r3.append("CloseSyncPanel no longer folds to list mode - a stale mid-form visibility leaks into the next open")
+    sl = sub_body(scene, "ShowSyncListMode")
+    if sl is None or 'syncCodePasswordInput.text = ""' not in sl:
+        r3.append("ShowSyncListMode no longer wipes the password field (typed custody)")
+    ok = sub_body(scene, "OnKeyEvent")
+    if ok is None or "if m.syncCodeMode then" not in ok:
+        r3.append("the panel key branch no longer unwinds code mode BEFORE closing the whole panel")
+    chrome = sub_body(scene, "ApplyXmlChrome")
+    if chrome is None:
+        r3.append("ApplyXmlChrome vanished - CHECK25's override path died with it")
+    else:
+        for tok in ('Translate("syncplay_join_with_code")', 'Translate("syncplay_code_label")',
+                    'Translate("syncplay_code_hint")', 'Translate("syncplay_password_label")',
+                    'Translate("syncplay_join")', 'Translate("common_cancel")'):
+            if tok not in chrome:
+                r3.append(f"ApplyXmlChrome no longer speaks {tok}")
+if r3:
+    problems.append("  syncPanel form - CHECK94 R3: " + "; ".join(r3))
+
+# ---- R4 the seven-key set move ---------------------------------------------------
+r4 = []
+for loc in LOCALES:
+    path = f"locale/{loc}/strings.json"
+    try:
+        cat = json.load(io.open(path, encoding="utf-8"))
+    except (OSError, ValueError) as err:
+        r4.append(f"{path} unreadable: {err}")
+        continue
+    sec = cat.get("syncplay", {})
+    for key in sorted(MINTED):
+        v = sec.get(key)
+        if not isinstance(v, str) or v.strip() == "":
+            r4.append(f"{path}: syncplay.{key} missing or empty")
+    if cat.get("_metadata", {}).get("version") != "1.20.0":
+        r4.append(f"{path}: _metadata.version is not 1.20.0 - the MJ-2 mint rides it")
+en = None
+try:
+    en = json.load(io.open("locale/en_US/strings.json", encoding="utf-8"))
+except (OSError, ValueError):
+    r4.append("en_US unreadable for the copy pin")
+if en is not None:
+    for key, val in MINTED.items():
+        if en.get("syncplay", {}).get(key) != val:
+            r4.append(f"en_US syncplay.{key} drifted off the ratified copy")
+    keys = list(en.get("syncplay", {}).keys())
+    if keys != sorted(keys):
+        r4.append("en_US syncplay section is no longer alphabetical (the set-sort law)")
+if r4:
+    problems.append("  locale mint - CHECK94 R4: " + "; ".join(r4))
+
+# ---- R5 docs pair + README truth ---------------------------------------------------
+r5 = []
+docs = read("docs/static-checks.md")
+if docs is None or not re.search(r"^\|\s*94\s*\|.*MJ-2\b", docs, re.M):
+    r5.append("docs/static-checks.md row 94 is missing or does not name MJ-2")
+cl = read("CHANGELOG.md")
+if cl is None or "MJ-2" not in cl or "SyncPlayPasswordHash" not in cl or "Join With Code" not in cl:
+    r5.append("CHANGELOG.md must name MJ-2, the digest function and the button")
+readme = read("README.md")
+if readme is not None:
+    for banned, why in (
+        ("simply fail to join", "the retired MJ-2 dead-end claim"),
+        ("no group-id typing on the TV", "the pre-code-entry Usage claim MJ-2 made false"),
+        ("no auto re-join", "the MJ-8-era drift this lane's audit caught (ladder law ships)"),
+    ):
+        if banned in readme:
+            r5.append(f'README re-grew "{banned}" - {why}')
+    if "Join With Code" not in readme:
+        r5.append("README no longer walks the Join With Code surface")
+if r5:
+    problems.append("  docs/README - CHECK94 R5: " + "; ".join(r5))
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK94: %d conviction(s) - the deferred MJ-2 laws are broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK94: a code from any device opens the room - digest-only custody,")
+print("  the panel-owned form, the seven-key v1.20.0 mint, and the honest README")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
