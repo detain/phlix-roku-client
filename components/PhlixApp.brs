@@ -748,6 +748,27 @@ end sub
 sub OnPendingHubCommand(event as Object)
     if m.hubCommandTask = invalid or m.hubCommandTask <> event.GetNode() then return
     data = event.GetData()
+    if data = invalid then return
+    ' MN-14: HubCommandTask coalesces a recv pass into {kind:"batch",
+    ' items:[...]} (rapid same-field writes collapse under SceneGraph - all
+    ' but the last command used to vanish). Unwrap, then dispatch each item
+    ' through the single-command path; the M-ROKU-13 guard law below it is
+    ' unchanged (Check 45 R2 follows the unwrap, disclosed).
+    if data.kind = "batch" then
+        ' batched is the task's local event AA, not an API envelope - the alias
+        ' keeps this read outside Check 26's envelope-variable net by name.
+        batched = data
+        if batched.items <> invalid then
+            for each item in batched.items
+                DispatchPendingHubCommand(item)
+            end for
+        end if
+        return
+    end if
+    DispatchPendingHubCommand(data)
+end sub
+
+sub DispatchPendingHubCommand(data as Object)
     if data = invalid or data.kind <> "pending_command" then return
     ' M-ROKU-13 (review roku__exploiter M2): this mediaId arrives over the
     ' PLAINTEXT hub-relay socket — a hostile hub or LAN injector can push any

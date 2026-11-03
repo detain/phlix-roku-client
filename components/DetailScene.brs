@@ -218,6 +218,9 @@ sub OnApiResponse(event as Object)
         LoadAdditionalData()
     else if resp.op = "getItemPlaybackInfo" then
         m.playPending = false
+        ' MN-1: retract the cue. PlayItem() below normally transitions away;
+        ' the restore keeps the swap honest if this scene survives the answer.
+        if m.playButton <> invalid then m.playButton.title = Translate("common_play")
         ' Markers/chapters may legitimately be empty; launch the player either way.
         if resp.ok then
             m.playbackInfo = resp.data
@@ -689,6 +692,12 @@ sub OnPlayPressed()
     ' item whose button we chose to show.
     if IsPlayableItem(m.item) then
         m.playPending = true
+        ' MN-1: the playback-info fetch is a network round-trip and repeat
+        ' presses are gated off above - the button was a silent no-op for its
+        ' whole latency. Swap the label to the shipped loading copy (the
+        ' CHECK58 sole-writer law is about the DESCRIPTION strip; this is the
+        ' button's own title).
+        if m.playButton <> invalid then m.playButton.title = Translate("common_loading")
         m.apiTask.request = { op: "getItemPlaybackInfo", itemId: m.itemId }
         m.apiTask.control = "run"
     end if

@@ -1890,6 +1890,11 @@ sub ConnectSyncTask()
 
     m.syncTask = CreateObject("roSGNode", "SyncPlayTask")
     m.syncTask.ObserveField("event", "OnSyncEvent")
+    ' MN-20: the task's connectionState field is the authoritative liveness
+    ' source (the Check 88 ladder sets "reconnecting" behind every transient
+    ' drop - the event channel announces none of it). StopSyncTaskNow un-
+    ' observes BOTH observers below.
+    m.syncTask.ObserveField("connectionState", "OnSyncConnectionState")
 
     memberName = GetStorage().get("device_name")
     if memberName = invalid or memberName = "" then memberName = "Roku"
@@ -2101,8 +2106,10 @@ sub StopSyncTaskNow()
     end if
     m.pendingRemoteSeekSec = invalid
     if m.syncTask <> invalid then
-        ' F13 pairing: the ObserveField from ConnectSyncTask ends here too.
+        ' F13 pairing: the ObserveFields from ConnectSyncTask end here too
+        ' (event + MN-20's connectionState).
         m.syncTask.UnObserveField("event")
+        m.syncTask.UnObserveField("connectionState")
         m.syncTask.control = "stop"
         m.syncTask = invalid
     end if
@@ -2466,6 +2473,17 @@ sub FlushSyncSeekBroadcast()
     if m.syncSeekPendingFromMs = invalid then return
     if m.syncSeekTimer <> invalid then m.syncSeekTimer.control = "stop"
     OnSyncSeekCoalesceFired(invalid)
+end sub
+
+sub OnSyncConnectionState(event as Object)
+    s = event.GetData()
+    ' MN-20: the ONE transition the event channel cannot announce. Surface it
+    ' on the panel-independent party banner (M-ROKU-19 law), reusing the
+    ' existing player_sync_status_connecting copy (zero new strings). open/
+    ' closed/error keep riding the event channel exactly as before.
+    if s = "reconnecting" then
+        NotifyPartyEvent(Translate("player_sync_status_connecting"), 4.0!)
+    end if
 end sub
 
 sub SetSyncStatus(text as String)

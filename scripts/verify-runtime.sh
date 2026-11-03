@@ -5526,7 +5526,9 @@ echo "=== Check 45: untrusted mediaId is shape-gated before play (M-ROKU-13) ===
 #       literals — re-fattening to a printable-only sweep reddens), and
 #       ContentIdMaxLen() returns the pinned 255 (cap BEFORE the per-byte
 #       loop).
-#   R2  OnPendingHubCommand guards data.mediaId through IsSafeContentId BEFORE
+#   R2  OnPendingHubCommand (or, MN-14 era, its DispatchPendingHubCommand
+#       single-command path behind the batch unwrap) guards data.mediaId
+#       through IsSafeContentId BEFORE
 #       it calls ProcessDeepLink, and the raw invalid/"" era form is extinct.
 #   R3  ProcessDeepLink gates contentId BEFORE the getItem request is built
 #       (ordering law) and rejects VISIBLE (ShowContentNotFoundDialog) — the
@@ -5599,16 +5601,21 @@ if pa is not None:
     code = mask(pa)
 
     body = re.search(r"sub\s+OnPendingHubCommand\b[\s\S]*?\bend\s+sub", code)
-    if body is None:
+    dispatch = re.search(r"sub\s+DispatchPendingHubCommand\b[\s\S]*?\bend\s+sub", code)
+    if body is None and dispatch is None:
         problems.append(f"  {PA} - CHECK45 R2: OnPendingHubCommand is gone")
     else:
-        text = body.group(0)
+        text = body.group(0) if body is not None else dispatch.group(0)
+        # MN-14 era (disclosed extension): the single-command path moved
+        # behind the batch unwrap; follow it so the guard law keeps teeth.
+        if "DispatchPendingHubCommand(" in text and dispatch is not None:
+            text = dispatch.group(0)
         if re.search(r'data\.mediaId\s*=\s*invalid\b|data\.mediaId\s*=\s*""', text):
             problems.append(f"  {PA} - CHECK45 R2: the raw `data.mediaId = invalid or = \"\"` era form is back")
         gi = text.find("IsSafeContentId(data.mediaId)")
         pi = text.find("ProcessDeepLink()")
         if gi < 0:
-            problems.append(f"  {PA} - CHECK45 R2: OnPendingHubCommand no longer gates data.mediaId through IsSafeContentId")
+            problems.append(f"  {PA} - CHECK45 R2: the pending_command path (OnPendingHubCommand / its MN-14 dispatcher) no longer gates data.mediaId through IsSafeContentId")
         elif pi >= 0 and gi > pi:
             problems.append(f"  {PA} - CHECK45 R2: the mediaId guard moved AFTER the ProcessDeepLink() call (ordering law)")
 
@@ -12631,7 +12638,7 @@ if HCT is not None:
     ):
         if needle not in HCT:
             missing3.append(f"HubCommandTask: {needle}")
-    if HCT.count("            if m.sock = invalid then return false") != 1:
+    if HCT.count("            if m.sock = invalid then") != 1:  # MN-14: body grew the flush; the law (mid-pass death stops feeding) is unchanged
         missing3.append("HubCommandTask: the mid-pass socket-invalid check is gone (a dead pong must stop feeding frames)")
 if missing3:
     problems.append("  both task dials - CHECK88 R3: " + "; ".join(missing3) + " (a short write IS death - MN-11)")
@@ -12897,6 +12904,130 @@ if problems:
 print("  CHECK90: the frame stream reassembles and the sync clock is monotonic -")
 print("  FIN custody per dial, the RTT window admits honest congestion, and no")
 print("  NTP step can forge an rtt or poison the offset buffer")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 91: the hub relay ships one envelope per recv pass and the party says so out loud - queue/unwrap custody, the reconnecting banner, the play cue (MN-1/MN-14/MN-20 era) ==="
+# WHY: three liveness-legibility defects, one era:
+#   - MN-14: HubCommandTask field-wrote EVERY decoded pending_command
+#     directly; rapid same-field writes collapse under SceneGraph, so a pass
+#     carrying several commands delivered (at most) the last. The cure queues
+#     per pass (m.pendingEvents) and flushes ONE write - direct when single,
+#     {kind:"batch", items:[...]} when many (the SyncPlayTask idiom) - before
+#     EVERY loop exit including the MN-11 mid-pass death; PhlixApp unwraps the
+#     envelope and dispatches each item through the unchanged M-ROKU-13 guard
+#     path (Check 45 R2 follows the unwrap - disclosed rotation, law intact).
+#   - MN-20: the scene learned connection liveness ONLY from task events;
+#     Check 88's "reconnecting" ladder state had no scene observer. The cure
+#     pairs ObserveField("connectionState") with the event observer, banners
+#     the ONE transition the event channel cannot announce (reusing the
+#     player_sync_status_connecting copy - zero new strings), and un-observes
+#     BOTH on the stop path (F13 pairing law).
+#   - MN-1: the Detail Play button was a silent no-op for its whole network
+#     round-trip; the pending swap to the shipped loading copy (and its
+#     retraction on the response) makes the wait visible. CHECK58's
+#     sole-writer law covers the DESCRIPTION strip only - untouched.
+# NUMBERING: 91 collision-probed at ad2c5e5, highest prior 90.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+def read(p):
+    try:
+        with open(p, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        return None
+
+problems = []
+
+HCT = read("components/HubCommandTask.brs")
+APP = read("components/PhlixApp.brs")
+PSC = read("components/PlayerScene.brs")
+DSC = read("components/DetailScene.brs")
+for name, src in (("components/HubCommandTask.brs", HCT), ("components/PhlixApp.brs", APP),
+                  ("components/PlayerScene.brs", PSC), ("components/DetailScene.brs", DSC)):
+    if src is None:
+        print(f"  {name} - CHECK91: unreadable")
+        sys.exit(1)
+
+# ---- R1 HCT queue custody -----------------------------------------------------
+missing1 = []
+if HCT.count("m.pendingEvents = []") != 2:
+    missing1.append(f"queue resets are {HCT.count('m.pendingEvents = []')} sites, expected 2 (per-dial init + post-flush)")
+for needle in (
+    "m.pendingEvents.Push({",
+    "sub FlushPendingEvents()",
+    "EmitEvent(m.pendingEvents[0])",
+    'EmitEvent({ kind: "batch", items: m.pendingEvents })',
+):
+    if needle not in HCT:
+        missing1.append(needle if len(needle) < 52 else needle[:49] + "...")
+loop = re.search(r"for each frame in parsed\.frames[\s\S]*?end for", HCT)
+if loop is None or "FlushPendingEvents()" not in loop.group(0):
+    missing1.append("the recv loop no longer flushes before its exits (decoded commands die with the pass)")
+if re.search(r'EmitEvent\(\{\s*\n\s+kind: "pending_command"', HCT):
+    missing1.append("the direct per-frame pending_command field-write is re-grown (coalescing is back)")
+if missing1:
+    problems.append("  components/HubCommandTask.brs - CHECK91 R1: " + "; ".join(missing1) + " (one pass, one write - MN-14)")
+
+# ---- R2 PhlixApp unwrap --------------------------------------------------------
+missing2 = []
+for needle in (
+    'if data.kind = "batch" then',
+    "DispatchPendingHubCommand(item)",
+    "DispatchPendingHubCommand(data)",
+    "sub DispatchPendingHubCommand(data as Object)",
+):
+    if needle not in APP:
+        missing2.append(needle if len(needle) < 48 else needle[:45] + "...")
+if missing2:
+    problems.append("  components/PhlixApp.brs - CHECK91 R2: " + "; ".join(missing2) + " (an envelope nobody unwraps is a dropped command - MN-14)")
+
+# ---- R3 PlayerScene state custody -----------------------------------------------
+missing3 = []
+for needle in (
+    'm.syncTask.ObserveField("connectionState", "OnSyncConnectionState")',
+    'm.syncTask.UnObserveField("connectionState")',
+    "sub OnSyncConnectionState(event as Object)",
+    'if s = "reconnecting" then',
+    'NotifyPartyEvent(Translate("player_sync_status_connecting"), 4.0!)',
+):
+    if needle not in PSC:
+        missing3.append(needle if len(needle) < 52 else needle[:49] + "...")
+if missing3:
+    problems.append("  components/PlayerScene.brs - CHECK91 R3: " + "; ".join(missing3) + " (the ladder's reconnecting state must reach the viewer - MN-20)")
+
+# ---- R4 DetailScene play cue ----------------------------------------------------
+missing4 = []
+for needle in (
+    'm.playButton.title = Translate("common_loading")',
+    'm.playButton.title = Translate("common_play")',
+):
+    if DSC.count(needle) != 1:
+        missing4.append(f"{needle} x{DSC.count(needle)}, expected 1")
+if missing4:
+    problems.append("  components/DetailScene.brs - CHECK91 R4: " + "; ".join(missing4) + " (a pressed button must answer - MN-1)")
+
+# ---- R5 docs ---------------------------------------------------------------------
+docs = read("docs/static-checks.md")
+if docs is None or not re.search(r"^\|\s*91\s*\|.*MN-14.*MN-20.*MN-1\b", docs, re.M):
+    problems.append("  docs/static-checks.md - CHECK91 R5: row 91 is missing or does not name MN-14 + MN-20 + MN-1")
+cl = read("CHANGELOG.md")
+if cl is None or "MN-14" not in cl or "silent no-op" not in cl:
+    problems.append("  CHANGELOG.md - CHECK91 R5: the entry must name MN-14 and the silent no-op it kills")
+
+if problems:
+    print("  CHECK91: %d pin group(s) broken:" % len(problems))
+    for line in problems:
+        print(line)
+    sys.exit(1)
+
+print("  CHECK91: the hub relay ships one envelope per recv pass and the party says so out loud -")
+print("  queue/unwrap custody, the reconnecting banner, and the play button that answers")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

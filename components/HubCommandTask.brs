@@ -107,6 +107,8 @@ sub RunConsumer()
     m.handshakeText = ""
     m.attempt = 0
     m.stopped = false
+    ' MN-14: this dial's decoded-command queue (ONE field write per recv pass).
+    m.pendingEvents = []
 
     ' Shared port: socket events, url-transfer events AND the observed
     ' `command` field all arrive here.
@@ -374,8 +376,14 @@ function HandleSocketEvent() as Boolean
             HandleFrame(frame)
             ' MN-11: a pong shortfall invalidates the socket mid-pass;
             ' stop feeding frames - the next loop is the ladder's.
-            if m.sock = invalid then return false
+            if m.sock = invalid then
+                ' MN-14: what already decoded still ships before the death.
+                FlushPendingEvents()
+                return false
+            end if
         end for
+        ' MN-14: one recv pass, one event-field write.
+        FlushPendingEvents()
     end if
     ' [minors W-min95 M-ROKU-39, review roku__secnet m3] post-consumption residual
     ' of an honest stream is one incomplete frame (<= MaxFrameBytes + 14-byte
@@ -426,13 +434,27 @@ sub HandleFrame(frame as Object)
         if msg.DoesExist("title") and type(msg.title) = "roString" then title = msg.title
         if mediaId = "" then return
 
-        EmitEvent({
+        ' MN-14: queue, do not field-write per frame (coalescing law - see
+        ' FlushPendingEvents).
+        m.pendingEvents.Push({
             kind: "pending_command"
             mediaId: mediaId
             title: title
             serverId: m.top.config.serverId
         })
     end if
+end sub
+
+sub FlushPendingEvents()
+    if m.pendingEvents = invalid then return
+    n = m.pendingEvents.Count()
+    if n = 0 then return
+    if n = 1 then
+        EmitEvent(m.pendingEvents[0])
+    else
+        EmitEvent({ kind: "batch", items: m.pendingEvents })
+    end if
+    m.pendingEvents = []
 end sub
 
 ' Scene commands: { kind: "close" } stops the consumer loop + ladder.

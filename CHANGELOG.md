@@ -51,6 +51,17 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the relay ships one envelope per pass, the party announces its re-dial, and Play answers (MN-14 MN-20 MN-1) — 2026-11-03
+
+- MN-14: `HubCommandTask` field-wrote EVERY decoded `pending_command` straight onto its event field - rapid same-field writes collapse under SceneGraph, so a recv pass carrying several hub commands delivered at most the last one (the rest vanished in silence). Commands now queue per pass (`m.pendingEvents`, reset per dial) and flush as ONE write - direct when single, `{kind:"batch", items:[...]}` when many, the SyncPlayTask idiom the app now unwraps in `OnPendingHubCommand` before dispatching each item through the unchanged M-ROKU-13 guard path (`DispatchPendingHubCommand`); the unwrap reads the task's local event AA through a `batched` alias so Check 26's envelope-variable net keeps every tooth. The flush runs before EVERY loop exit, including the MN-11 mid-pass socket death, so what decoded always ships.
+- MN-20: the scene watched only the task's event channel - Check 88's ladder could re-dial three times between drops and the chrome never knew. `connectionState` is now observed beside `event`; the one transition the event channel cannot announce ("reconnecting") surfaces on the panel-independent party banner reusing the existing `player_sync_status_connecting` copy - zero new strings - and the F13 stop-path pairing un-observes BOTH.
+- MN-1: the Detail Play button was a silent no-op for its whole `getItemPlaybackInfo` round-trip (repeat presses gated off by `m.playPending`). The button now answers: title swaps to the shipped loading copy on press, retracts on the response. Catalogs stay v1.19.0; CHECK58's sole-writer law guards the description strip, not the button title - untouched by design.
+- Gates: Check 91 five-piece; red-parent measured exactly 6 convictions; battery exit 0 with 91 strict-PASS lines; two disclosed arm extensions keep their laws green at parent AND post-cure (Check 45 R2 follows the unwrap; Check 88 R3 reads the widened mid-pass form); `make lint`, validate-xml, route-manifest (+ self-test) and the 214-case headless suite green.
+
+### Added — Check 91: the per-pass envelope, the loud re-dial and the answering button (MN-14/MN-20/MN-1 era) — 2026-11-03
+
+- Queue custody (init/flush/reset census, both flush call-sites, direct-write ban), the app-side unwrap, the paired connectionState observers + banner, and the play-cue swap pair are pinned as one mechanism; twin plants MM/NN prove each half independently and restore to green.
+
 ### Fixed — the frame stream reassembles, the RTT filter breathes, and the sync clock stops lying (MN-12 MN-13 MN-15) — 2026-11-03
 
 - MN-12: `ParseFrames` never read the FIN bit - a fragmented WebSocket message (continuation opcode 0, or any FIN=0 data frame) simply VANISHED, silently dropping party traffic the moment any peer split a frame. Reassembly now rides the protocol object: the opener latches `m.fragOpcode/m.fragBytes`, continuations append, the FIN=1 closer emits ONE assembled frame, fragment floods die at the same `MaxFrameBytes` ceiling as single frames, and orphans (a continuation with no open fragment) drop without poisoning the parser. `DialAndConsume` resets the state per dial - a fresh handshake cannot inherit a half-frame from the dead socket's tail.
