@@ -56,6 +56,14 @@ function SyncPlayProtocol() as Object
         OP_PING: 9
         OP_PONG: 10
 
+        ' MJ-12: ParseFrames continuation-reassembly state (opcode 0 frames
+        ' append here until FIN=1 assembles ONE frame). The task resets both
+        ' per dial - a fresh handshake must never inherit a half-frame.
+        ' MJ-15: monoClock backs NowMonoMs (roTimespan: NTP-step immune).
+        fragOpcode: invalid
+        fragBytes: invalid
+        monoClock: invalid
+
         ' [minors W-min95 M-ROKU-24/M-ROKU-39, review roku__exploiter m3 /
         ' roku__secnet m3] the two accumulator ceilings, canonical here so
         ' BOTH WS consumers (SyncPlayTask, HubCommandTask) and this module's
@@ -84,12 +92,16 @@ function SyncPlayProtocol() as Object
 
         ' TimeSync tuning (see GetAdjustedPositionMs / AddPong).
         OFFSET_SAMPLE_COUNT: 5
-        MAX_RTT: 1000
+        ' MN-13: 1000 ms starved the offset estimator on congested Wi-Fi (every
+        ' sample over one second was dropped, IsStable never true, the party
+        ' ran uncorrected). 5000 ms still rejects pathological junk.
+        MAX_RTT: 5000
         DRIFT_MIN: 0.99
         DRIFT_MAX: 1.01
         DRIFT_FACTOR: 0.1
 
-        ' TimeSync rolling state. timestamps stored as NowMs()/1000 (seconds).
+        ' TimeSync rolling state. timestamps stored as NowMonoMs()/1000 (seconds;
+        ' MJ-15 - the drift slope is base-free, the step-immunity is the point).
         ' offsets[] keeps recent computed offsets (ms); rtts[] the matching rtts
         ' (ms); samples[] the {offset,timestamp} pairs used for drift. We keep at
         ' most 2*OFFSET_SAMPLE_COUNT entries (small rolling buffer).
@@ -223,6 +235,7 @@ function SyncPlayProtocol() as Object
                     byte0 = buffer[cur]
                     byte1 = buffer[cur + 1]
                     opcode = byte0 and 15
+                    isFIN = (byte0 and 128) = 128
                     masked = (byte1 and 128) = 128
                     len = byte1 and 127
 
@@ -289,13 +302,52 @@ function SyncPlayProtocol() as Object
                                 i = i + 1
                             end while
 
-                            frame = { opcode: opcode, payloadBytes: payBA }
-                            if opcode = m.OP_TEXT then
-                                frame.payload = payBA.ToAsciiString()
+                            ' MJ-12: RFC6455 FIN custody. A FIN=0 data frame
+                            ' OPENS a fragment; opcode 0 frames APPEND; the
+                            ' FIN=1 closer emits ONE assembled frame. Orphans
+                            ' (continuation with no open fragment, or a fresh
+                            ' data frame mid-fragment) are hostile noise -
+                            ' dropped, parsing continues. Control frames (8/
+                            ' 9/10) are never fragmented and pass through.
+                            if opcode = 0 then
+                                if m.fragOpcode = invalid then
+                                    ' orphan continuation: drop it.
+                                else
+                                    m.fragBytes.Append(payBA)
+                                    if m.fragBytes.Count() > m.MaxFrameBytes then
+                                        ' fragment flood: same ceiling as a
+                                        ' single frame, same caller contract.
+                                        rejected = true
+                                        keepGoing = false
+                                    else if isFIN then
+                                        frame = { opcode: m.fragOpcode, payloadBytes: m.fragBytes }
+                                        if m.fragOpcode = m.OP_TEXT then
+                                            frame.payload = m.fragBytes.ToAsciiString()
+                                        else
+                                            frame.payload = ""
+                                        end if
+                                        frames.Push(frame)
+                                        m.fragOpcode = invalid
+                                        m.fragBytes = invalid
+                                    end if
+                                end if
+                            else if isFIN then
+                                if m.fragOpcode = invalid then
+                                    frame = { opcode: opcode, payloadBytes: payBA }
+                                    if opcode = m.OP_TEXT then
+                                        frame.payload = payBA.ToAsciiString()
+                                    else
+                                        frame.payload = ""
+                                    end if
+                                    frames.Push(frame)
+                                end if
+                                ' (fresh data frame mid-fragment: dropped above)
                             else
-                                frame.payload = ""
+                                if m.fragOpcode = invalid then
+                                    m.fragOpcode = opcode
+                                    m.fragBytes = payBA
+                                end if
                             end if
-                            frames.Push(frame)
 
                             cur = frameEnd
                             consumed = cur
@@ -621,7 +673,8 @@ function SyncPlayProtocol() as Object
 
         ' Record a pong sample. t1=client_time(ms), t2=server_time(ms, server
         ' RECEIVE time; t3 == t2 since there is no separate server_receive field),
-        ' t4=NowMs() at receipt. rtt = t4 - t1 - (t3 - t2) = t4 - t1. Rejects
+        ' t4=NowMonoMs() at receipt (MJ-15: SAME monotonic base as t1, so an NTP step
+        ' can no longer forge or poison an rtt). rtt = t4 - t1. Rejects
         ' rtt<0 or rtt>MAX_RTT. offset = t2 - t1 + rtt/2. Keeps a rolling buffer of
         ' the last 2*OFFSET_SAMPLE_COUNT and recomputes the weighted-mean offset.
         ' @param t1 LongInteger - echoed client_time (ms)
@@ -645,7 +698,7 @@ function SyncPlayProtocol() as Object
             end while
 
             ' Drift sample: { offset, timestamp(seconds) }.
-            nowSec# = NowMs() / 1000.0
+            nowSec# = m.NowMonoMs() / 1000.0
             m.samples.Push({ offset: offset#, timestamp: nowSec# })
             while m.samples.Count() > cap
                 m.samples.Delete(0)
@@ -754,16 +807,37 @@ function SyncPlayProtocol() as Object
         end function
 
         ' Drift-correct a host position (ms) to where it should be NOW locally.
-        '   synchronizedNow = NowMs() + offset
+        '   synchronizedNow = NowMonoMs() + offset (MJ-15: same base as the
+        '   offset's t1/t4 stamps; the anchor cancels, steps cannot)
         '   adjusted = positionMs + (synchronizedNow - serverTimeMs) * driftRate
         ' The scene converts the result ms->seconds before video.seek.
         ' @param positionMs LongInteger - the host playback position (ms)
         ' @param serverTimeMs LongInteger - the server_time on that message (ms)
         ' @return Double - the drift-corrected local position (ms)
         GetAdjustedPositionMs: function(positionMs as LongInteger, serverTimeMs as LongInteger) as Double
-            synchronizedNow# = NowMs() + m.currentOffset
+            synchronizedNow# = m.NowMonoMs() + m.currentOffset
             elapsed# = (synchronizedNow# - serverTimeMs) * m.driftRate
             return positionMs + elapsed#
+        end function
+
+        ' MJ-15: monotonic milliseconds since THIS protocol object was born,
+        ' via roTimespan. client_time is an OPAQUE ECHO server-side (phlix-
+        ' server TimeSync::processPing casts it verbatim, never arithmetic),
+        ' so ping stamps, pong stamps, drift samples and the adjusted-position
+        ' "now" all ride this one base; the constant epoch-mono anchor cancels
+        ' inside offset = t2 - t1 + rtt/2 and NTP steps can no longer poison
+        ' the rolling buffer mid-session. The invalid-clock branch is the
+        ' brs-headless gap (unmodeled components return invalid - same class
+        ' as the era's roByteArray exclusions): fall back to the wall clock,
+        ' which is exactly the pre-MJ-15 behavior.
+        NowMonoMs: function() as LongInteger
+            if m.monoClock = invalid then
+                m.monoClock = CreateObject("roTimespan")
+            end if
+            if m.monoClock = invalid then
+                return NowMs()
+            end if
+            return m.monoClock.TotalMilliseconds
         end function
 
         ' Clear all TimeSync state (on disconnect / leave).

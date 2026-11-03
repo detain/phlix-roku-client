@@ -191,6 +191,9 @@ function DialAndConsume(host as String, port as Integer, path as String, bearerT
     m.handshakeDone = false
     m.buffer = CreateObject("roByteArray")
     m.missedPings = 0
+    ' MJ-12: a fresh dial's byte stream starts unfragmented.
+    m.proto.fragOpcode = invalid
+    m.proto.fragBytes = invalid
     m.dialConnectFailed = false
     if not m.sock.Connect() then
         m.dialConnectFailed = true
@@ -558,9 +561,11 @@ function BuildSceneEvent(jsonText as String) as Object
 
     if t = "syncplay_time_pong" then
         ' t1 echoed client_time, t2 server_time (server receive). t4 = NowMs().
+        ' MJ-15: t1 is OUR monotonic stamp echoed verbatim; t4 rides the same
+        ' base, so rtt = t4 - t1 cannot be forged by an NTP step mid-flight.
         t1 = ReadLong(msg, "client_time", m.lastPingT1)
         t2 = ReadLong(msg, "server_time", 0&)
-        m.proto.AddPong(t1, t2, NowMs())
+        m.proto.AddPong(t1, t2, m.proto.NowMonoMs())
         ' MJ-8: the route answered - the pong watchdog restarts.
         m.missedPings = 0
         return { kind: "timesync", offset: m.proto.GetOffset(), stable: m.proto.IsStable() }
@@ -728,14 +733,16 @@ sub AddMemberName(payload as Object)
     end if
 end sub
 
- ' Send the periodic time_ping (t1 = NowMs()). Skipped while not joined
+ ' Send the periodic time_ping (t1 = NowMonoMs(), MJ-15 - the server echoes
+' client_time verbatim, so the base only has to be stable CLIENT-side).
+' Skipped while not joined
  ' (m.yourId is set on group_state, confirming join). MJ-8: every SENT ping
  ' counts against the pong watchdog (BuildSceneEvent resets the counter when
  ' a syncplay_time_pong decodes); the return reports the MN-11 send custody
  ' so the main loop can drop a black-holed dial into the ladder.
  function SendTimePing() as Boolean
      if m.yourId = "" or m.yourId = invalid then return true
-     t1 = NowMs()
+     t1 = m.proto.NowMonoMs()
     m.lastPingT1 = t1
     m.missedPings = m.missedPings + 1
     return SendMessage("syncplay_time_ping", { client_time: t1 })

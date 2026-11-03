@@ -12783,4 +12783,123 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 90: the frame stream reassembles and the sync clock is monotonic - FIN custody, the widened RTT window, the NTP-proof base (MN-12/MN-13/MN-15 era) ==="
+# WHY: three same-family defects on the WS byte stream and its clock:
+#   - MN-12: ParseFrames ignored the FIN bit entirely - a fragmented message
+#     (opcode 0 continuation, or any FIN=0 data frame) silently vanished. The
+#     cure assembles fragments across calls (m.fragOpcode/m.fragBytes on the
+#     protocol object), refuses fragment floods at MaxFrameBytes, drops orphans,
+#     and the task resets the state PER DIAL (a fresh handshake cannot inherit
+#     a half-frame - Check 88's DialAndConsume owns that reset).
+#   - MN-13: MAX_RTT 1000 ms starved the offset estimator on congested links
+#     (every sample > 1 s dropped, IsStable never true). Widened to 5000 ms;
+#     the two headless pins rotated WITH the law (measured red first).
+#   - MN-15: the TimeSync base was wall-clock NowMs() - an NTP step mid-flight
+#     forged rtts and poisoned the rolling buffer. NowMonoMs() (roTimespan,
+#     with the era's brs-headless invalid-component fallback) is the single
+#     base for ping stamps, pong stamps, drift samples and adjusted position;
+#     client_time is an opaque echo server-side, so the base swap touches no
+#     wire law (phlix-server TimeSync::processPing casts it verbatim).
+# NUMBERING: 90 collision-probed at cd0dc0a, highest prior 89.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+def read(p):
+    try:
+        with open(p, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        return None
+
+problems = []
+
+PROTO = read("source/lib/SyncPlayProtocol.brs")
+SYNC = read("components/SyncPlayTask.brs")
+TEST = read("tests/unit/SyncPlayProtocol.test.brs")
+for name, src in (("source/lib/SyncPlayProtocol.brs", PROTO),
+                  ("components/SyncPlayTask.brs", SYNC),
+                  ("tests/unit/SyncPlayProtocol.test.brs", TEST)):
+    if src is None:
+        print(f"  {name} - CHECK90: unreadable")
+        sys.exit(1)
+
+# ---- R1 MN-12 FIN custody ----------------------------------------------------
+missing1 = []
+for needle in (
+    "isFIN = (byte0 and 128) = 128",
+    "m.fragBytes.Append(payBA)",
+    "if m.fragBytes.Count() > m.MaxFrameBytes then",
+    "frame = { opcode: m.fragOpcode, payloadBytes: m.fragBytes }",
+    "        fragOpcode: invalid",
+    "        fragBytes: invalid",
+):
+    if needle not in PROTO:
+        missing1.append(f"protocol: {needle[:56]}")
+if PROTO.count("if opcode = 0 then") < 1:
+    missing1.append("protocol: the continuation opcode lost its branch")
+if "m.proto.fragOpcode = invalid" not in SYNC:
+    missing1.append("task: DialAndConsume no longer resets fragment state per dial")
+if missing1:
+    problems.append("  WS byte stream - CHECK90 R1: " + "; ".join(missing1) + " (a fragmented party message must arrive WHOLE - MN-12)")
+
+# ---- R2 MN-13 RTT window ------------------------------------------------------
+missing2 = []
+if "MAX_RTT: 5000" not in PROTO:
+    missing2.append("protocol lost the widened MAX_RTT (1000 ms starved the estimator)")
+if "MAX_RTT: 1000" in PROTO:
+    missing2.append("the 1000 ms ceiling re-appeared in the protocol")
+if "assertEqual(proto.MAX_RTT, 5000)" not in TEST:
+    missing2.append("the headless constant pin was not rotated to 5000")
+if "proto.AddPong(0, 0, 6000)" not in TEST:
+    missing2.append("the headless rejection probe was not rotated past the widened window")
+if missing2:
+    problems.append("  rtt custody - CHECK90 R2: " + "; ".join(missing2) + " (the filter must admit honest congestion, refuse junk - MN-13)")
+
+# ---- R3 MN-15 monotonic base ---------------------------------------------------
+missing3 = []
+for needle in (
+    "NowMonoMs: function() as LongInteger",
+    'CreateObject("roTimespan")',
+    "synchronizedNow# = m.NowMonoMs() + m.currentOffset",
+    "nowSec# = m.NowMonoMs() / 1000.0",
+):
+    if needle not in PROTO:
+        missing3.append(f"protocol: {needle[:52]}")
+for needle in (
+    "t1 = m.proto.NowMonoMs()",
+    "m.proto.AddPong(t1, t2, m.proto.NowMonoMs())",
+):
+    if needle not in SYNC:
+        missing3.append(f"task: {needle}")
+if "synchronizedNow# = NowMs() + m.currentOffset" in PROTO:
+    missing3.append("the adjusted-position math is back on the wall clock")
+if "m.proto.AddPong(t1, t2, NowMs())" in SYNC:
+    missing3.append("the pong stamp is back on the wall clock")
+if missing3:
+    problems.append("  sync clock - CHECK90 R3: " + "; ".join(missing3) + " (an NTP step must not forge an rtt or poison the offset buffer - MN-15)")
+
+# ---- R4 docs --------------------------------------------------------------------
+docs = read("docs/static-checks.md")
+if docs is None or not re.search(r"^\|\s*90\s*\|.*MN-12.*MN-13.*MN-15", docs, re.M):
+    problems.append("  docs/static-checks.md - CHECK90 R4: row 90 is missing or does not name MN-12 + MN-13 + MN-15")
+cl = read("CHANGELOG.md")
+if cl is None or "MN-12" not in cl or "reassembl" not in cl.lower():
+    problems.append("  CHANGELOG.md - CHECK90 R4: the entry must name MN-12 and the reassembly law")
+
+if problems:
+    print("  CHECK90: %d pin group(s) broken:" % len(problems))
+    for line in problems:
+        print(line)
+    sys.exit(1)
+
+print("  CHECK90: the frame stream reassembles and the sync clock is monotonic -")
+print("  FIN custody per dial, the RTT window admits honest congestion, and no")
+print("  NTP step can forge an rtt or poison the offset buffer")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

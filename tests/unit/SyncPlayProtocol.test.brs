@@ -28,7 +28,7 @@ sub TestSyncPlayProtocolTimeSyncConstants()
     ' Test TimeSync constants are defined
     proto = SyncPlayProtocol()
     assertEqual(proto.OFFSET_SAMPLE_COUNT, 5)
-    assertEqual(proto.MAX_RTT, 1000)
+    assertEqual(proto.MAX_RTT, 5000)
     assertEqual(proto.DRIFT_MIN, 0.99)
     assertEqual(proto.DRIFT_MAX, 1.01)
     assertEqual(proto.DRIFT_FACTOR, 0.1)
@@ -284,7 +284,7 @@ end sub
 sub TestSyncPlayProtocolAddPongRejectsExcessiveRtt()
     ' Test AddPong rejects RTT > MAX_RTT
     proto = SyncPlayProtocol()
-    proto.AddPong(0, 0, 2000)  ' t4 - t1 = 2000 > 1000
+    proto.AddPong(0, 0, 6000)  ' t4 - t1 = 6000 > MN-13's widened 5000
     ' Should not crash, state unchanged
     assertEqual(proto.GetOffset(), 0.0)
     print "TestSyncPlayProtocolAddPongRejectsExcessiveRtt passed"

@@ -51,6 +51,17 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the frame stream reassembles, the RTT filter breathes, and the sync clock stops lying (MN-12 MN-13 MN-15) — 2026-11-03
+
+- MN-12: `ParseFrames` never read the FIN bit - a fragmented WebSocket message (continuation opcode 0, or any FIN=0 data frame) simply VANISHED, silently dropping party traffic the moment any peer split a frame. Reassembly now rides the protocol object: the opener latches `m.fragOpcode/m.fragBytes`, continuations append, the FIN=1 closer emits ONE assembled frame, fragment floods die at the same `MaxFrameBytes` ceiling as single frames, and orphans (a continuation with no open fragment) drop without poisoning the parser. `DialAndConsume` resets the state per dial - a fresh handshake cannot inherit a half-frame from the dead socket's tail.
+- MN-13: the 1000 ms RTT ceiling rejected every sample on congested Wi-Fi, so `IsStable` never turned true and the party ran permanently uncorrected. The ceiling widens to 5000 ms - still refusing pathological junk - and the two headless pins rotate WITH the law (measured red first, the 2000 ms probe moves to 6000; test COUNT stays 214).
+- MN-15: TimeSync ran on wall-clock `NowMs()` - an NTP step between ping and pong forged the rtt and poisoned the rolling offset buffer for its whole half-life. `NowMonoMs()` (roTimespan; falls back to the wall clock only where the brs headless cannot model the component) becomes the ONE base for ping stamps, pong stamps, drift samples and the adjusted-position "now". `client_time` is an opaque echo server-side (`TimeSync::processPing` casts it verbatim), so the wire contract does not move a byte - the constant epoch-mono anchor cancels inside `offset = t2 - t1 + rtt/2`.
+- Gates: Check 90 five-piece; red-parent measured exactly 5 convictions; battery exit 0 with 90 strict-PASS lines; `make lint`, validate-xml, route-manifest (+ self-test) green; headless 214 cases exit 0 with the two RTT-window pins rotated in place. Catalogs stay v1.19.0 (zero new keys).
+
+### Added — Check 90: FIN custody, the breathing RTT window, the monotonic base (MN-12/MN-13/MN-15 era) — 2026-11-03
+
+- Reassembly state, per-dial reset, the widened ceiling mirrored in BOTH headless pins, and the five mono-base call sites are pinned with anti-rotation bans on their wall-clock/narrow-window predecessors; twin plants KK/LL prove each half independently and restore to green.
+
 ### Fixed — a held transport key is one broadcast, not a storm; the follower keeps its deadband (MJ-10) — 2026-11-03
 
 - Review MJ-10: every seek-key press on the host re-buffered EVERY follower - holding rewind for a three-second skim emitted fifteen ±10 s broadcasts, and `ApplyRemotePlayback` seeked unconditionally per message (echoes and jitter included). The sender now coalesces: `SeekRelative` schedules a 250 ms TRAILING broadcast (the burst latches its leading edge, every press re-arms the timer, the flush broadcasts leading-edge to wherever the playhead settled) and `SyncBroadcastSeekMs` refuses from=to no-ops. A pending burst FLUSHES ahead of any play/pause command so ordering survives.
