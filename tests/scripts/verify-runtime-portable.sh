@@ -2843,8 +2843,10 @@ assert_contains "CHECK59: the CHANGELOG names the vehicle that exists" "$GREEN59
 # in R7.5 per the M8 family, so R1 convicts it), the stale suite count literal, the
 # convicted "No external dependencies required" sentence with the npm ci/devDependencies
 # truth stripped, and the born-empty "configurable constants (in source files):"
-# lead-in. CHECK62 fires R1 (phantom), R2 (19 real suites unlisted), R3 (count 3 !=
-# census 22), R4 (phrase + needles), R5; CHECK52/CHECK56/CHECK58/CHECK60/CHECK61 stay
+# lead-in. CHECK62 fires R1 (phantom), R2 (21 shipped suites unlisted), R3 (count 3 !=
+# census 24); the R2/R3 figures ride the tests/ census and rotate with every added
+# suite (MJ-2 added the 24th unit suite - its 23→25 census is why these read 21/24);
+# CHECK52/CHECK56/CHECK58/CHECK60/CHECK61 stay
 # PASS (gate independence — the plant touches none of their pinned surfaces: the
 # Project-Structure map rows and locale-family rows are untouched); full restore
 # returns exit 0 (falsifiability, house planted-red tradition). --
@@ -2877,8 +2879,8 @@ era_block = """tests/
 text = text[: m.start(1)] + era_block + text[m.end(1):]
 
 # P2 the stale count literal
-assert "**23 rooibos unit suites**" in text, "CHECK62 plant: cured count literal shape drifted"
-text = text.replace("**23 rooibos unit suites**", "**3 rooibos unit suites**", 1)
+assert "**24 rooibos unit suites**" in text, "CHECK62 plant: cured count literal shape drifted"
+text = text.replace("**24 rooibos unit suites**", "**3 rooibos unit suites**", 1)
 
 # P3 the dev-false dependency sentence returns; the npm ci truth leaves the section
 dep = re.search(r"(?ms)^### 3\. Install Dependencies\s*\n(.*?)(?=\n#{2,3} )", text)
@@ -2901,7 +2903,7 @@ set -e
 [ "$RED62_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the review-era README inventories are re-planted (got 0 — the CHECK62 pin is toothless)"
 sed -n '/=== Check 62:/,$p' <<<"$RED62_OUT" | grep -qF "CHECK62 R1: the Test Structure block names phantom suites ['SessionManager.test.brs']" ||
 	fail "CHECK62 red must convict the phantom suite name naming it (got: $RED62_OUT)"
-sed -n '/=== Check 62:/,$p' <<<"$RED62_OUT" | grep -qF "CHECK62 R2: 20 shipped suite(s) are absent" ||
+sed -n '/=== Check 62:/,$p' <<<"$RED62_OUT" | grep -qF "CHECK62 R2: 21 shipped suite(s) are absent" ||
 	fail "CHECK62 red must convict the unlisted real suites (got: $RED62_OUT)"
 sed -n '/=== Check 62:/,$p' <<<"$RED62_OUT" | grep -qF "CHECK62 R3: the Unit Tests section claims 3 rooibos unit suites" ||
 	fail "CHECK62 red must convict the stale count literal against the census (got: $RED62_OUT)"
@@ -3824,7 +3826,7 @@ sed -n '/=== Check 74:/,$p' <<<"$RED74A_OUT" | grep -qF 'CHECK74 R1: dead markup
 	fail "CHECK74 red-A must convict the re-grown dead attribute naming file:line (got: $RED74A_OUT)"
 [ "$(sed -n '/=== Check 74:/,$p' <<<"$RED74A_OUT" | grep -c 'CHECK74 R')" -eq 1 ] ||
 	fail "CHECK74 red-A must report exactly its 1 conviction — the hintText on the same element stays live and green (got: $RED74A_OUT)"
-sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74A_OUT" | grep -qF "CHECK25: all 187 XML chrome literals exempt or catalog-backed" ||
+sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74A_OUT" | grep -qF "CHECK25: all 192 XML chrome literals exempt or catalog-backed" ||
 	fail "Check 25 (the sibling XML-chrome law over the same file) must stay PASS while Check 74 is red (gate independence)"
 sed -n '/=== Check 66:/,/=== Check 67:/p' <<<"$RED74A_OUT" | grep -qF "CHECK66: both WS handshakes cap their header accumulator" ||
 	fail "Check 66 (the same file's copy-pair law) must stay PASS while Check 74 is red (gate independence)"
@@ -3847,7 +3849,7 @@ sed -n '/=== Check 74:/,$p' <<<"$RED74B_OUT" | grep -qF "CHECK74 R2: hintText li
 	fail "CHECK74 red-B must convict the unlocalized hint quoting the plant (got: $RED74B_OUT)"
 [ "$(sed -n '/=== Check 74:/,$p' <<<"$RED74B_OUT" | grep -c 'CHECK74 R')" -eq 1 ] ||
 	fail "CHECK74 red-B must report exactly its 1 conviction (got: $RED74B_OUT)"
-sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74B_OUT" | grep -qF "CHECK25: all 187 XML chrome literals exempt or catalog-backed" ||
+sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74B_OUT" | grep -qF "CHECK25: all 192 XML chrome literals exempt or catalog-backed" ||
 	fail "Check 25 must stay PASS while Check 74 is red — hint chrome is precisely the surface Check 25 never scanned (gate independence)"
 sed -n '/=== Check 56:/,/=== Check 57:/p' <<<"$RED74B_OUT" | grep -qF "CHECK56: the SyncPlay room scene has zero instantiation sites" ||
 	fail "Check 56 (the same scene's dead-path truth) must stay PASS while Check 74 is red (gate independence)"
@@ -3878,7 +3880,7 @@ sed -n '/=== Check 74:/,$p' <<<"$RED74C_OUT" | grep -qF "CHECK74 R4: <HStack> is
 	fail "CHECK74 red-C must report exactly its 1 conviction — attributes and children ride unchanged (got: $RED74C_OUT)"
 sed -n '/=== Check 63:/,/=== Check 64:/p' <<<"$RED74C_OUT" | grep -qF "CHECK63: GetErrorMessage echoes no wire prose" ||
 	fail "Check 63 (the same file's label-legibility law) must stay PASS while Check 74 is red (gate independence)"
-sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74C_OUT" | grep -qF "CHECK25: all 187 XML chrome literals exempt or catalog-backed" ||
+sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74C_OUT" | grep -qF "CHECK25: all 192 XML chrome literals exempt or catalog-backed" ||
 	fail "Check 25 must stay PASS while Check 74 is red (gate independence)"
 cp "$FAKE_REPO/components/PlayerScene.xml" "$PLAYER74"
 python3 - "$PARENT74" <<'PYEOF'
@@ -3900,11 +3902,11 @@ RED74D_OUT=$(bash "$RED74_ROOT/repo/scripts/verify-runtime.sh" 2>&1)
 RED74D_RC=$?
 set -e
 [ "$RED74D_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the hintText markup silently disappears (got 0 — CHECK74 R3 is toothless)"
-sed -n '/=== Check 74:/,$p' <<<"$RED74D_OUT" | grep -qF "CHECK74 R3: the hintText scan observed 4 occurrences" ||
+sed -n '/=== Check 74:/,$p' <<<"$RED74D_OUT" | grep -qF "CHECK74 R3: the hintText scan observed 5 occurrences" ||
 	fail "CHECK74 red-D must convict the census naming the derived count (got: $RED74D_OUT)"
 [ "$(sed -n '/=== Check 74:/,$p' <<<"$RED74D_OUT" | grep -c 'CHECK74 R')" -eq 1 ] ||
-	fail "CHECK74 red-D must report exactly its 1 conviction — the surviving four hints stay catalog-clean (got: $RED74D_OUT)"
-sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74D_OUT" | grep -qF "CHECK25: all 187 XML chrome literals exempt or catalog-backed" ||
+	fail "CHECK74 red-D must report exactly its 1 conviction — the surviving five hints stay catalog-clean (got: $RED74D_OUT)"
+sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED74D_OUT" | grep -qF "CHECK25: all 192 XML chrome literals exempt or catalog-backed" ||
 	fail "Check 25 must stay PASS while Check 74 is red (gate independence)"
 sed -n '/=== Check 73:/,/=== Check 74:/p' <<<"$RED74D_OUT" | grep -qF "CHECK73: the twin's PASS narration and the ledger sentence both equal" ||
 	fail "Check 73 (narration prose only) must stay PASS while Check 74 is red (gate independence)"
