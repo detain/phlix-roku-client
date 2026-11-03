@@ -11357,4 +11357,162 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 79: the SyncPlay join cannot be swallowed before the handshake, and the leave cannot kill its own flush (MJ-6/MJ-7 era of the discarded command window and the ghost member) ==="
+# WHY: two live-syncplay defects cured together; each half is pinned by its own
+# rule family. MJ-6: the scene wrote m.syncTask.command the moment control="run"
+# landed, so the first write sat in the FIELD before the task thread ever called
+# ObserveField("command", m.port) — the attach synthesises no event, and the
+# WaitForConnect poll plus the handshake-header read silently DISCARDED every
+# roSGNodeEvent of the window. A tap on an existing watch party could vanish:
+# socket open, yourId never set, zero syncplay commands, the group silently
+# memberless (and the empty-yourId branch then suppressed time_pings forever).
+# Cure = a command funnel: catch-up read at attach (the field value IS the lost
+# write), drain arms in both pre-loop windows, replay at the main-loop gate,
+# reference-identity dedup (m.lastCommand) so no write is dropped or dispatched
+# twice. MJ-7: the leave path set control="stop" synchronously — Task's exit
+# never drains its queue, so the queued group_leave + close frames died in the
+# socket while peers carried a ghost member until heartbeat expiry. Cure =
+# deferred stop: the leave/close write stands, the task emits "closed" after
+# flushing, the closed arm runs StopSyncTaskNow, with a bounded 2s Timer
+# fallback guarded on the syncUserStopped register. The census is shape-agnostic
+# on purpose: a regrown immediate stop reddens it exactly once whatever wording
+# the leg later faces.
+# NUMBERING: 79 collision-probed at 8021fa6 (grep 'Check 79'/'CHECK79' over
+# scripts tests Makefile docs -> rc=1; zero mentions). Highest prior header = 78.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import re, sys, os
+
+os.chdir(os.environ['REPO'])
+problems = []
+
+def read(path):
+    try:
+        return open(path, encoding="utf-8").read()
+    except OSError as exc:
+        problems.append(f"  CHECK79 R0: cannot read {path}: {exc}")
+        return None
+
+# R1 - the MJ-6 command-funnel law (components/SyncPlayTask.brs). The four
+# mechanisms (catch-up read at attach, drain arms in both pre-loop windows,
+# replay at the main-loop gate, identity dedup) are ONE cure; the plant class
+# strips single lines to prove each family carries teeth.
+tsk = read("components/SyncPlayTask.brs")
+if tsk is not None:
+    missing = []
+    attach = tsk.find('m.top.ObserveField("command", m.port)')
+    if attach < 0:
+        missing.append('observer attach m.top.ObserveField("command", m.port)')
+    else:
+        gate = tsk.find('running = true', attach)
+        if gate < 0:
+            missing.append('main-loop gate "running = true"')
+        else:
+            for needle in ('m.pendingCommands = []',
+                           'catchUp = m.top.command',
+                           'if catchUp <> invalid then m.pendingCommands.Push(catchUp)'):
+                if needle not in tsk[attach:gate]:
+                    missing.append(needle + " [attach window]")
+    if len(re.findall(r'type\(ev\) = "roSGNodeEvent" and ev\.GetField\(\) = "command"', tsk)) != 2:
+        missing.append("the two pre-loop drain arms (poll + handshake-header guard)")
+    for needle in ('if dc <> invalid then m.pendingCommands.Push(dc)',
+                   'if hc <> invalid then m.pendingCommands.Push(hc)',
+                   'while m.pendingCommands.Count() > 0 and running',
+                   'rc = m.pendingCommands.Shift()',
+                   'if rc <> m.lastCommand then',
+                   'm.lastCommand = rc',
+                   'if not HandleCommand(rc) then running = false',
+                   'if cd <> m.lastCommand then',
+                   'm.lastCommand = cd'):
+        if needle not in tsk:
+            missing.append(needle)
+    if missing:
+        problems.append("  components/SyncPlayTask.brs - CHECK79 R1: " + str(len(missing)) +
+            " funnel-law line(s) lost - " + "; ".join(missing) +
+            " (the join written before the thread observes the field is silently discarded again: catch-up read, both drain arms, replay and the identity dedup are one mechanism - MJ-6)")
+
+# R2 - the MJ-7 stop-custody law (components/PlayerScene.brs). stop is legal
+# ONLY inside StopSyncTaskNow (census == 1); the leave/close paths write their
+# frame, arm the bounded fallback and let the task's own "closed" event run the
+# stop. Multi-needle laws aggregate to one conviction so a single-line plant
+# can never double-report.
+sc = read("components/PlayerScene.brs")
+if sc is not None:
+    stops = len(re.findall(r'm\.syncTask\.control = "stop"', sc))
+    if stops != 1:
+        problems.append('  components/PlayerScene.brs - CHECK79 R2: ' + str(stops) +
+            ' site(s) write m.syncTask.control = "stop" (law: exactly 1 - inside StopSyncTaskNow, the sole custody sink; a second immediate stop kills the queued group_leave/close frame before it reaches the wire and ghosts the member until heartbeat expiry - MJ-7)')
+    missing2 = []
+
+    def sub_body(name):
+        m = re.search(r'\nsub ' + re.escape(name) + r'\n(.*?)\nend sub', sc, re.S)
+        return m.group(1) if m else None
+
+    for sig, needles in (
+        ('OnSyncLeavePressed()', [
+            'm.syncTask.command = { kind: "leave", group_id: m.syncGroupId }',
+            'm.syncUserStopped = true',
+            'ArmSyncLeaveStop()']),
+        ('StopSyncTaskNow()', [
+            'm.syncTask.UnObserveField("event")',
+            'm.syncTask.control = "stop"',
+            'm.syncTask = invalid']),
+        ('ArmSyncLeaveStop()', [
+            'CreateObject("roSGNode", "Timer")',
+            'ObserveField("fire", "OnSyncStopTimerFired")',
+            'm.syncStopTimer.duration = 2',
+            'm.syncStopTimer.repeat = false',
+            'm.syncStopTimer.control = "start"']),
+        ('OnSyncStopTimerFired(event as Object)', [
+            'if m.syncUserStopped and m.syncTask <> invalid then StopSyncTaskNow()']),
+        ('CloseSyncPanel()', [
+            'm.syncTask.command = { kind: "leave", group_id: m.syncGroupId }',
+            'ArmSyncLeaveStop()']),
+    ):
+        body = sub_body(sig)
+        if body is None:
+            missing2.append('sub ' + sig + ' vanished')
+            continue
+        for needle in needles:
+            if needle not in body:
+                missing2.append('sub ' + sig + ': ' + needle)
+    if 'if m.syncUserStopped then StopSyncTaskNow()' not in sc:
+        missing2.append('the closed-arm terminal stop')
+    if missing2:
+        problems.append("  components/PlayerScene.brs - CHECK79 R2: " + str(len(missing2)) +
+            " stop-custody law(s) lost - " + "; ".join(missing2) +
+            " (the leave/close write must reach the wire before the thread dies: closed-event stop, bounded guarded fallback, single sink - MJ-7)")
+
+# R3 docs cure marker: certification 7.4 only became TRUE with the deferred
+# stop — the row must keep naming the cure it now describes (CHECK78 R3 idiom).
+cert = read("docs/certification.md")
+if cert is not None:
+    row74 = re.search(r'^\|\s*7\.4\s*\|.*$', cert, re.MULTILINE)
+    if row74 is None or "MJ-7" not in row74.group(0) or "StopSyncTaskNow" not in row74.group(0):
+        problems.append("  docs/certification.md - CHECK79 R3: the 7.4 lifecycle row no longer names its MJ-7 custody cure (cure ref + sole-sink name) - the PASS claim is only honest while stop custody sits in StopSyncTaskNow behind the leave/close flush")
+
+# R4 ledger truth (CHECK71/72/73/75/76/77/78 R4 precedent).
+led = read("docs/static-checks.md")
+if led is not None:
+    row = re.search(r'^\|\s*79\s*\|.*$', led, re.MULTILINE)
+    if row is None or "MJ-6" not in row.group(0) or "MJ-7" not in row.group(0):
+        problems.append("  docs/static-checks.md - CHECK79 R4: ledger row 79 is missing or no longer names its MJ-6/MJ-7 cure refs")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK79: %d syncplay-funnel/stop-custody pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK79: the syncplay command funnel reads the field at attach, drains both")
+print("           pre-loop windows, replays at the main-loop gate and dedups by identity;")
+print("           stop custody sits in the single StopSyncTaskNow sink behind the closed")
+print("           event with the bounded guarded fallback - a swallowed first tap and a")
+print("           self-killed leave flush are now shape-impossible")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

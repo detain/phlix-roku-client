@@ -51,6 +51,52 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — a first tap on a watch party can no longer be swallowed before the handshake; leaving flushes its own goodbye (MJ-6/MJ-7, review roku__asphp) — 2026-11-03
+
+Two live-SyncPlay defects in the roSGNode task mailbox, cured as one pair:
+
+- **The discarded command window (MJ-6).** `ConnectSyncTask` wrote `m.syncTask.command`
+  the moment `control="run"` landed — before the thread's `ObserveField("command", m.port)`
+  attach, and the attach synthesises no event; the `WaitForConnect` poll and the
+  handshake-header read then silently discarded every `roSGNodeEvent` in the window. The
+  first join/create vanished without an error: socket open, `yourId` never set, zero
+  commands sent, and the empty-`yourId` branch suppressed `time_pings` for the session.
+  Cure = a command funnel in `components/SyncPlayTask.brs`: a catch-up read of
+  `m.top.command` at attach (the field value *is* the lost write), both pre-loop windows
+  gaining drain arms that push command events onto `m.pendingCommands`, a replay loop at
+  the `running = true` gate, and reference-identity dedup (`m.lastCommand`) so the event
+  the attach read already queued is never dispatched twice while two distinct writes are
+  never collapsed — BrightScript `=` on objects compares references, and the scene and the
+  task share one value array. Push order is dispatch order; the funnel never double-sends.
+- **The self-killed leave flush (MJ-7).** `OnSyncLeavePressed` and `CloseSyncPanel` set
+  `control="stop"` synchronously next to their leave write — Task exit does not drain
+  pending messages, so the queued `group_leave` + close frames died unsent while peers
+  carried a ghost member until heartbeat expiry. Cure = stop custody moves: the leave/close
+  write stands alone, `StopSyncTaskNow()` becomes the single sink (observer torn down in
+  F13 order) and runs from `HandleSyncEvent`'s "closed" arm — after the task flushed —
+  behind a bounded 2s `ArmSyncLeaveStop` fallback Timer guarded on the `syncUserStopped`
+  register; the joined-branch panel close now writes its leave frame too, and the F13
+  teardown keeps its best-effort close write before routing through the same sink.
+
+Gates: `make lint` rc=0 (BS13 warnings held), full battery rc=0 with the new Check 79
+green, portable twin over the shipped tip, headless suite unmoved at 214/0/53 — no unit
+suite (statement-presence legs per CHECK74-78 precedent). `docs/certification.md` 7.4 now
+states the deferred-stop truth the cure makes honest.
+
+### Added — Check 79: the battery guards the SyncPlay command funnel and deferred stop custody (MJ-6/MJ-7 era) — 2026-11-03
+
+- `scripts/verify-runtime.sh` Check 79: R1 pins the funnel lines in
+  `components/SyncPlayTask.brs` (attach-window triplet, count-2 drain-arm guard,
+  replay/dedup laws) as one aggregate conviction; R2 pins stop custody in
+  `components/PlayerScene.brs` — a shape-agnostic `control = "stop"` census of exactly 1
+  (StopSyncTaskNow is the sole sink) plus per-sub laws for the leave/stop/timer family;
+  R3 requires the certification 7.4 row to name its MJ-7 cure; R4 ledger truth for
+  `docs/static-checks.md` row 79.
+- Portable twin plants L (strip the catch-up push -> R1 alone) and M (re-grow the era
+  immediate stop pair -> the census alone), CHECK46 + CHECK50 green across both reds;
+  red-on-parent measured at `8021fa6` (pre-cure): exactly 5 named convictions.
+- `docs/static-checks.md` row 79 (five-column ledger, CHECK71-78 house shape).
+
 ### Fixed — the transport buttons gain catalog-backed affordance labels; play/pause speaks the player's state (MJ-11, review roku__writer) — 2026-11-03
 
 The centre cluster (rewind / play-pause / forward) shipped as three BLANK

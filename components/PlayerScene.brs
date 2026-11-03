@@ -1269,13 +1269,14 @@ sub ClosePlayer()
 
     ' --- F13 SyncPlay teardown (pairs every ObserveField from Init/open). ---
     if m.syncTask <> invalid then
-        m.syncTask.UnObserveField("event")
         ' Best-effort close of the WS connection.
         m.syncTask.command = { kind: "close" }
-        ' Signal the task thread to stop so it does not linger during player teardown.
-        m.syncTask.control = "stop"
-        m.syncTask = invalid
     end if
+    ' MJ-7: cancels any pending leave-grace timer, pairs the ConnectSyncTask
+    ' observer and stops the thread so nothing lingers during teardown (the
+    ' close write keeps its best-effort semantics at scene exit).
+    m.syncUserStopped = true
+    StopSyncTaskNow()
     if m.syncGroupList <> invalid then m.syncGroupList.UnObserveField("itemSelected")
     if m.syncCreateButton <> invalid then m.syncCreateButton.UnObserveField("buttonSelected")
     if m.syncLeaveButton <> invalid then m.syncLeaveButton.UnObserveField("buttonSelected")
@@ -1824,10 +1825,20 @@ sub CloseSyncPanel()
     ' call ConnectSyncTask to start a fresh task).
     ' M-ROKU-19: mark intentional stop so the terminal "closed" event does not
     ' banner a false "disconnected" alarm over our own teardown.
+    ' MJ-7: closing the panel WHILE JOINED is a leave - the task must flush
+    ' the group_leave + close frames before the thread dies (the old immediate
+    ' stop ghosted the member server-side until heartbeat expiry). A bare,
+    ' never-joined connection has no group frames pending, so it may stop
+    ' directly.
     if m.syncTask <> invalid then
         m.syncUserStopped = true
-        m.syncTask.control = "stop"
-        m.syncTask = invalid
+        if m.syncGroupId <> "" then
+            m.syncTask.command = { kind: "leave", group_id: m.syncGroupId }
+            m.syncGroupId = ""
+            ArmSyncLeaveStop()
+        else
+            StopSyncTaskNow()
+        end if
     end if
 end sub
 
@@ -1863,8 +1874,9 @@ sub ConnectSyncTask()
     m.syncActive = true
     ' M-ROKU-19: a fresh socket means any later "closed" is unexpected again.
     m.syncUserStopped = false
-    ' un guarded: call site gates with "if m.syncTask = invalid then" so this only
-    ' fires once per session (ConnectSyncTask is never called again after init).
+    ' un guarded: call site gates with "if m.syncTask = invalid then" — every
+    ' stop path (StopSyncTaskNow: leave/close/teardown) invalidates m.syncTask,
+    ' so re-opening the panel legitimately spawns a FRESH task here.
     m.syncTask.control = "run"
     SetSyncStatus(Translate("player_sync_status_connecting"))
 end sub
@@ -2012,8 +2024,9 @@ sub OnSyncCreatePressed()
     m.syncTask.command = { kind: "create", group_name: deviceName + "'s Group" }
 end sub
 
-' Leave the current group (also closes the socket task-side). Stops the
-' SyncPlayTask thread immediately so it does not linger after leaving.
+' Leave the current group (also closes the socket task-side). MJ-7: the thread
+' stops from the task's own "closed" event (or a bounded fallback timer), so
+' the leave + close frames are flushed before it dies.
 sub OnSyncLeavePressed()
     if m.syncTask = invalid then return
     m.syncTask.command = { kind: "leave", group_id: m.syncGroupId }
@@ -2022,12 +2035,50 @@ sub OnSyncLeavePressed()
     m.syncGroupId = ""
     SetSyncStatus(Translate("player_sync_status_left"))
 
-    ' Stop the task thread now that the group session is over.
     ' M-ROKU-19: intentional stop — suppress the disconnect banner (we just said
     ' the left-group status in the panel label ourselves).
+    ' MJ-7: do NOT stop the thread here. The leave write above must reach the
+    ' task, which flushes group_leave + the close frame and only then emits
+    ' "closed" — StopSyncTaskNow runs from that arm, with a bounded Timer
+    ' fallback in case the event never lands.
     m.syncUserStopped = true
-    m.syncTask.control = "stop"
-    m.syncTask = invalid
+    ArmSyncLeaveStop()
+end sub
+
+' MJ-7: stop the sync task outright (and cancel the fallback timer). The task
+' has already flushed its frames by the time any caller reaches this.
+sub StopSyncTaskNow()
+    if m.syncStopTimer <> invalid then
+        m.syncStopTimer.control = "stop"
+        m.syncStopTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.syncStopTimer)
+        m.syncStopTimer = invalid
+    end if
+    if m.syncTask <> invalid then
+        ' F13 pairing: the ObserveField from ConnectSyncTask ends here too.
+        m.syncTask.UnObserveField("event")
+        m.syncTask.control = "stop"
+        m.syncTask = invalid
+    end if
+end sub
+
+' MJ-7: give the task a bounded grace window to flush the leave + close frames
+' and emit "closed"; the timer force-stops a wedged thread. (Timer node idiom
+' per the vendored bsc data.json: duration is SECONDS, .fire is the event.)
+sub ArmSyncLeaveStop()
+    if m.syncStopTimer = invalid then
+        m.syncStopTimer = CreateObject("roSGNode", "Timer")
+        m.top.AppendChild(m.syncStopTimer)
+        m.syncStopTimer.ObserveField("fire", "OnSyncStopTimerFired")
+    end if
+    m.syncStopTimer.control = "stop"
+    m.syncStopTimer.duration = 2
+    m.syncStopTimer.repeat = false
+    m.syncStopTimer.control = "start"
+end sub
+
+sub OnSyncStopTimerFired(event as Object)
+    if m.syncUserStopped and m.syncTask <> invalid then StopSyncTaskNow()
 end sub
 
 ' Task->scene event observer. THREAD-SAFE: only assoc/string/number cross. The
@@ -2132,6 +2183,9 @@ sub HandleSyncEvent(ev as Object)
         m.syncFollowing = false
         m.syncIsHost = false
         m.syncActive = false
+        ' MJ-7: an intentional leave/close reaches this terminal event only AFTER
+        ' the task flushed the leave + close frames - stop the thread now.
+        if m.syncUserStopped then StopSyncTaskNow()
     end if
 end sub
 

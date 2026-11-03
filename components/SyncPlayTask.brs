@@ -89,6 +89,19 @@ sub RunSocket()
     m.port = CreateObject("roMessagePort")
     m.top.ObserveField("command", m.port)
 
+    ' MJ-6: a scene field-write BEFORE this attach produces no event and is
+    ' never replayed - the first tap on a group used to be silently lost while
+    ' the thread was still spawning. Funnel law: catch up on the field's
+    ' current value here, drain port-queued command events in both pre-loop
+    ' waits, and replay the funnel at the main-loop gate (after the handshake,
+    ' so every command rides a live upgraded socket). A roSGNodeEvent carries
+    ' the same AA reference the scene wrote, so BrightScript object identity on
+    ' m.lastCommand dedups the write-between-attach-and-read micro-race exactly.
+    m.pendingCommands = []
+    m.lastCommand = invalid
+    catchUp = m.top.command
+    if catchUp <> invalid then m.pendingCommands.Push(catchUp)
+
     ' Open the plaintext TCP socket.
     m.sock = CreateObject("roStreamSocket")
     if m.sock = invalid then
@@ -128,6 +141,16 @@ sub RunSocket()
 
     ' Main loop: tick (time_ping) on timeout, else dispatch socket/command events.
     running = true
+
+    ' MJ-6: replay the funnel in scene order now that the socket is upgraded.
+    while m.pendingCommands.Count() > 0 and running
+        rc = m.pendingCommands.Shift()
+        if rc <> m.lastCommand then
+            m.lastCommand = rc
+            if not HandleCommand(rc) then running = false
+        end if
+    end while
+
     while running
         msg = wait(PingIntervalMs(), m.port)
 
@@ -138,7 +161,13 @@ sub RunSocket()
             if not HandleSocketEvent() then running = false
         else if type(msg) = "roSGNodeEvent" then
             if msg.getField() = "command" then
-                if not HandleCommand(msg.getData()) then running = false
+                ' MJ-6: identity dedup - the same write may have reached us
+                ' through the catch-up read or a pre-loop drain already.
+                cd = msg.getData()
+                if cd <> m.lastCommand then
+                    m.lastCommand = cd
+                    if not HandleCommand(cd) then running = false
+                end if
             end if
         end if
     end while
@@ -164,10 +193,13 @@ function WaitForConnect(host as String, port as Integer, path as String, bearerT
         if m.sock.IsConnected() then exit while
         ' Drain any writable/readable notification; ignore - we only poll.
         ev = wait(100, m.port)
-        if type(ev) = "roSGNodeEvent" then
-            ' Buffer a pre-connect command (e.g. a "close") - re-dispatch later by
-            ' ignoring here; the scene only sends commands after "open" in
-            ' practice, so this is defensive.
+        if type(ev) = "roSGNodeEvent" and ev.GetField() = "command" then
+            ' MJ-6: a command queued during the connect poll belongs to this
+            ' session - funnel it for the post-handshake replay instead of
+            ' discarding it. (The old 'the scene only sends commands after
+            ' open' prose was false: the first tap IS this exact window.)
+            dc = ev.GetData()
+            if dc <> invalid then m.pendingCommands.Push(dc)
         end if
         deadline = deadline + 1
     end while
@@ -227,6 +259,10 @@ function WaitForConnect(host as String, port as Integer, path as String, bearerT
                 ' Peer closed during handshake.
                 return false
             end if
+        else if type(ev) = "roSGNodeEvent" and ev.GetField() = "command" then
+            ' MJ-6: same funnel law while reading the 101 header.
+            hc = ev.GetData()
+            if hc <> invalid then m.pendingCommands.Push(hc)
         end if
         tries = tries + 1
     end while

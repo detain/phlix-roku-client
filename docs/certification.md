@@ -121,7 +121,7 @@ exclusive behavior; 1.3 is declared for certification, not capability.
 | 7.1 | SyncPlay session can be joined | PASS | R4.0-R4.2: SyncPlay contracts, REST, field casing |
 | 7.2 | Progress buffered until session exists | PASS | R4.11: m.apiSessionReady tracking |
 | 7.3 | Heartbeat not sent when not joined | PASS | R4.12: m.yourId check in SendTimePing |
-| 7.4 | SyncPlay task lifecycle managed | PASS | R5.10: control="stop" on leave/close |
+| 7.4 | SyncPlay task lifecycle managed | PASS | R5.10 + MJ-7: the leave/close frame is flushed before the thread dies — control="stop" runs ONLY from StopSyncTaskNow, driven by the task's own "closed" event with a bounded 2s fallback Timer guarded on syncUserStopped (CHECK 79 pins the single custody sink; the era immediate stop was the ghost-member defect) |
 
 ---
 
