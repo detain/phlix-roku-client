@@ -202,7 +202,7 @@
         <Rectangle height="720" width="1280" color="#000000" transparency="0.4" visible="false" id="trackListPanel">
             <Rectangle height="520" width="520" translation="[720,100]" color="#0d0d1a">
                 <Label height="50" width="460" translation="[30,20]"
-                       text="Select Track"
+                       text="Select track"
                        font="font:LargeBoldSystemFont"
                        color="#FFFFFF"
                        id="trackListTitle" />

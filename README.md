@@ -61,7 +61,14 @@ Press the following button sequence on your Roku remote:
 6. Left (1 time)
 7. Right (1 time)
 
-Note the IP address shown and enable dev mode via the web interface at `http://<ROKU_IP>`.
+Note the IP address shown and enable dev mode via the web interface at `http://<ROKU_IP>`:
+enable the Development Application Installer, accept the Developer Tools License Agreement,
+and **set a device password** — the player reboots with the installer page live
+(the same on-device flow `docs/device-verification.md` §1 documents). The password you set
+there is exactly what `ROKU_PASSWORD` (§ Environment Variables, example `rokipassword`) must
+hold: `make install` authenticates the upload with it (HTTP digest against port 80's
+`/plugin_install` — step 3 of the same doc), so a lost password means restarting dev mode
+from the remote sequence above to set a new one.
 
 ### 2. Clone and Configure
 

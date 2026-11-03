@@ -1533,9 +1533,14 @@ function Translate(key as String) as String
     end if
 
     raw = LoadLocaleStrings._raw
-    sections = ["common", "utilities", "settings", "detail", "syncplay", "errors"]
+    ' MN-18 (review roku__scribe lineage): probe EVERY shipped section - the
+    ' legacy six-name hardcode silently missed 26 of the 32. A bare-key legacy
+    ' caller resolves wherever its key lives. "_metadata" is catalog
+    ' provenance, not copy, so it is skipped.
+    sections = []
+    if raw <> invalid then sections = raw.Keys()
     for each section in sections
-        if raw <> invalid and raw.doesExist(section) then
+        if section <> "_metadata" and raw.doesExist(section) then
             sectionData = raw.lookup(section)
             if type(sectionData) = "roAssociativeArray" and sectionData.doesExist(key) then
                 result = sectionData.lookup(key)

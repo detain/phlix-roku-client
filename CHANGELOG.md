@@ -95,6 +95,49 @@ claim below re-checkable the same way:
   green across both reds; dry-run proven in scratch before shipping.
   Red-parent over the Batch-10 tip measured exactly 4 convictions.
 
+### Fixed — the locale probe now walks the whole catalog, the en_US copy law is total, the synopsis reads from the couch, and the README names the password the installer authenticates with (MN-18 MN-27 MN-8 MN-28, reviews roku__writer/a11y/scribe-lineage) — 2026-11-03
+
+- MN-18: `Translate`'s legacy nested probe walked SIX hardcoded section names
+  while the shipped catalog carries 32 — a bare-key caller into any other
+  section silently rendered its raw key. The probe now enumerates the parsed
+  catalog itself (`raw.Keys()`), skipping `_metadata`; a bare-key
+  `Translate("session_invalid")` resolves wherever its section lives. Check
+  22's (c) arm — which pinned the legacy list itself — rotated to the new walk
+  shape in the same commit (measured red first; the intent, the errors family
+  staying resolvable, is preserved and strengthened — disclosed rotation).
+- MN-27: en_US `player.select_track` joins the sentence-case family
+  ("Select track", and the PlayerScene design-time label follows — Check 25's
+  value mirror), and the `connect.err_*` closing-period law is now TOTAL:
+  measured, the family was 8-of-10 periods plus one question-ended line, so
+  the cure closed all three unpunctuated outliers (`err_bad_url` — the named
+  defect — plus `err_empty` and `err_invalid`, disclosed completion).
+- MN-8: the detail synopsis label was `font:SmallSystemFont` — unreadable at
+  couch distance over 200 wrapped pixels; it rides the MediumSystemFont body
+  family (58 prior sites).
+- MN-28: the README dev-mode flow never named the accept-EULA → **set a
+  device password** → reboot step the install story depends on. It now says
+  it, binds the chosen password to `ROKU_PASSWORD` (HTTP digest against
+  `/plugin_install`), and points at the on-device truth already documented in
+  `docs/device-verification.md` §1.
+- Gates: `make lint` rc=0 (zero new diagnostics), full battery rc=0 (84 strict
+  PASS), headless 214/0/53 EXACT (no new suite), validate-xml/routes/self-test
+  rc=0, portable twin over the committed tip (result appended to the fix
+  ledger).
+
+### Added — Check 84: the probe-enumeration, copy-law, font and README-password truths (MN-18/27/8/28 era) — 2026-11-03
+
+- R1: the dynamic walk stands (`raw.Keys()` + `_metadata` skip) and the legacy
+  six-name list is BANNED by shape — re-growth convicts alone.
+- R2: the en_US JSON is parsed and checked, not grepped — select_track exact,
+  every `connect.err_*` ends in terminal punctuation (period, `!` or `?` —
+  `err_refused`'s question mark is law-satisfying, measured).
+- R3: no SmallSystemFont survives in the detail view; R4: the README keeps the
+  password step + `rokipassword` binding; R5: this ledger row names its era.
+- Twin plants V (legacy list re-grown → R1 alone; Check 22's rotated arm stays
+  green because the walk survives) and W (one period stripped → R2 alone),
+  Checks 79-83 green across both. Red-parent over 24b5148 measured exactly 5
+  convictions.
+
 ### Fixed — the debug log never repeats wire prose, a relative stream Location reaches its player, and the dead room recites its revival law (MN-16 MN-22 MN-24 MN-25 MN-29, reviews roku__srphp/secnet/qa) — 2026-11-03
 
 - MN-22: M-ROKU-03 killed the raw-wire echo on the UI side; two DEBUG-LOG

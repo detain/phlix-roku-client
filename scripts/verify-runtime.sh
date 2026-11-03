@@ -1263,7 +1263,9 @@ echo "=== Check 22: syncplay wire census is content-pinned and resolves in en_US
 #       en_US errors_<key> entry, with no two codes colliding on one key
 #   (b) errors_fallback exists (the generic localized last-resolve line)
 #   (c) the normalizer keeps its shape (LCase + "."/"-" -> "_") and
-#       Translate()'s nested-probe sections list still includes "errors"
+#       Translate()'s nested probe walks every shipped section (MN-18 rotation
+#       of the legacy six-name list - "errors" included) so bare-key callers
+#       still localize
 #   (d) SyncPlayTask.brs still routes syncplay_error text through
 #       LocalizeSyncPlayError() (wire-in present)
 #   (e) CENSUS CONTENT: set(census) == EMITTED_VERIFIED | RESERVED exactly -
@@ -1392,10 +1394,12 @@ if util is not None:
         problems.append(
             f"  {UTILITIES} - CHECK22: mapping law shape changed - normalizer no "
             'longer lowercases and maps "." and "-" to "_"')
-    if not re.search(r'sections = \[[^\]]*"errors"[^\]]*\]', util):
+    if (not re.search(r'if raw <> invalid then sections = raw\.Keys\(\)', util)
+            or 'if section <> "_metadata" and raw.doesExist(section) then' not in util):
         problems.append(
-            f'  {UTILITIES} - CHECK22: Translate() nested-probe sections list no '
-            'longer includes "errors"')
+            f'  {UTILITIES} - CHECK22: Translate() nested probe no longer walks EVERY '
+            'shipped section (MN-18 cure shape) - the errors family must stay resolvable '
+            'for bare-key callers')
 
 flat = set()
 try:
@@ -11974,6 +11978,131 @@ if problems:
 print("  CHECK83: the debug log never carries message-sized wire content; a 302 Location")
 print("           absolutizes before it reaches a playback node; the dead room's revival")
 print("           law and the docs counts stand.")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 84: the locale probe walks every section, the en_US copy law holds, the synopsis reads at distance (MN-18/MN-27/MN-8 era) ==="
+# WHY: MN-18 (review roku__scribe lineage): Translate()'s legacy nested probe
+# walked SIX hardcoded section names while the catalog ships 32 — a bare-key
+# caller into any other section silently returned the raw key. Cure: enumerate
+# the PARSED catalog's own keys (raw.Keys(), "_metadata" skipped) — the probe
+# can no longer lag the catalog; CHECK 22's (c) arm rotated to the same shape
+# (the legacy six-name list was the convicted shape there too — disclosed
+# rotation, intent 'errors family resolvable' preserved and strengthened).
+# MN-27 (review roku__writer): en_US 'Select Track' violated the uniform
+# sentence-case family, and connect.err_bad_url lacked the closing period the
+# sibling error lines carry — measured truth: 8 of 10 siblings had it; the cure
+# closed the WHOLE family (err_empty/err_invalid joined, disclosed) so the law
+# is now total, not aspirational. MN-8 (review roku__a11y): the synopsis label
+# was font:SmallSystemFont — unreadable from couch distance; it joins the
+# MediumSystemFont body family (58 prior sites). MN-28 (review roku__writer):
+# the README dev-mode flow never named the accept-EULA → SET DEVICE PASSWORD →
+# reboot step the install story authenticates against (ROKU_PASSWORD) — the
+# on-device truth lives in docs/device-verification.md §1; the README now says
+# it. Twin plants V (re-grow the legacy six-name list — R1 ban alone) and W
+# (strip one err_* closing period — R2 alone), gate independence pinned.
+# NUMBERING: 84 collision-probed at 24b5148, highest prior 83.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ['REPO']
+os.chdir(repo)
+problems = []
+
+UTILITIES = "source/lib/Utilities.brs"
+EN = "locale/en_US/strings.json"
+DETAIL = "components/DetailScene.xml"
+README = "README.md"
+LEDGER = "docs/static-checks.md"
+
+
+def read(path):
+    try:
+        with open(path, encoding='utf-8') as f:
+            return f.read()
+    except OSError as e:
+        problems.append(f'  {path} - CHECK84: unreadable: {e}')
+        return None
+
+
+# --- R1: MN-18 dynamic probe (walk present; legacy list extinct) ---
+util = read(UTILITIES)
+if util is not None:
+    r1 = []
+    if 'if raw <> invalid then sections = raw.Keys()' not in util:
+        r1.append('probe stopped enumerating the parsed catalog (raw.Keys() walk lost)')
+    if 'if section <> "_metadata" and raw.doesExist(section) then' not in util:
+        r1.append('_metadata-skip guard lost')
+    if util.count('sections = ["common"') != 0:
+        r1.append('the legacy six-name section list is re-grown')
+    if r1:
+        problems.append(
+            f'  {UTILITIES} - CHECK84 R1: ' + '; '.join(r1)
+            + ' (a bare-key caller into an unlisted section silently renders raw keys - MN-18)')
+
+# --- R2: MN-27 en_US copy law ---
+en = read(EN)
+if en is not None:
+    try:
+        doc = json.loads(en)
+        r2 = []
+        st = (doc.get('player') or {}).get('select_track')
+        if st != 'Select track':
+            r2.append(f"player.select_track drifted from the sentence-case family (got {st!r})")
+        conn = doc.get('connect') or {}
+        bad = sorted(k for k, v in conn.items()
+                     if k.startswith('err') and isinstance(v, str)
+                     and not v.rstrip().endswith(('.', '!', '?')))
+        if bad:
+            r2.append('connect.err_* without the closing period: ' + ', '.join(bad))
+        if r2:
+            problems.append(
+                f'  {EN} - CHECK84 R2: ' + '; '.join(r2)
+                + ' (the en_US copy law is total now - the family reads uniform from couch to couch - MN-27)')
+    except ValueError as e:
+        problems.append(f'  {EN} - CHECK84 R2: unparsable JSON: {e}')
+
+# --- R3: MN-8 synopsis font ---
+det = read(DETAIL)
+if det is not None:
+    if det.count('font="font:SmallSystemFont"') != 0:
+        problems.append(
+            f'  {DETAIL} - CHECK84 R3: a SmallSystemFont label is back in the detail view - '
+            'synopsis body must ride the MediumSystemFont family (unreadable at couch distance - MN-8)')
+
+# --- R4: MN-28 README device-password step ---
+rd = read(README)
+if rd is not None:
+    r4 = []
+    if 'set a device password' not in rd:
+        r4.append('the accept-EULA -> set-device-password -> reboot step vanished from the README')
+    if 'rokipassword' not in rd:
+        r4.append('the ROKU_PASSWORD example binding vanished')
+    if r4:
+        problems.append(
+            f'  {README} - CHECK84 R4: ' + '; '.join(r4)
+            + ' (the install story authenticates against a password the setup text never named - MN-28)')
+
+# --- R5: ledger row 84 names the era ---
+led = read(LEDGER)
+if led is not None:
+    m = re.search(r'^\|\s*84\s*\|.*$', led, re.M)
+    if not m or 'MN-18' not in m.group(0):
+        problems.append(
+            f'  {LEDGER} - CHECK84 R5: ledger row 84 is missing or no longer names its MN-18 cure ref')
+
+if problems:
+    print('\n'.join(problems))
+    print(f'  CHECK84: {len(problems)} locale-probe/copy/font/docs pin(s) broken')
+    sys.exit(1)
+
+print('  CHECK84: the nested probe walks EVERY shipped section; the en_US copy law is')
+print('           total; the synopsis reads at couch distance; the README names the')
+print('           password the installer authenticates with.')
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

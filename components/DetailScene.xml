@@ -66,7 +66,7 @@
 
                 <Rectangle height="200" width="860" translation="[10,120]">
                     <Label height="200" width="860"
-                           font="font:SmallSystemFont"
+                           font="font:MediumSystemFont"
                            color="#CCCCCC"
                            id="descriptionLabel"
                            wrap="true" />
