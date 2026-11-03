@@ -51,6 +51,21 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the published `latest` pointer is now gated by the device-free unit suite too (MJ-23, review roku__devops) — 2026-11-03
+
+- **Why it was broken.** `package.yml` gated the `package` job on the four
+  static legs only; the headless BrightScript unit gate lives in the Tests
+  workflow, and GitHub Actions cannot `needs` across workflows. A master
+  push whose unit suites were RED still built the zip and (via the tagless
+  rolling pointer) repointed `latest` at a build that had just failed its
+  own logic tests.
+- **Cure.** New `lint-headless-unit` job (checkout@v6 + setup-node@v6/24 +
+  `npm ci` + `node tests/scripts/run-headless-unit.mjs` — the exact command
+  the Tests workflow runs, device-free by design) added to `package`'s
+  `needs:`. The device-dependent `test-unit` job stays as-is (ROKU_HOST
+  gated, non-blocking by law). CHECK41 R4's every-`needs`-names-an-existing
+  -job cross-check re-validates the addition on every battery run.
+
 ### Checks — the install/toolchain fictions get an extinction gate before anyone can re-paste them (Check 75, R-ROKU-31) — 2026-11-03
 
 - **Law.** 53b478b cured the fabricated install endpoint, the two
