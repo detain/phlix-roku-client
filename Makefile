@@ -87,7 +87,7 @@ package-signed:
 # Review CR-3: Roku's dev-mode installer is the device's own web form on
 # port 80 at /plugin_install, HTTP digest auth (docs/device-verification.md
 # step 3) — :8060 is ECP and documents only launch/keypress/query, so the
-# old ':8060/install/app' Basic target could never have worked. MN-30: the
+# old 'install/app on :8060' Basic target could never have worked. MN-30: the
 # leg ran 'curl -v', echoing the digest user line into scrollback; now -sS
 # like its siblings.
 # M-ROKU-21: credentials no longer ride curl argv (-u user:pass is visible in

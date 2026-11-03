@@ -10980,4 +10980,148 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 75: the shipped doc surface stays free of the era install/toolchain fictions, and the real recipe keeps its markers (CR-3 / CR-4 / MN-30 era) ==="
+# WHY: 53b478b cured the fabricated install/toolchain prose out of the shipped
+# docs — an install endpoint hung off the ECP port, two npm-global installs of
+# CLIs that 404 on the public registry (live-probed), a Makefile dev-target
+# that never existed, and a raw form field that re-created the dual-source
+# shape the C1 law forbids. Every cure was one-time prose surgery: each banned
+# string can be pasted back by a helpful future lane, and the CR-3/CR-4 era
+# proved fiction survives review rounds. This leg makes the class extinct by
+# construction over the surfaces that ship to humans, and R2 ensures the gate
+# can never be satisfied by deleting the working recipe it protects.
+# NUMBERING: 75 collision-probed at 53b478b (grep 'Check 75' scripts tests
+# Makefile docs -> rc=1; highest prior header = Check 74).
+# SELF-BURN (CHECK69/71 law): the banned strings are assembled from adjacent
+# fragments so neither this script nor the twin carries a contiguous needle;
+# the verbatim forms live only in docs/static-checks.md row 75, which R1
+# deliberately excludes (the ledger is the quote-carrier). CHANGELOG.md is
+# outside the scan too: verbatim history must keep naming what it retracted.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import glob, os, re, sys
+
+repo = os.environ["REPO"]
+os.chdir(repo)
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+# ---- R1: the era fictions stay extinct on the shipped doc surface ----------
+# fragment + fragment = the banned contiguous string (SELF-BURN); the label
+# names the fiction class so even the diagnostics never reprint it whole.
+NEEDLES = [
+    ("8060/" + "install", "install-endpoint fiction (install is not an "
+                          "ECP route) [CR-3]"),
+    ("npm install -g " + "rokudev", "npm-global CLI fiction (the registry "
+                                    "404s the name) [CR-4]"),
+    ("npm install -g " + "rokupkg", "npm-global CLI fiction (the registry "
+                                    "404s the name) [CR-4]"),
+    ("rokupkg --" + "install", "install-flag fiction (no such CLI) [CR-4]"),
+    ("dev-" + "install", "Makefile dev-target fiction (the target never "
+                         "existed) [CR-4 era]"),
+    ("manifest=@" + "manifest", "raw form-field fiction (re-creates the "
+                                "dual-source shape the C1 law forbids)"),
+]
+
+# The surfaces that ship to a human or a device tool: the three root docs,
+# every doc except this gate's own ledger (R4 reads that file), every
+# workflow YAML, and every shipped .brs.
+ANCHORS = ("Makefile", "README.md", "CLAUDE.md")
+FILES = list(ANCHORS)
+FILES += sorted(f for f in glob.glob("docs/*.md")
+                if f != "docs/static-checks.md")
+FILES += sorted(glob.glob(".github/workflows/*.yml"))
+FILES += sorted(glob.glob("source/**/*.brs", recursive=True))
+FILES += sorted(glob.glob("components/**/*.brs", recursive=True))
+
+for path in FILES:
+    src = read(path)
+    if src is None:
+        problems.append(f"  {path} - CHECK75 R1: scan member unreadable")
+        continue
+    for i, line in enumerate(src.splitlines(), 1):
+        for needle, label in NEEDLES:
+            if needle in line:
+                problems.append(
+                    f"  {path}:{i} - CHECK75 R1: the {label} is back on "
+                    "the shipped doc surface — a cured fiction cannot be "
+                    "re-pasted")
+
+# ---- R2: the real recipe keeps its identifying markers ----------------------
+# The flip side of R1: all three markers ride BOTH the Makefile install leg
+# and the README manual recipe (review CR-3's shipped cure).
+MARKERS = ("/plugin_install", "mysubmit=Install", "digest")
+for path in ("Makefile", "README.md"):
+    src = read(path)
+    if src is None:
+        continue  # R1 already convicted the unreadable anchor
+    for marker in MARKERS:
+        if marker not in src:
+            problems.append(
+                f"  {path} - CHECK75 R2: the real install recipe's marker "
+                f"{marker!r} vanished — the extinction gate cannot be fed "
+                "by deleting the recipe it protects [CR-3]")
+
+# ---- R3: the scan cannot go vacuous ------------------------------------------
+# Anchors are mandatory members; the file-count floor was measured at ship
+# time (76 in the repo AND the twin layout — the twin stages the complete
+# scan set for exactly this reason).
+for path in ANCHORS:
+    if not os.path.isfile(path):
+        problems.append(
+            f"  CHECK75 R3: required scan anchor {path} vanished — the doc "
+            "surface changed shape; rotate this leg in lockstep, never let "
+            "it shrink silently")
+if len(FILES) < 70:
+    problems.append(
+        f"  CHECK75 R3: the scan observed {len(FILES)} files (floor 70, set "
+        "by measurement at ship time: 76 in repo and twin layouts) — the "
+        "glob or the tree changed shape; rotate with disclosure, never let "
+        "this leg go vacuous")
+
+# ---- R4: the ledger row keeps its cure markers ------------------------------
+LEDGER = read("docs/static-checks.md")
+if LEDGER is None:
+    problems.append("  docs/static-checks.md - CHECK75 R4: unreadable")
+else:
+    rows = [l for l in LEDGER.splitlines() if re.match(r"^\|\s*75\s*\|", l)]
+    if not rows:
+        problems.append(
+            "  docs/static-checks.md - CHECK75 R4: row 75 vanished — the "
+            "checks ledger must enumerate this shipped leg (CHECK71/72/73 "
+            "R4 precedent)")
+    else:
+        for l in rows:
+            for marker in ("CR-3", "CR-4"):
+                if marker not in l:
+                    problems.append(
+                        f"  docs/static-checks.md - CHECK75 R4: row 75 lost "
+                        f"its cure marker {marker!r} — ledger and leg "
+                        "rotate in the same commit")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK75: %d doc-fiction gate pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print(f"  CHECK75: the six era fictions are extinct across the {len(FILES)}-file")
+print("           shipped doc surface, the real port-80 recipe keeps its")
+print("           three markers in Makefile and README, and ledger row 75")
+print("           carries its CR-3/CR-4 cure refs — the fiction class cannot")
+print("           re-enter the docs silently")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

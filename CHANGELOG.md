@@ -51,6 +51,41 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Checks — the install/toolchain fictions get an extinction gate before anyone can re-paste them (Check 75, R-ROKU-31) — 2026-11-03
+
+- **Law.** 53b478b cured the fabricated install endpoint, the two
+  registry-404 npm-global CLIs, the never-existing Makefile dev target and
+  the raw manifest form field out of the shipped docs — but every cure was
+  one-time prose surgery with no gate. Check 75 (scripts/verify-runtime.sh)
+  now scans the 76-file human surface (Makefile, README.md, CLAUDE.md, every
+  docs/*.md except this ledger, every workflow YAML, every shipped .brs)
+  for the six verbatim banned strings — quote-carried only by
+  docs/static-checks.md row 75; both gate scripts assemble them from
+  fragments per the CHECK69/71 SELF-BURN law — and demands the real
+  port-80 recipe's three markers (`/plugin_install`, `mysubmit=Install`,
+  `digest`) in both Makefile and README (R2: the extinction gate can never
+  be fed by deleting the recipe), floors the scan at 70 files with
+  mandatory root anchors (R3), and pins row 75's cure refs (R4).
+- **Cure-prose rephrase.** The two remaining contiguous fiction strings on
+  the cured surface (the Makefile's CR-3 docblock and publishing.md's
+  deleted-instruction sentence) now say the same truth in non-contiguous
+  spelling; meaning unchanged. Red-on-parent MEASURED over the pre-rephrase
+  surface: CHECK75 convicted exactly its own 3 pins — 2 R1 hits naming
+  Makefile:90 and docs/publishing.md:102, plus R4 before row 75 joined the
+  ledger (the quote-carrier law's self-evidence). Real-tree full battery:
+  rc=0, 75 legs, all 74 siblings untouched.
+- **Twin + staging.** Five plant-and-restore reds in
+  tests/scripts/verify-runtime-portable.sh (era strings written into
+  README.md / a NEW docs file / publishing.md / a test.yml comment, each
+  exactly one R1 conviction naming its file; a Makefile marker rename
+  convicting exactly one R2 alone with R1 silent), CHECK41/CHECK62/
+  CHECK65/CHECK74 independence spot-pins, restore-to-green with CHECK75
+  green. CLAUDE.md, lint.yml and the five previously unstaged docs joined
+  the stage list so the CI layout measures the identical 76-file set (the
+  R3 floor would convict an under-staged layout — CHECK41/CHECK60
+  staging-gap precedent). No unit suite; headless era 210/0/53 unmoved —
+  statement-presence leg (CHECK74 precedent).
+
 ### Fixed — the install recipe targets the real device installer; the publishing toolchain stops promising two CLIs that do not exist (review roku__writer CR-3 + CR-4; roku__devops MN-30) — 2026-11-03
 
 - **CR-3 (endpoint truth).** `make install` and the README's manual recipe

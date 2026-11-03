@@ -99,7 +99,8 @@ What exists **today** (pinned against drift by verify-runtime Check 40):
    signer matches the probe** [review CR-4]: treat `make package-signed`
    as the signing-chain scaffold until a signer that satisfies the probe
    is provisioned in your environment. An earlier revision told you to
-   `npm install -g rokudev` — that instruction was fiction and is deleted.
+   install the `rokudev` CLI globally from the npm registry — that
+   instruction was fiction and is deleted.
    Store submission itself is a browser flow on the Roku portal (Step 2),
    not a CLI flow.
 
