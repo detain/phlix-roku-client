@@ -22,7 +22,10 @@
         <field id="event" type="assocarray" alwaysNotify="true" />
 
         <!-- Task->scene connection state string:
-             "connecting" | "open" | "closed" | "error". -->
+             "connecting" | "open" | "reconnecting" | "closed" | "error".
+             MJ-8 era: "reconnecting" rides the shared-port ladder between
+             dials; the scene may ignore it - the open/closed event contract is
+             unchanged, transient drops emit NO event at all. -->
         <field id="connectionState" type="string" />
     </interface>
 

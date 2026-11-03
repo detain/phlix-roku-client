@@ -12528,4 +12528,137 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 88: the party leg rides the shared ladder - transient drops re-dial, deaths stop lying, sends report shortfalls (MJ-8/MN-11 era) ==="
+# WHY: the MJ-8 review found the asymmetry: HubCommandTask shipped a 5-rung
+# reconnect ladder while SyncPlayTask single-shot it - one Wi-Fi hiccup ended
+# the party permanently, the scene just banners on closed/error. The cure:
+#   - the rung table moved SHARED into source/lib/SyncPlayProtocol.brs
+#     (SyncPlayBackoffMs / SyncPlayMaxAttempts); no task may own it again;
+#   - SyncPlayTask dials inside the ladder (DialAndConsume), re-joins the
+#     learned group behind every fresh handshake (m.replayCmd/m.needsRejoin),
+#     arms OS keepalive (SetKeepAlive(true)) and a 3-tick pong watchdog
+#     (m.missedPings), and defers "closed" to true exhaustion;
+#   - MN-11: every socket write binds its count - a SHORT write is a desynced
+#     stream and is treated as death (ladder), never ignored. Only
+#     SendCloseAndDie keeps a best-effort bare send (intentional death).
+# NUMBERING: 88 collision-probed at 897376f, highest prior 87.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+def read(p):
+    try:
+        with open(p, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        return None
+
+problems = []
+
+PROTO = read("source/lib/SyncPlayProtocol.brs")
+SYNC = read("components/SyncPlayTask.brs")
+HCT = read("components/HubCommandTask.brs")
+SXML = read("components/SyncPlayTask.xml")
+for name, src in (("source/lib/SyncPlayProtocol.brs", PROTO), ("components/SyncPlayTask.brs", SYNC), ("components/HubCommandTask.brs", HCT), ("components/SyncPlayTask.xml", SXML)):
+    if src is None:
+        problems.append(f"  {name} - CHECK88: unreadable")
+
+# ---- R1 rungs shared law ----------------------------------------------------
+missing1 = []
+if PROTO is not None:
+    if "    delays = [1000, 2000, 4000, 8000, 16000]" not in PROTO:
+        missing1.append("the rung table is not owned by SyncPlayProtocol.brs")
+    if "function SyncPlayBackoffMs(attempt as Integer) as Integer" not in PROTO:
+        missing1.append("SyncPlayBackoffMs definition lost")
+    if "function SyncPlayMaxAttempts() as Integer" not in PROTO:
+        missing1.append("SyncPlayMaxAttempts definition lost")
+for name, src in (("components/SyncPlayTask.brs", SYNC), ("components/HubCommandTask.brs", HCT)):
+    if src is None:
+        continue
+    if "SyncPlayBackoffMs(" not in src:
+        missing1.append(f"{name} no longer waits on the SHARED rung")
+    if "SyncPlayMaxAttempts()" not in src:
+        missing1.append(f"{name} no longer consults the SHARED cap")
+    if "delays = [" in src:
+        missing1.append(f"{name} re-inlines its own delays table (the split-rungs asymmetry class)")
+if missing1:
+    problems.append("  source/lib/SyncPlayProtocol.brs + both tasks - CHECK88 R1: " + "; ".join(missing1) + " (MJ-8: one ladder law for both sockets, owned once)")
+
+# ---- R2 syncplay ladder family ----------------------------------------------
+missing2 = []
+if SYNC is not None:
+    for needle in (
+        "m.sock.SetKeepAlive(true)",
+        'if m.attempt > 0 then SetState("reconnecting")',
+        "outcome = DialAndConsume(host, port, path, bearerToken)",
+        "if m.replayCmd <> invalid and m.needsRejoin then",
+        "if m.missedPings >= 3 then",
+        'else if outcome = "connected" or m.wasEverOpen then',
+    ):
+        if needle not in SYNC:
+            missing2.append(needle)
+    if SYNC.count("m.missedPings = 0") != 3:
+        missing2.append(f"watchdog reset family is {SYNC.count('m.missedPings = 0')} lines, expected 3 (latch init / per-dial / time_pong)")
+    if SYNC.count("m.stopped = true") != 2:
+        missing2.append(f"stop latches are {SYNC.count('m.stopped = true')}, expected 2 (leave + close) - an unlatched stop re-dials a left party")
+    if 'if m.wsAcceptFailed then' not in SYNC or 'EmitError("local.ws_accept_invalid")' not in SYNC:
+        missing2.append("the exhaustion report lost the M-ROKU-14 accept-vs-timeout split (Check 46 law)")
+if missing2:
+    problems.append("  components/SyncPlayTask.brs - CHECK88 R2: " + "; ".join(missing2) + " (the ladder, keepalive, re-join and watchdog are one cure - MJ-8)")
+
+# ---- R3 send-return custody --------------------------------------------------
+missing3 = []
+if SYNC is not None:
+    for needle in (
+        "function SendMessage(typeStr as String, payload as Object) as Boolean",
+        "return sent = frame.Count()",
+        "function SendTimePing() as Boolean",
+        "if sent < 0 or sent < req.Len() then return false",
+    ):
+        if needle not in SYNC:
+            missing3.append(f"SyncPlayTask: {needle}")
+    total = SYNC.count("m.sock.Send(")
+    bound = SYNC.count("sent = m.sock.Send(")
+    if total != 3 or bound != 2:
+        missing3.append(f"SyncPlayTask socket-write custody is {bound} bound / {total} total, expected 2/3 (pong + SendMessage bound, SendCloseAndDie best-effort)")
+    if 'if not HandleCommand(rc) then running = false' not in SYNC:
+        missing3.append("SyncPlayTask: the funnel replay no longer routes a command death to the loop exit (Check 79 pairing)")
+if HCT is not None:
+    for needle in (
+        "if sent < 0 or sent < req.Len() then return false",
+        "sent = m.sock.Send(pong, 0, pong.Count())",
+    ):
+        if needle not in HCT:
+            missing3.append(f"HubCommandTask: {needle}")
+    if HCT.count("            if m.sock = invalid then return false") != 1:
+        missing3.append("HubCommandTask: the mid-pass socket-invalid check is gone (a dead pong must stop feeding frames)")
+if missing3:
+    problems.append("  both task dials - CHECK88 R3: " + "; ".join(missing3) + " (a short write IS death - MN-11)")
+
+# ---- R4 docs -----------------------------------------------------------------
+docs = read("docs/static-checks.md")
+if docs is None or not re.search(r"^\|\s*88\s*\|.*MJ-8.*MN-11", docs, re.M):
+    problems.append("  docs/static-checks.md - CHECK88 R4: row 88 is missing or does not name MJ-8 + MN-11")
+chg = read("CHANGELOG.md")
+if chg is None or "MN-11" not in chg or "SetKeepAlive" not in chg:
+    problems.append("  CHANGELOG.md - CHECK88 R4: the entry must name MN-11 and the keepalive law")
+cert = read("docs/certification.md")
+if cert is None or not re.search(r"^\|\s*7\.9\s*\|.*MJ-8", cert, re.M):
+    problems.append("  docs/certification.md - CHECK88 R4: row 7.9 is missing or does not name MJ-8")
+
+if problems:
+    print("  CHECK88: %d pin group(s) broken:" % len(problems))
+    for p in problems:
+        print(p)
+    sys.exit(1)
+
+print('  CHECK88: the party leg rides the shared ladder - rungs owned once, deaths re-dial')
+print('           behind the replayed join, keepalive armed, a 3-tick pong watchdog stands in,')
+print('           and every socket write reports its own shortfall (MJ-8/MN-11 era).')
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

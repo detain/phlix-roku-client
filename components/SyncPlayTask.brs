@@ -15,7 +15,11 @@
 '   - roSocketEvent      (the roStreamSocket is readable)
 '   - roSGNodeEvent      (the scene wrote m.top.command, observed into the port)
 ' A wait(PING_INTERVAL_MS, port) returning invalid = the periodic tick -> send a
-' time_ping.
+' time_ping. Since the MJ-8 era the thread OUTLIVES a transient drop: every
+' dial runs inside a bounded reconnect ladder (the rung table is shared with
+' HubCommandTask in source/lib/SyncPlayProtocol.brs) and the learned group is
+' re-joined behind each fresh handshake; "closed"/"error" reach the scene only
+' at true terminal or an explicit leave/close.
 '
 ' THREAD RULE: this code runs on the task thread. It may ONLY read m.top.config /
 ' m.top.command and WRITE m.top.event / m.top.connectionState. It must NEVER
@@ -102,47 +106,124 @@ sub RunSocket()
     catchUp = m.top.command
     if catchUp <> invalid then m.pendingCommands.Push(catchUp)
 
-    ' Open the plaintext TCP socket.
-    m.sock = CreateObject("roStreamSocket")
-    if m.sock = invalid then
-        EmitError("local.socket_unavailable")
-        Cleanup()
-        return
-    end if
-    m.sock.SetMessagePort(m.port)
+    ' MJ-8 (review roku__asphp): the party leg must survive a transient drop.
+    ' RunSocket was single-shot (one dead dial or one socket death ended the
+    ' party permanently) while its sibling HubCommandTask shipped a full 5-rung
+    ' ladder - the asymmetry WAS the defect. Ladder law below: every dial runs
+    ' DialAndConsume; unexpected failures back off on the shared port with the
+    ' SHARED rungs and re-dial, re-joining the learned group (m.replayCmd) so
+    ' the scene contract stays open/closed-only.
+    m.stopped = false
+    m.attempt = 0
+    m.needsRejoin = false
+    m.replayCmd = invalid
+    m.missedPings = 0
+    m.wasEverOpen = false
+    m.dialConnectFailed = false
 
+    ' MJ-8: the open-whenever ladder - the shape its sibling has always shipped.
+    ' A dial failure or socket death backs off on the shared port and re-dials;
+    ' a command that arrives mid-backoff rides the funnel (see the local
+    ' BackoffAndCheckSpent), and the learned group is re-joined behind every
+    ' fresh handshake. Terminal reporting is DEFERRED to exhaustion so the
+    ' scene keeps its honest open/closed law (MJ-7 stop custody unchanged).
+    outcome = ""
+    while not m.stopped
+        if m.attempt > 0 then SetState("reconnecting")
+        outcome = DialAndConsume(host, port, path, bearerToken)
+        if m.stopped then exit while
+        if outcome = "terminal" then exit while
+        if outcome = "connected" then
+            ' A full session lived since the last failure: the ladder restarts
+            ' from rung 1 (a hub that accepts-then-drops still spends it).
+            m.attempt = 0
+            m.needsRejoin = true
+        end if
+        if BackoffAndCheckSpent() then exit while
+    end while
+
+    if not m.stopped then
+        if outcome = "terminal" then
+            EmitError("local.socket_unavailable")
+        else if outcome = "connected" or m.wasEverOpen then
+            ' Ladder spent AFTER a live connection: the party is genuinely
+            ' over - the scene's closed arm owns the chrome reset (exactly the
+            ' pre-MJ-8 socket-death contract, once the retries gave up).
+            SetState("closed")
+            EmitEvent({ kind: "closed" })
+        else if m.wsAcceptFailed then
+            ' The last dial got its 101 without the accept proof landing: the
+            ' honest class stays separate from a timeout (M-ROKU-14).
+            EmitError("local.ws_accept_invalid")
+        else if m.dialConnectFailed then
+            EmitError("local.connect_failed")
+        else
+            EmitError("local.connect_timeout")
+        end if
+    end if
+
+    Cleanup()
+end sub
+
+' MJ-8: ONE dial lifecycle - socket (with OS keepalive), WS handshake, the
+' post-handshake group re-join and funnel replay, then the consume loop.
+' Returns:
+'   "terminal"   no socket object at all (device class - honest terminal)
+'   "dial"       connect or handshake failed (the ladder decides)
+'   "connected"  a session lived and ended (re-dial must re-join the group)
+function DialAndConsume(host as String, port as Integer, path as String, bearerToken as String) as String
+    m.sock = CreateObject("roStreamSocket")
+    if m.sock = invalid then return "terminal"
+    m.sock.SetMessagePort(m.port)
+    ' MJ-8 (review roku__asphp): OS-level keepalive probes were NEVER called
+    ' on this socket - a black-holed route (packets vanish without RST) then
+    ' hangs TCP-side; the pong watchdog below is the application-side partner.
+    m.sock.SetKeepAlive(true)
     addr = CreateObject("roSocketAddress")
     addr.SetHostName(host)
     addr.SetPort(port)
     m.sock.SetSendToAddress(addr)
     m.sock.NotifyReadable(true)
     m.sock.NotifyWritable(true)
-
-    ok = m.sock.Connect()
-    if not ok then
-        EmitError("local.connect_failed")
-        Cleanup()
-        return
+    ' Fresh dial, fresh framing state: the old buffer may hold half a frame
+    ' from the dead connection (stale bytes would desync the new one), and
+    ' the tick must not ping before THIS handshake completes.
+    m.handshakeDone = false
+    m.buffer = CreateObject("roByteArray")
+    m.missedPings = 0
+    m.dialConnectFailed = false
+    if not m.sock.Connect() then
+        m.dialConnectFailed = true
+        m.sock.Close()
+        m.sock = invalid
+        return "dial"
     end if
-
-    ' Wait (bounded) for the socket to become connected, then send the handshake.
     if not WaitForConnect(host, port, path, bearerToken) then
-        ' A failed accept proof is its own honest class: the server answered a
-        ' 101 without having (correctly) seen our key — never dress that up as
-        ' a timeout (M-ROKU-14).
-        if m.wsAcceptFailed then
-            EmitError("local.ws_accept_invalid")
-        else
-            EmitError("local.connect_timeout")
-        end if
-        Cleanup()
-        return
+        m.sock.Close()
+        m.sock = invalid
+        return "dial"
     end if
 
-    ' Main loop: tick (time_ping) on timeout, else dispatch socket/command events.
-    running = true
+    ' MJ-8: a re-dial RE-JOINS before anything else rides the new socket -
+    ' group membership is per-connection on the server, so the party chrome
+    ' and MJ-9's anchor adoption (through the fresh "open" event below) resume
+    ' exactly as if the member had joined again. A failed re-join send leaves
+    ' m.needsRejoin armed; the fresh socket will die fast and re-ladder.
+    if m.replayCmd <> invalid and m.needsRejoin then
+        m.yourId = ""
+        if SendMessage(m.replayCmd.type, m.replayCmd.payload) then
+            m.needsRejoin = false
+        end if
+    end if
+
+    SetState("open")
+    EmitEvent({ kind: "open" })
+    m.wasEverOpen = true
+    ' Prime the time-sync with an immediate ping.
+    SendTimePing()
 
     ' MJ-6: replay the funnel in scene order now that the socket is upgraded.
+    running = true
     while m.pendingCommands.Count() > 0 and running
         rc = m.pendingCommands.Shift()
         if rc <> m.lastCommand then
@@ -151,12 +232,24 @@ sub RunSocket()
         end if
     end while
 
+    ' Main loop: tick (time_ping) on timeout, else dispatch socket/command events.
     while running
         msg = wait(PingIntervalMs(), m.port)
 
         if msg = invalid then
             ' Periodic tick: send a time_ping (only once the handshake completed).
-            if m.handshakeDone then SendTimePing()
+            if m.handshakeDone then
+                if m.missedPings >= 3 then
+                    ' MJ-8 pong watchdog: three consecutive ticks with no
+                    ' syncplay_time_pong means the route is black-holed. Drop
+                    ' the socket into the ladder instead of pinging into the
+                    ' void for the TCP-retransmit horizon (review finding).
+                    running = false
+                else if not SendTimePing() then
+                    ' MN-11: a send shortfall = a desynced stream. Same drop.
+                    running = false
+                end if
+            end if
         else if type(msg) = "roSocketEvent" then
             if not HandleSocketEvent() then running = false
         else if type(msg) = "roSGNodeEvent" then
@@ -171,15 +264,39 @@ sub RunSocket()
             end if
         end if
     end while
+    return "connected"
+end function
 
-    Cleanup()
-end sub
+' Count one failure on the reconnect ladder, wait the SHARED rung on the
+' shared port, and report whether the ladder is spent. Unlike the hub
+' consumer's sibling, a command event arriving DURING the wait joins the
+' MJ-6 funnel instead of executing immediately: the socket is down, and
+' HandleCommand would consume the write into a dead SendMessage.
+' @return Boolean - true when the RunSocket loop must stop
+function BackoffAndCheckSpent() as Boolean
+    if m.stopped then return true
+    m.attempt = m.attempt + 1
+    if m.attempt > SyncPlayMaxAttempts() then
+        return true
+    end if
+    ev = wait(SyncPlayBackoffMs(m.attempt - 1), m.port)
+    ' MJ-6 funnel law, third window (nested shape on purpose: Check 79
+    ' counts the two PRE-LOOP drain arms by their single-line form).
+    if type(ev) = "roSGNodeEvent" then
+        if ev.GetField() = "command" then
+            bc = ev.GetData()
+            if bc <> invalid then m.pendingCommands.Push(bc)
+        end if
+    end if
+    return m.stopped
+end function
 
 ' Block (bounded) until the socket reports connected, then send the WS upgrade
 ' request and read until "\r\n\r\n", validating the 101 response AND the
 ' RFC6455 Sec-WebSocket-Accept proof (fail-closed; m.wsAcceptFailed tells the
 ' two classes apart for the caller). Returns true on a verified upgrade.
-' Runs ONLY at startup (before the main loop).
+' Runs on EVERY ladder dial (the consume loop lives behind it in
+' DialAndConsume - MJ-8 era).
 ' `bearerToken` is the JWT for the two-entry bearer subprotocol carrier
 ' ("Sec-WebSocket-Protocol: bearer, <jwt>" — :8097 server law since phlix-server
 ' 424c14d0); "" sends no offer (the dial then fails server-side unauthenticated,
@@ -229,7 +346,10 @@ function WaitForConnect(host as String, port as Integer, path as String, bearerT
     end if
     req = m.proto.BuildHandshakeRequest(host, port, path, keyB64, extraHeaders)
     sent = m.sock.SendStr(req)
-    if sent < 0 then return false
+    ' MJ-8/MN-11: a SHORT write desyncs the server-side parser exactly like
+    ' a negative one (the upgrade request is one atomic message) - refuse
+    ' the dial; the ladder re-sends it whole on a fresh socket.
+    if sent < 0 or sent < req.Len() then return false
 
     ' Read the HTTP response into a BYTE accumulator and locate the "\r\n\r\n"
     ' header terminator BY BYTES (0x0D 0x0A 0x0D 0x0A). The 101 response and the
@@ -293,10 +413,8 @@ function WaitForConnect(host as String, port as Integer, path as String, bearerT
     AppendRemainderBytes(headerBytes, termIdx + 4)
 
     m.handshakeDone = true
-    SetState("open")
-    EmitEvent({ kind: "open" })
-    ' Prime the time-sync with an immediate ping.
-    SendTimePing()
+    ' MJ-8: the open trio lives in DialAndConsume now - the group re-join
+    ' must land behind the fresh handshake BEFORE the scene sees "open".
     return true
 end function
 
@@ -350,9 +468,9 @@ function HandleSocketEvent() as Boolean
         ' Would-block / transient - keep going.
         return true
     else if n = 0 then
-        ' Peer closed.
-        SetState("closed")
-        EmitEvent({ kind: "closed" })
+        ' Peer closed. MJ-8: the LADDER decides terminality - a death
+        ' mid-session backs off and re-dials; "closed" reaches the scene only
+        ' at exhaustion, so a transient drop never resets the party chrome.
         return false
     end if
 
@@ -362,11 +480,10 @@ function HandleSocketEvent() as Boolean
     ' [W-min93 M-ROKU-16 (part)] ParseFrames rejects declared lengths it cannot
     ' safely consume (negative-overflow / beyond-sane-max classes, review
     ' roku__crossfe m8). A rejection means the peer is desynced or hostile:
-    ' drop the socket; the scene's closed-arm chrome already covers the UX
-    ' (reconnect ladder itself is the hardware-verification-gated remainder).
+    ' drop the socket; the reconnect ladder (MJ-8 era) re-dials from a fresh
+    ' handshake, and the scene's closed-arm chrome fires only at exhaustion.
     if res.rejectedOversize = true then
-        SetState("closed")
-        EmitEvent({ kind: "closed" })
+        ' MJ-8: desynced/hostile stream - drop into the ladder.
         return false
     end if
     if res.consumed > 0 then
@@ -379,11 +496,9 @@ function HandleSocketEvent() as Boolean
     ' declared lengths, not arrival volume. The post-consumption residual of an
     ' honest stream is one incomplete frame (<= MaxFrameBytes + 14-byte header)
     ' plus at most one already-sent follow-on chunk; anything beyond that cap
-    ' can never complete legitimately, so drop the socket. The scene's
-    ' closed-arm reconnect ladder already covers the UX.
+    ' can never complete legitimately, so drop the socket; the ladder
+    ' re-dials (MJ-8) and the scene sees "closed" only at exhaustion.
     if m.buffer.Count() > m.proto.MaxFrameBytes + 4096 + 64 then
-        SetState("closed")
-        EmitEvent({ kind: "closed" })
         return false
     end if
 
@@ -401,8 +516,10 @@ function HandleSocketEvent() as Boolean
             exit for
         else if op = m.proto.OP_PING then
             ' Echo the payload bytes in a pong (direct, not batched).
+            ' MN-11: a short pong write desyncs the stream - drop to the ladder.
             pong = m.proto.BuildPongFrame(frame.payloadBytes)
-            m.sock.Send(pong, 0, pong.Count())
+            sent = m.sock.Send(pong, 0, pong.Count())
+            if sent < pong.Count() then return false
         else if op = m.proto.OP_PONG then
             ' Ignore unsolicited pongs.
         else if op = m.proto.OP_TEXT then
@@ -419,8 +536,8 @@ function HandleSocketEvent() as Boolean
     end if
 
     if closed then
-        SetState("closed")
-        EmitEvent({ kind: "closed" })
+        ' MJ-8: the server said goodbye - the ladder re-dials (a
+        ' rolling restart is exactly this frame); "closed" fires at exhaustion.
         return false
     end if
 
@@ -444,6 +561,8 @@ function BuildSceneEvent(jsonText as String) as Object
         t1 = ReadLong(msg, "client_time", m.lastPingT1)
         t2 = ReadLong(msg, "server_time", 0&)
         m.proto.AddPong(t1, t2, NowMs())
+        ' MJ-8: the route answered - the pong watchdog restarts.
+        m.missedPings = 0
         return { kind: "timesync", offset: m.proto.GetOffset(), stable: m.proto.IsStable() }
 
     else if t = "syncplay_group_state" then
@@ -452,6 +571,18 @@ function BuildSceneEvent(jsonText as String) as Object
         m.yourId = yourId
         group = invalid
         if msg.DoesExist("group") and type(msg.group) = "roAssociativeArray" then group = msg.group
+        ' MJ-8: upgrade the ladder's re-join payload to THIS server-learned
+        ' group id the moment it arrives (a create must come back as a join;
+        ' the group is only reachable by id on the next connection).
+        if group <> invalid and m.replayCmd <> invalid then
+            gid = ""
+            if group.DoesExist("group_id") and group.group_id <> invalid then gid = StringifyId(group.group_id)
+            if gid <> "" then
+                replayPayload = { group_id: gid }
+                AddMemberName(replayPayload)
+                m.replayCmd = { type: "syncplay_group_join", payload: replayPayload }
+            end if
+        end if
         return { kind: "group_state", group: group, your_id: yourId }
 
     else if t = "syncplay_playback_play" or t = "syncplay_playback_pause" or t = "syncplay_playback_seek" then
@@ -528,17 +659,25 @@ function HandleCommand(cmd as Object) as Boolean
         if cmd.DoesExist("group_name") and cmd.group_name <> invalid then groupName = cmd.group_name
         payload = { group_name: groupName }
         AddMemberName(payload)
-        SendMessage("syncplay_group_create", payload)
+        ' MJ-8: remember the join recipe the ladder must replay (the
+        ' group_state arm upgrades a create to the learned id).
+        m.replayCmd = { type: "syncplay_group_create", payload: payload }
+        if not SendMessage("syncplay_group_create", payload) then return false
 
     else if kind = "join" then
         groupId = ""
         if cmd.DoesExist("group_id") and cmd.group_id <> invalid then groupId = StringifyId(cmd.group_id)
         payload = { group_id: groupId }
         AddMemberName(payload)
-        SendMessage("syncplay_group_join", payload)
+        ' MJ-8: the ladder replays exactly this join after a re-dial.
+        m.replayCmd = { type: "syncplay_group_join", payload: payload }
+        if not SendMessage("syncplay_group_join", payload) then return false
 
     else if kind = "leave" then
-        ' Best-effort leave then close the socket.
+        ' MJ-7/MJ-8: the goodbye is best-effort, the STOP is authoritative -
+        ' m.stopped keeps the reconnect ladder from re-joining a left group.
+        m.replayCmd = invalid
+        m.stopped = true
         SendMessage("syncplay_group_leave", { group_id: GroupIdOf(cmd), member_id: m.yourId })
         SendCloseAndDie()
         return false
@@ -546,21 +685,25 @@ function HandleCommand(cmd as Object) as Boolean
     else if kind = "play" then
         posMs = 0&
         if cmd.DoesExist("position_ms") and cmd.position_ms <> invalid then posMs = cmd.position_ms
-        SendMessage("syncplay_playback_play", { group_id: GroupIdOf(cmd), member_id: m.yourId, position: posMs, server_time: NowMs() })
+        if not SendMessage("syncplay_playback_play", { group_id: GroupIdOf(cmd), member_id: m.yourId, position: posMs, server_time: NowMs() }) then return false
 
     else if kind = "pause" then
         posMs = 0&
         if cmd.DoesExist("position_ms") and cmd.position_ms <> invalid then posMs = cmd.position_ms
-        SendMessage("syncplay_playback_pause", { group_id: GroupIdOf(cmd), member_id: m.yourId, position: posMs, server_time: NowMs() })
+        if not SendMessage("syncplay_playback_pause", { group_id: GroupIdOf(cmd), member_id: m.yourId, position: posMs, server_time: NowMs() }) then return false
 
     else if kind = "seek" then
         fromMs = 0&
         toMs = 0&
         if cmd.DoesExist("from_ms") and cmd.from_ms <> invalid then fromMs = cmd.from_ms
         if cmd.DoesExist("to_ms") and cmd.to_ms <> invalid then toMs = cmd.to_ms
-        SendMessage("syncplay_playback_seek", { group_id: GroupIdOf(cmd), member_id: m.yourId, from_position: fromMs, to_position: toMs, server_time: NowMs() })
+        if not SendMessage("syncplay_playback_seek", { group_id: GroupIdOf(cmd), member_id: m.yourId, from_position: fromMs, to_position: toMs, server_time: NowMs() }) then return false
 
     else if kind = "close" then
+        ' MJ-8: latch the stop BEFORE the close - the ladder must never
+        ' outlive an explicit scene close (Check 79's stop custody contract).
+        m.replayCmd = invalid
+        m.stopped = true
         SendCloseAndDie()
         return false
     end if
@@ -585,22 +728,33 @@ sub AddMemberName(payload as Object)
     end if
 end sub
 
- ' Send a periodic time_ping (t1 = NowMs()).
- ' Skip when not joined to a session (m.yourId is set on group_state, confirming join).
- sub SendTimePing()
-     if m.yourId = "" or m.yourId = invalid then return
+ ' Send the periodic time_ping (t1 = NowMs()). Skipped while not joined
+ ' (m.yourId is set on group_state, confirming join). MJ-8: every SENT ping
+ ' counts against the pong watchdog (BuildSceneEvent resets the counter when
+ ' a syncplay_time_pong decodes); the return reports the MN-11 send custody
+ ' so the main loop can drop a black-holed dial into the ladder.
+ function SendTimePing() as Boolean
+     if m.yourId = "" or m.yourId = invalid then return true
      t1 = NowMs()
     m.lastPingT1 = t1
-    SendMessage("syncplay_time_ping", { client_time: t1 })
-end sub
+    m.missedPings = m.missedPings + 1
+    return SendMessage("syncplay_time_ping", { client_time: t1 })
+end function
 
-' Encode + frame + send a SyncPlay message. No-op if the socket is gone.
-sub SendMessage(typeStr as String, payload as Object)
-    if m.sock = invalid then return
+' Encode + frame + send a SyncPlay message. MJ-8/MN-11: TRUE ONLY ON A
+' COMPLETE WRITE. roStreamSocket on a full non-blocking buffer returns a short
+' count - the frame then sits half-emitted and desyncs the byte stream with no
+' wire-level resync point, so a shortfall IS a dead socket: every caller
+' routes false to the reconnect ladder. Gone-socket returns false for the
+' same reason (the dial is already dying). SendCloseAndDie stays best-effort:
+' it is the intentional-death path where the ladder is latched off.
+function SendMessage(typeStr as String, payload as Object) as Boolean
+    if m.sock = invalid then return false
     json = m.proto.Encode(typeStr, payload)
     frame = m.proto.BuildTextFrame(json)
-    m.sock.Send(frame, 0, frame.Count())
-end sub
+    sent = m.sock.Send(frame, 0, frame.Count())
+    return sent = frame.Count()
+end function
 
 ' Send a WS close frame, close the socket, emit closed.
 sub SendCloseAndDie()

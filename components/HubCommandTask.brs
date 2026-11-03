@@ -50,17 +50,11 @@ sub Init()
     m.top.functionName = "RunConsumer"
 end sub
 
-' Reconnect ladder (ms), 5 rungs then give up — mirror of the ui's capped ladder.
-function BackoffMs(attempt as Integer) as Integer
-    delays = [1000, 2000, 4000, 8000, 16000]
-    if attempt < delays.Count() then return delays[attempt]
-    return 16000
-end function
-
-' Max reconnect attempts before giving up.
-function MaxAttempts() as Integer
-    return 5
-end function
+' MJ-8 (review roku__asphp asymmetry finding): the reconnect rungs moved to
+' source/lib/SyncPlayProtocol.brs (SyncPlayBackoffMs / SyncPlayMaxAttempts) so
+' the syncplay party leg ladders with EXACTLY this law - the table was
+' HubCommandTask-only, and the sibling single-shot dial was the defect.
+' Mirror of the ui's capped ladder: 5 rungs then give up.
 
 sub RunConsumer()
     cfg = m.top.config
@@ -159,12 +153,12 @@ end sub
 function BackoffAndCheckSpent() as Boolean
     if m.stopped then return true
     m.attempt = m.attempt + 1
-    if m.attempt > MaxAttempts() then
+    if m.attempt > SyncPlayMaxAttempts() then
         SetState("closed")
         return true
     end if
     ' Back off on the shared port; a "close" command interrupts the wait.
-    ev = wait(BackoffMs(m.attempt - 1), m.port)
+    ev = wait(SyncPlayBackoffMs(m.attempt - 1), m.port)
     if type(ev) = "roSGNodeEvent" then
         HandleCommand(ev.getData())
     end if
@@ -283,7 +277,9 @@ function WaitForConnect(host as String, port as Integer, path as String, relayTo
         "X-Phlix-Client-Version": ProtocolChannelVersion()
     })
     sent = m.sock.SendStr(req)
-    if sent < 0 then return false
+    ' MN-11: a SHORT upgrade write desyncs the server parser exactly like a
+    ' negative one - refuse the dial; the ladder re-sends it whole.
+    if sent < 0 or sent < req.Len() then return false
 
     ' Read the HTTP response into a BYTE accumulator and locate the "\r\n\r\n"
     ' terminator BY BYTES. The 101 response and the first WS frame can arrive in
@@ -376,6 +372,9 @@ function HandleSocketEvent() as Boolean
         m.buffer = m.proto.RemainderBuffer(m.buffer, parsed.consumed)
         for each frame in parsed.frames
             HandleFrame(frame)
+            ' MN-11: a pong shortfall invalidates the socket mid-pass;
+            ' stop feeding frames - the next loop is the ladder's.
+            if m.sock = invalid then return false
         end for
     end if
     ' [minors W-min95 M-ROKU-39, review roku__secnet m3] post-consumption residual
@@ -398,7 +397,16 @@ sub HandleFrame(frame as Object)
 
     if frame.opcode = m.proto.OP_PING then
         pong = m.proto.BuildPongFrame(frame.payloadBytes)
-        if m.sock <> invalid then m.sock.Send(pong, 0, pong.Count())
+        if m.sock <> invalid then
+            ' MN-11: bind the count - a half-written masked pong desyncs the
+            ' stream, so the honest act is to drop the socket; RunConsumer's
+            ' BackoffAndCheckSpent re-dials (the death paths already say so).
+            sent = m.sock.Send(pong, 0, pong.Count())
+            if sent < pong.Count() then
+                m.sock.Close()
+                m.sock = invalid
+            end if
+        end if
         return
     end if
 

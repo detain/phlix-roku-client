@@ -811,3 +811,20 @@ function ProtocolChannelVersion() as String
     if version = invalid or version = "" then return "unknown"
     return version
 end function
+' === MJ-8 SHARED RECONNECT RUNGS =============================================
+' The syncplay party leg (SyncPlayTask) and the hub command consumer
+' (HubCommandTask) reconnect with ONE law: the table used to live inside
+' HubCommandTask alone, and the asymmetry (hub ladders, party single-shots)
+' was the MJ-8 review finding. Rungs mirror the ui's capped ladder.
+' @param attempt Integer - 1-based failure count on the ladder
+' @return Integer - the wait window in milliseconds for that rung
+function SyncPlayBackoffMs(attempt as Integer) as Integer
+    delays = [1000, 2000, 4000, 8000, 16000]
+    if attempt < delays.Count() then return delays[attempt]
+    return 16000
+end function
+
+' Max reconnect attempts before the ladder is spent.
+function SyncPlayMaxAttempts() as Integer
+    return 5
+end function

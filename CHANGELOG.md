@@ -51,6 +51,17 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the watch-party leg reconnects: a transient drop is a backoff, not a funeral (MJ-8 MN-11) — 2026-11-03
+
+- Review roku__asphp MJ-8: `SyncPlayTask` single-shot its connection while its sibling `HubCommandTask` shipped a full five-rung reconnect ladder — one Wi-Fi hiccup ended the party permanently and the scene merely banners "disconnected". The rung table moved shared into `SyncPlayProtocol.brs` (`SyncPlayBackoffMs` / `SyncPlayMaxAttempts`), `RunSocket` became an open-whenever ladder around a new `DialAndConsume` (socket + handshake + consume loop), and the server-learned group id is RE-JOINED behind every fresh handshake before the scene sees "open" — MJ-9's anchor law then re-adopts the party position exactly as at first join.
+- The same finding's transport legs: `SetKeepAlive(true)` arms OS-level probes (the primitive was never called), and a three-tick pong watchdog (`m.missedPings` counts sent pings, resets on decoded `syncplay_time_pong`) drops black-holed routes into the ladder instead of pinging into the void for the TCP-retransmit horizon. Leave/close latch `m.stopped` first: the ladder never outlives an explicit stop, and "closed"/terminal errors now surface only at true exhaustion — mid-ladder deaths emit no event at all, so the party chrome survives a drop that recovers (zero new strings; a dedicated "reconnecting" banner copy is an owner-reel item, not a blocker).
+- MN-11 (same review family): every socket write binds its count — `SendMessage` and `SendTimePing` became Booleans, a SHORT write on the frame stream (half-emitted, no wire-level resync point) is treated as death and routes to the ladder, and the handshake `SendStr` refuses its dial on any shortfall. `SendCloseAndDie` stays best-effort on the intentional-death path. The hub task's pong and upgrade sends got the same custody.
+- Gates: Check 88 five-piece; red-parent over 897376f measured exactly 6 convictions; battery exit 0 with 88 strict-PASS lines; `make lint`, validate-xml, route-manifest (+ self-test) and the 214-case headless suite all green; catalogs stay v1.19.0 (no new keys).
+
+### Added — Check 88: the shared ladder, the re-joined dial and the counted write (MJ-8/MN-11 era) — 2026-11-03
+
+- Rungs shared once (a re-inlined `delays = [` in either task convicts), the syncplay custody family (keepalive / reconnecting state / DialAndConsume / replayed join / watchdog / stop latches / deferred closed report) and the write-count custody are pinned as one mechanism; twin plants EE/FF prove each half independently and restore to green.
+
 ### Fixed — the buried key stays buried, the manifest ships discipline, and the inputs carry caps (MN-26 MN-21 MN-6) — 2026-11-03
 
 - `detail.error_favorite_save` — a bare "Error" line with zero consumers, the abandoned-draft
