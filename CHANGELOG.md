@@ -51,6 +51,78 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the hub-supplied serverId is path-law-gated at pick, at read and at dial (MJ-18, review roku__secnet) — 2026-11-03
+
+- **The breach class.** `serverId` arrives from the hub's `/me/servers`
+  JSON, is stored raw by the picker and interpolated VERBATIM into three
+  credential-bearing compositions: the relay-token mint URL and the
+  `/syncplay/{id}` WS upgrade request line (`HubCommandTask` —
+  `BuildHandshakeRequest` carries no CR/LF filter, unlike
+  `ResolveRedirectTarget`'s deliberate one), and the media-proxy prefix
+  (`AppContext.GetMediaBaseUrl`). ParseJSON restores escaped `\r`/`\n` as
+  real CRLF, so a compromised hub (or an injector on an http hub lane)
+  could make the TV smuggle attacker-chosen headers or paths carrying the
+  minted bearer token onto :8804 and reshape every proxied media path —
+  one of the two live breaches of the repo's OWN M-ROKU-13 path law named
+  by the campaign review.
+- **The cure mirrors the shipped mediaId choke exactly, at three points.**
+  `OnRowSelected` now trims and refuses any id outside `IsSafeContentId`'s
+  [0-9A-Za-z_-] shape BEFORE it persists (the guard's trim contract honored
+  at the write); `GetActiveServerId` re-checks at every read and degrades an
+  unsafe stored value to `""` — the honest pre-pick state — so ids persisted
+  before this gate shipped can poison nothing; `RunConsumer` gains a
+  task-side refuse (trim-gate then shape-gate, `SetState("closed")`, no
+  mint no socket) mirroring the M-ROKU-23 origin-choke placement.
+  Same-family ungated ids (`profileId`, LiveTV `channelId`, the ~40
+  `"/…" + id` concat sites the review enumerated) are NOT touched here —
+  they ride bearer-authenticated hub paths without a handshake-line sink;
+  named as follow-up inventory, the credential-bearing class is closed.
+- **Check 77** pins all three gates plus the ledger row: each is a one-line
+  delete away from silently re-opening the whole class. Portable-twin
+  plants H (pick gate stripped -> R1 ALONE) and I (dial gate stripped -> R3
+  ALONE) ran with CHECK76/CHECK70 green (gate independence);
+  red-on-parent measured before the cure: exactly 3 named convictions
+  (R1/R2/R3) with R4 satisfied by the row.
+- **Gates.** Battery 77 legs / 80 PASS rc=0; `bsc`/`bslint` clean;
+  `validate-xml` 48; route gate + self-test green; headless unit era
+  unchanged 210/0/53 EXACT (the touched scene/task bodies have no unit
+  harness — the leg and its twin plants are the pins).
+
+### Fixed — the detail page resumes half-watched items instead of restarting them (MJ-1, review roku__casualgamer) — 2026-11-03
+
+- **The defect.** `PlayerScene.Show` has consumed an optional
+  `args.resumeSeconds` since the continue-watching rail shipped (F3), but
+  `DetailScene.PlayItem` passed only `{item, playbackInfo}` — every
+  Search/Favorites/Season -> detail -> Play run started a half-watched item
+  at 0:00 while `docs/device-verification.md` promised "resume from bookmark
+  if available" and the player's own docblock stated the omission as shipped
+  truth.
+- **The data path.** The server exposes no per-item bookmark route
+  (`WatchHistory::getResumePosition` has no HTTP surface); the
+  continue-watching feed is the only shipped source of a stored position and
+  ApiTask already wires the op (`getContinueWatching`, TTL-cached on
+  `GET:/me/continue-watching`). `LoadItem` now fires a one-shot lookup on an
+  ad-hoc task node (the HomeScene deferred-rail shape - fresh node per call,
+  firmware-read state marker) so the shared `m.apiTask` stays dedicated to
+  the mutation/playback chain (W-min93 serialization law), and a new
+  `resp.op = "getContinueWatching"` arm in the scene's single multiplexer
+  matches rows by `media_item_id`, lifts `position_ticks` (100ns units, the
+  boxed-type idiom) and hands `resumeSeconds` through `Show`. No bookmark,
+  no answer or a failed lookup = 0 = start from the beginning, degraded on
+  purpose: resume is an enhancement that must never block the Play button.
+- **Check 76** pins the thread against silent rot: the request fire, the
+  response arm, the `Show` hand-off argument, and the `PlayerScene`
+  consumption — four surfaces, each one careless line-delete away from
+  re-becoming the documented fiction. Portable-twin plants F (hand-off
+  stripped -> R2 ALONE) and G (response arm re-pointed onto a never-matching
+  op string -> R1 ALONE) ran with CHECK75/CHECK43 green (gate independence);
+  red-on-parent measured at the pre-cure `DetailScene`: exactly 3 named
+  convictions (2x R1 + R2) with R3/R4 already satisfied.
+- **Gates.** Full battery 76 legs / 79 PASS rc=0; `bsc` and `bslint` clean;
+  `validate-xml` 48 files; route gate + self-test green; headless unit era
+  unchanged 210/0/53 EXACT (DetailScene has no unit harness - the battery
+  leg and its twin plants are the pins).
+
 ### Fixed — the 17 dead Task `state = "run"` writes are gone; guards are firmware READS now (MJ-16, review roku__srphp) — 2026-11-03
 
 - **Measured, not copied.** The review counted "43" state assignments; the

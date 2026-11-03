@@ -167,6 +167,16 @@ sub OnRowSelected(event as Object)
 
     if id = "" then return
 
+    ' [MJ-18, review roku__secnet] The hub's serverId is untrusted wire input:
+    ' it rides into the mint URL, the VERBATIM WS upgrade request line and the
+    ' media-proxy prefix. The M-ROKU-13 shape law that guards mediaIds at the
+    ' play choke extends here - persist only a trimmed id whose every byte is
+    ' [0-9A-Za-z_-], or refuse the pick entirely (nothing downstream can see
+    ' a CRLF-bearing or path-shaped id).
+    id = id.Trim()
+    if not IsSafeContentId(id) then return
+    if id = "" then return
+
     name = ""
     if server.DoesExist("serverName") and server.serverName <> invalid and server.serverName <> "" then
         name = server.serverName

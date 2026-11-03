@@ -11124,4 +11124,159 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 76: the detail screen threads its resume position to the player — the MJ-1 wiring cannot rot back to restart-at-zero ==="
+# WHY: PlayerScene.Show has consumed an optional args.resumeSeconds since the
+# continue-watching rail shipped (F3), but DetailScene.PlayItem only ever
+# passed {item, playbackInfo} — every Search/Favorites/Season -> detail ->
+# Play press restarted a half-watched item at 0:00 while the docs table
+# promised "resume from bookmark if available". MJ-1 cured it by riding the
+# already-wired getContinueWatching op (ApiTask.brs) at item-load time and
+# handing the matching row's position_ticks to Show. Each of the three
+# surfaces of that thread (request fire, response arm, Show argument) is a
+# one-line delete away from silently becoming the old fiction again, and the
+# PlayerScene consumer side is what makes the first two more than decoration.
+# NUMBERING: 76 collision-probed at 4ff1ea3 (grep 'Check 76' scripts tests
+# Makefile docs -> rc=1; highest prior header = Check 75).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import re, sys, os
+
+os.chdir(os.environ['REPO'])
+problems = []
+
+def read(path):
+    try:
+        return open(path, encoding="utf-8").read()
+    except OSError as exc:
+        problems.append(f"  CHECK76 R0: cannot read {path}: {exc}")
+        return None
+
+ds_text = read("components/DetailScene.brs")
+ps_text = read("components/PlayerScene.brs")
+ledger = read("docs/static-checks.md")
+
+if ds_text is not None:
+    # R1 fire side: the lookup must be requested on the item-load path.
+    if not re.search(r'\{\s*op:\s*"getContinueWatching"\s*\}', ds_text):
+        problems.append('  components/DetailScene.brs - CHECK76 R1: the { op: "getContinueWatching" } resume lookup is no longer fired on the detail load path — the resume data has no source')
+    # R1 read side: the response must be armed in the op-multiplexed handler.
+    if not re.search(r'resp\.op\s*=\s*"getContinueWatching"', ds_text):
+        problems.append('  components/DetailScene.brs - CHECK76 R1: the resp.op = "getContinueWatching" arm is gone — the lookup response would fall through the multiplexer unhandled')
+    # R2 hand-off: PlayItem's Show call must carry the resume field.
+    show_block = re.search(r'playerScene\.Show\([\s\S]*?\)\s*$', ds_text, re.MULTILINE)
+    if show_block is None:
+        problems.append('  components/DetailScene.brs - CHECK76 R2: PlayItem no longer calls playerScene.Show(...) — the detail play path shape changed under this leg; re-derive it')
+    elif "resumeSeconds" not in show_block.group(0):
+        problems.append('  components/DetailScene.brs - CHECK76 R2: the Show argument block lost resumeSeconds — detail-page playback silently returns to restart-at-zero (the MJ-1 defect)')
+
+if ps_text is not None and not re.search(r'args\.resumeSeconds', ps_text):
+    # R3 consume side: the sink must still read what the wire passes.
+    problems.append('  components/PlayerScene.brs - CHECK76 R3: args.resumeSeconds is no longer consumed by Show — every producer of the resume offset (HomeScene rails, DetailScene) is now writing into a field the player ignores')
+
+if ledger is not None:
+    row = re.search(r'^\|\s*76\s*\|.*$', ledger, re.MULTILINE)
+    if row is None or "MJ-1" not in row.group(0):
+        problems.append('  docs/static-checks.md - CHECK76 R4: ledger row 76 is missing or no longer names its MJ-1 cure ref (CHECK71/72/73/75 R4 precedent)')
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK76: %d detail-resume wiring pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK76: the detail resume lookup fires, arms, hands off and is")
+print("           consumed on all four surfaces (fire / read / Show arg /")
+print("           PlayerScene sink), and ledger row 76 carries its cure ref")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 77: the hub-supplied serverId is path-law-gated at pick, at read and at dial (MJ-18; the M-ROKU-13 shape law extended to the credential-bearing relay composition) ==="
+# WHY: the hub's /me/servers response is untrusted input the same way any
+# wire field is: serverId rides into the mint URL (HubCommandTask), the raw
+# WS upgrade request line (BuildHandshakeRequest writes it VERBATIM - there
+# is no CR/LF filter there, unlike ResolveRedirectTarget's deliberate one)
+# and the media-proxy prefix (AppContext). ParseJSON restores \r and \n
+# escapes as real CRLF, so one ungated pass lets a hostile hub smuggle
+# attacker-chosen headers or paths carrying the minted bearer token. The
+# cure mirrors the mediaId choke exactly: IsSafeContentId at the pick, a
+# degrade-at-read on GetActiveServerId, and a task-side refusal before any
+# socket exists. This leg pins all three gates plus the ledger row: a
+# one-line delete at any gate silently re-opens the whole class.
+# NUMBERING: 77 collision-probed at the MJ-1 tree (grep 'Check 77' scripts
+# tests Makefile docs -> empty; highest prior header = Check 76).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import re, sys, os
+
+os.chdir(os.environ['REPO'])
+problems = []
+
+def read(path):
+    try:
+        return open(path, encoding="utf-8").read()
+    except OSError as exc:
+        problems.append(f"  CHECK77 R0: cannot read {path}: {exc}")
+        return None
+
+# R1 pick gate: the stringified hub id must pass the shape law BEFORE it
+# persists — the storage write is the choke every downstream reader shares.
+sp = read("components/ServerPickerScene.brs")
+if sp is not None:
+    m = re.search(r'sub OnRowSelected', sp)
+    block = ""
+    if m:
+        stop = sp.find('GetStorage().set("active_server_id"', m.start())
+        block = sp[m.start():stop if stop > 0 else m.start() + 4000]
+    if not re.search(r'IsSafeContentId\(\s*id\s*\)', block):
+        problems.append("  components/ServerPickerScene.brs - CHECK77 R1: the pick path no longer gates the stringified serverId with IsSafeContentId before persisting it — hostile hub ids re-enter storage (the MJ-18 entry point)")
+
+# R2 read gate: GetActiveServerId must degrade an unsafe stored id to "".
+ac = read("source/lib/AppContext.brs")
+if ac is not None:
+    m = re.search(r'function GetActiveServerId\(\)[\s\S]*?end function', ac)
+    if m is None:
+        problems.append("  source/lib/AppContext.brs - CHECK77 R2: GetActiveServerId vanished — re-derive this leg against the new resolver shape")
+    elif not re.search(r'IsSafeContentId', m.group(0)):
+        problems.append("  source/lib/AppContext.brs - CHECK77 R2: the read-path gate is gone — ids persisted before the pick gate shipped (or by any future writer) would compose mint/proxy/relay paths unchecked")
+
+# R3 dial gate: HubCommandTask must refuse an unsafe cfg.serverId before any
+# mint/socket, mirroring the M-ROKU-23 origin choke placement.
+hc = read("components/HubCommandTask.brs")
+if hc is not None:
+    m = re.search(r'sub RunConsumer', hc)
+    if m is None:
+        problems.append("  components/HubCommandTask.brs - CHECK77 R3: the RunConsumer task body vanished — re-derive this leg")
+    else:
+        entry = hc[m.start():m.start() + 4000]
+        g = re.search(r'IsSafeContentId\(\s*serverId\s*\)', entry)
+        if g is None:
+            problems.append("  components/HubCommandTask.brs - CHECK77 R3: the task-side path-law choke is gone — the mint URL and the relay request line are the last credential-bearing composition and they would run ungated (the MJ-18 defect)")
+        elif "closed" not in entry[g.end():g.end() + 200]:
+            problems.append("  components/HubCommandTask.brs - CHECK77 R3: the dial gate no longer refuses with SetState(\"closed\") — a rejected relay must be an honest terminal state, not a swallowed return")
+
+# R4 ledger truth (CHECK71/72/73/75/76 R4 precedent).
+led = read("docs/static-checks.md")
+if led is not None:
+    row = re.search(r'^\|\s*77\s*\|.*$', led, re.MULTILINE)
+    if row is None or "MJ-18" not in row.group(0):
+        problems.append("  docs/static-checks.md - CHECK77 R4: ledger row 77 is missing or no longer names its MJ-18 cure ref")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK77: %d serverId-custody pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK77: the serverId shape law holds at all three custody points")
+print("           (pick persist, read degrade, dial refuse) and ledger row 77")
+print("           carries its cure ref")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

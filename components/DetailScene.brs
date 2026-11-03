@@ -97,6 +97,12 @@ sub Init()
     ' the revert-on-failure flips against a single shared apiTask stream.
     m.playPending = false
     m.mutationPending = false
+
+    ' [MJ-1] Resume position for this item, in seconds, fetched once at load
+    ' from the continue-watching feed (the only wire source of a per-item
+    ' bookmark) and handed to PlayerScene.Show. Stays 0.0 when the item is
+    ' not in the feed -> playback starts from the beginning, as before.
+    m.resumeSeconds = 0.0
 end sub
 
 ' Single serialization point for every detail-page mutation (see guards in
@@ -124,6 +130,56 @@ sub LoadItem(itemId as String)
 
     m.apiTask.request = { op: "getItem", itemId: itemId }
     m.apiTask.control = "run"
+
+    ' [MJ-1] Parallel one-shot resume lookup on an ad-hoc task node (the
+    ' HomeScene deferred-rail shape: fresh node per call, firmware-read state
+    ' before control): the shared m.apiTask stays dedicated to the
+    ' mutation/playback chain (W-min93 serialization law), and ApiTask's
+    ' GET:/me/continue-watching cache usually serves this from the rail fetch
+    ' that just happened - no extra network in the common path.
+    LoadResumePosition()
+end sub
+
+' [MJ-1] The resume position reaches the detail page only through the
+' continue-watching feed: the server exposes no per-item bookmark route
+' (WatchHistory::getResumePosition has no HTTP surface), so the shipped list
+' is queried once per load and matched by media_item_id here.
+sub LoadResumePosition()
+    task = CreateObject("roSGNode", "ApiTask")
+    task.ObserveField("response", "OnApiResponse")
+    task.request = { op: "getContinueWatching" }
+    task.control = "run"
+end sub
+
+' [MJ-1] Pull this item's resume offset out of the continue-watching rows.
+' Rows carry media_item_id + position_ticks (100ns units - the same
+' convention HomeScene's rails divide by 10_000_000 for). A failed lookup is
+' DEGRADED silently and on purpose (start at 0): resume is an enhancement
+' and must never block, error or double-fire the Play button.
+sub ApplyResumeFromContinueWatching(resp as Object)
+    if resp = invalid or not resp.ok or resp.data = invalid then return
+    items = invalid
+    if type(resp.data) = "roAssociativeArray" and resp.data.DoesExist("items") then
+        items = resp.data.items
+    end if
+    if items = invalid or type(items) <> "roArray" then return
+    for each cw in items
+        if cw <> invalid and type(cw) = "roAssociativeArray" then
+            if cw.DoesExist("media_item_id") and cw.media_item_id = m.itemId then
+                if cw.DoesExist("position_ticks") then
+                    ' Numeric lift per the repo's boxed-type idiom (JSON numbers
+                    ' arrive as roInteger/roLongInteger/roDouble; hand-built
+                    ' assocarrays in unit paths carry the intrinsic names).
+                    ticksType = type(cw.position_ticks)
+                    if ticksType = "Integer" or ticksType = "roInt" or ticksType = "LongInteger" or ticksType = "roLongInteger" or ticksType = "Float" or ticksType = "roFloat" or ticksType = "Double" or ticksType = "roDouble" then
+                        if cw.position_ticks > 0 then
+                            m.resumeSeconds = cw.position_ticks / 10000000.0
+                        end if
+                    end if
+                end if
+            end if
+        end if
+    end for
 end sub
 
 sub OnApiResponse(event as Object)
@@ -277,6 +333,11 @@ sub OnApiResponse(event as Object)
         if not resp.ok then
             ShowErrorDialog(m.top, Translate("common_error"), GetErrorMessage(resp.error))
         end if
+    else if resp.op = "getContinueWatching" then
+        ' [MJ-1] Reply of the LoadResumePosition one-shot lookup: it rides its
+        ' own task node but the same op-multiplexed observer, so the file's
+        ' single-response-handler shape is preserved.
+        ApplyResumeFromContinueWatching(resp)
     end if
 end sub
 
@@ -717,6 +778,10 @@ sub PlayItem()
     playerScene.Show(m.itemId, {
         item: m.item
         playbackInfo: m.playbackInfo
+        ' [MJ-1] Thread the load-time resume offset straight through - same
+        ' field name and seconds unit the HomeScene continue rail uses; 0
+        ' when the item carries no bookmark (unchanged behavior).
+        resumeSeconds: m.resumeSeconds
     })
 end sub
 

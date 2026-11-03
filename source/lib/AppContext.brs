@@ -60,7 +60,13 @@ end function
 function GetActiveServerId() as String
     id = GetStorage().get("active_server_id")
     if id = invalid then return ""
-    return id
+    ' [MJ-18, review roku__secnet] Re-check at read (defense in depth): a value
+    ' persisted before the picker gate shipped - or written by any future
+    ' site - degrades to the honest pre-pick state ("") instead of poisoning
+    ' the mint URL / relay path / proxy prefix composed from it. IsSafe-
+    ' ContentId type-gates first, so the Trim() below never runs on a number.
+    if not IsSafeContentId(id) then return ""
+    return id.Trim()
 end function
 
 ' The base url that the MEDIA ApiClient binds to.

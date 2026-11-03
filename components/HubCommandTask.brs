@@ -80,7 +80,21 @@ sub RunConsumer()
     if cfg.DoesExist("serverId") and cfg.serverId <> invalid then serverId = cfg.serverId
     if cfg.DoesExist("token") and cfg.token <> invalid then token = cfg.token
 
+    ' [MJ-18] Guard-contract trim BEFORE the emptiness gate: a whitespace-only
+    ' id must be refused as empty, not survive to the mint composition.
+    if serverId <> "" then serverId = serverId.Trim()
     if host = "" or apiBase = "" or serverId = "" or token = "" then
+        SetState("closed")
+        return
+    end if
+
+    ' [MJ-18, review roku__secnet] task-side path-law choke (defense in depth -
+    ' the picker refuses first and GetActiveServerId degrades at read): the
+    ' serverId interpolates verbatim into the mint URL and the WS upgrade
+    ' request line, and ParseJSON hands back real CRLF for hub-supplied
+    ' escapes. Anything outside the M-ROKU-13 shape is an honest terminal
+    ' "closed" - no mint, no bearer on a forged path.
+    if not IsSafeContentId(serverId) then
         SetState("closed")
         return
     end if

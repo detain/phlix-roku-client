@@ -291,8 +291,9 @@ sub Show(itemId as String, args as Object)
     ' C20: arm the one-shot control reveal for this item's first "playing".
     m.controlsShownAtStart = false
 
-    ' Optional resume position (F3 continue-watching). DetailScene omits it ->
-    ' stays 0 -> playback starts from the beginning (no behavior change).
+    ' Optional resume position (F3 continue-watching rail; since MJ-1 the
+    ' DetailScene play path threads it too). Absent or zero -> playback
+    ' starts from the beginning.
     m.resumeSeconds = 0.0
     m.resumeApplied = false
 
