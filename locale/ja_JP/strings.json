@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.17.0",
+    "version": "1.18.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -276,6 +276,10 @@
   },
   "player": {
     "audio_tracks": "音声トラック",
+    "btn_forward": "+10秒",
+    "btn_pause": "一時停止",
+    "btn_play": "再生",
+    "btn_rewind": "-10秒",
     "create_group": "グループを作成",
     "err_access_schedule": "アクセススケジュールにより再生がブロックされています。許可された時間帯にもう一度お試しください。",
     "err_playback_failed": "再生に失敗しました。もう一度お試しください。",

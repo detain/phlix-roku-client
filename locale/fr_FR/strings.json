@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.17.0",
+    "version": "1.18.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -276,6 +276,10 @@
   },
   "player": {
     "audio_tracks": "Pistes audio",
+    "btn_forward": "+10 s",
+    "btn_pause": "Pause",
+    "btn_play": "Lecture",
+    "btn_rewind": "-10 s",
     "create_group": "Créer un groupe",
     "err_access_schedule": "Lecture bloquée par l'horaire d'accès. Réessayez pendant les heures autorisées.",
     "err_playback_failed": "Échec de la lecture. Veuillez réessayer.",

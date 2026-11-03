@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.17.0",
+    "version": "1.18.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -276,6 +276,10 @@
   },
   "player": {
     "audio_tracks": "Audiospuren",
+    "btn_forward": "+10s",
+    "btn_pause": "Pause",
+    "btn_play": "Wiedergabe",
+    "btn_rewind": "-10s",
     "create_group": "Gruppe erstellen",
     "err_access_schedule": "Wiedergabe durch den Zugriffszeitplan blockiert. Während der erlaubten Zeiten erneut versuchen.",
     "err_playback_failed": "Wiedergabe fehlgeschlagen. Bitte versuche es erneut.",

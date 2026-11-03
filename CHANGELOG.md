@@ -51,6 +51,27 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the transport buttons gain catalog-backed affordance labels; play/pause speaks the player's state (MJ-11, review roku__writer) — 2026-11-03
+
+The centre cluster (rewind / play-pause / forward) shipped as three BLANK
+Buttons: the XML carries no chrome literals by law (Check 25), and no code
+ever set a title — a focused user could not tell the buttons apart, and the
+play/pause button never reflected what it would do. Cure follows the
+SkipButton label idiom: `.brs` writes titles through `Translate` at three
+single-source points — the Init wiring block seeds rewind `player_btn_rewind`
+("-10s"), forward `player_btn_forward` ("+10s") and the play/pause button
+`player_btn_play` (nothing is playing yet), and `OnPlayerStateChange` swaps
+the play/pause title on every `playing` (`player_btn_pause`) and `paused`
+(`player_btn_play`) transition, so the button always names the action it
+performs. Four new catalog keys minted under `player.*` across all seven
+locales (fr uses the spaced SI unit; ja the 秒 suffix — the signed-unit form
+stays legible untranslated), and the `_metadata.version` set bumps to
+`1.18.0` (the Check 48 R3 law rotates with the history sentence naming this
+batch — disclosed). No test pinned the blank-button era; the titles are
+gated by the standing catalog laws (Check 20 key resolution over the ×7
+mirrors, Check 24 no raw concat, Check 51-style live-copy discipline) and
+the en_US value law keeps every new string on-screen speakable per locale.
+
 ### Fixed — the portable twin's fake checkout stages the panel-stack module; Check 60 stops convicting it as a phantom landmark (MJ-12 era housekeeping) — 2026-11-03
 
 - **The defect (lane-disclosed).** The first full-twin run after MJ-12 landed

@@ -6229,8 +6229,8 @@ for L in LOCALES:
     for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
         if cat.get("connect", {}).get(key, "") == "":
             problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
-    if cat.get("_metadata", {}).get("version") != "1.17.0":
-        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.17.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, then by the review CR-2/Check74 batch with the ten form-chrome keys, then by the MJ-4 batch with home_start_failed, disclosed)")
+    if cat.get("_metadata", {}).get("version") != "1.18.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.18.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, then by the review CR-2/Check74 batch with the ten form-chrome keys, then by the MJ-4 batch with home_start_failed, then by the MJ-20 pass (no mint), then by the MJ-11 batch with the four transport-label keys, disclosed)")
 
 # ---- R4 the device harness pins the law -----------------------------------
 test = read(TEST)

@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.17.0",
+    "version": "1.18.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -276,6 +276,10 @@
   },
   "player": {
     "audio_tracks": "Audio Tracks",
+    "btn_forward": "+10s",
+    "btn_pause": "Pause",
+    "btn_play": "Play",
+    "btn_rewind": "-10s",
     "create_group": "Create Group",
     "err_access_schedule": "Playback blocked by access schedule. Try again during allowed hours.",
     "err_playback_failed": "Playback failed. Please try again.",

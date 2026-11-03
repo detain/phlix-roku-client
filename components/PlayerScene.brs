@@ -70,6 +70,14 @@ sub Init()
     if m.rewindButton <> invalid then m.rewindButton.ObserveField("buttonSelected", "OnRewindPressed")
     if m.playPauseButton <> invalid then m.playPauseButton.ObserveField("buttonSelected", "OnPlayPausePressed")
     if m.forwardButton <> invalid then m.forwardButton.ObserveField("buttonSelected", "OnForwardPressed")
+    ' MJ-11 [review roku__writer M-ROKU-11]: the transport cluster rendered as
+    ' three blank buttons — the XML carries no chrome literals (Check 25 law)
+    ' and nothing ever set a title. Catalog-backed .brs writes, SkipButton's
+    ' label idiom; the play/pause title follows the player state (see
+    ' OnPlayerStateChange arms), seeded here as "Play" (nothing is playing yet).
+    if m.rewindButton <> invalid then m.rewindButton.title = Translate("player_btn_rewind")
+    if m.forwardButton <> invalid then m.forwardButton.title = Translate("player_btn_forward")
+    if m.playPauseButton <> invalid then m.playPauseButton.title = Translate("player_btn_play")
 
     ' ============================================================= '
     ' P3-S4 Sleep Timer: init and wire up UI nodes. Additive -        '
@@ -475,6 +483,8 @@ sub OnPlayerStateChange(event as Object)
         end if
     else if state = "playing" then
         m.isPlaying = true
+        ' MJ-11: the focused button now offers PAUSE (catalog-backed title).
+        if m.playPauseButton <> invalid then m.playPauseButton.title = Translate("player_btn_pause")
         ' C20 [review roku__gameux C1]: the first "playing" of an item passively
         ' reveals the control surface (scrub bar, title, time, buttons) so it is
         ' discoverable, then R2.1's 4-second timer retires it. Every later
@@ -521,6 +531,8 @@ sub OnPlayerStateChange(event as Object)
         end if
     else if state = "paused" then
         m.isPlaying = false
+        ' MJ-11: the focused button now offers PLAY (catalog-backed title).
+        if m.playPauseButton <> invalid then m.playPauseButton.title = Translate("player_btn_play")
         ' C20 [review roku__gameux C1/m3]: pause previously produced ZERO visual
         ' response (the review's "one ShowControls(true) call away"). Standard
         ' Roku convention: pausing reveals the transport controls. Suppressed
