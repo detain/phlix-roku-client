@@ -2877,8 +2877,8 @@ era_block = """tests/
 text = text[: m.start(1)] + era_block + text[m.end(1):]
 
 # P2 the stale count literal
-assert "**22 rooibos unit suites**" in text, "CHECK62 plant: cured count literal shape drifted"
-text = text.replace("**22 rooibos unit suites**", "**3 rooibos unit suites**", 1)
+assert "**23 rooibos unit suites**" in text, "CHECK62 plant: cured count literal shape drifted"
+text = text.replace("**23 rooibos unit suites**", "**3 rooibos unit suites**", 1)
 
 # P3 the dev-false dependency sentence returns; the npm ci truth leaves the section
 dep = re.search(r"(?ms)^### 3\. Install Dependencies\s*\n(.*?)(?=\n#{2,3} )", text)
