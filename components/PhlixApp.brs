@@ -606,6 +606,17 @@ sub ShowLogin()
         return
     end if
 
+    ' MN-23 (review roku__secnet): a server_url persisted BEFORE the consent
+    ' law used to ride boot ungated - ShowLogin read storage straight into a
+    ' credential POST over cleartext. The boot path now re-applies the SAME
+    ' predicate the connect form enforces: a cleartext REMOTE origin routes
+    ' back to ConnectScene, where confirming (or upgrading to https) is the
+    ' only way forward. LAN/loopback http stays silent by the documented law.
+    if ServerUrlUsesCleartextToRemoteHost(GetServerUrl()) then
+        ShowConnect()
+        return
+    end if
+
     loginScene = CreateObject("roSGNode", "LoginScene")
     ' Observe BOTH outcomes: a direct login -> Home, OR a hub login (the
     ' /me/servers probe found a hub) -> the server picker.

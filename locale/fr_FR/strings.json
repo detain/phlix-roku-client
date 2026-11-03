@@ -381,7 +381,7 @@
   },
   "search": {
     "hint": "Saisissez votre recherche…",
-    "no_results": "Aucun résultat"
+    "no_results": "Aucun résultat — essayez avec moins de mots ou des mots différents"
   },
   "admin": {
     "select_section": "Sélectionnez une section d'administration",

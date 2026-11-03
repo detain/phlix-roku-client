@@ -381,7 +381,7 @@
   },
   "search": {
     "hint": "Suchbegriff eingeben…",
-    "no_results": "Keine Ergebnisse"
+    "no_results": "Keine Ergebnisse — weniger oder andere Wörter versuchen"
   },
   "admin": {
     "select_section": "Verwaltungsbereich auswählen",

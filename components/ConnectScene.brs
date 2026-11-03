@@ -322,10 +322,12 @@ end sub
 ' cataloged continue/cancel; default-deny: Cancel or Back persists nothing
 ' and leaves the entered address for correction. LAN/loopback http stays
 ' silent — it is the documented normal for a home server.
-' Residual (honest, pinned by CHECK48's docblock leg): a URL persisted by a
-' PRE-consent-law build is never re-gated on boot (storage is read
-' directly); it fails closed into THIS screen on any transport error, and
-' re-connecting must pass the gate again.
+' MN-23: boot rides THIS SAME law - PhlixApp ShowLogin() re-gates a
+' server_url persisted by a PRE-consent-law build: a cleartext REMOTE
+' origin is routed back to THIS screen instead of riding into a silent
+' credential POST. No ungated boot path remains (the stale 'pinned by
+' CHECK48's docblock leg' self-claim was corrected with this cure -
+' CHECK48 pins the gate and its SPEAKABLE keys, not this prose).
 sub Connect(url as String)
     if url = invalid or url = "" then return
     if ServerUrlUsesCleartextToRemoteHost(url) then

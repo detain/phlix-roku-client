@@ -51,6 +51,16 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the empty hand learns what to try next, and the old cleartext origin meets the gate at boot (MN-4 MN-23) — 2026-11-03
+
+- MN-4: a search that returned nothing said only its localized "No results" - a dead end that taught the viewer nothing to do next. All seven catalogs now KEEP their sentence and ADD a nudge ("... — try fewer or different words" in each language): fewer words, different words, the two moves that actually rescue a dry search on a 10-key keypad. A value-only move - the key-set and the catalog version hold at v1.19.0 (the MN-27 precedent: values do not bump, key-sets do).
+- MN-23: the explicit-consent law lived ONLY in the Connect() choke - but storage written by a PRE-consent-law build rode boot straight past it: a persisted cleartext-remote server_url walked the viewer to the credential screen with no dialog ever asked, then POSTED the password to plain http. ShowLogin now re-gates the stored origin through the same canonical predicate the chokepoint uses, BEFORE any credential screen spawns - bare ShowConnect(), because bootReason carries only the transport-bucket taxonomy and any other token would lie. LAN and loopback http stays silent exactly as the law defines; the residual docblock (which admitted the hole AND mis-claimed a CHECK48 pin that never existed) now tells the cured truth.
+- Gates: Check 92 five-piece; red-parent measured exactly 6 convictions; battery exit 0 with 92 strict-PASS lines; `make lint`, validate-xml, route-manifest (+ self-test) and the 214-case headless suite green.
+
+### Added — Check 92: the nudge law, the boot re-gate and the honest residual (MN-4/MN-23 era) — 2026-11-03
+
+- Per-locale prefix+growth over the seven parsed catalogs, the ShowLogin predicate-before-scene find-order law, the corrected docblock (absence of the stale claim, presence of the re-gate truth) and the docs trio are pinned together; twin plants OO/PP prove each half independently and restore to green.
+
 ### Fixed — the relay ships one envelope per pass, the party announces its re-dial, and Play answers (MN-14 MN-20 MN-1) — 2026-11-03
 
 - MN-14: `HubCommandTask` field-wrote EVERY decoded `pending_command` straight onto its event field - rapid same-field writes collapse under SceneGraph, so a recv pass carrying several hub commands delivered at most the last one (the rest vanished in silence). Commands now queue per pass (`m.pendingEvents`, reset per dial) and flush as ONE write - direct when single, `{kind:"batch", items:[...]}` when many, the SyncPlayTask idiom the app now unwraps in `OnPendingHubCommand` before dispatching each item through the unchanged M-ROKU-13 guard path (`DispatchPendingHubCommand`); the unwrap reads the task's local event AA through a `batched` alias so Check 26's envelope-variable net keeps every tooth. The flush runs before EVERY loop exit, including the MN-11 mid-pass socket death, so what decoded always ships.

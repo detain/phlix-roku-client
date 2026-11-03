@@ -13033,4 +13033,122 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 92: the empty hand gets a nudge and the pre-consent origin meets the gate at boot - copy law, boot re-gate, docblock truth (MN-4/MN-23 era) ==="
+# WHY: two last actionable review findings, one shipped copy law and one
+# credential-exposure class:
+#   - MN-4: the search empty state said only 'No results' - no direction.
+#     Every locale's search.no_results now KEEPS its translated sentence as
+#     the prefix and adds the nudge (value-only edit x7; the key-set is held
+#     so v1.19.0 stands - the MN-27 value-precedent, NOT the MN-26 set move);
+#   - MN-23 (secnet): a server_url persisted BEFORE the cleartext-consent law
+#     rode boot straight into a credential POST - PhlixApp ShowLogin checked
+#     IsServerConnected and dialled past any gate. The boot path now applies
+#     the SAME ServerUrlUsesCleartextToRemoteHost predicate the connect form
+#     enforces, routing a cleartext-remote origin back to ConnectScene. The
+#     ConnectScene docblock that called this a permanent residual is rewritten
+#     to truth (its 'pinned by CHECK48' self-claim was stale prose - CHECK48
+#     pins the gate and the speakable keys, not the sentence).
+# NUMBERING: 92 collision-probed at 6dadd81, highest prior 91.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys, json
+
+def read(p):
+    try:
+        with open(p, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        return None
+
+def sub_body(src, name):
+    m = re.search(r"\nsub " + name + r"\(.*?\nend sub\n", src, re.S)
+    return m.group(0) if m else None
+
+problems = []
+
+OLD_VALS = {
+    "en_US": "No results",
+    "de_DE": "Keine Ergebnisse",
+    "es_ES": "Sin resultados",
+    "fr_FR": "Aucun résultat",
+    "it_IT": "Nessun risultato",
+    "ja_JP": "結果がありません",
+    "pt_BR": "Nenhum resultado",
+}
+
+# ---- R1 MN-4: every locale kept its sentence and grew the nudge ----------
+missing1 = []
+for loc, old_v in OLD_VALS.items():
+    path = f"locale/{loc}/strings.json"
+    try:
+        with open(path, encoding="utf-8") as f:
+            cat = json.load(f)
+    except (OSError, ValueError):
+        missing1.append(f"{loc} unreadable")
+        continue
+    v = cat.get("search", {}).get("no_results", "")
+    if v == old_v:
+        missing1.append(f"{loc} back to the bare sentence")
+    elif not v.startswith(old_v) or len(v) <= len(old_v) + 3:
+        missing1.append(f"{loc} lost the keep-the-sentence + nudge law")
+if missing1:
+    problems.append("  locale catalogs - CHECK92 R1: " + "; ".join(missing1) + " (an empty hand must be told what to try - MN-4 era copy law)")
+
+# ---- R2 MN-23: the boot re-gate inside ShowLogin ---------------------------
+APP = read("components/PhlixApp.brs")
+if APP is None:
+    problems.append("  components/PhlixApp.brs - CHECK92 R2: unreadable")
+else:
+    sl = sub_body(APP, "ShowLogin")
+    if sl is None:
+        problems.append("  components/PhlixApp.brs - CHECK92 R2: ShowLogin vanished")
+    else:
+        missing2 = []
+        if "ServerUrlUsesCleartextToRemoteHost(GetServerUrl())" not in sl:
+            missing2.append("the cleartext-remote predicate left the boot path")
+        else:
+            if not sl.find("ServerUrlUsesCleartextToRemoteHost(GetServerUrl())") < sl.find("loginScene = CreateObject"):
+                missing2.append("the re-gate no longer precedes LoginScene creation")
+        if missing2:
+            problems.append("  components/PhlixApp.brs - CHECK92 R2: " + "; ".join(missing2) + " (a pre-consent origin must meet the gate BEFORE credentials ride - MN-23)")
+
+# ---- R3 ConnectScene docblock truth -----------------------------------------
+CS = read("components/ConnectScene.brs")
+missing3 = []
+if CS is None:
+    missing3.append("ConnectScene unreadable")
+else:
+    if "never re-gated on boot" in CS:
+        missing3.append("the stale 'never re-gated' residual claim survived")
+    if "MN-23" not in CS:
+        missing3.append("the docblock no longer names the boot re-gate it shipped")
+if missing3:
+    problems.append("  components/ConnectScene.brs - CHECK92 R3: " + "; ".join(missing3) + " (docs must tell TODAY's truth - era law)")
+
+# ---- R4 docs trio ----------------------------------------------------------
+docs = read("docs/static-checks.md")
+if docs is None or not re.search(r"^\|\s*92\s*\|.*MN-4.*MN-23", docs, re.M):
+    problems.append("  docs/static-checks.md - CHECK92 R4: row 92 is missing or does not name MN-4 + MN-23")
+cl = read("CHANGELOG.md")
+if cl is None or "MN-23" not in cl or "re-gate" not in cl:
+    problems.append("  CHANGELOG.md - CHECK92 R4: the entry must name MN-23 and the boot re-gate")
+cert = read("docs/certification.md")
+if cert is None or not re.search(r"^\|\s*7\.10\s*\|.*MN-23", cert, re.M):
+    problems.append("  docs/certification.md - CHECK92 R4: row 7.10 is missing or does not name MN-23")
+
+if problems:
+    print("  CHECK92: %d pin group(s) broken:" % len(problems))
+    for line in problems:
+        print(line)
+    sys.exit(1)
+
+print("  CHECK92: the empty hand gets a nudge and the pre-consent origin meets the gate at boot -")
+print("  keep-the-sentence copy law x7, the ShowLogin predicate re-application, and a docblock")
+print("  that finally tells today's truth")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
