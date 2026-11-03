@@ -153,6 +153,21 @@ claim below re-checkable the same way:
   under the headless runner; CHECK43's battery leg keeps the idiom law
   enforced where it does run).
 
+### Docs — the fabricated console port is un-fabricated: 8080 is the debug console, and a wrong "correction" retracts to the original right line (review roku__writer MJ-21) — 2026-11-03
+
+- **Verify-first.** `docs/device-verification.md` asserted "port 8085
+  (8080 is not the console port)" — Roku's BrightScript debug console is
+  on 8080 (README.md's device table, DEVELOPER.md and docs/debugging.md
+  all say so; 8085 is the device's system-log stream, a different
+  service). Worse, a 2026-10-30 bracket-note in `docs/BLOCKED_R0.1.md`
+  had "corrected" that file's originally-correct 8080 line toward the
+  fiction — a doc propagating its own upstream error.
+- **Cure.** Both surfaces now state 8080; the bracket-note keeps its
+  shape but records the retraction and names its source, so the mistake's
+  trail stays readable. Residual 8085 mentions live only in CHANGELOG
+  verbatim history (untouchable by law) and inside this cure's own words.
+  grep census: zero live-doc 8085-console claims remain.
+
 ### Checks — the portable twin's PASS narration becomes an output of its own asserts (Check 73, R-ROKU-29) — 2026-11-02
 
 - **Verify-first, then the cure.** The rider (RIDERS_QUEUE.md R-ROKU-29,

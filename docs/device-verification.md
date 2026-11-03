@@ -33,9 +33,9 @@ This document records the first-boot verification procedure for the Phlix Roku c
    - Upload the zip file from step 2.
 
 4. **Open telnet before launching** to capture the first frame. The Roku BrightScript
-   debug console listens on **port 8085** (8080 is not the console port):
+   debug console listens on **port 8080**:
    ```bash
-   telnet <roku-ip> 8085
+   telnet <roku-ip> 8080
    ```
    Leave this terminal open. All BrightScript console output will appear here.
 
