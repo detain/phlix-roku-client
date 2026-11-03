@@ -8,25 +8,31 @@ sub Init()
     ApplyXmlChrome()
     m.top.isSubcomponent = false
 
-    ' Define settings items with section headers and menu entries
+    ' Define settings items with section headers and menu entries.
+    ' [MJ-20, review roku__casualgamer + writer] Every title/description rides
+    ' the catalog: the 27 section_*/item_*/desc_* keys were minted in all
+    ' seven locales at the R7.12 baseline but the builder kept shipping raw
+    ' English (docs/i18n.md's SettingsScene coverage claim was fiction until
+    ' this rewire). en_US values are byte-identical to the retired literals —
+    ' a translation rewire, not a copy rewrite. Check 78 pins the shape.
     m.settingsItems = [
-        { title: "Account", type: "header" },
-        { title: "User Email", type: "info", description: "View your account email and log out" },
-        { title: "Server", type: "header" },
-        { title: "Server URL", type: "info", description: "View and switch the server address" },
-        { title: "Playback", type: "header" },
-        { title: "Playback Preferences", type: "info", description: "Configure playback quality and autoplay" },
-        { title: "Captions", type: "header" },
-        { title: "Caption Mode", type: "info", description: "Toggle captions on or off" },
-        { title: "Picture-in-Picture", type: "toggle", description: "Enable PiP during playback" },
-        { title: "Watch History", type: "header" },
-        { title: "Clear History", type: "action", description: "Remove all watch history data" },
-        { title: "View History", type: "action", description: "Browse your watch history" },
-        { title: "Notifications", type: "header" },
-        { title: "Push Notifications", type: "toggle", description: "Receive push notifications" },
-        { title: "Email Notifications", type: "toggle", description: "Receive email notifications" },
-        { title: "About", type: "header" },
-        { title: "Version", type: "info", description: "App version and device information" }
+        { title: Translate("settings_section_account"), type: "header" },
+        { title: Translate("settings_item_user_email"), type: "info", description: Translate("settings_desc_user_email") },
+        { title: Translate("settings_section_server"), type: "header" },
+        { title: Translate("settings_item_server_url"), type: "info", description: Translate("settings_desc_server_url") },
+        { title: Translate("settings_section_playback"), type: "header" },
+        { title: Translate("settings_item_playback_preferences"), type: "info", description: Translate("settings_desc_playback_preferences") },
+        { title: Translate("settings_section_captions"), type: "header" },
+        { title: Translate("settings_item_caption_mode"), type: "info", description: Translate("settings_desc_caption_mode") },
+        { title: Translate("settings_item_picture_in_picture"), type: "toggle", description: Translate("settings_desc_picture_in_picture") },
+        { title: Translate("settings_section_watch_history"), type: "header" },
+        { title: Translate("settings_item_clear_history"), type: "action", description: Translate("settings_desc_clear_history") },
+        { title: Translate("settings_item_view_history"), type: "action", description: Translate("settings_desc_view_history") },
+        { title: Translate("settings_section_notifications"), type: "header" },
+        { title: Translate("settings_item_push_notifications"), type: "toggle", description: Translate("settings_desc_push_notifications") },
+        { title: Translate("settings_item_email_notifications"), type: "toggle", description: Translate("settings_desc_email_notifications") },
+        { title: Translate("settings_section_about"), type: "header" },
+        { title: Translate("settings_item_version"), type: "info", description: Translate("settings_desc_version") }
     ]
 
     m.settingsList = m.top.findNode("settingsList")

@@ -51,6 +51,33 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the Settings menu now rides the locale catalog it was supposed to own since R7.12 (MJ-20, review roku__casualgamer + writer) — 2026-11-03
+
+- **The defect.** `SettingsScene`'s `settingsItems` builder shipped 17 raw
+  `title:` literals and 10 raw `description:` literals end-to-end on
+  non-English devices — while the 27 matching `settings.section_*`/`item_*`/
+  `desc_*` keys sat minted and mirrored in all seven locale files since the
+  R7.12 baseline, dead and consumer-less. docs/i18n.md advertised the
+  SettingsScene coverage as shipped truth; the claim is true only from this
+  commit forward.
+- **The cure is a pure rewire.** Every entry's title/description now calls
+  `Translate("settings_…")` — the flattened underscore form the device
+  loader (`LoadLocaleStrings`) actually resolves (the exact class Check 20
+  was built to catch: the first scratch draft's bare unprefixed keys went
+  red on it, 27 convictions, before the form was corrected). The en_US
+  values are byte-identical to the retired literals — scripted 17-of-17
+  row equality at commit time: no copy rewrite, no new locale values, no
+  version bump (catalog stays v1.17.0); English rendering is unchanged and
+  the six other locales stop falling back to English mid-menu. Checks
+  20/21 went green on the revived keys with zero catalog edits.
+- **Check 78** (next commit): R1 raw `title: "`/`description: "`
+  convictions in the builder region, R2 the builder's Translate-census
+  floor 27, R3 the docs/i18n.md cure marker, R4 the ledger row; portable-
+  twin plants J/K prove R1/R2 independence.
+- **Gates.** Battery 77 legs / 80 PASS rc=0; `bsc`/`bslint` clean;
+  `validate-xml` 48 files; route gate + self-test green; headless unit era
+  unchanged 210/0/53 EXACT; portable twin re-run over the combined tree.
+
 ### Fixed — the hub-supplied serverId is path-law-gated at pick, at read and at dial (MJ-18, review roku__secnet) — 2026-11-03
 
 - **The breach class.** `serverId` arrives from the hub's `/me/servers`
