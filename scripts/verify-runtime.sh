@@ -13427,8 +13427,11 @@ echo "$PYOUT"
 #      fail-closed "" on every inability path (no component, Setup refusal,
 #      junk shape) and never sha1/md5/roEncryptor; IsCanonicalPasswordHash
 #      scans exactly 64 chars with the protocol's range-compare idiom - the
-#      Asc( call is pinned EXTINCT here because Roku BrightScript has no
-#      Asc() (the class this deferred lane measured headless-first). The
+#      Asc( call is pinned EXTINCT here as SHAPE custody - this gate keeps
+#      the one IsHex40-family range-compare idiom its headless pins byte-
+#      assert (Asc is real: bsc models it, brs implements it; the era 'HAS
+#      NO Asc()' generalization is FALSE and retracted by the 2026-11-04
+#      CHANGELOG correction - the ban stands). The
 #      truth table ships in tests/unit/SyncPlayJoinCode.test.brs.
 #   R3 panel ownership - the code form is a VISIBILITY SWAP inside syncPanel
 #      (no new overlay, no focus stack): all eight nodes ship; both inputs
