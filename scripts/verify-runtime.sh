@@ -13586,7 +13586,7 @@ if util is not None:
         if "<> 64" not in gbody or 'c >= "a" and c <= "f"' not in gbody:
             r2.append("IsCanonicalPasswordHash no longer scans exactly 64 lowercase hex chars (range-idiom shape)")
         if "Asc(" in gbody:
-            r2.append("Asc( re-grew in the canonical gate - Roku BrightScript HAS NO Asc(); this exact shape crashed headless during the MJ-2 lane (measured, never device-portable)")
+            r2.append("Asc( re-grew in the canonical gate - the leaf must keep its pinned IsHex40-family range-compare shape; this ban is SHAPE custody, not a platform claim (Asc is real: bsc models it, brs implements it, four live Utilities sites call it) - the MJ-2 lane's own in-lane headless crash belonged to the brs typed-formal class its EXCLUDED_TESTS comments document; the era prose generalized that event into 'HAS NO Asc()' and the 2026-11-04 CHANGELOG correction retracts the generalization, not the ban")
 if r2:
     problems.append("  digest leaves - CHECK94 R2: " + "; ".join(r2))
 

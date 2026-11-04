@@ -1970,8 +1970,14 @@ end function
 ' non-canonical digest (SPEC §4 "refused, never coerced"), so the client gates
 ' the same way BEFORE the frame leaves the device: a malformed digest is
 ' dropped, never sent. Pure string logic - unit-pinnable headless. The scan
-' uses the SyncPlayProtocol.IsHex40 range-compare idiom (Roku BrightScript
-' has no Asc(); the ranges are ASCII-ordered so the compares ARE the test).
+' keeps the SyncPlayProtocol.IsHex40 range-compare idiom so the repo's two
+' canonical-hex gates stay ONE byte-pinned shape (the ranges are ASCII-
+' ordered, so the compares ARE the test - identically on brs and firmware).
+' Asc() itself is real BrightScript: bsc models it, brs implements it, and
+' IsPrivateIpRange/UrlEncode/StripWireControlChars/IsSafeContentId above all
+' call it live. Check 94 R2's Asc( ban is SHAPE custody for this body only -
+' it has never been a platform-impossibility claim (the era prose that said
+' so was false; corrected in the CHANGELOG's 2026-11-04 entry).
 function IsCanonicalPasswordHash(s as String) as Boolean
     if s = invalid then return false
     if s.Len() <> 64 then return false
