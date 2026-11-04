@@ -51,6 +51,53 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Changed — cs#48-ritual: route-manifest re-vendor to the contracts v0.5.6 payload (412→415 tuples) — 2026-11-04
+
+- **Owner-authorized currency re-vendor (cs#48-ritual).** `WAVE-5-CHECK-TRIO2.md`
+  registered the roku fixture as check-only-green at the 412-era bytes and named
+  a re-vendor to 415 as "a FUTURE cs#48-ritual decision (per the repo-documented
+  re-vendor procedure)" — the owner took that decision 2026-11-04.
+  `tests/fixtures/server-route-manifest.json` re-vendored BYTE-FOR-BYTE from
+  contracts tag `v0.5.6` (`dist/server-route-manifest.json` @ peel
+  `c89c8420cd4d50e51f232885754cb74c92a9e05c`, md5
+  `90b79e355055307d5ba2cc0ef98e2300`, 415 tuples @ server
+  `58530ec207b0d40c3386ed10215d5bda3eaf54af`), fetched via `gh api
+  contents/<path>?ref=<peel>` (blob-exact base64) and `cmp`-proven identical to
+  the staged fixture; no tuple was hand-edited (generated-file law).
+- **The regen-#36 delta, enumerated.** Exactly three tuples added, zero removed:
+  `GET /api/v1/me/history`, `GET /api/v1/servers/{id}`,
+  `GET /api/v1/users/me/history` — all server-side surfaces this client never
+  issues (the roku scan stays 89 sites / 79 distinct tuples, tuple-exact served
+  against BOTH the 412 and the 415 sets; `CHECK_COUNTS` untouched).
+- **Pins rotated in the same commit (procedure law: `.claude/rules/
+  route-manifest-gate.md` — "Re-vendoring moves the pins").** Gate constants
+  `PROVENANCE_SHA` → `58530ec2…` and `TOTAL_TUPLES` → 415; the ritual currency
+  token value rotated `CS47REVENDORPINQ7T3` → `CS48REVENDORPINQ7T4` (constant
+  name `CS46_CURRENCY_TOKEN` is the class identifier — W-min92 precedent kept it
+  through its rotation); and the header currency prose re-anchored to the
+  v0.5.6 era, which folds the WAVE-5-CHECK-TRIO2 :35 cosmetic — the header
+  still recited "contracts TAG v0.5.3" while the fixture carried the (then
+  byte-identical) 412 payload.
+- **Measured, not assumed: exactly two parent-reds.** With the fixture moved and
+  pins UNROTATED the gate reddened on precisely the two self-consistency legs
+  (provenance sha expected `758f9149…` got `58530ec2…`; routes 415 vs pinned
+  412) — nothing else. The negative pins did NOT fire: `PARTITIONED`
+  (`GET /api/v1/me/servers`) and `HUB_SITES`
+  (`POST /api/v1/me/servers/{P}/relay-token`) stay ABSENT from the 415 bytes
+  under segment-exact matching (`servers/{id}` is not `me/servers`; verb and
+  shape both differ), and the two WS survival literals still spell their files.
+  The ui lane's W18 negative-pin firing class (`/api/v1/servers/{id}` landed in
+  its declared-unserved set) has no roku counterpart — this gate declares
+  hub-origin paths, and the new route is a server path no year of roku prose
+  claims unserved. `--self-test` re-attested on the new bytes: planted-unserved
+  RED + sibling-absence RED + served GREEN.
+- **Gates (local, CI-faithful battery).** `make validate-routes` (full scan +
+  self-test) rc=0; `make lint` (bsc) rc=0; headless BrightScript unit gate
+  `total=217 failed=0 excluded=53` rc=0; `make validate-manifest` pass; `make
+  check` pass. Zero `.brs`, XML, locale or docs-tree files moved — the fixture's
+  own `$comment`, `generatedAt`, and `sources` counts (375→376 core, 48→50
+  web-portal) are payload bytes, honored verbatim.
+
 ### Fixed — fifth-surface miss: the Check 94 R2 header block in `scripts/verify-runtime.sh` still recited the retracted "no Asc()" claim — 2026-11-04
 
 - Source: the re-review `.reviews/REVIEW-CHANGES/re-cures-clients.md` (### Major). It proved the prose cure above executed its prescribed four-surface list faithfully and stopped — but the same script the cure edited kept the false platform clause standing in the Check 94 R2 law-recitation header (`the Asc( call is pinned EXTINCT here because Roku BrightScript has no Asc() (the class this deferred lane measured headless-first)`), a few lines above the conviction string that had just been reworded to the true grounds: the file contradicted itself about its own ban. The header is the leg's most authoritative prose (the recitation a maintainer reads before touching the check), so the hazard the retraction names — a future lane believing "no Asc()" as the REASON and "curing" the four live sites as fabricated APIs — applied 1:1 to this fifth surface. Cure is prose-only: the clause now states the shape-custody grounds already carried by the conviction string, the `IsCanonicalPasswordHash` docblock, the `docs/static-checks.md` row-94 twin clause and the portable twin's plant-TT header (the ban keeps this gate on the ONE `IsHex40`-family range-compare idiom its headless pins byte-assert; the MJ-2 crash belonged to the brs typed-formal class; the era generalization is retracted by the entry below — the ban itself is untouched). Zero movement in plants, needles, pins, code or counts; the twin's plant legs re-attested after the edit (SS fires exactly its 1 CHECK94 R1 conviction, TT exactly its 1 R2 conviction, green siblings PASS under each, restore → exit 0). The sweep `grep -rni 'BrightScript has no'` over src/tests/docs/scripts now leaves only TRUE platform claims (no module-level variables, no default parameters, no `\r` escapes, no `_` separators, no QR encoder, no unit runner) plus the retracting sentences.

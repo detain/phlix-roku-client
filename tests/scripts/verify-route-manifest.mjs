@@ -9,9 +9,12 @@
  * against the VENDORED phlix-server route manifest
  * (`tests/fixtures/server-route-manifest.json`, a byte-for-byte copy of
  * `@phlix/contracts` `dist/server-route-manifest.json`). Current currency:
- * contracts TAG v0.5.3 (peel 430981e) — content regen at phlix-server
- * `758f91496c068551b310f1078093335f79c20e04`, 412 tuples (the v0.5.2-era
- * 410 @ `730e55b7` was the previous currency; cs#47 re-vendor, W-min92).
+ * contracts TAG v0.5.6 (peel c89c8420) — content regen at phlix-server
+ * `58530ec207b0d40c3386ed10215d5bda3eaf54af`, 415 tuples (the v0.5.3-era
+ * 412 @ `758f91496c068551b310f1078093335f79c20e04` was the previous currency;
+ * cs#48 re-vendor — the +3 tuples are server-side history/servers routes
+ * this client does not issue; header prose re-anchored, the stale v0.5.3-era
+ * label carried by WAVE-5-CHECK-TRIO2 is cured with it).
  * The two address classes the HTTP manifest CANNOT own are declared, not
  * hidden (M-ROKU-13): HUB_SITES (hub-registry paths — asserted ABSENT from
  * the server manifest, the same staleness law as PARTITIONED) and WS_SITES
@@ -49,12 +52,13 @@ const MANIFEST_FILE = path.join(REPO, 'tests', 'fixtures', 'server-route-manifes
 const QUIET = process.argv.includes('--quiet');
 const SELF_TEST = process.argv.includes('--self-test');
 
-// cs#47 currency re-vendor ritual token (code-resident survival assertion
-// target — W-min92 rotated it with the v0.5.3 byte-for-byte re-vendor).
-export const CS46_CURRENCY_TOKEN = 'CS47REVENDORPINQ7T3';
+// cs#48 currency re-vendor ritual token (code-resident survival assertion
+// target — rotated with the v0.5.6 byte-for-byte re-vendor; cs#47/W-min92
+// rotated in the CS47REVENDORPINQ7T3 value this one replaces).
+export const CS46_CURRENCY_TOKEN = 'CS48REVENDORPINQ7T4';
 
-const PROVENANCE_SHA = '758f91496c068551b310f1078093335f79c20e04';
-const TOTAL_TUPLES = 412;
+const PROVENANCE_SHA = '58530ec207b0d40c3386ed10215d5bda3eaf54af';
+const TOTAL_TUPLES = 415;
 
 /**
  * Sites the scanner DELIBERATELY does not check against the server manifest,
