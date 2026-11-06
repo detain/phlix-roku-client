@@ -11818,7 +11818,16 @@ for path, marker in (
         continue
     if t.count("if not IsStreamUrlAdmissible(GetServerUrl(), streamUrl) then") != 1:
         site_laws.append(path + ": gate call lost or duplicated")
-    if t.count(marker) != 1:
+    if path == "components/PlayerScene.brs":
+        # RT-002 w01 wave (2026-11-06) rotation, from measured red in that
+        # commit: the single HLS choke PlayHlsUrlRefused re-uses the era's
+        # unified refusal print, so the file legitimately carries the marker
+        # TWICE now (direct lane + shared gate). Presence is the law; the
+        # gate itself is pinned by CHECK95 R4. The other two files stayed
+        # single-site lanes and keep the exact-count law.
+        if t.count(marker) < 1:
+            site_laws.append(path + ": refusal marker lost")
+    elif t.count(marker) != 1:
         site_laws.append(path + ": refusal marker lost")
 if site_laws:
     problems.append(
@@ -13721,6 +13730,284 @@ if problems:
 
 print("  CHECK94: a code from any device opens the room - digest-only custody,")
 print("  the panel-owned form, the seven-key v1.20.0 mint, and the honest README")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 95: end-of-playback truth - real-end completion, the up-next wrapper, mode-aware boot retry, the single HLS gate, parsed skip markers, windowed lazy loading (RT-089 RT-090 RT-001 RT-002 RT-003 RT-004) ==="
+# NUMBERING: 95 is the next-FREE leg (94 taken by the MJ-2 era, measured on
+# this lane at 53f11ac; 'Check 95'/'CHECK95' appear nowhere in scripts/,
+# tests/ or docs/ before this commit).
+#
+# WHY THE LEG EXISTS (review lineage roku__crossfe C1 + roku__gameux C1 +
+# roku__casualgamer M1 + roku__exploiter M3/M4 + roku__crossfe m3, wave w01):
+# six shipped defects shared one shape - the client trusted a shape it never
+# verified. The R4.4 completion fallback fired at 95% of the runtime (cutting
+# the last five minutes off every film, skipping the completeSession POST
+# because it pre-set the very flag CompleteSession owns, tearing the scene
+# down under the Up Next card, and re-tripping instantly on resume - an
+# unwatchable loop); the up-next handlers read the WRAPPER envelope
+# {items: [...]} that GET /users/me/next-up answers as if it were the bare
+# item (phantom rail tile, dead select key, title-less card that stranded
+# the post-playback screen when Play-Now dismissed itself without launching);
+# the boot retry button always ran the direct-mode auth check, wiping valid
+# hub sessions to a false "Session Expired" (Init's mode branch did not
+# survive into the retry path); the HLS lane took server playlist URLs
+# straight into the Video node while only the direct lane enforced the
+# MJ-19/MN-24 gates; skip markers rode raw from the wire into typed float
+# comparisons and the skipRequested field (render-thread Type Mismatch class);
+# and ActivateVisibleRange walked the ENTIRE content tree on every scroll
+# event. Every cure below is shape custody, and this leg pins the shapes.
+#
+# WHAT IT PINS (fail-loud on unreadable inputs):
+#   R1 real-end completion - the OnPositionUpdate fallback gates on
+#      duration-position < 1 (never the retired 0.95 fraction), latches once
+#      through m.endOfPlaybackFallbackFired, and routes EXACTLY like the
+#      firmware "finished" branch: isPlaying=false, StopPlayback(),
+#      ShowUpNextCard() - and neither sessionCompleteReported=true nor
+#      ClosePlayer() may appear in that body again (CompleteSession owns the
+#      flag; the card owns the scene).
+#   R2 wrapper custody - both OnUpNextResponse handlers (HomeScene rail,
+#      PlayerScene card) read resp.data.items and keep the envelope out of
+#      the item slot; the ApiTask getNextUp docblock tells the wrapper truth
+#      and the retired "direct item object" claim may not regrow.
+#   R3 boot-retry mode law - OnBootRetryButton mirrors Init: hub mode retried
+#      through StartHubAuthCheck (bare hub url), direct through StartAuthCheck.
+#   R4 single HLS choke - PlayHls admits a URL only through PlayHlsUrlRefused,
+#      which carries the MJ-19 IsStreamUrlAdmissible call AND the MN-24
+#      scheme refusal, and the gate must precede the ContentNode creation.
+#   R5 marker parse custody - both SkipButton implementations (live component
+#      + headless factory) lift every skip_* value through a boxed-numeric
+#      reader (ReadLong idiom, components/SyncPlayTask.brs) storing invalid
+#      for everything non-numeric, and PlayerScene writes the typed markers
+#      field only from a roAssociativeArray check.
+#   R6 windowed walk - ActivateVisibleRange iterates the visible column
+#      window with a GetChildCount-bounded for-loop; the full 0..invalid
+#      while-walk may not regrow.
+#   R7 docs pair - static-checks row 95 names the era; the CHANGELOG entry
+#      names RT-089 and RT-090 and the two new gate functions.
+# Zero new catalog keys: every user-visible copy here rides keys the ship
+# already has (the CHECK93 R3 census stays untouched BY CONSTRUCTION).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as err:
+        return None
+
+
+def strip_comment_lines(text):
+    return "\n".join(l for l in text.splitlines()
+                     if not l.lstrip().startswith("'"))
+
+
+def sub_body(src, name):
+    m = re.search(r"^(?:sub|function)\s+" + name + r"\b[^\n]*\n(.*?)^end (?:sub|function)",
+                  src, re.MULTILINE | re.DOTALL)
+    return m.group(1) if m else None
+
+
+problems = []
+
+# ---- R1 real-end completion (RT-089) --------------------------------------------
+PSRC = read("components/PlayerScene.brs")
+if PSRC is None:
+    problems.append("  components/PlayerScene.brs - CHECK95: unreadable")
+    PSRC = ""
+psc = strip_comment_lines(PSRC)
+r1 = []
+opp = sub_body(psc, "OnPositionUpdate")
+if opp is None:
+    r1.append("OnPositionUpdate vanished")
+else:
+    if "0.95" in opp:
+        r1.append("the retired 95%-fraction gate is back")
+    if "duration - position < 1" not in opp:
+        r1.append("the real-end gate (duration - position < 1) left")
+    if "m.endOfPlaybackFallbackFired" not in opp:
+        r1.append("the once-only end-fallback latch left")
+    if "m.sessionCompleteReported = true" in opp:
+        r1.append("the fallback pre-sets sessionCompleteReported again - CompleteSession owns that flag")
+    if "ClosePlayer()" in opp:
+        r1.append("the fallback tears the scene down with ClosePlayer again - route it through ShowUpNextCard")
+    if "StopPlayback()" not in opp or "ShowUpNextCard()" not in opp:
+        r1.append("the fallback no longer routes through the finished-state path (StopPlayback + ShowUpNextCard)")
+    if "m.isPlaying = false" not in opp:
+        r1.append("the fallback no longer mirrors the finished branch's isPlaying reset")
+if r1:
+    problems.append("  end-of-playback fallback - CHECK95 R1: " + "; ".join(r1))
+
+# ---- R2 wrapper custody (RT-090) ------------------------------------------------
+r2 = []
+HSRC = read("components/HomeScene.brs")
+if HSRC is None:
+    problems.append("  components/HomeScene.brs - CHECK95: unreadable")
+    HSRC = ""
+hb = sub_body(strip_comment_lines(HSRC), "OnUpNextResponse")
+if hb is None:
+    r2.append("HomeScene OnUpNextResponse vanished")
+elif "resp.data.items" not in hb:
+    r2.append("the HomeScene rail stopped reading the {items: [...]} wrapper")
+pb = sub_body(psc, "OnUpNextResponse")
+if pb is None:
+    r2.append("PlayerScene OnUpNextResponse vanished")
+else:
+    if "resp.data.items" not in pb:
+        r2.append("the PlayerScene card stopped reading the {items: [...]} wrapper")
+    if "m.upNextItem = resp.data" in pb:
+        r2.append("the envelope is being stored as the item again")
+AT = read("components/ApiTask.brs")
+if AT is None:
+    problems.append("  components/ApiTask.brs - CHECK95: unreadable")
+    AT = ""
+arm = AT[AT.find('req.op = "getNextUp"'):] if 'req.op = "getNextUp"' in AT else ""
+arm = arm[:arm.find('else if req.op')] if 'else if req.op' in arm else arm
+if "{items:" not in arm:
+    r2.append("the getNextUp docblock does not name the wrapper shape")
+if "direct item object" in arm:
+    r2.append("the retired 'direct item object' contract claim regrew in ApiTask")
+if r2:
+    problems.append("  up-next wrapper custody - CHECK95 R2: " + "; ".join(r2))
+
+# ---- R3 boot-retry mode law (RT-001) ----------------------------------------------
+APP = read("components/PhlixApp.brs")
+if APP is None:
+    problems.append("  components/PhlixApp.brs - CHECK95: unreadable")
+    APP = ""
+rb = sub_body(strip_comment_lines(APP), "OnBootRetryButton")
+r3 = []
+if rb is None:
+    r3.append("OnBootRetryButton vanished")
+else:
+    if 'GetConnectionKind() = "hub"' not in rb:
+        r3.append("the retry no longer mirrors Init's mode branch")
+    if "StartHubAuthCheck()" not in rb:
+        r3.append("hub mode retries still ride the relay-base StartAuthCheck - the false Session Expired class")
+if r3:
+    problems.append("  boot-retry mode law - CHECK95 R3: " + "; ".join(r3))
+
+# ---- R4 single HLS choke (RT-002) -------------------------------------------------
+r4 = []
+ph = sub_body(psc, "PlayHls")
+gate = sub_body(psc, "PlayHlsUrlRefused")
+if ph is None:
+    r4.append("PlayHls vanished")
+else:
+    if "PlayHlsUrlRefused(" not in ph:
+        r4.append("PlayHls no longer admits URLs through the shared refusal gate")
+    if gate is not None:
+        if ph.find("CreateObject(\"roSGNode\", \"ContentNode\")") < 0 or \
+           ph.find("PlayHlsUrlRefused(") > ph.find("CreateObject(\"roSGNode\", \"ContentNode\")"):
+            r4.append("the refusal gate no longer PRECEDES the ContentNode creation")
+if gate is None:
+    r4.append("PlayHlsUrlRefused vanished")
+else:
+    if "IsStreamUrlAdmissible(" not in gate:
+        r4.append("the MJ-19 TLS-boundary gate left the HLS lane")
+    if '<> "https:"' not in gate:
+        r4.append("the MN-24 scheme refusal left the HLS lane")
+    if "player_err_transcode_no_stream" not in ph:
+        r4.append("refusals no longer reuse the existing no-stream dialog")
+if r4:
+    problems.append("  HLS single choke - CHECK95 R4: " + "; ".join(r4))
+
+# ---- R5 marker parse custody (RT-003) ----------------------------------------------
+r5 = []
+CSB = read("components/SkipButton.brs")
+if CSB is None:
+    problems.append("  components/SkipButton.brs - CHECK95: unreadable")
+    CSB = ""
+FSB = read("source/player/SkipButton.brs")
+if FSB is None:
+    problems.append("  source/player/SkipButton.brs - CHECK95: unreadable")
+    FSB = ""
+
+def dict_method_body(src, name):
+    m = re.search(r"^(\s*)" + name + r": function[^\n]*\n(.*?)^\1end function",
+                  src, re.MULTILINE | re.DOTALL)
+    return m.group(2) if m else None
+
+# The law, in both files: a Boolean admissibility probe decides, and the
+# stored value is ALWAYS the raw wire member (never a helper return) - an
+# as-Object round-trip re-boxes numerics, which the headless brs harness
+# silently mis-compares. Per-key shape pinned for all four skip_* markers.
+MARKER_KEYS = ("skip_intro_start", "skip_intro_end", "skip_outro_start", "skip_outro_end")
+for label, src, helper, probe in (
+        ("component", CSB, "SkipMarkerIsNumeric", "SkipMarkerIsNumeric(markerData."),
+        ("factory", FSB, "isNumericMarker", "m.isNumericMarker(markerData.")):
+    h = sub_body(src, helper) or dict_method_body(src, helper)
+    if h is None:
+        r5.append(f"the {label} Boolean marker probe ({helper}) is missing")
+        continue
+    sig_ok = re.search(r"(?:^function\s+" + helper + r"[^\n]*as Boolean$|^\s*" + helper + r": function[^\n]*as Boolean$)",
+                       src, re.MULTILINE)
+    if sig_ok is None:
+        r5.append(f"the {label} marker probe does not return Boolean - value round-trips re-box numerics")
+    for tp in ("roInt", "roLongInteger", "roFloat", "roDouble"):
+        if tp not in h:
+            r5.append(f"the {label} probe dropped the {tp} arm")
+    sm = sub_body(src, "setMarkers") or dict_method_body(src, "setMarkers")
+    if sm is None:
+        r5.append(f"the {label} setMarkers vanished")
+        continue
+    for key in MARKER_KEYS:
+        if probe + key + ")" not in sm:
+            r5.append(f"the {label} setMarkers no longer probes {key}")
+        if f"m.markers.{key} = markerData.{key}" not in sm:
+            r5.append(f"the {label} setMarkers stores {key} through an as-Object round-trip instead of the raw wire member")
+oc = sub_body(CSB, "OnMarkersChange")
+if oc is None or "setMarkers(markerData)" not in strip_comment_lines(oc):
+    r5.append("the component's markers-field callback no longer delegates to the guarded setMarkers")
+if 'type(skipSpec) = "roAssociativeArray"' not in psc:
+    r5.append("PlayerScene writes the typed markers field without the roAssociativeArray check")
+if r5:
+    problems.append("  marker parse custody - CHECK95 R5: " + "; ".join(r5))
+
+# ---- R6 windowed walk (RT-004) ------------------------------------------------------
+r6 = []
+av = sub_body(strip_comment_lines(HSRC), "ActivateVisibleRange")
+if av is None:
+    r6.append("ActivateVisibleRange vanished")
+else:
+    if "while child <> invalid" in av:
+        r6.append("the full 0..invalid walk regrew - the window clamp is the law")
+    if "GetChildCount" not in av:
+        r6.append("the window is no longer bounded by GetChildCount")
+    if "for i = first to last" not in av:
+        r6.append("the bounded for-loop shape left")
+if r6:
+    problems.append("  windowed lazy walk - CHECK95 R6: " + "; ".join(r6))
+
+# ---- R7 docs pair -------------------------------------------------------------------
+r7 = []
+docs = read("docs/static-checks.md")
+if docs is None or not re.search(r"^\|\s*95\s*\|.*RT-089\b", docs, re.M):
+    r7.append("docs/static-checks.md row 95 is missing or does not name RT-089")
+cl = read("CHANGELOG.md")
+if cl is None or "RT-089" not in cl or "RT-090" not in cl or "PlayHlsUrlRefused" not in cl:
+    r7.append("CHANGELOG.md must name RT-089, RT-090 and the new gate function")
+if r7:
+    problems.append("  docs pair - CHECK95 R7: " + "; ".join(r7))
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK95: %d conviction(s) - the w01 end-of-playback laws are broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK95: the film ends at the end, the envelope stays an envelope,")
+print("  the retry knows its mode, one gate owns every HLS lane, markers are")
+print("  parsed before they speak, and the rail walks its window")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

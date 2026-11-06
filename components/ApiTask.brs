@@ -458,7 +458,12 @@ sub ExecRequest()
         else if req.op = "getNextUp" then
             ' R7.2: Fetch the next episode/item for autoplay card and Up Next rail.
             ' Endpoint: GET /api/v1/users/me/next-up
-            ' Response: direct item object (or null if nothing up next)
+            ' [RT-090 review roku__gameux C1] Response: WRAPPER object
+            ' {items: [...]} - rows carry media_item_id (the same envelope law
+            ' as /me/continue-watching). An empty items array means nothing up
+            ' next. Consumers must unwrap .items; the pre-fix docblock promised
+            ' the bare item as the response body — a contract that never
+            ' existed, and both of its readers inherited the phantom.
             cachedResp = CacheTryGet(api, "GET", "/users/me/next-up")
             if cachedResp <> invalid then
                 ApplyEnvelope(result, cachedResp)

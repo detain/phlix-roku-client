@@ -282,3 +282,72 @@ sub TestOutroDoesNotTriggerIntro()
     assertEqual(skipBtn.getTargetPosition(), 2520)
     print "TestOutroDoesNotTriggerIntro passed"
 end sub
+' ============================================================
+' [RT-003 review roku__exploiter M4] The wire is untyped: a skip marker can
+' arrive as a JSON string ("90"), a Boolean, or a container. The pre-fix
+' setMarkers copied raw values, so the range law became a mixed-type compare
+' (`position >= "10"` crashes the render thread on device) and the raw value
+' rode skipRequested, a typed float field. The cure parses at the boundary:
+' boxed numerics are kept, everything else becomes invalid so the existing
+' invalid-guards treat it as "no marker" instead of tripping over it.
+' ============================================================
+
+' Test a string-marker pair is parsed away, not kept (red at the parent:
+' the raw copy made hasIntroMarkers() claim a pair of Strings exists).
+sub TestSetMarkersStringValuesBecomeInvalid()
+    skipBtn = SkipButton()
+    skipBtn.setMarkers({
+        skip_intro_start: "10"
+        skip_intro_end: "90"
+        skip_outro_start: invalid
+        skip_outro_end: invalid
+    })
+
+    assertFalse(skipBtn.hasIntroMarkers())
+    assertFalse(skipBtn.isPositionInIntroRange(50))
+    print "TestSetMarkersStringValuesBecomeInvalid passed"
+end sub
+
+' Test a non-associative marker payload (array shape) clears every pair.
+sub TestSetMarkersNonAssocArrayClears()
+    skipBtn = SkipButton()
+    skipBtn.setMarkers({
+        skip_intro_start: 10
+        skip_intro_end: 90
+    })
+    assertTrue(skipBtn.hasIntroMarkers())
+
+    skipBtn.setMarkers(["skip_intro_start", 10, 90])
+
+    assertFalse(skipBtn.hasIntroMarkers())
+    assertFalse(skipBtn.hasOutroMarkers())
+    print "TestSetMarkersNonAssocArrayClears passed"
+end sub
+
+' Test fractional seconds survive the parse (the reader must not be
+' Integer-only: markers are Float seconds on the wire).
+sub TestSetMarkersFloatSecondsKept()
+    skipBtn = SkipButton()
+    skipBtn.setMarkers({
+        skip_intro_start: 10.5
+        skip_intro_end: 90.25
+    })
+
+    assertTrue(skipBtn.hasIntroMarkers())
+    assertTrue(skipBtn.isPositionInIntroRange(50))
+    assertEqual(skipBtn.getTargetPosition(), 0)
+    print "TestSetMarkersFloatSecondsKept passed"
+end sub
+
+' Test a lone half-pair (missing key) is not a pair: hasIntroMarkers must
+' refuse when only the start leg exists on the wire.
+sub TestSetMarkersHalfPairIsNotAPair()
+    skipBtn = SkipButton()
+    skipBtn.setMarkers({
+        skip_intro_start: 10
+    })
+
+    assertFalse(skipBtn.hasIntroMarkers())
+    assertFalse(skipBtn.isPositionInIntroRange(50))
+    print "TestSetMarkersHalfPairIsNotAPair passed"
+end sub

@@ -47,17 +47,44 @@ function SkipButton() as Object
 
         ' Set marker data from playback info
         ' @param markerData Object - Object containing skip_intro_start, skip_intro_end, etc.
+        ' [RT-003 review roku__exploiter M4] Same parse-at-the-boundary law as
+        ' the live component (components/SkipButton.brs): only a real
+        ' associative array is read, and every skip_* value must pass the
+        ' isNumericMarker verdict or it is stored as invalid, so a
+        ' String/Boolean/container from the untyped wire becomes "no marker"
+        ' for the range/target guards instead of crashing a mixed-type
+        ' compare. The verdict is BOOLEAN and the copy is the raw wire member:
+        ' round-tripping a numeric through an as-Object boundary re-boxes it,
+        ' which the device unboxes silently but the headless brs harness
+        ' mis-compares (50 >= roInt(10) -> false).
         setMarkers: function(markerData as Object)
-            if markerData = invalid then
+            if type(markerData) = "roAssociativeArray" then
+                if m.isNumericMarker(markerData.skip_intro_start) then
+                    m.markers.skip_intro_start = markerData.skip_intro_start
+                else
+                    m.markers.skip_intro_start = invalid
+                end if
+                if m.isNumericMarker(markerData.skip_intro_end) then
+                    m.markers.skip_intro_end = markerData.skip_intro_end
+                else
+                    m.markers.skip_intro_end = invalid
+                end if
+                if m.isNumericMarker(markerData.skip_outro_start) then
+                    m.markers.skip_outro_start = markerData.skip_outro_start
+                else
+                    m.markers.skip_outro_start = invalid
+                end if
+                if m.isNumericMarker(markerData.skip_outro_end) then
+                    m.markers.skip_outro_end = markerData.skip_outro_end
+                else
+                    m.markers.skip_outro_end = invalid
+                end if
+            else
+                if markerData <> invalid then print "[RT-003] ignoring non-associative-array skip marker payload"
                 m.markers.skip_intro_start = invalid
                 m.markers.skip_intro_end = invalid
                 m.markers.skip_outro_start = invalid
                 m.markers.skip_outro_end = invalid
-            else
-                m.markers.skip_intro_start = markerData.skip_intro_start
-                m.markers.skip_intro_end = markerData.skip_intro_end
-                m.markers.skip_outro_start = markerData.skip_outro_start
-                m.markers.skip_outro_end = markerData.skip_outro_end
             end if
 
             ' Reset visibility when markers change
@@ -66,6 +93,17 @@ function SkipButton() as Object
             if m.button <> invalid then
                 m.button.visible = false
             end if
+        end function
+
+        ' [RT-003 review roku__exploiter M4] Numeric admissibility probe, twin
+        ' of SkipMarkerIsNumeric in components/SkipButton.brs. Both boxed and
+        ' native numeric shapes count as trusted (on-device wire reads can
+        ' surface either); everything else is "no marker".
+        isNumericMarker: function(value as Object) as Boolean
+            tp = type(value)
+            if tp = "Integer" or tp = "roInt" or tp = "LongInteger" or tp = "roLongInteger" then return true
+            if tp = "Float" or tp = "roFloat" or tp = "Double" or tp = "roDouble" then return true
+            return false
         end function
 
         ' Update button visibility based on current position

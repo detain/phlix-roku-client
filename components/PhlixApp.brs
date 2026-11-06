@@ -305,13 +305,25 @@ end sub
 
 ' OnBootRetryButton - handles retry button press on the boot error screen.
 sub OnBootRetryButton()
-    ' Reset so StartAuthCheck can re-fire
+    ' Reset so the auth check can re-fire
     m.authCheckDone = false
     ' Stop any stale timer before starting a fresh one
     if m.authTimer <> invalid then
         m.authTimer.control = "stop"
     end if
-    StartAuthCheck()
+    ' [RT-001 review roku__casualgamer M1] Mirror Init's mode branch: a hub
+    ' session must be validated on the BARE hub url (StartHubAuthCheck ->
+    ' GetHubApiClient), exactly as boot does. The pre-fix unconditional
+    ' StartAuthCheck ran checkAuth on GetApiClient - the RELAY base in hub
+    ' mode - where the hub user's /auth/me is unreliable, so retrying after a
+    ' transient network error answered not-ok for genuinely valid credentials,
+    ' cleared the session and landed the user on a false "Session Expired"
+    ' login. Direct mode keeps StartAuthCheck unchanged.
+    if GetConnectionKind() = "hub" then
+        StartHubAuthCheck()
+    else
+        StartAuthCheck()
+    end if
 end sub
 
 ' OnAuthResponse - handles the direct-mode auth check result.

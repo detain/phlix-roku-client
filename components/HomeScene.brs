@@ -415,12 +415,19 @@ sub OnContinueWatchingResponse(resp as Object)
 end sub
 
 ' R7.2: Handle getNextUp response — populate the Up Next rail.
+' [RT-090 review roku__gameux C1] The endpoint answers with the WRAPPER
+' {items: [...]} (rows carry media_item_id — the same envelope law as
+' /me/continue-watching, whose handler above reads resp.data.items). The
+' pre-fix code read resp.data as the item itself: the type check passed on
+' the envelope, a phantom chrome-less tile rendered, and selecting it was a
+' dead key (no id/media_item_id exists on the wrapper).
 sub OnUpNextResponse(resp as Object)
     if not resp.ok or resp.data = invalid then return
 
-    ' getNextUp returns {item: {...}} — extract the item
-    item = resp.data
-    if item = invalid then return
+    if type(resp.data) <> "roAssociativeArray" then return
+    items = resp.data.items
+    if type(items) <> "roArray" or items.Count() = 0 then return
+    item = items[0]
     if type(item) <> "roAssociativeArray" then return
 
     m.upNextItems = [item]
@@ -536,6 +543,18 @@ sub OnLibraryVisibleRectChange(event as Object)
 end sub
 
 ' R5: Generic visible range activator
+' [RT-004 review roku__crossfe m3] The pre-fix walk descended children 0..
+' invalid on EVERY visibleRect event — O(content) per scroll frame, janking
+' the render thread on long rails. The cure (per the review) clamps the walk
+' to the visible window plus one column of margin each side — exactly the
+' band the old in-window test selected — and rides GetChild's random access.
+' Disclosed behavior delta: the old else-branch unload (clear a loaded poster
+' once it left the band) dies with the clamp — nothing outside the band is
+' visited anymore. No correctness law moves: lazy activation still happens
+' when a tile approaches the viewport, and a rail rebuild replaces the
+' content tree wholesale, so the stale-poster memory trim is the only thing
+' traded away for the O(window) law.
+' GetChildCount bounds the window against a tree shorter than the scroll math.
 sub ActivateVisibleRange(content as Object, vr as Object, numCols as Integer, colWidth as Integer, rowHeight as Integer)
     if content = invalid or vr = invalid then return
 
@@ -544,21 +563,20 @@ sub ActivateVisibleRange(content as Object, vr as Object, numCols as Integer, co
     firstVisibleIndex = firstVisibleRow * numCols
     lastVisibleIndex = lastVisibleRow * numCols + numCols
 
-    i = 0
-    child = content.GetChild(i)
-    while child <> invalid
-        if i >= firstVisibleIndex - numCols and i <= lastVisibleIndex + numCols then
+    first = firstVisibleIndex - numCols
+    if first < 0 then first = 0
+    last = lastVisibleIndex + numCols
+    count = content.GetChildCount()
+    if last > count - 1 then last = count - 1
+
+    for i = first to last
+        child = content.GetChild(i)
+        if child <> invalid then
             if child.HDPosterUrl = "" and child.doesExist("_lazyPosterUrl") then
                 ActivateLazyPosterUrl(child)
             end if
-        else
-            if child.HDPosterUrl <> "" then
-                ClearLazyPosterUrl(child)
-            end if
         end if
-        i = i + 1
-        child = content.GetChild(i)
-    end while
+    end for
 end sub
 
 ' Best-effort poster for a continue-watching tile. CW items are RAW JOIN rows

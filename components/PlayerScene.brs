@@ -140,6 +140,9 @@ sub Init()
     m.isPlaying = false
     ' Guards against double-sending session completion for the same item.
     m.sessionCompleteReported = false
+    ' [RT-089] One-shot latch for the real-end playback fallback (reset per
+    ' item in Show; declared here so the field is never invalid on first read).
+    m.endOfPlaybackFallbackFired = false
     ' Throttle is tracked in SECONDS (Float), never in 100ns ticks (a 32-bit
     ' Int overflows past ~214s).
     m.lastReportedPosition = 0
@@ -311,6 +314,8 @@ sub Show(itemId as String, args as Object)
     m.isPlaying = false
     ' R4.4: reset completion guard for the new item
     m.sessionCompleteReported = false
+    ' [RT-089] and its end-fallback one-shot latch.
+    m.endOfPlaybackFallbackFired = false
     m.lastReportedPosition = 0
     m.transcodeAttempted = false
     m.transcodeJobId = ""
@@ -350,11 +355,20 @@ sub Show(itemId as String, args as Object)
         m.titleLabel.text = m.item.name
     end if
 
-    ' Skip markers - pass the playback-info skip_button_spec straight through
-    ' (its keys match SkipButton's expected skip_intro_start/... fields).
-    if m.playbackInfo <> invalid and m.playbackInfo.skip_button_spec <> invalid then
-        m.skipButton.markers = m.playbackInfo.skip_button_spec
+    ' Skip markers - pass the playback-info skip_button_spec through, but ONLY
+    ' as a real associative array: the SkipButton.xml `markers` interface field
+    ' is type=assocarray, and assigning a scalar/array wire shape into it faults
+    ' the render thread with a Type Mismatch before the first frame
+    ' [RT-003 review roku__exploiter M4]. Anything that is not an AA - a
+    ' server-era surprise included - is the same no-markers state as invalid,
+    ' announced on serial. Key-by-key numeric parsing lives at the component
+    ' boundary (components/SkipButton.brs).
+    skipSpec = invalid
+    if m.playbackInfo <> invalid then skipSpec = m.playbackInfo.skip_button_spec
+    if type(skipSpec) = "roAssociativeArray" then
+        m.skipButton.markers = skipSpec
     else
+        if skipSpec <> invalid then print "[RT-003] ignoring non-associative-array skip_button_spec from the wire"
         m.skipButton.markers = invalid
     end if
 
@@ -683,8 +697,43 @@ sub OnTranscodePollResponse(event as Object)
     end if
 end sub
 
+' [RT-002 review roku__exploiter M3] The single admission gate for every URL
+' this scene hands to the Video node over the HLS lane (transcode-ready,
+' poll-ready and the quality picker all arrive here). Before this cure only
+' Show()'s direct lane enforced the estate's two stream-URL laws, so a
+' server-shaped playlist URL reached ContentNode unchecked. It applies them
+' in the same order as the direct lane: shape/MJ-19 TLS-boundary first
+' (IsStreamUrlAdmissible also refuses blank and non-string wire shapes),
+' then MN-24's scheme law - a root-relative survivor of MJ-19 still cannot
+' be fetched by the Video node. Fail-loud to serial; the user-visible arm is
+' the SAME no-stream dialog (OnTranscodeNoStreamRetry) the old invalid/""
+' check used: no new wire codes, no new locale keys.
+function PlayHlsUrlRefused(url as Object) as Boolean
+    if url = invalid then
+        print "[RT-002] refusing invalid transcode stream URL"
+        return true
+    end if
+    if type(url) <> "String" then
+        print "[RT-002] refusing non-string transcode stream URL"
+        return true
+    end if
+    if url = "" then
+        print "[RT-002] refusing empty transcode stream URL"
+        return true
+    end if
+    if not IsStreamUrlAdmissible(GetServerUrl(), url) then
+        print "[MJ-19] refusing cleartext or malformed stream URL across the TLS origin boundary"
+        return true
+    end if
+    if Left(LCase(url), 6) <> "https:" and Left(LCase(url), 5) <> "http:" then
+        print "[MN-24] refusing scheme-less stream URL at the Video boundary"
+        return true
+    end if
+    return false
+end function
+
 sub PlayHls(url as Object)
-    if url = invalid or url = "" then
+    if PlayHlsUrlRefused(url) then
         ShowErrorDialog(m.top, Translate("common_error"), Translate("player_err_transcode_no_stream"), [Translate("common_retry"), Translate("common_cancel")], OnTranscodeNoStreamRetry)
         return
     end if
@@ -751,13 +800,23 @@ sub OnPositionUpdate(event as Object)
             end if
         end if
 
-        ' R4.4: Fallback for devices where "finished" state does not fire.
-        ' If position reaches 95% of duration and completion not yet reported,
-        ' treat as natural completion.
-        if not m.sessionCompleteReported and position >= 0.95 * duration then
-            m.sessionCompleteReported = true
+        ' R4.4 [cured RT-089, review roku__crossfe C1]: Fallback for devices
+        ' where "finished" does not fire. The pre-fix gate tripped at 95% of
+        ' runtime - it cut the last five minutes off every film, pre-set
+        ' m.sessionCompleteReported so StopPlayback skipped the completeSession
+        ' POST (the item never left Continue Watching), tore the scene down
+        ' with ClosePlayer under the Up Next card, and re-tripped instantly on
+        ' the 95% resume stamp (unwatchable loop). Now it fires ONCE at the
+        ' real end (under a second of material left) and routes exactly like
+        ' the firmware "finished" branch below: StopPlayback reports
+        ' completion (CompleteSession OWNS the flag), and ShowUpNextCard keeps
+        ' the scene open and interactive. The one-shot latch exists because
+        ' position ticks keep arriving for the final second.
+        if not m.endOfPlaybackFallbackFired and duration - position < 1 then
+            m.endOfPlaybackFallbackFired = true
+            m.isPlaying = false
             StopPlayback()
-            ClosePlayer()
+            ShowUpNextCard()
         end if
     end if
 end sub
@@ -3653,7 +3712,20 @@ sub OnUpNextResponse(event as Object)
         return
     end if
 
-    m.upNextItem = resp.data
+    ' [RT-090 review roku__gameux C1] The endpoint answers with the WRAPPER
+    ' {items: [...]} (rows carry media_item_id - the same envelope law as
+    ' /me/continue-watching, whose handler reads resp.data.items). The pre-fix
+    ' code stored resp.data itself as the item: the card lost its title, the
+    ' countdown auto-fired on an EMPTY items array, and Play-Now resolved no
+    ' id - it dismissed the card and returned without launching, stranding the
+    ' post-playback screen. First row is the next up; anything else is "none".
+    if type(resp.data) <> "roAssociativeArray" then return
+    items = resp.data.items
+    if type(items) <> "roArray" or items.Count() = 0 then return
+    item = items[0]
+    if type(item) <> "roAssociativeArray" then return
+
+    m.upNextItem = item
 
     ' Find the upNextCard overlay node and populate it
     m.upNextCard = m.top.FindNode("upNextCard")

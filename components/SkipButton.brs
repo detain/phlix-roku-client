@@ -35,42 +35,66 @@ sub Init()
 end sub
 
 ' Handle markers field change (set from external)
+' [RT-003 review roku__exploiter M4] The field type only vouches for the
+' CONTAINER the sender could stage; per-key values still ride untyped from the
+' wire. One delegation to the guarded setMarkers — the parsing law lives in
+' exactly one place in this file.
 sub OnMarkersChange(event as Object)
     markerData = event.getData()
-
-    if markerData = invalid then
-        m.markers.skip_intro_start = invalid
-        m.markers.skip_intro_end = invalid
-        m.markers.skip_outro_start = invalid
-        m.markers.skip_outro_end = invalid
-    else
-        m.markers.skip_intro_start = markerData.skip_intro_start
-        m.markers.skip_intro_end = markerData.skip_intro_end
-        m.markers.skip_outro_start = markerData.skip_outro_start
-        m.markers.skip_outro_end = markerData.skip_outro_end
-    end if
-
-    ' Reset visibility when markers change
-    m.isVisible = false
-    m.activeMarkerType = ""
-    if m.button <> invalid then
-        m.button.visible = false
-    end if
+    setMarkers(markerData)
 end sub
+
+' [RT-003 review roku__exploiter M4] Admissibility probe for one skip-marker
+' value: only real numerics (boxed or native — the ReadLong idiom from
+' components/SyncPlayTask.brs accepts both shapes on-device) are trusted.
+' Deliberately returns BOOLEAN, never the value: a round-trip of a numeric
+' through an as-Object boundary re-boxes it, and the headless brs harness
+' silently mis-compares boxed numerics (50 >= roInt(10) -> false) where the
+' device would unbox. Callers test this verdict and then copy the raw wire
+' member, so the stored value keeps the exact type the wire gave it.
+function SkipMarkerIsNumeric(value as Object) as Boolean
+    tp = type(value)
+    if tp = "Integer" or tp = "roInt" or tp = "LongInteger" or tp = "roLongInteger" then return true
+    if tp = "Float" or tp = "roFloat" or tp = "Double" or tp = "roDouble" then return true
+    return false
+end function
 
 ' Set marker data from playback info
 ' @param markerData Object - Object containing skip_intro_start, skip_intro_end, etc.
+' [RT-003 review roku__exploiter M4] Parse-don't-validate at this boundary:
+' per-key numeric verdict above; anything else — absent key, invalid, String,
+' Boolean, container — is stored as invalid, which the range/target guards
+' below already treat as "no marker". This is what keeps the mixed-type
+' compares (position >= "10") and the typed-float skipRequested write
+' unreachable from server-shaped data.
 sub setMarkers(markerData as Object)
-    if markerData = invalid then
+    if type(markerData) = "roAssociativeArray" then
+        if SkipMarkerIsNumeric(markerData.skip_intro_start) then
+            m.markers.skip_intro_start = markerData.skip_intro_start
+        else
+            m.markers.skip_intro_start = invalid
+        end if
+        if SkipMarkerIsNumeric(markerData.skip_intro_end) then
+            m.markers.skip_intro_end = markerData.skip_intro_end
+        else
+            m.markers.skip_intro_end = invalid
+        end if
+        if SkipMarkerIsNumeric(markerData.skip_outro_start) then
+            m.markers.skip_outro_start = markerData.skip_outro_start
+        else
+            m.markers.skip_outro_start = invalid
+        end if
+        if SkipMarkerIsNumeric(markerData.skip_outro_end) then
+            m.markers.skip_outro_end = markerData.skip_outro_end
+        else
+            m.markers.skip_outro_end = invalid
+        end if
+    else
+        if markerData <> invalid then print "[RT-003] ignoring non-associative-array skip marker payload"
         m.markers.skip_intro_start = invalid
         m.markers.skip_intro_end = invalid
         m.markers.skip_outro_start = invalid
         m.markers.skip_outro_end = invalid
-    else
-        m.markers.skip_intro_start = markerData.skip_intro_start
-        m.markers.skip_intro_end = markerData.skip_intro_end
-        m.markers.skip_outro_start = markerData.skip_outro_start
-        m.markers.skip_outro_end = markerData.skip_outro_end
     end if
 
     ' Reset visibility when markers change

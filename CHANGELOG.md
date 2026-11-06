@@ -51,6 +51,94 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the w01 playback-custody wave: the film ends at the end, the envelope stays an envelope, the retry knows its mode, one gate owns every HLS lane, markers are parsed before they speak, the rail walks its window (RT-089 RT-090 RT-001 RT-002 RT-003 RT-004) — 2026-11-06
+
+- **RT-089 (Critical, end of playback).** `OnPositionUpdate`'s R4.4 fallback
+  force-completed at 95%: it pre-set `m.sessionCompleteReported = true`
+  (CompleteSession's own guard flag), then `StopPlayback()` + `ClosePlayer()`.
+  The last 5% of every title was unwatchable, the `completeSession` POST was
+  skipped (StopPlayback saw the flag the fallback itself had just set), and the
+  95% resume position re-tripped the fallback instantly. The cure gates on the
+  REAL end (`duration - position < 1`) behind a one-shot latch
+  (`m.endOfPlaybackFallbackFired`, initialized at scene init and in `Show()`'s
+  reset) and routes through the natural finished path — `m.isPlaying = false`,
+  `StopPlayback()`, `ShowUpNextCard()`, never `ClosePlayer()` — so the Up Next
+  card stays interactive and CompleteSession owns its flag.
+- **RT-090 (Critical, up-next envelope).** `GET /api/v1/users/me/next-up`
+  returns the WRAPPER `{items: [...]}` (rows carry `media_item_id` — the same
+  envelope law as `/me/continue-watching`, which the sibling
+  `OnContinueWatchingResponse` already honored). Both `OnUpNextResponse`
+  readers treated the wrapper as the item itself: HomeScene rendered a phantom
+  rail tile from the envelope, PlayerScene's `m.upNextItem` lost its title and
+  the card showed even when `items` was empty, and `OnUpNextPlayNow` computed
+  an empty `mediaItemId` — dismissing the card and countdown and returning
+  without launching, stranding the post-playback screen (the auto-firing
+  countdown hit it too). Both handlers now unwrap `resp.data.items`, take the
+  first row, and treat anything else as nothing-up-next; the `getNextUp`
+  docblock in `components/ApiTask.brs` now teaches the wrapper contract.
+- **RT-001 (Major, boot retry).** `OnBootRetryButton` always started the
+  direct `StartAuthCheck()` even in hub mode, where `Init` branches to
+  `StartHubAuthCheck()` — the retry authenticated hub credentials against the
+  relay base, took `session_invalid` and wiped a valid session into a false
+  Session Expired. The retry mirrors the `GetConnectionKind() = "hub"` branch
+  now.
+- **RT-002 (Major, HLS single choke).** `PlayHls` assigned server-shaped
+  payload urls straight onto the `ContentNode` with only an invalid/empty
+  check — the transcode-ready and quality-picker lanes entered the player
+  WITHOUT the admissibility gates the `Show()` direct lane enforced (MJ-19
+  origin/TLS boundary, MN-24 scheme refusal). `PlayHlsUrlRefused(url)` is the
+  single choke for every caller now: non-string, empty,
+  `IsStreamUrlAdmissible(GetServerUrl(), url)` refusal and non-http(s) schemes
+  all land on the existing `player_err_transcode_no_stream` dialog — zero new
+  wire codes, zero new locale keys.
+- **RT-003 (Major, marker parse custody).** PlayerScene wrote
+  `m.playbackInfo.skip_button_spec` (raw wire shape) into the typed
+  `markers` assocarray field, and both SkipButton implementations copied its
+  four `skip_*` keys without any type check — a String-shaped seconds value
+  crashed the range compares (`position >= "10"`) and `getTargetPosition`
+  returned raw wire junk into the float-typed `skipRequested` write. Both
+  boundaries parse now: PlayerScene stores only a real
+  `roAssociativeArray` (else invalid, with a printed refusal), and the
+  component's `SkipMarkerIsNumeric` / the factory's `isNumericMarker` render a
+  per-key numeric verdict — `Integer`/`roInt`/`LongInteger`/`roLongInteger`/
+  `Float`/`roFloat`/`Double`/`roDouble` pass, everything else is stored
+  invalid so the existing guards treat it as "no marker". The BOOLEAN-verdict
+  + raw-copy shape is deliberate and measured: in the headless brs harness a
+  numeric that round-trips an as-Object boundary re-boxes to `roInt`, and brs
+  silently mis-compares boxed numerics (`50 >= roInt(10) -> false`) where the
+  device unboxes; keeping the verdict Boolean and the copy the raw wire member
+  preserves each value's native type on both runtimes.
+- **RT-004 (Minor, windowed walk).** `HomeScene.ActivateVisibleRange` walked
+  children `0..invalid` on every `visibleRect` change — O(N) per scroll tick.
+  The walk is clamped to `max(0, firstVisibleIndex - numCols)..min(
+  GetChildCount() - 1, lastVisibleIndex + numCols)` with `GetChild(i)` random
+  access. Disclosed delta: the old walker's far-field poster clears
+  (`HDPosterUrl = ""`) for rows outside the clamp window retired with the
+  walk — stale posters refresh when the row re-enters the window;
+  `LibraryScene` keeps its own untouched walker.
+- Four new headless SkipButton law tests (string values become invalid; a
+  non-array payload clears; Float seconds survive; a half pair is not a pair)
+  were red-first on the pre-fix tree (the string marker stored as-is, 1/22
+  failing) and are green now: 22/22 in suite, 221/221 across the full battery
+  with the standing 53-device-gap exclusions unchanged.
+
+### Added — Check 95: the six w01 laws pinned (R1 end-of-playback, R2 wrapper custody, R3 boot-retry mode, R4 HLS single choke, R5 marker parse custody, R6 windowed walk, R7 docs pair) — 2026-11-06
+
+- Red-parent over `53f11ac3` measured exactly 7 convictions — all seven arms,
+  one aggregate line each — against the final pin set. Two arms convicted on
+  LIVE regressions during lane development, not just plants: R2 caught the
+  retired docblock phrasing re-grown in `ApiTask.brs`, and R5's Boolean-
+  signature law caught the first value-round-trip helper shape (the class the
+  cure exists to prevent) before the Boolean-verdict + raw-copy design
+  landed. Restore-to-green is the full-script exit 0 recorded in the same
+  push.
+- **Sibling-pin rotation in this commit (measured red, attributed):** Check 82
+  R2's refusal-marker law counted the era string exactly once per file — the
+  single-choke `PlayHlsUrlRefused` re-uses that unified print, so PlayerScene
+  legitimately carries the marker twice now. The PlayerScene leg became a
+  presence law (the gate's own shape is pinned by CHECK95 R4); the audiobook
+  and live lanes never got the choke and keep the exact-count law.
+
 ### Changed — cs#48-ritual: route-manifest re-vendor to the contracts v0.5.6 payload (412→415 tuples) — 2026-11-04
 
 - **Owner-authorized currency re-vendor (cs#48-ritual).** `WAVE-5-CHECK-TRIO2.md`
