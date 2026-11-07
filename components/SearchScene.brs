@@ -116,7 +116,16 @@ sub OnSearchTimerFire(event as Object)
     m.results = []
     m.contentNode = invalid
 
-    if m.apiTask.state = "run" then return
+    ' RT-005: a request is still in flight. This handler runs FROM the
+    ' one-shot timer, which is already consumed - dropping the query here
+    ' would leave the newest keyboard text unsearched until some later
+    ' keystroke happened to arm it again. Re-arm the debounce instead: the
+    ' guard self-heals, and the search for the latest text always runs.
+    if m.apiTask.state = "run" then
+        m.searchTimer.control = "stop"
+        m.searchTimer.control = "start"
+        return
+    end if
 
     ' R5.2: Increment generation counter so stale responses are discarded.
     m.searchGen = m.searchGen + 1

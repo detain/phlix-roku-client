@@ -30,9 +30,10 @@
 #      carries at least one FILE entry at root position (dropping a tree,
 #      e.g. locale/, ships a channel with no catalogs: same structural
 #      class as the missing manifest);
-#   6. the shipped root manifest parses as a manifest: title= plus the three
-#      R8.8 version keys major_version= minor_version= build_version= are
-#      present (guards against a stray empty/garbage file at root).
+#   6. the shipped root manifest parses as a manifest: title= is present and
+#      the three R8.8 version keys major_version= minor_version= build_version=
+#      carry NUMERIC stamps (RT-007: guards both a stray empty/garbage file
+#      at root and an empty $(shell) derivation that left the keys bare).
 #
 # Usage: bash scripts/verify-package.sh [PKG_ZIP]
 #   PKG_ZIP defaults to <repo>/phlix.zip resolved from this script's own
@@ -97,11 +98,14 @@ if [ "$root_manifest" -eq 1 ]; then
 	if ! unzip -p "$PKG" manifest >"$tmp" 2>/dev/null; then
 		note "root 'manifest' exists in $PKG but cannot be extracted."
 	else
-		for key in title major_version minor_version build_version; do
-			if ! grep -q "^${key}=" "$tmp"; then
-				note "shipped root manifest lacks required key '${key}=' (R8.8 derivation must ride the artifact)."
+		for key in major_version minor_version build_version; do
+			if ! grep -qE "^${key}=[0-9]+$" "$tmp"; then
+				note "shipped root manifest lacks a numeric '${key}=' stamp (an empty or garbage stamp is as uninstallable as a missing one; RT-007 closes the empty-derivation hole)."
 			fi
 		done
+		if ! grep -q "^title=" "$tmp"; then
+			note "shipped root manifest lacks required key 'title=' (R8.8 derivation must ride the artifact)."
+		fi
 		# (7) [W-min93 M-ROKU-14, review roku__crossfe m6] the rsg_version
 		# callback-model pin must ride the ARTIFACT (CHECK39 pins the source
 		# manifest; this closes it at the shipped-bytes surface), and every

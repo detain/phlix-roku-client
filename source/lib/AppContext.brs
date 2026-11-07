@@ -170,7 +170,7 @@ function DeviceInfoData() as Object
     ' - Low tier: < 512 MB  (Roku Express, some legacy devices)
     ' - Medium tier: 512-1024 MB (Roku Streaming Stick, most mid-range)
     ' - High tier: > 1024 MB (Roku Ultra, high-end devices)
-    ' R6.8: Memory tier feeds page size and poster decode size decisions.
+    ' R6.8: Memory tier feeds page size decisions.
     memoryTier = "low"
     if totalMemoryMB >= 1024 then
         memoryTier = "high"
@@ -211,7 +211,7 @@ function GetDeviceVideoMode() as String
 end function
 
 ' Get the cached memory tier classification.
-' R6.8: Memory tier feeds page size and poster decode size decisions.
+' R6.8: Memory tier feeds page size decisions.
 ' @return String - "low", "medium", or "high"
 function GetDeviceMemoryTier() as String
     return DeviceInfoData().memoryTier
@@ -308,20 +308,6 @@ function GetPageSize() as Integer
         return 30
     else
         return 20
-    end if
-end function
-
-' Get a poster decode size recommendation based on memory tier.
-' R6.8: Memory tier feeds poster decode size - lower tier devices decode smaller posters.
-' @return Integer - recommended poster dimension (width/height in pixels)
-function GetPosterDecodeSize() as Integer
-    tier = GetDeviceMemoryTier()
-    if tier = "high" then
-        return 400
-    else if tier = "medium" then
-        return 300
-    else
-        return 200
     end if
 end function
 

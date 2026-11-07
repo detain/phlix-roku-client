@@ -175,7 +175,16 @@ jobs:
           path: artifacts
 
       - name: Reset "latest" release + tag
-        run: gh release delete latest --yes --cleanup-tag || true
+        run: |
+          # RT-010: probe first, then delete LOUD. The old `|| true` shrugged
+          # at transient gh failures: the delete silently no-op'd and the new
+          # assets attached to yesterday's stale tag anyway. A failure here
+          # now fails the job instead of mislabeling a release.
+          if gh release view latest >/dev/null 2>&1; then
+            gh release delete latest --yes --cleanup-tag
+          else
+            echo "no 'latest' release yet (first-ever publish) - nothing to reset"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

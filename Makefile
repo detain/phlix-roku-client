@@ -26,6 +26,15 @@ _update-manifest: $(MANIFEST_SRC)
 	      -e 's/^minor_version=.*/minor_version=$(shell $(CURDIR)/scripts/derive-version.sh --minor)/' \
 	      -e 's/^build_version=.*/build_version=$(shell $(CURDIR)/scripts/derive-version.sh --build)/' \
 	      $(MANIFEST_SRC) > $(MANIFEST_OUT)
+	@# RT-007: an empty $$(shell ...) result would leave bare `major_version=`
+	@# keys here; Roku needs parseable numeric stamps, and verify-package.sh
+	@# (leg 6) holds the same law at the shipped-bytes surface. Assert now.
+	@for k in major minor build; do \
+		if ! grep -Eq "^$${k}_version=[0-9]+$$" $(MANIFEST_OUT); then \
+			echo "ERROR: $(MANIFEST_OUT) lost its numeric $${k}_version stamp"; \
+			exit 1; \
+		fi; \
+	done
 
 all: package
 
@@ -53,6 +62,14 @@ all: package
 # sha256) and CI (package.yml) uploads/publishes it beside the package.
 package: _update-manifest
 	@echo "Packaging version $(PKG_VERSION)..."
+	@# RT-007: PKG_VERSION rides a $$(shell ...) assignment, which collapses
+	@# to EMPTY when derive-version.sh fails - make does not propagate that
+	@# exit through a variable assignment. Fail loud here (the same guard
+	@# package-signed.sh runs) before staging an artifact with blank stamps.
+	@if [ -z "$(strip $(PKG_VERSION))" ]; then \
+		echo "ERROR: derive-version.sh produced no package version (see its diagnostics)"; \
+		exit 1; \
+	fi
 	@rm -f $(PKG_NAME).zip $(PKG_NAME).zip.sha256
 	@rm -rf $(BUILD_DIR)/pkg-stage
 	@mkdir -p $(BUILD_DIR)/pkg-stage
@@ -114,10 +131,12 @@ stop:
 	@printf 'user = "%s:%s"\nurl = "http://%s:8060/keypress/home"\nrequest = "POST"\n' \
 		"$(ROKU_DEV)" "$(ROKU_PASSWORD)" "$(ROKU_IP)" | curl -sS --config -
 
-# Clean build artifacts
+# Clean build artifacts (RT-008: the digest sibling and the version-derived
+# build/ tree are build output too - 'clean' means clean).
 clean:
 	@echo "Cleaning..."
-	rm -f $(PKG_NAME).zip
+	rm -f $(PKG_NAME).zip $(PKG_NAME).zip.sha256
+	rm -rf $(BUILD_DIR)
 
 # ===========================================
 # Testing

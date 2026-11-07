@@ -6,8 +6,8 @@ __pycache__/
 # Node project; bsconfig.json/package.json are tracked but the install output is not.
 node_modules/
 
-# Local packaging output (review M-ROKU-31): `make package`/`make dev-package`
-# write build/, and the signed/dev zip lands at repo root with its sha256
+# Local packaging output (review M-ROKU-31): `make package` writes build/,
+# and the signed/dev zip lands at repo root with its sha256
 # sibling. Standing local artifacts - CI rebuilds and never consumes committed
 # ones; ignoring them keeps `git status` honest instead of permanently dirty.
 build/

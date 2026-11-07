@@ -267,6 +267,12 @@ cp "$REAL_REPO/source/main.brs" "$FAKE_REPO/source/main.brs"
 cp "$REAL_REPO/README.md" "$FAKE_REPO/README.md"
 # M-ROKU-23: CHECK54 R5 reads the CHANGELOG naming law; it joins the stage list.
 cp "$REAL_REPO/CHANGELOG.md" "$FAKE_REPO/CHANGELOG.md"
+# CHECK96 (w07 hygiene wave): R3 reads scripts/verify-package.sh and R5 reads
+# .gitignore — both are tracked repo members whose absence would convict
+# 'unreadable' in the CI layout. They join the stage list (M-ROKU-23 precedent:
+# each era stages the files its own pins read).
+cp "$REAL_REPO/scripts/verify-package.sh" "$FAKE_REPO/scripts/verify-package.sh"
+cp "$REAL_REPO/.gitignore" "$FAKE_REPO/.gitignore"
 # Check 46 (M-ROKU-14) R4 pins the SyncPlay origin/accept unit suite by name,
 # so tests/unit must ride the CI layout (the R1-R3 inputs — Utilities, the
 # Protocol trio, PlayerScene via the whole-components cp -a, SyncPlayTask, the

@@ -51,6 +51,59 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the w07 hygiene wave: the search re-arms instead of dropping, dead seams stay dead, an empty version stamp cannot ship, clean really cleans, and the release reset fails loud (RT-005 RT-006 RT-007 RT-008 RT-009 RT-010) — 2026-11-06
+
+- **RT-005 (Minor, search debounce).** `OnSearchTimerFire` dropped the fired
+  query with `if m.apiTask.state = "run" then return` — but the handler runs
+  FROM the one-shot timer, which is already consumed at that moment, so the
+  newest keyboard text could sit unsearched until some later keystroke armed
+  a fresh timer. The busy path now re-arms the debounce (`control = "stop"`
+  + `control = "start"`) and returns: the guard self-heals and the search for
+  the latest text always runs. `LoadMoreItems`' identically-worded guard is
+  untouched BY DESIGN — it rides no timer; the next Down press retries.
+- **RT-006 (Minor, dead seam).** `GetPosterDecodeSize` (source/lib/AppContext.brs)
+  had zero call sites estate-wide while its docblock advertised a tiered
+  poster decode that never existed. Deleted per the repo's fail-loud-or-delete
+  doctrine (the M-ROKU-09 dead-code precedent recorded in
+  scripts/derive-version.sh). `GetPageSize` and `GetDeviceMemoryTier` stay —
+  both are live.
+- **RT-007 (Minor, version custody).** `PKG_VERSION = $(shell ...derive-version.sh
+  --pkg-version)` collapses to EMPTY when the deriver fails (make does not
+  propagate that exit through a variable assignment), and verify-package.sh
+  leg 6 grepped key EXISTENCE only — `major_version=` (bare, empty) sailed
+  through. Three gates now hold the line: the `package` recipe fails loud on
+  an empty `PKG_VERSION` before staging (mirroring package-signed.sh's own
+  empty guard), `_update-manifest` asserts all three derived stamps are
+  numeric in `build/manifest`, and verify-package.sh leg 6 requires anchored
+  numeric `major_version=/minor_version=/build_version=` stamps on the
+  shipped bytes while `title=` stays a presence check.
+- **RT-008 (Info, clean).** `make clean` removed only `phlix.zip`; it now
+  removes the `.sha256` sibling and the whole version-derived `build/` tree.
+- **RT-009 (Minor, prose truth).** The `.gitignore` packaging comment cited a
+  `make dev-package` target that has never existed in this repo's history.
+  The clause is gone; the comment now names only the real `make package`
+  producer.
+- **RT-010 (Info, publish determinism).** package.yml reset the rolling
+  `latest` release with `gh release delete latest --yes --cleanup-tag || true`
+  — a transient gh failure was swallowed and the NEW assets then attached to
+  yesterday's stale tag. The step now probes (`gh release view latest`) and
+  deletes LOUD: the first-ever publish prints its no-release-yet branch, any
+  other failure fails the job. CHECK40 R4's publish-vehicle literal rides the
+  delete line unchanged.
+
+### Added — Check 96: the six w07 laws pinned (R1 debounce re-arm, R2 dead-seam extinction, R3 numeric version custody, R4 honest clean, R5 gitignore prose truth, R6 fail-loud release reset, R7 docs pair) — 2026-11-06
+
+- Red-parent over `5d12356a` measured exactly 7 convictions — all seven arms,
+  one aggregate line each — with legs 1–95 green on the same run.
+  Restore-to-green is the full-script exit 0 recorded in the same push.
+- No portable-harness legs were added (the CHECK95 precedent): the twin's
+  positive header asserts, its PASS-echo narration range and the
+  docs/static-checks.md 'all execute' sentence are therefore UNMOVED, and
+  CHECK73's derivation equality holds untouched.
+- Zero new catalog keys: nothing user-visible changes in this era, so the
+  CHECK93 R3 locale census and the seven-locale version stamps stay put BY
+  CONSTRUCTION.
+
 ### Fixed — the w01 playback-custody wave: the film ends at the end, the envelope stays an envelope, the retry knows its mode, one gate owns every HLS lane, markers are parsed before they speak, the rail walks its window (RT-089 RT-090 RT-001 RT-002 RT-003 RT-004) — 2026-11-06
 
 - **RT-089 (Critical, end of playback).** `OnPositionUpdate`'s R4.4 fallback

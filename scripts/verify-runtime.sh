@@ -14013,4 +14013,206 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 96: search debounce self-heal, dead-seam extinction, numeric version custody, honest clean/gitignore, fail-loud release reset (RT-005 RT-006 RT-007 RT-008 RT-009 RT-010) ==="
+# NUMBERING: 96 is the next-FREE leg (95 taken by the w01 end-of-playback era,
+# measured on this lane at 5d12356; 'Check 96'/'CHECK96' appear nowhere in
+# scripts/, tests/ or docs/ before this commit).
+#
+# WHY THE LEG EXISTS (review lineage roku__crossfe + roku__devops, wave w07):
+# six small hygiene defects shared one shape - the tree trusted a mechanism
+# that quietly no-ops on its bad day. The search debounce timer DROPPED a
+# fired query whenever a request was still in flight (the one-shot timer is
+# consumed when its handler runs, so the newest keystrokes could sit
+# unsearched forever unless another key happened); AppContext advertised a
+# tiered poster-decode seam (GetPosterDecodeSize) with zero call sites
+# anywhere - the repo's fail-loud-or-delete doctrine says dead code dies
+# (M-ROKU-09 precedent in derive-version.sh); the Makefile's PKG_VERSION
+# rides $(shell ...) which collapses to EMPTY when derive-version.sh fails
+# (make does not propagate that exit), and verify-package.sh leg 6 only
+# grepped key EXISTENCE, so a packaged manifest with blank version stamps
+# sailed through; make clean left the sha256 sibling and the whole build/
+# tree behind; the .gitignore comment cited a 'make dev-package' target that
+# never existed; and package.yml reset the rolling 'latest' release with
+# '|| true', so a transient gh failure left tomorrow's assets bolted onto
+# yesterday's stale tag.
+#
+# WHAT IT PINS (fail-loud on unreadable inputs):
+#   R1 SearchScene OnSearchTimerFire may not drop a fired query on a busy
+#      apiTask with a bare one-line return; the busy path must RE-ARM the
+#      debounce (control stop+start pair inside the handler).
+#   R2 GetPosterDecodeSize stays extinct across source/ (name AND the
+#      'poster decode size' docblock claim).
+#   R3 the package recipe fails loud on an empty PKG_VERSION, _update-manifest
+#      asserts all three stamps are NUMERIC in build/manifest, and
+#      verify-package.sh leg 6 requires anchored numeric version stamps
+#      while title= stays a presence check.
+#   R4 make clean removes phlix.zip, its .sha256 sibling AND build/.
+#   R5 .gitignore names no phantom target - and keeps naming the real one.
+#   R6 package.yml probes the 'latest' release before deleting it, the
+#      delete carries no '|| true', and the CHECK40 R4 vehicle literal
+#      ('gh release delete latest --yes --cleanup-tag') stays intact.
+#   R7 docs pair - static-checks row 96 names RT-005; the CHANGELOG era
+#      entry names all six items.
+# Zero new catalog keys: nothing user-visible changes in this era (the
+# CHECK93 R3 census stays untouched BY CONSTRUCTION).
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def strip_comment_lines(text):
+    return "\n".join(l for l in text.splitlines()
+                     if not l.lstrip().startswith("'"))
+
+
+def sub_body(src, name):
+    m = re.search(r"^(?:sub|function)\s+" + name + r"\b[^\n]*\n(.*?)^end (?:sub|function)",
+                  src, re.MULTILINE | re.DOTALL)
+    return m.group(1) if m else None
+
+
+problems = []
+
+# ---- R1 search debounce self-heal (RT-005) --------------------------------------
+SS = read("components/SearchScene.brs")
+if SS is None:
+    problems.append("  components/SearchScene.brs - CHECK96: unreadable")
+    SS = ""
+tf = sub_body(strip_comment_lines(SS), "OnSearchTimerFire")
+r1 = []
+if tf is None:
+    r1.append("OnSearchTimerFire vanished")
+else:
+    if re.search(r'apiTask\.state\s*=\s*"run" then[ \t]+return', tf):
+        r1.append('the busy-guard drops the fired query again - a consumed one-shot timer means the newest text may never be searched')
+    if 'm.apiTask.state = "run"' not in tf:
+        r1.append('the in-flight guard left the timer handler entirely')
+    if 'm.searchTimer.control = "stop"' not in tf or 'm.searchTimer.control = "start"' not in tf:
+        r1.append('the busy path no longer re-arms the debounce (stop+start) - the re-arm IS the cure')
+if r1:
+    problems.append("  search debounce self-heal - CHECK96 R1: " + "; ".join(r1))
+
+# ---- R2 dead-seam extinction (RT-006) --------------------------------------------
+r2 = []
+AC = read("source/lib/AppContext.brs")
+if AC is None:
+    problems.append("  source/lib/AppContext.brs - CHECK96: unreadable")
+    AC = ""
+if "poster decode size" in AC.lower():
+    r2.append("the tiered 'poster decode size' docblock claim survived - a promise may not outlive its seam")
+for dirpath, dirnames, filenames in os.walk("source"):
+    dirnames[:] = [d for d in dirnames if d != "node_modules"]
+    for fn in sorted(filenames):
+        if not fn.endswith((".brs", ".xml")):
+            continue
+        path = os.path.join(dirpath, fn)
+        body = read(path)
+        if body is not None and re.search(r"\bGetPosterDecodeSize\b", body):
+            r2.append(path + " still names the dead GetPosterDecodeSize seam")
+if r2:
+    problems.append("  dead-seam extinction - CHECK96 R2: " + "; ".join(r2))
+
+# ---- R3 numeric version custody (RT-007) ------------------------------------------
+MK = read("Makefile")
+if MK is None:
+    problems.append("  Makefile - CHECK96: unreadable")
+    MK = ""
+r3 = []
+if not re.search(r'\[\s*-z\s*"\$\(strip \$\(PKG_VERSION\)\)"\s*\]', MK):
+    r3.append('the package recipe accepts an empty PKG_VERSION (make swallows derive-version.sh\'s exit, so blank versions would ship)')
+mrec = re.search(r"^_update-manifest:[^\n]*\n((?:\t[^\n]*\n?)+)", MK, re.MULTILINE)
+mrecipe = mrec.group(1) if mrec else ""
+if "for k in major minor build; do" not in mrecipe:
+    r3.append("_update-manifest does not assert the derived stamps after substitution")
+if "_version=[0-9]+" not in mrecipe:
+    r3.append("_update-manifest's stamp assertion is not numeric-anchored")
+VP = read("scripts/verify-package.sh")
+if VP is None:
+    problems.append("  scripts/verify-package.sh - CHECK96: unreadable")
+    VP = ""
+if 'grep -qE "^${key}=[0-9]+$"' not in VP:
+    r3.append("verify-package.sh leg 6 accepts empty version stamps (existence-only grep)")
+if 'grep -q "^title="' not in VP:
+    r3.append("verify-package.sh leg 6 no longer checks title= presence")
+if r3:
+    problems.append("  numeric version custody - CHECK96 R3: " + "; ".join(r3))
+
+# ---- R4 honest clean (RT-008) ------------------------------------------------------
+cleanrec = re.search(r"^clean:[^\n]*\n((?:\t[^\n]*\n?)+)", MK, re.MULTILINE)
+crecipe = cleanrec.group(1) if cleanrec else ""
+r4 = []
+if "rm -f $(PKG_NAME).zip $(PKG_NAME).zip.sha256" not in crecipe:
+    r4.append("clean leaves the .sha256 sibling behind")
+if "rm -rf $(BUILD_DIR)" not in crecipe:
+    r4.append("clean leaves $(BUILD_DIR)/ (and its pkg-stage) behind")
+if r4:
+    problems.append("  honest clean - CHECK96 R4: " + "; ".join(r4))
+
+# ---- R5 gitignore prose truth (RT-009) ----------------------------------------------
+GI = read(".gitignore")
+r5 = []
+if GI is None:
+    problems.append("  .gitignore - CHECK96: unreadable")
+else:
+    if "dev-package" in GI:
+        r5.append("the ignore comment names the phantom 'make dev-package' target again (that target never existed)")
+    if "make package" not in GI:
+        r5.append("the ignore comment no longer names the real 'make package' producer")
+if r5:
+    problems.append("  gitignore prose truth - CHECK96 R5: " + "; ".join(r5))
+
+# ---- R6 fail-loud release reset (RT-010) ---------------------------------------------
+WF = read(".github/workflows/package.yml")
+r6 = []
+if WF is None:
+    problems.append("  .github/workflows/package.yml - CHECK96: unreadable")
+else:
+    if "gh release delete latest --yes --cleanup-tag" not in WF:
+        r6.append("the release-reset vehicle left package.yml - CHECK40 R4 and docs/publishing.md ride it")
+    if re.search(r"gh release delete latest --yes --cleanup-tag\s*\|\|\s*true", WF):
+        r6.append("the reset shrugs at gh failures again - a transient error leaves the NEW assets attached to the stale tag")
+    if "gh release view latest" not in WF:
+        r6.append("the reset does not probe for the release before deleting it")
+if r6:
+    problems.append("  fail-loud release reset - CHECK96 R6: " + "; ".join(r6))
+
+# ---- R7 docs pair ---------------------------------------------------------------------
+r7 = []
+docs = read("docs/static-checks.md")
+if docs is None or not re.search(r"^\|\s*96\s*\|.*RT-005\b", docs, re.M):
+    r7.append("docs/static-checks.md row 96 is missing or does not name RT-005")
+cl = read("CHANGELOG.md")
+missing = [rid for rid in ("RT-005", "RT-006", "RT-007", "RT-008", "RT-009", "RT-010")
+           if cl is None or rid not in cl]
+if missing:
+    r7.append("CHANGELOG.md does not name this era's items: " + " ".join(missing))
+if r7:
+    problems.append("  docs pair - CHECK96 R7: " + "; ".join(r7))
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK96: %d conviction(s) - the w07 debounce/packaging laws are broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK96: the search re-arms instead of dropping, dead seams stay dead,")
+print("  an empty version stamp cannot ship, clean really cleans, and the")
+print("  release reset fails loud instead of shrugging")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))
