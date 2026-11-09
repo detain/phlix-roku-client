@@ -302,7 +302,7 @@ Trickplay thumbnails appear when the server half lands — the client half is al
 ## References
 
 - [Roku Developer Documentation — Trickplay Thumbnails](https://developer.roku.com/dev/docs/media-playback-nodes)
-- [Roku BIF Format Specification](https://developer.roku.com/docs/developer-program/media-playback/mjpeg-bif.md)
+- [Roku BIF Format Specification](https://developer.roku.com/dev/docs/mjpeg-bif)
 
 ---
 

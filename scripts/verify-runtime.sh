@@ -9901,15 +9901,28 @@ echo "=== Check 69: Roku doc citations are canonical /dev/docs URLs; the legacy 
 # rotated all 21 sites to their MEASURED Location targets; this leg makes the
 # rotation one-way.
 #
+# RT-030 (w11L1, writer #13, 2026-11-09) swept the SECOND legacy family the
+# R-ROKU-26 scan does not cover: the pre-reorg `docs/developer-program/...`
+# path (plus one /en-us/ locale-pinned variant) still lived at 11 sites —
+# source/main.brs x4, manifest x1, docs/publishing.md x2, docs/bif_thumbs.md
+# x1, docs/device-verification.md x2, components/PhlixApp.brs x1 (a URL split
+# across two comment lines whose FIRST line carried the contiguous prefix).
+# Each rotated to the browser-UA-measured canonical target: deep-linking,
+# closed-caption, getting-started, store-certification, mjpeg-bif, and the
+# dead focus-management.md split (its legacy target 404s through the current
+# redirect) folded onto the live core-concepts page. This leg now bans both
+# families and R2 pins the new citations the same one-way law.
+#
 # SELF-BURN (disclosed): this script and tests/scripts/verify-runtime-portable.sh
-# live INSIDE the scanned surface; both build the legacy prefix from ADJACENT
-# string literals so the ban never matches its own gate. CHANGELOG.md is
+# live INSIDE the scanned surface; both build every banned prefix from
+# ADJACENT string literals so the ban never matches its own gate. CHANGELOG.md is
 # deliberately OUT of the scan set — the verbatim-history law forbids rewriting
 # historical entries that quote the retired paths.
 #
 # WHAT IT PINS:
 #   R1  Family ban, read directly off the shipped surface: no scanned line
-#       carries the contiguous legacy prefix; convictions name file:line and
+#       carries either contiguous legacy prefix (the references family and
+#       the developer-program family); convictions name file:line and
 #       the cited URL. A whitelisted-extension file that is not valid UTF-8
 #       fails LOUD (the scan certifies what it reads; silence is not a pass).
 #       Scan set: source/ components/ scripts/ tests/ docs/ locale/ images/ +
@@ -9920,6 +9933,12 @@ echo "=== Check 69: Roku doc citations are canonical /dev/docs URLs; the legacy 
 #       citation launders documentation instead of curing it — the arm
 #       convicts file, page and the loss. (This script's own two rotated
 #       comments are NOT pinned: a gate self-citing its subject is circular.)
+#       Carrier list: R-ROKU-26's five files, plus the six surfaces RT-030
+#       rotated (source/main.brs, manifest, components/PhlixApp.brs,
+#       docs/publishing.md, docs/bif_thumbs.md's second page,
+#       docs/device-verification.md) — each era stages the files its own
+#       pins read, and the twin's CI-layout stage list already carries all
+#       of them (measured: twin lines 195/311 + the components cp -a).
 PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
@@ -9931,8 +9950,11 @@ os.chdir(repo)
 problems = []
 
 # Assembled from adjacent literals (SELF-BURN law, header above): the
-# contiguous banned prefix must never exist in this file's own bytes.
-LEGACY = "developer.roku.com/docs/refer" "ences/"
+# contiguous banned prefixes must never exist in this file's own bytes.
+LEGACIES = (
+    "developer.roku.com/docs/refer" "ences/",
+    "developer.roku.com/docs/developer-" "program/",
+)
 
 SCAN_DIRS = ("source", "components", "scripts", "tests", "docs", "locale", "images")
 SCAN_FILES = ("README.md", "manifest", "package.json")
@@ -9966,14 +9988,15 @@ for path in scanned():
         continue
     texts[path] = text
     for lineno, line in enumerate(text.splitlines(), 1):
-        if LEGACY in line:
-            m = re.search(r"https?://\S*" + re.escape(LEGACY) + r"\S*", line)
-            cited = m.group(0).rstrip(").,;:'\"") if m else LEGACY
-            problems.append(
-                f"  {path}:{lineno} - CHECK69 R1: legacy Roku doc URL cited: "
-                f"{cited} \u2014 cite the canonical "
-                "https://developer.roku.com/dev/docs/<page> target; the "
-                "legacy path is redirect-only indirection, not documentation")
+        for legacy in LEGACIES:
+            if legacy in line:
+                m = re.search(r"https?://\S*" + re.escape(legacy) + r"\S*", line)
+                cited = m.group(0).rstrip(").,;:'\"") if m else legacy
+                problems.append(
+                    f"  {path}:{lineno} - CHECK69 R1: legacy Roku doc URL cited: "
+                    f"{cited} \u2014 cite the canonical "
+                    "https://developer.roku.com/dev/docs/<page> target; the "
+                    "legacy path is redirect-only indirection, not documentation")
 
 CANON = "https://developer.roku.com/dev/docs/"
 CARRIERS = {
@@ -9982,7 +10005,13 @@ CARRIERS = {
     "source/lib/ApiClient.brs": ("ifdeviceinfo",),
     "components/PlayerScene.brs": ("ifdeviceinfo", "remote-control-events"),
     "README.md": ("remote-control-events",),
-    "docs/bif_thumbs.md": ("media-playback-nodes",),
+    "docs/bif_thumbs.md": ("media-playback-nodes", "mjpeg-bif"),
+    # RT-030 (w11L1): the developer-program-family rotations, same one-way law.
+    "manifest": ("deep-linking",),
+    "source/main.brs": ("deep-linking",),
+    "components/PhlixApp.brs": ("core-concepts",),
+    "docs/publishing.md": ("getting-started", "store-certification"),
+    "docs/device-verification.md": ("deep-linking", "closed-caption"),
 }
 for carrier in sorted(CARRIERS):
     text = texts.get(carrier)
@@ -10006,9 +10035,10 @@ if problems:
     sys.exit(1)
 
 print("  CHECK69: every Roku docs citation on the shipped surface points at")
-print("           the canonical /dev/docs page — the legacy redirect family")
-print("           is extinct here and stays extinct, and all five carriers")
-print("           keep their migrated citations (21 sites rotated by R-ROKU-26)")
+print("           the canonical /dev/docs page - both legacy redirect families")
+print("           (references, developer-program) are extinct here and stay")
+print("           extinct, and every carrier keeps its migrated citations")
+print("           (21 sites rotated by R-ROKU-26; 11 more by RT-030)")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

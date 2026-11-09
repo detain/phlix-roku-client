@@ -548,8 +548,7 @@ function PopScreen() as Boolean
     ' Per Roku SceneGraph focus rules, SetFocus on a Scene node makes it the
     ' focused scene. The child is responsible for ensuring one of its
     ' interactive children has focus when its Init runs.
-    ' Ref: https://developer.roku.com/docs/developer-program/core-concepts/
-    '          focus-management.md
+    ' Ref: https://developer.roku.com/dev/docs/core-concepts
     if m.screenStack.Count() > 0 then
         topNode = m.screenStack.Peek()
         topNode.SetFocus(true)

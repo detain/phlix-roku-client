@@ -16,7 +16,7 @@
 ' string (e.g. /launch/dev?contentId=123&mediaType=movie) and they appear
 ' as lowercase keys in the args assocarray. We check case-insensitively per
 ' Roku's deep-linking docs:
-' https://developer.roku.com/docs/developer-program/deep-linking
+' https://developer.roku.com/dev/docs/deep-linking
 
 ' Validate a deep-link contentId before using it in a URL path.
 ' M-ROKU-13 (review roku__exploiter M2): this is now a thin delegate onto the
@@ -96,7 +96,7 @@ sub main(args as Object)
     ' If args are absent or invalid the app boots normally; if they are present
     ' but fail validation we fall through to the home screen rather than
     ' erroring, per Roku's deep-linking certification requirements.
-    ' Docs: https://developer.roku.com/docs/developer-program/deep-linking
+    ' Docs: https://developer.roku.com/dev/docs/deep-linking
     deepLinkParams = ExtractDeepLinkParams(args)
     if deepLinkParams <> invalid then
         print "Deep link received: contentId=" deepLinkParams.contentId " mediaType=" deepLinkParams.mediaType
@@ -119,7 +119,7 @@ sub main(args as Object)
 
     ' R6.4: Create roInput to receive warm deep links (ECP input command).
     ' roInput receives contentId/mediaType when the channel is already running.
-    ' Docs: https://developer.roku.com/docs/developer-program/deep-linking
+    ' Docs: https://developer.roku.com/dev/docs/deep-linking
     ' Requires manifest: supports_input_launch=1 (R6.4 requirement).
     input = CreateObject("roInput")
     input.SetMessagePort(screen.GetMessagePort())
@@ -157,7 +157,7 @@ sub main(args as Object)
 
         ' R6.4: Handle warm deep-link events from roInput.
         ' roInputEvent is fired when ECP POSTs to :8060/input with contentId/mediaType.
-        ' Docs: https://developer.roku.com/docs/developer-program/deep-linking
+        ' Docs: https://developer.roku.com/dev/docs/deep-linking
         if type(msg) = "roInputEvent" then
             args = msg.GetArgs()
             if args <> invalid then

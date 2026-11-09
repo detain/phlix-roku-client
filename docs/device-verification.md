@@ -299,7 +299,7 @@ curl -d '' "http://$ROKU_DEV_TARGET:8060/input?contentId=movie123&mediaType=movi
 - [ ] **R6.4** `supports_input_launch=1` is present in manifest
 - [ ] **R6.4** `roInput` is created and `roInputEvent` is handled in the main message loop
 
-Source: [Roku Deep Linking Documentation](https://developer.roku.com/docs/developer-program/deep-linking)
+Source: [Roku Deep Linking Documentation](https://developer.roku.com/dev/docs/deep-linking)
 
 ## R6.5 Global Caption Mode
 
@@ -348,7 +348,7 @@ Source: [Roku Deep Linking Documentation](https://developer.roku.com/docs/develo
 - [ ] Channel-level toggle sets `m.videoPlayer.globalCaptionMode` for the session
 - [ ] `roDeviceInfo.SetCaptionsMode()` is called to sync channel choice to system
 
-Source: [Roku Closed Caption Documentation](https://developer.roku.com/en-us/docs/developer-program/core-concepts/closed-caption)
+Source: [Roku Closed Caption Documentation](https://developer.roku.com/dev/docs/closed-caption)
 
 ## Status
 

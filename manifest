@@ -58,5 +58,5 @@ screensaver_title=Phlix
 
 ' R6.4: Required for ECP input command to reach the channel when already running.
 ' Without this, roInput never receives events and warm deep links are impossible.
-' Docs: https://developer.roku.com/docs/developer-program/deep-linking
+' Docs: https://developer.roku.com/dev/docs/deep-linking
 supports_input_launch=1

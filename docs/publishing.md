@@ -114,7 +114,7 @@ What exists **today** (pinned against drift by verify-runtime Check 40):
 
 4. **Roku Device in Developer Mode** — only for *sideload testing*, which
    never involves a `.pkg`: enable developer mode on your Roku
-   (https://developer.roku.com/docs/developer-program/getting-started.md)
+   (https://developer.roku.com/dev/docs/getting-started)
    and run `make install` with the unsigned zip.
 
 5. **A code signing certificate at `~/.phlix/phlix-signing.pem`.** The
@@ -256,4 +256,4 @@ Run `make validate` before packaging to catch manifest issues early.
 ## Useful Links
 
 - [Roku Developer Program](https://developer.roku.com)
-- [Channel Certification Requirements](https://developer.roku.com/docs/developer-program/store-certification.md)
+- [Channel Certification Requirements](https://developer.roku.com/dev/docs/store-certification)

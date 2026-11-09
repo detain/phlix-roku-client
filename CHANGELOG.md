@@ -51,6 +51,36 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — RT-030: the second legacy Roku doc family (developer-program) is rotated to canonical /dev/docs targets, eleven sites, and Check 69 now bans both families with eleven carriers pinned — 2026-11-09
+
+- **RT-030 (writer #13):** R-ROKU-26 consumed only the `references/` pre-reorg
+  family; its sibling `docs/developer-` `program/` path still lived at 11
+  sites — `source/main.brs` x4 (deep-linking), `manifest:61` x1 (deep-linking,
+  the supports_input_launch comment), `docs/publishing.md` x2
+  (getting-started, store-certification), `docs/bif_thumbs.md` x1 (mjpeg-bif),
+  `docs/device-verification.md` x2 (deep-linking, and the /en-us/ locale-pinned
+  closed-caption variant), `components/PhlixApp.brs` x1. Every rotation target
+  was MEASURED with a browser-UA GET (bare curl is 403-WAF'd): each answers 200
+  at `https://developer.roku.com/dev/docs/<page>` — except the split two-line
+  focus-management.md cite, which 404s THROUGH the redirect; it folds onto the
+  live `core-concepts` page (which carries the focus material), as one line.
+- **Gate (Check 69 extension, same commit — the rotation stays one-way for the
+  new family too):** R1 scans both assembled prefixes (SELF-BURN respected:
+  each built from adjacent literals); R2's carrier dict grows five files to
+  eleven, pinning each rotated page name per file. The PASS echo and
+  `docs/static-checks.md` row 69 carry the amendment; the portable twin needed
+  NO edit (its plant-A re-grows a legacy needle on the shared R1 path, its
+  exactly-two-convictions assertion is untouched by the new carriers, and the
+  CI layout already stages all six new carrier files — measured at twin
+  :195/:311 and the whole-components `cp -a`). Falsification measured in a
+  scratch clone: re-growing the developer-program prefix fired R1 file:line +
+  R2 carrier together, exactly "2 Roku-doc-citation pin(s) broken"; restore
+  green. Clean-tree full suite rc=0 after the rotation.
+- Scope note: the card listed 10 sites; the repo-wide re-derivation found the
+  manifest comment as an 11th (the gate scans `manifest`, so leaving it would
+  have convicted the leg itself — rotated, counted, disclosed). `build/` copies
+  are regenerated artifacts and were NOT touched (standing law: never staged).
+
 ### Fixed — the w11L1 doc-truth pair: the splash-cell that denied its own manifest key, and the tree row that mislabelled the release vehicle (RT-029 RT-033) — 2026-11-09
 
 - **RT-029 (writer #12, device-verify):** the store-art requirements table in
