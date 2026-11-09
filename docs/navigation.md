@@ -136,8 +136,11 @@ truth (R3).
 
 ## Architectural Note: Nested Scenes
 
-All 42 child components in this channel `extend="Scene"` and are added as children
-of other Scene nodes via `CreateObject("roSGNode", "XScene")` + `m.top.Append(scene)`.
+The channel's screens `extend="Scene"` — 38 of the 48 XML components in `components/` (the
+other 10: 7 `Task`, and one each `Dialog`, `Group`, `Rectangle`). The child scenes are added
+as children of other Scene nodes via `CreateObject("roSGNode", "XScene")` +
+`m.top.Append(scene)` — some by direct call, some dynamically (the `AdminScene` menu table
+carries the six admin screens as `scene:` names instantiated through `CreateObject`).
 This is **not idiomatic Roku**: SceneGraph expects a single root `Scene` with `Group`
 nodes as children, not nested `Scene` nodes. The stack mechanism works correctly
 with the nested-Scene pattern, but a future refactor should consider flattening to

@@ -208,7 +208,8 @@ or silently deleting these truth markers — reddens CI.
 >   registered in `phlix-server/start.php` (section 4a) and served by
 >   `src/Server/WebSocket/Workers/SyncPlayWorker.php` on `origin/master`. The two-entry
 >   bearer-subprotocol auth law landed in phlix-server `424c14d0`; this client flipped to it
->   in `07eef68` (`BearerSubprotocolOffer`, `source/lib/SyncPlayProtocol.brs:309`).
+>   in `07eef68` (`BearerSubprotocolOffer`, `source/lib/SyncPlayProtocol.brs:309` at that commit;
+>   the definition now sits at `:458` of the live file).
 > - **`ws://` only — this build ships no `wss://` path.** The WebSocket rides Roku's
 >   `roStreamSocket`, which is plaintext TCP with **no TLS**, so this hand-rolled client can speak
 >   `ws://` only. That is a BUILD limitation, not a platform one: Roku's TLS client socket
@@ -501,6 +502,7 @@ tests/
 ├── fixtures/
 │   └── server-route-manifest.json         # vendored phlix-server route manifest (route gate)
 └── scripts/
+    ├── run-headless-unit.mjs              # the device-free CI unit gate (make test / make test-unit)
     ├── verify-route-manifest.mjs          # make validate-routes
     └── verify-runtime-portable.sh         # verify-runtime.sh portability regression
 ```
@@ -800,7 +802,7 @@ phlix-roku/
 │   ├── unit/                     # BrightScript unit tests (Storage/ApiClient/AuthManager/SyncPlay/WireGuard/…)
 │   ├── integration/              # BrightScript integration tests (ApiIntegration)
 │   ├── fixtures/                 # Vendored server-route-manifest.json (route gate)
-│   └── scripts/                  # verify-route-manifest.mjs, verify-runtime-portable.sh
+│   └── scripts/                  # run-headless-unit.mjs (the device-free CI unit gate), verify-route-manifest.mjs, verify-runtime-portable.sh
 ├── scripts/                      # verify-runtime.sh (static-check legs), validate-xml.sh, verify-package.sh, package-signed.sh, derive-version.sh, add-headers.py
 ├── locale/                       # Seven catalogs, same flattened key set (Check 21 parity; see docs/i18n.md)
 │   ├── de_DE/strings.json
@@ -834,7 +836,13 @@ phlix-roku/
 1. Verify Roku IP address is correct
 2. Check developer credentials
 3. Ensure dev mode is enabled on Roku
-4. Try: `curl -u user:pass http://ROKU_IP:8060/` to verify connectivity
+4. Confirm the dev-mode installer itself answers: `curl -sS -o /dev/null -w '%{http_code}\n' http://ROKU_IP/`.
+   A 200 (installer page) or 401 (it demands credentials) proves the port-80 installer is listening;
+   a refused connection or timeout means the IP is wrong or dev mode is off. The install endpoint is
+   the port-80 `/plugin_install` web form — NOT an ECP `:8060` route (`:8060` documents only
+   launch/keypress/query, so probing it tests the wrong service). Never put credentials in argv
+   (`-u user:pass` is visible in `ps`); when authenticating, pass them out of band as the sideload
+   recipe above shows (`curl --config -` with digest).
 
 ### API Connection Failed
 

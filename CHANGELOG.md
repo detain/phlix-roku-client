@@ -51,6 +51,49 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the w09L3 doc-truth batch: wire-census count currency, the headless runner named in both test inventories, the install troubleshooting probe reconciled with the port-80 installer law, the retired SD icon family annotated, the flip-era coordinate qualified, and the check/component counts re-measured (RT-017 RT-018 RT-019 RT-020 RT-021 RT-022) — 2026-11-09
+
+- **RT-017 (minor, docs/static-checks.md).** The Check 23 row still asserted the
+  pre-promotion wire census ("exactly 19 wire-honest codes / 19 emitted-verified")
+  while its own Check 22 row — the live gate (`wire_codes != 20` in
+  `scripts/verify-runtime.sh`) and the `Utilities.brs` docblock ("20 code strings") —
+  carry the 20-code census after the `syncplay.queue_limit_exceeded` promotion
+  (W-min92). Rotated both literals to 20 and named the promotion in the row.
+- **RT-018 (minor, README.md).** Both test inventories omitted the device-free CI
+  gate runner: `run-headless-unit.mjs` added to the "Test Structure" block's
+  `tests/scripts/` listing and to the Project Structure tree comment. The Testing
+  prose already carried the runner + fiction-class exclusion truth from the
+  M-ROKU-31-era cure (README.md:421-429) — attested, untouched. Check 62 pins
+  `*.test.brs` basenames only; the non-test runner line is inert to it.
+- **RT-019 (major, README.md).** Troubleshooting "App Won't Install" step 4
+  recommended `curl -u user:pass http://ROKU_IP:8060/` — contradicting this
+  document's own installer law (:398-408: the installer is the port-80
+  `/plugin_install` web form with digest auth, NOT an ECP `:8060` route; credentials
+  never ride argv). Rewrote the probe to `curl` the port-80 installer home, read
+  200/401 as "listening", say what a success looks like, and keep credentials
+  out of band per the recipe above. Prose only — zero code-behavior change.
+  Check 75's install-endpoint needle stays green (the banned contiguous form is
+  absent by construction; route gate + lint + full verify-runtime re-run green).
+- **RT-020 (minor, docs/image_generation_info.md).** The retired
+  `icon-focus-sd.png` was still listed as certification-required in four places
+  (banner, status list, both tables). Annotated each per the shipped manifest's
+  MN-21 note (the `*_sd` icon family retired; only `mm_icon_focus_hd`/
+  `mm_icon_side_hd` declared; the asset still ships inside `images/` as dead
+  weight until pruned) and pointed the remaining cert gap at `mm_icon_focus_fhd`
+  (`docs/certification.md` §1.5).
+- **RT-021 (info, README.md).** The `07eef68` flip citation pinned
+  `SyncPlayProtocol.brs:309` — correct at that commit (`git show` verified) but
+  drifted to `:458` in the live file. Qualified as at-commit and named the
+  current definition line.
+- **RT-022 (info, CLAUDE.md + docs/navigation.md).** CLAUDE.md's docs index still
+  described "the 26 `make verify-runtime` checks"; re-measured at this tip:
+  CHECK1–CHECK97, 97 numbered gate legs. navigation.md's nested-Scene note claimed
+  "All 42 child components ... `extend=\"Scene\"`"; measured: 38 of the 48 XMLs in
+  `components/` extend Scene (7 `Task`, one each `Dialog`/`Group`/`Rectangle`), of
+  `components/` extend Scene (7 `Task`, one each `Dialog`/`Group`/`Rectangle`); the old
+  "all 42 are added as children" also ignored that 6 admin scenes instantiate dynamically
+  from the `AdminScene` menu table.
+
 ### Fixed — the w08L3 doc-truth + Makefile-hygiene fold: every target phony-stamped, bif-thumbs re-derived, CLAUDE test rows and a fictional module retired, apitask coordinates re-anchored, README time-sync brought current (RT-011 RT-012 RT-013 RT-014 RT-015 RT-016) — 2026-11-09
 
 - **RT-011 (info, Makefile).** `.PHONY` listed 14 of the 25 declared targets;

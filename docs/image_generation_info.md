@@ -10,16 +10,24 @@
 
 All images in this guide are **required for Roku Store certification**. Incorrect dimensions are a **submission blocker** — the Roku Developer Relations team will reject the channel package if any art asset is off by even 1 pixel.
 
+> **MN-21 correction (per the shipped `manifest` note):** the `*_sd` icon family is **retired** — the
+> manifest declares only `mm_icon_focus_hd` and `mm_icon_side_hd` (focus_sd was retired rather than
+> side_sd minted, so the declared family stays symmetric under the hd-only design plane).
+> `icon-focus-sd.png` therefore appears below as a **legacy** asset, not a certification requirement
+> (the file still ships inside `images/` as dead weight until pruned). The live remaining
+> required-key gap is **`mm_icon_focus_fhd`** (540×405) — tracked in `docs/certification.md` §1.5.
+
 Current status — **all assets regenerated 2026-08-07, every dimension now matches spec**:
 - ✅ `icon-focus-hd.png` — 290×218 px — **CORRECT** (was 540×405)
-- ✅ `icon-focus-sd.png` — 246×140 px — **CORRECT** (was 214×144)
+- ⚪ `icon-focus-sd.png` — 246×140 px — **RETIRED** (MN-21): dimensions were corrected (was 214×144), but the manifest no longer declares any `*_sd` icon — legacy asset only
 - ✅ `icon-side-hd.png` — 176×110 px — **CORRECT** (was 175×29)
 - ✅ `splash-sd.png` — 720×480 px — **CORRECT** (was 960×540)
 - ✅ `splash-hd.png` — 1280×720 px — **CORRECT**
 - ✅ `splash-fhd.png` — 1920×1080 px — **CORRECT** (added to manifest 2026-08-07)
 - ✅ `placeholder.png` — 280×380 px — **CORRECT**
 
-No dimension blockers remain for Roku Store submission.
+No *dimension* blockers remain for Roku Store submission; the open cert item is the missing
+`mm_icon_focus_fhd` key (`docs/certification.md` §1.5), not any shipped asset's size.
 
 > ⚠️ **Worth a second look before submitting:** the *previous* `icon-focus-hd.png` was
 > 540×405, which is exactly Roku's **Channel Poster (HD)** size. If 540×405 was in fact the
@@ -45,7 +53,7 @@ These icons appear when the user navigates to the channel on the Roku home scree
 | File                  | Required Dimensions | Notes                                |
 | --------------------- | ------------------- | ------------------------------------ |
 | `icon-focus-hd.png`  | **290 × 218 px**    | HDTV (1280×720) home screen icon     |
-| `icon-focus-sd.png`  | **246 × 140 px**    | SDTV (720×480) home screen icon      |
+| `icon-focus-sd.png`  | 246 × 140 px        | **RETIRED** (MN-21) — not declared in the manifest; legacy SDTV icon, kept for reference only |
 | `icon-side-hd.png`   | **176 × 110 px**    | Side panel / Leanback player icon    |
 
 **Design notes**:
@@ -97,7 +105,7 @@ the splash set now share one lockup:
 | File                  | Size           | Status |
 | --------------------- | -------------- | ------ |
 | `icon-focus-hd.png`   | 290 × 218 px   | ✅ OK  |
-| `icon-focus-sd.png`   | 246 × 140 px   | ✅ OK  |
+| `icon-focus-sd.png`   | 246 × 140 px   | ⚪ Retired (MN-21) — not declared |
 | `icon-side-hd.png`    | 176 × 110 px   | ✅ OK  |
 | `splash-sd.png`       | 720 × 480 px   | ✅ OK  |
 | `splash-hd.png`       | 1280 × 720 px  | ✅ OK  |

@@ -239,7 +239,7 @@ These are conventions enforced informally (sometimes by `make lint`'s greps); fo
 - `docs/debugging.md` — telnet debugging guide with the full error dictionary (`&hEC`, `&hF4`, silent no-ops, etc.) and ECP endpoints.
 - `docs/architecture-apitask.md` — ApiTask op-dispatch threading model, response envelope, and scaling notes.
 - `docs/api-envelope.md` — THE API ENVELOPE LAW: `ApiClient.request()` returns the transport envelope `{status, ok, data, error}`; the server payload rides at `.data`; unwrap exactly once via `UnwrapApiEnvelope()`/`ApiTask`'s `ApplyEnvelope()` and honor `ok` — CHECK 26 enforces it. Binding for every response reader.
-- `docs/static-checks.md` — the 26 `make verify-runtime` checks, their CI wiring, and the `tests/scripts/verify-runtime-portable.sh` regression test.
+- `docs/static-checks.md` — the 97 `make verify-runtime` checks (CHECK1–CHECK97; count re-measured from `scripts/verify-runtime.sh` 2026-11-09), their CI wiring, and the `tests/scripts/verify-runtime-portable.sh` regression test.
 - `docs/i18n.md` — the `locale/en_US/strings.json` catalog, the flattened-key convention, and how CHECK 19–CHECK 25 enforce it (incl. the `ApplyXmlChrome()` markup pass).
 - `docs/publishing.md` — `make package-signed` and the store-submission steps.
 
