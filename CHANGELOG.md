@@ -51,6 +51,35 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the w10L2 doc-truth fold: phantom `§6`/`§5.3` section refs re-anchored to their heading names, and two sentences of sprint-ticket prose restated as standing constraints (RT-023 RT-024) — 2026-11-09
+
+- **RT-023 (writer #3):** the README carried no top-level numbered sections
+  after the SyncPlay-era re-cut, yet six sentences still pointed at phantom
+  numbers. Re-anchored by heading name (the estate's in-repo idiom, cf.
+  README's own `See "SyncPlay (Watch Together)".` precedent): the
+  `SyncPlayManager.brs` and `SyncPlayScene.brs` tree rows now say
+  `see "SyncPlay (Watch Together)" — Room-scene retention — and Check 56`;
+  the `ApiTask.brs` tree row's `(§5.3: ...)` now names
+  `docs/architecture-apitask.md, "The Threading Model"`; the
+  `docs/api-envelope.md` direct-call-tasks row and the
+  `docs/static-checks.md` Check-23 row point at the README retention note by
+  name, and the Check-56 ledger row describes its own README needle as the
+  `**Room-scene retention (dead path).**` note (under "SyncPlay (Watch Together)").
+  Zero gate rotation: Check 56 pins those heading literals, never the `§`
+  numbers — verified green on the new bytes.
+- **RT-024 (writer #5):** `docs/architecture-apitask.md` closed its
+  scaling-problem section with `Do not refactor in this step — just note the
+  problem.` — "this step" resolved only to a closed work lane no future reader
+  can see. Restated as the standing constraint: the shipped chain stays as-is,
+  the document records the problem only, and any table-dispatch move is its own
+  dedicated, reviewed change. `docs/navigation.md` made the same class of
+  claim about the nested-Scene flattening (`out of scope for this step to keep
+  the diff reviewable`); it now says the flattening has not been done and is out
+  of scope for the document, which describes the shipped design as it stands.
+- Docs-only; `make lint`, `make verify-runtime` (97/97) and
+  `tests/scripts/verify-route-manifest.mjs` (+`--self-test`) all exit 0 on the
+  final tree.
+
 ### Fixed — the w09L3 doc-truth batch: wire-census count currency, the headless runner named in both test inventories, the install troubleshooting probe reconciled with the port-80 installer law, the retired SD icon family annotated, the flip-era coordinate qualified, and the check/component counts re-measured (RT-017 RT-018 RT-019 RT-020 RT-021 RT-022) — 2026-11-09
 
 - **RT-017 (minor, docs/static-checks.md).** The Check 23 row still asserted the

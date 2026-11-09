@@ -144,8 +144,9 @@ carries the six admin screens as `scene:` names instantiated through `CreateObje
 This is **not idiomatic Roku**: SceneGraph expects a single root `Scene` with `Group`
 nodes as children, not nested `Scene` nodes. The stack mechanism works correctly
 with the nested-Scene pattern, but a future refactor should consider flattening to
-the idiomatic `Group`-as-child pattern. That refactor is deliberately out of scope
-for this step to keep the diff reviewable.
+the idiomatic `Group`-as-child pattern. That flattening has not been done and is
+deliberately out of scope for this document, which describes the shipped design as
+it stands — a future refactor would be a dedicated change of its own.
 
 ## Known Limitations
 

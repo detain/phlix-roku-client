@@ -95,7 +95,7 @@ if dispatch.DoesExist(op) then
 end if
 ```
 
-Do not refactor in this step — just note the problem.
+The shipped chain stays as-is: this document records the problem only. Any move to table dispatch would be a dedicated refactor — its own change, with its own review — never a drive-by edit folded into unrelated work.
 
 ---
 

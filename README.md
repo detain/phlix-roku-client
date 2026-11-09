@@ -742,7 +742,7 @@ phlix-roku/
 │   │   ├── AuthManager.brs       # Authentication manager
 │   │   ├── Storage.brs           # Persistent storage (registry)
 │   │   ├── SyncPlayProtocol.brs  # SyncPlay: pure RFC6455 WS framing + flat syncplay_* codec + NTP TimeSync (no I/O / no UI)
-│   │   ├── SyncPlayManager.brs   # SyncPlay DEAD PATH — not wired into the shipped UI: REST group snapshot + WS session-state coordinator for the abandoned standalone room; its ONLY caller is the never-instantiated components/SyncPlayScene.brs; retained for room revival (see §6 + Check 56)
+│   │   ├── SyncPlayManager.brs   # SyncPlay DEAD PATH — not wired into the shipped UI: REST group snapshot + WS session-state coordinator for the abandoned standalone room; its ONLY caller is the never-instantiated components/SyncPlayScene.brs; retained for room revival (see "SyncPlay (Watch Together)" — Room-scene retention — and Check 56)
 │   │   ├── ToastManager.brs      # Toast/notification singleton for background errors (GetToastManager())
 │   │   └── Utilities.brs         # Helper functions (locale loader + Translate, SyncPlay error law)
 │   └── player/
@@ -789,10 +789,10 @@ phlix-roku/
 │   ├── UserAdminActionsScene.brs # Per-user admin actions (Approve / Disable / Make-or-Remove Admin / Reset Password / Profiles / Refresh + user detail line)
 │   ├── ProfilesScene.brs         # Per-user profile list (one-shot LabelList; read-only; drills into per-profile actions)
 │   ├── ProfileActionsScene.brs   # Per-profile admin actions (7 Rating buttons / Clear PIN / Refresh + profile detail line)
-│   ├── ApiTask.brs               # Generic one-operation API Task — the render-thread network choke (§5.3: every scene's blocking HTTP runs here)
+│   ├── ApiTask.brs               # Generic one-operation API Task — the render-thread network choke (docs/architecture-apitask.md, "The Threading Model": every scene's blocking HTTP runs here)
 │   ├── DiscoveryTask.brs         # One-shot LAN discovery Task (SSDP via the documented socket surface, task thread; drives ConnectScene's server pick — M-ROKU-04)
 │   ├── SyncPlayTask.brs          # Long-lived Task running the SyncPlay ws:// socket off the render thread (roStreamSocket; RunSocket loop; flat syncplay_* frames)
-│   ├── SyncPlayScene.brs         # DEAD PATH — not wired into the shipped UI: abandoned P8-S4 room UI (public-room list / create / join); zero instantiation sites repo-wide; retained for a possible room revival, owner wire-vs-retire decision open (§6, Check 56)
+│   ├── SyncPlayScene.brs         # DEAD PATH — not wired into the shipped UI: abandoned P8-S4 room UI (public-room list / create / join); zero instantiation sites repo-wide; retained for a possible room revival, owner wire-vs-retire decision open (see "SyncPlay (Watch Together)" — Room-scene retention — and Check 56)
 │   ├── HubCommandTask.brs        # Long-lived Task consuming hub relay pending_command / play_media frames (mints a relay token, Bearer on the RFC6455 handshake; the plaintext :8804 dial is REFUSED behind https hubs — M-ROKU-23, wss deferred)
 │   ├── ToastScene.xml            # Toast overlay — Dialog-derived node shown via the current surface's dialog field (M-ROKU-17; queue/dismiss owned by the PhlixApp root coordinator, no script)
 │   ├── ConnectScene.brs          # First-run "Connect to server" screen (normalizes + probes /health, persists server_url, then proceeds to login)
