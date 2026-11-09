@@ -51,6 +51,24 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the w11L1 doc-truth pair: the splash-cell that denied its own manifest key, and the tree row that mislabelled the release vehicle (RT-029 RT-033) — 2026-11-09
+
+- **RT-029 (writer #12, device-verify):** the store-art requirements table in
+  `docs/device-verification.md` still showed the Splash Screen FHD row as
+  "— (not in manifest)" while `manifest:14` has shipped
+  `splash_screen_fhd=images/splash-fhd.png` since the art-restoration era —
+  and the SAME document's measured asset table two sections below cited the
+  key at "(manifest:12)", which is `splash_screen_sd`. Both fixed: the cell
+  now names `splash_screen_fhd`, and the citation reads `manifest:14`
+  (`grep -n splash manifest`: sd/hd/fhd at 12/13/14, measured).
+- **RT-033 (writer #16, README):** the tree row labelled `CHANGELOG.md`
+  "(Keep-a-Changelog format)" while the file itself opens with the
+  rolling-`[latest]` model block and Check 59 R3 convicts any versioned-ladder
+  claim. Repo-wide grep: `Keep-a-Changelog` lived only in this row (no gate
+  pin), so the label now reads "Keep-a-Changelog style, adapted: one rolling
+  [latest] section, not a versioned ladder — see the model block at the
+  head", matching the file's own self-description.
+
 ### Fixed — the w10L2 doc-truth fold: phantom `§6`/`§5.3` section refs re-anchored to their heading names, and two sentences of sprint-ticket prose restated as standing constraints (RT-023 RT-024) — 2026-11-09
 
 - **RT-023 (writer #3):** the README carried no top-level numbered sections

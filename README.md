@@ -823,7 +823,7 @@ phlix-roku/
 ├── bslint.json                   # bslint config
 ├── LICENSE                       # MIT
 ├── README.md                     # This file
-├── CHANGELOG.md                  # Release history (Keep-a-Changelog format)
+├── CHANGELOG.md                  # Release history (Keep-a-Changelog style, adapted: one rolling [latest] section, not a versioned ladder — see the model block at the head)
 ├── DEVELOPER.md                  # Developer documentation
 ├── CLAUDE.md                     # Agent-context entry file
 └── CALIBER_LEARNINGS.md          # Agent-context learnings (caliber)

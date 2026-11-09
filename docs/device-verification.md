@@ -185,7 +185,7 @@ writes and explicit flush calls at sync points. Auth tokens (`auth_token`,
 | SD Channel Icon (focus) | `mm_icon_focus_sd` | **246 × 140 px** | SD store listing icon |
 | Side Icon | `mm_icon_side_hd` | **176 × 110 px** | Channel guide sidebar |
 | Splash Screen HD | `splash_screen_hd` | **1,280 × 720 px** | 720p TVs |
-| Splash Screen FHD | — (not in manifest) | **1,920 × 1,080 px** | 1080p TVs |
+| Splash Screen FHD | `splash_screen_fhd` | **1,920 × 1,080 px** | 1080p TVs |
 | Splash Screen SD | `splash_screen_sd` | **720 × 480 px** | Legacy SD TVs |
 
 Source: Roku Channel Store channel art requirements (290×218 HD icon, 246×140 SD icon, 176×110 side icon; splash screens at 1280×720 HD, 1920×1080 FHD, 720×480 SD).
@@ -203,7 +203,7 @@ exact Roku-spec dimensions as 8-bit RGB PNGs:
 | `images/icon-focus-sd.png` | 32,586 B | 246×140 | `mm_icon_focus_sd` | Correct spec (earlier audits called it Missing — it exists) |
 | `images/icon-side-hd.png` | 20,433 B | 176×110 | `mm_icon_side_hd` | Correct spec |
 | `images/splash-hd.png` | 682,827 B | 1,280×720 | `splash_screen_hd` | Correct spec |
-| `images/splash-fhd.png` | 1,441,342 B | 1,920×1,080 | `splash_screen_fhd` (manifest:12) | Correct spec |
+| `images/splash-fhd.png` | 1,441,342 B | 1,920×1,080 | `splash_screen_fhd` (manifest:14) | Correct spec |
 | `images/splash-sd.png` | 276,935 B | 720×480 | `splash_screen_sd` | Correct spec |
 | `images/placeholder.png` | 65,185 B | 280×380 | — (not a manifest key) | Live runtime poster fallback (`pkg:/images/placeholder.png` — CollectionScene/DetailScene `HDPosterUrl`); keep |
 
