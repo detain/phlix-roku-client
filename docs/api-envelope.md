@@ -72,6 +72,27 @@ quietly. That bug class — *silent empty render* — is what this law forbids.
    Server payload keys are **never** read off `env.` / `resp.` / `result.` /
    `raw.` / bare `data.` — the checker fails those fingerprints red.
 
+5. **Body-size cap at the parse sites (RT-034, review `roku__exploiter`
+   #8).** Every response body that reaches `ParseJSON` first passes
+   `ResponseBodyExceedsCap`: the advertised `Content-Length` arm BEFORE
+   materialization (an oversized advertisement never gets `GetString()`-
+   copied at all), then the real `Len()` arm after the read (a chunked or
+   lying Content-Length is caught once the string exists). A blind arm
+   carries the `-1` unknown sentinel — the same convention
+   `ifUrlEvent.GetContentLength` answers with when no header arrives — and
+   `-1` can never breach a positive cap, so an uninformed arm can only
+   decline to convict, never convict falsely (fail-safe). The cap is
+   `ResponseBodyByteCap()` = 32 MiB, pinned by
+   `tests/unit/RedirectCustody.test.brs`; CHECK48 R1/R3 pin the leaves at
+   all three parse sites (`sendRaw`, `sendRawWithDeviceId`, `probeHealth`).
+   Honest scope: the cap bounds OUR materialization (the BrightString copy
+   and the ParseJSON tree), not the network — the firmware has buffered the
+   transfer before the completion event exists. A breach surfaces as an
+   ordinary transport failure: `result.fail` at the send sites, the
+   `state:"http"` bucket at `probeHealth` — raw English literals per the
+   send sites' existing failure idiom ("Timed out waiting for response"),
+   deliberately NO new catalog keys and NO new wire codes.
+
 ## Choke map
 
 | Layer | Handled by | Result shape |

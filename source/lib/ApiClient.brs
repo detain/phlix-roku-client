@@ -391,8 +391,23 @@ function ApiClient(baseUrl as String) as Object
                         reason = event.GetFailureReason()
                         if reason <> invalid then result.fail = reason
                     end if
+                    ' RT-034 (review roku__exploiter #8): body-size gate ahead of
+                    ' ParseJSON - the Content-Length arm can refuse before the
+                    ' string copy; the Len() arm catches chunked/lying headers
+                    ' after it. Oversized lands as a parse failure with a named
+                    ' raw fail text (the redirect-refused literal family - no
+                    ' new wire codes, no new catalog keys; every caller already
+                    ' treats an unset result.json as an error).
+                    if ResponseBodyExceedsCap(event.GetContentLength(), -1) then
+                        result.fail = "response body exceeds cap (advertised)"
+                        return result
+                    end if
                     responseString = event.GetString()
                     if responseString <> invalid and responseString <> "" then
+                        if ResponseBodyExceedsCap(-1, Len(responseString)) then
+                            result.fail = "response body exceeds cap"
+                            return result
+                        end if
                         result.json = ParseJSON(responseString)
                     end if
                     return result
@@ -642,8 +657,23 @@ function ApiClient(baseUrl as String) as Object
                         reason = event.GetFailureReason()
                         if reason <> invalid then result.fail = reason
                     end if
+                    ' RT-034 (review roku__exploiter #8): body-size gate ahead of
+                    ' ParseJSON - the Content-Length arm can refuse before the
+                    ' string copy; the Len() arm catches chunked/lying headers
+                    ' after it. Oversized lands as a parse failure with a named
+                    ' raw fail text (the redirect-refused literal family - no
+                    ' new wire codes, no new catalog keys; every caller already
+                    ' treats an unset result.json as an error).
+                    if ResponseBodyExceedsCap(event.GetContentLength(), -1) then
+                        result.fail = "response body exceeds cap (advertised)"
+                        return result
+                    end if
                     responseString = event.GetString()
                     if responseString <> invalid and responseString <> "" then
+                        if ResponseBodyExceedsCap(-1, Len(responseString)) then
+                            result.fail = "response body exceeds cap"
+                            return result
+                        end if
                         result.json = ParseJSON(responseString)
                     end if
                     return result
@@ -1418,7 +1448,18 @@ function ApiClient(baseUrl as String) as Object
 
             code = event.GetResponseCode()
             if code >= 200 and code <= 299 then
-                parsed = ParseJSON(event.GetString())
+                ' RT-034: same cap law as the credential send sites; an
+                ' oversized /health body answers "reachable, not healthy" -
+                ' the exact bucket malformed JSON already lands in, so no new
+                ' state and no new codes.
+                if ResponseBodyExceedsCap(event.GetContentLength(), -1) then
+                    return { state: "http", code: code }
+                end if
+                body = event.GetString()
+                if body <> invalid and ResponseBodyExceedsCap(-1, Len(body)) then
+                    return { state: "http", code: code }
+                end if
+                parsed = ParseJSON(body)
                 if HealthOk(parsed) then
                     return { state: "ok", code: code }
                 end if

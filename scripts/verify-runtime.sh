@@ -6063,7 +6063,12 @@ echo "=== Check 48: connect/pair credential custody - redirect law + cleartext c
 #       Location-hungry) disables following so its documented "WITHOUT
 #       following" contract is a guarantee, not best-effort; probeHealth
 #       stays redirect-FOLLOWING by design (zero credentials ride it, and an
-#       http->https /health 301 must still probe green).
+#       http->https /health 301 must still probe green) — but its response
+#       stays size-gated like the credentialed sites (RT-034). Body-size
+#       custody rides the same per-site arm: every parse site consults
+#       ResponseBodyExceedsCap before materializing the ParseJSON input, so
+#       an oversized hostile body (the hub-proxy path is the live threat)
+#       never becomes an unbounded string-to-object explosion.
 #   R2  cleartext consent: Connect() is the persist choke - when
 #       ServerUrlUsesCleartextToRemoteHost says so, the shipped two-button
 #       ShowErrorDialog idiom demands a LOUD OK before anything is written;
@@ -6156,7 +6161,8 @@ if ac is not None:
             problems.append(f"  {AC} - CHECK48 R1: `{name}` no longer disables the firmware auto-follow — a Bearer/password-carrying request could be 3xx-walked to a host the user never chose (M-ROKU-15)")
         for leaf, why in (("ResolveRedirectTarget(", "a Location must be absolutized before ANY verdict"),
                           ("IsCredentialSafeRedirectHop(", "only same-origin / same-host http-then-https hops may re-send credentials"),
-                          ("RedirectHopLimit()", "the manual chain must be bounded")):
+                          ("RedirectHopLimit()", "the manual chain must be bounded"),
+                          ("ResponseBodyExceedsCap(", "every 2xx body must meet the parse cap before ParseJSON materializes it (RT-034, review roku__exploiter #8)")):
             if leaf not in b:
                 problems.append(f"  {AC} - CHECK48 R1: `{name}` stopped consulting {leaf[:-1]} — {why} (M-ROKU-15)")
         if 'result.fail = "redirect refused' not in b:
@@ -6169,6 +6175,8 @@ if ac is not None:
         problems.append(f"  {AC} - CHECK48 R1: probeHealth vanished — the uncredentialed probe's follow-by-design note has no body to inspect")
     elif "EnableRedirects" in ph:
         problems.append(f"  {AC} - CHECK48 R1: probeHealth gained redirect-off mode — it carries ZERO credentials, and an http-then-https /health 301 must still probe green (M-ROKU-04 r1 issue 5 law)")
+    elif "ResponseBodyExceedsCap(" not in ph:
+        problems.append(f"  {AC} - CHECK48 R1: probeHealth stopped consulting ResponseBodyExceedsCap — the uncredentialed probe may follow redirects by design, but an oversized hostile /health body must still meet the parse cap before ParseJSON (RT-034)")
 
 # ---- R2 the consent choke over the single persist site -------------------
 if scene is not None:
@@ -6217,7 +6225,7 @@ if util is not None:
     u = mask(util)
     for name in ("HostOfUrl", "IsPrivateHostAddress", "ServerUrlUsesCleartextToRemoteHost",
                  "RedirectHopLimit", "OriginOfUrl", "IsCredentialSafeRedirectHop",
-                 "ResolveRedirectTarget"):
+                 "ResolveRedirectTarget", "ResponseBodyByteCap", "ResponseBodyExceedsCap"):
         if not re.search(r"(?m)^function %s\b" % name, u):
             problems.append(f"  {UTIL} - CHECK48 R3: the custody leaf {name}() is gone — the unit suite and the send/scene call sites reference it by name")
     norm = sub_body(u, "NormalizeServerUrl")
@@ -6258,7 +6266,7 @@ else:
     for name in ("TestHostOfUrlVectors", "TestIsPrivateHostAddressTruthTable",
                  "TestCleartextRemoteGateTruthTable", "TestOriginOfUrlNormalization",
                  "TestCredentialSafeRedirectHopLaw", "TestResolveRedirectTargetShapes",
-                 "TestRedirectBucketClassification"):
+                 "TestRedirectBucketClassification", "TestResponseBodyCapLaw"):
         if f"sub {name}(" not in test:
             problems.append(f"  {TEST} - CHECK48 R4: {name} is gone")
 
@@ -6273,7 +6281,8 @@ print("           same-origin/upgrade hop law, bounded chain, honest redirect_re
 print("           refusal); the one server_url persist site sits behind a loud")
 print("           cleartext-consent dialog for remote http origins; inference, consent")
 print("           and hops share one host predicate; the seven catalogs speak both the")
-print("           refusal and the dialog; the unit suite pins every pure leaf")
+print("           refusal and the dialog; the unit suite pins every pure leaf; every")
+print("           parse site meets the RT-034 body-size cap before ParseJSON")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

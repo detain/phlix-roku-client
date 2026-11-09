@@ -349,6 +349,41 @@ function ConcurrentStreamLimitText(n as Object) as String
     return TranslateWithParams("parentalcontrols_current_limit", { count: count })
 end function
 
+' Ceiling in bytes for ANY API response body this client parses (RT-034,
+' review roku__exploiter #8: the send sites fed an unbounded-length 2xx body
+' straight into ParseJSON). Honest scope: roUrlEvent carries the FULL body
+' already - the firmware buffered the transfer before the completion event
+' fires - so this cap does not limit the network; it bounds OUR work after
+' the fact: the GetString() BrightString copy and the ParseJSON object tree
+' (materially larger than the wire bytes on hostile input). 32 MiB sits far
+' above any legitimate envelope this client consumes; the live hostile path
+' is the hub mode, where a relayed peer can steer a response (AppContext
+' proxies arbitrary peers). CHECK48 R3 pins the two leaves; the literal is
+' pinned by tests/unit/RedirectCustody.test.brs (RedirectHopLimit's
+' existence-pin/value-pin split, mirrored exactly).
+function ResponseBodyByteCap() as Integer
+    return 33554432
+end function
+
+' True when EITHER informed arm says the body breaches the cap: the
+' advertised Content-Length (the pre-materialization gate - refuses the
+' GetString/ParseJSON work when the header already told us) or the actual
+' string length after the read (the deciding arm - a chunked or lying
+' Content-Length only meets reality after materialization). A blind arm
+' passes the -1 unknown sentinel, the SAME convention ifUrlEvent
+' GetContentLength answers when no header arrived; -1 never breaches a
+' positive cap, so an uninformed arm can only decline, never convict
+' (fail-safe). Typed Integer formals are load-bearing twice over: brs
+' refuses `<>` comparisons on Object formals outright ("comparing
+' non-primitive values", probe-measured at this lane), and brs Int()
+' coerces through float32 - above 2^24 it LOSES precision (Int(33554433)
+' measured to return 33554430) - so no Int() round-trip may guard this
+' comparison; the values travel at full integer width.
+function ResponseBodyExceedsCap(contentLength as Integer, bodyLength as Integer) as Boolean
+    cap = ResponseBodyByteCap()
+    return contentLength > cap or bodyLength > cap
+end function
+
 ' Canonical lowercase origin "scheme://host[:port]" of a URL, DEFAULT ports
 ' folded (http://h:80 -> http://h, https://h:443 -> https://h) so a hop that
 ' merely spells the default is still same-origin. "" for anything non-http(s),

@@ -51,6 +51,48 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — RT-034: every response body meets a 32 MiB parse cap before ParseJSON materializes it — three sites, two arms, fail-safe -1 sentinel (CHECK48 extended) — 2026-11-09
+
+- **RT-034 (review `roku__exploiter` #8, Info):** `sendRaw` and
+  `sendRawWithDeviceId` fed an unbounded-length 2xx body straight into
+  `GetString()` + `ParseJSON` (three sites counting `probeHealth`), and the
+  hub-proxy threat model makes that body attacker-steerable (AppContext
+  proxies arbitrary peers). Cure: `ResponseBodyByteCap()` = 33,554,432 in
+  Utilities.brs + `ResponseBodyExceedsCap(contentLength, bodyLength)`
+  predicate, called at all three sites BEFORE ParseJSON: the advertised
+  `GetContentLength` arm refuses even the string copy; the post-read `Len()`
+  arm is the deciding one against chunked/lying headers. A breach surfaces
+  as an ordinary transport failure (`result.fail` at the send sites, the
+  `state:"http"` bucket at `probeHealth`) — raw English literals matching
+  the sites' existing "Timed out waiting for response" idiom; NO new catalog
+  keys, NO new wire codes (contract law). Honest scope: the cap bounds OUR
+  materialization, not the network — the firmware has buffered the transfer
+  before the completion event exists.
+- **The -1 sentinel (measured, era-relevant):** typed `Integer` formals and
+  the -1 unknown value on blind arms are load-bearing, discovered by probe
+  against the repo's own brs 0.45.0 interpreter: `<>` comparisons on Object
+  formals THROW there ("comparing non-primitive values"), and `Int()`
+  coerces through float32 — above 2^24 it LOSES precision
+  (`Int(33554433)` measured returning 33554430) — so an `Int()`-guarded
+  Object-formal predicate would both crash headless and silently mis-bound
+  on device. -1 matches the `ifUrlEvent.GetContentLength` convention for a
+  missing header and can never breach a positive cap: uninformed = decline,
+  never false-convict (fail-safe).
+- **Gate (CHECK48, same commit):** R1's leaf tuple gained
+  `ResponseBodyExceedsCap(` for both credentialed send bodies AND a
+  dedicated `probeHealth` arm (the leg's redirect exclusion stands —
+  probeHealth follows redirects by design; only the parse gate is new);
+  R3's symbol census pins both new leaves; R4 gained
+  `TestResponseBodyCapLaw`; the PASS echo carries the new clause on its
+  appended lines (the twin-pinned first line is verbatim). The portable
+  twin needed no edit: its CHECK48 plants strip only `EnableRedirects`
+  shapes, and the plant base (post-cure tree) already carries the cap calls,
+  so conviction counts are unchanged — measured green in the full twin run.
+- **Docs:** the law + sentinel rationale in `docs/api-envelope.md` (new
+  numbered law 5) and `docs/static-checks.md` row 48; the unit suite pins
+  the literal and the boundary truth-table (== cap parses, cap+1 breaches,
+  sentinel declines).
+
 ### Fixed — RT-031 + RT-032: the concurrent-stream limit line earns a real singular (key mint v1.21.0, 392 leaves, four current-ride legs rotated in the same commit), and the unconsumed "Trailers & Promo" row label is restated in plain English — 2026-11-09
 
 - **RT-032 (info #15, streams-count):** `parentalcontrols.current_limit`

@@ -169,3 +169,24 @@ sub TestRedirectBucketClassification()
     assertFalse(IsTransportReason("session_invalid"))
     print "TestRedirectBucketClassification passed"
 end sub
+
+sub TestResponseBodyCapLaw()
+    ' RT-034 (review roku__exploiter #8): the parse-cap constant and its
+    ' predicate. The literal lives ONLY here (CHECK48 R3 existence-pins the
+    ' two leaves, exactly the RedirectHopLimit split this mirrors).
+    assertEqual(ResponseBodyByteCap(), 33554432)
+    cap = ResponseBodyByteCap()
+    ' Content-Length arm: boundary is INCLUSIVE-safe (== cap parses, cap+1
+    ' breaches); the blind arm (-1 sentinel) never breaches.
+    assertFalse(ResponseBodyExceedsCap(cap, -1))
+    assertTrue(ResponseBodyExceedsCap(cap + 1, -1))
+    ' Length arm: same boundary law on the materialized string size.
+    assertFalse(ResponseBodyExceedsCap(-1, cap))
+    assertTrue(ResponseBodyExceedsCap(-1, cap + 1))
+    ' Either informed arm can convict; both blind means "no evidence".
+    assertTrue(ResponseBodyExceedsCap(cap + 1, 10))
+    assertTrue(ResponseBodyExceedsCap(10, cap + 1))
+    assertFalse(ResponseBodyExceedsCap(-1, -1))
+    assertFalse(ResponseBodyExceedsCap(10, 10))
+    print "TestResponseBodyCapLaw passed"
+end sub
