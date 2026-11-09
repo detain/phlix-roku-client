@@ -6247,8 +6247,8 @@ for L in LOCALES:
     for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
         if cat.get("connect", {}).get(key, "") == "":
             problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
-    if cat.get("_metadata", {}).get("version") != "1.20.0":
-        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.20.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, then by the review CR-2/Check74 batch with the ten form-chrome keys, then by the MJ-4 batch with home_start_failed, then by the MJ-20 pass (no mint), then by the MJ-11 batch with the four transport-label keys, then by the MN-26 batch retiring the dead detail.error_favorite_save key (removal, no mint), then by the MJ-2 deferred-lane batch with the seven syncplay join-code keys (v1.20.0, 391 leaves), disclosed)")
+    if cat.get("_metadata", {}).get("version") != "1.21.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.21.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, then by the review CR-2/Check74 batch with the ten form-chrome keys, then by the MJ-4 batch with home_start_failed, then by the MJ-20 pass (no mint), then by the MJ-11 batch with the four transport-label keys, then by the MN-26 batch retiring the dead detail.error_favorite_save key (removal, no mint), then by the MJ-2 deferred-lane batch with the seven syncplay join-code keys (v1.20.0, 391 leaves), then by the RT-032 batch with the concurrent-stream singular key (v1.21.0, 392 leaves), disclosed)")
 
 # ---- R4 the device harness pins the law -----------------------------------
 test = read(TEST)
@@ -12468,8 +12468,10 @@ echo "=== Check 87: catalog, manifest and input-field hygiene - retired keys sta
 #       and the set has ridden every bump since - v1.19.0 at this commit
 #       (CHECK48 R3's literal rotated with it, per the M-ROKU-20/R-ROKU-10
 #       set-bump precedent: removal, no mint), v1.20.0 with the MJ-2
-#       join-code mint (deferred lane, 2026-11-03); R1's own version
-#       literal below is the CURRENT ride, not a historical claim.
+#       join-code mint (deferred lane, 2026-11-03), then v1.21.0 with the
+#       RT-032 concurrent-stream singular mint (w11L1, 2026-11-09); R1's
+#       own version literal below is the CURRENT ride, not a historical
+#       claim.
 #   R2  the manifest ships only documented, hd-relevant keys: splash_width,
 #       splash_height, screensaver_private (all ignored by firmware, all
 #       cert-review bounce risks) and mm_icon_focus_sd (dead weight beside the
@@ -12502,7 +12504,7 @@ def read(path):
         return None
 
 
-# ---- R1 the retired favorite-save key stays buried; set rides the current v1.20.0 ----
+# ---- R1 the retired favorite-save key stays buried; set rides the current v1.21.0 ----
 r1 = []
 for loc in LOCALES:
     path = f"locale/{loc}/strings.json"
@@ -12520,8 +12522,8 @@ for loc in LOCALES:
         r1.append(f"{path} dead detail.error_favorite_save re-grown")
     if "error_favorite_save_message" not in detail:
         r1.append(f"{path} live detail.error_favorite_save_message vanished")
-    if cat.get("_metadata", {}).get("version") != "1.20.0":
-        r1.append(f"{path} _metadata.version is not 1.20.0")
+    if cat.get("_metadata", {}).get("version") != "1.21.0":
+        r1.append(f"{path} _metadata.version is not 1.21.0")
 if r1:
     problems.append("  locale/* - CHECK87 R1: catalog hygiene broken: " + "; ".join(r1))
 
@@ -12582,8 +12584,9 @@ if problems:
 
 print("  CHECK87: the buried catalog key stays buried, the manifest ships only its")
 print("           documented set, and no input field takes unbounded text - the")
-print("           MN-21/MN-26/MN-6 trio (catalog set rides v1.20.0 - the current ride,")
-print("           rotated again by the MJ-2 join-code mint; see R1's provenance note).")
+print("           MN-21/MN-26/MN-6 trio (catalog set rides v1.21.0 - the current ride,")
+print("           rotated again by the MJ-2 join-code mint and once more by the")
+print("           RT-032 singular-key mint; see R1's provenance note).")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
@@ -13241,9 +13244,10 @@ echo "=== Check 93: the resume rail says where you left off and the admin meets 
 #      ApplyXmlChrome speaks the shipped key; README walks the real chain.
 #   R3 keyset-held absence law - the cure minted NOTHING, but the census
 #      literal is the CURRENT state and rotates with every later set move:
-#      en_US rides v1.20.0 and all seven ships hold exactly 391 leaf keys
+#      en_US rides v1.21.0 and all seven ships hold exactly 392 leaf keys
 #      (measured: 387 at batch-21, 384 after the MN-26 removal, 391 after the
-#      MJ-2 join-code mint - this era-pass retires the pre-rotation 387 that
+#      MJ-2 join-code mint, 392 after the RT-032 concurrent-stream singular
+#      mint (w11L1) - this era-pass retires the pre-rotation 387 that
 #      the docblock and the PASS narration recited while the pin enforced 384;
 #      the audit's OBS-1 drift, fixed at its true home), common.live_tv is
 #      present and non-empty in all seven, and no percent-flavored key may
@@ -13402,8 +13406,8 @@ for loc in LOCALES:
     leaves = {s + "_" + k: v for s, sub in cat.items()
               if s != "_metadata" and isinstance(sub, dict)
               for k, v in sub.items() if isinstance(v, str)}
-    if len(leaves) != 391:
-        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 391 - the keyset moved")
+    if len(leaves) != 392:
+        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 392 - the keyset moved")
     if not leaves.get("common_live_tv", "").strip():
         missing3.append(f"{loc} lost the shipped common_live_tv value")
     percent_keys = [k for k in leaves if "percent" in k.lower() or "progress_" in k.lower()]
@@ -13415,8 +13419,8 @@ try:
         en = json.load(f)
 except (OSError, ValueError):
     missing3.append("en_US unreadable for the version pin")
-if en is not None and en.get("_metadata", {}).get("version") != "1.20.0":
-    missing3.append("en_US _metadata.version is not 1.20.0 - the census rides the CURRENT set (the literal rotated with the MJ-2 mint; batch-22 itself minted NOTHING and its absence law is what the census proves)")
+if en is not None and en.get("_metadata", {}).get("version") != "1.21.0":
+    missing3.append("en_US _metadata.version is not 1.21.0 - the census rides the CURRENT set (the literal rotated with the MJ-2 mint; batch-22 itself minted NOTHING and its absence law is what the census proves)")
 if missing3:
     problems.append("  locale catalogs - CHECK93 R3: " + "; ".join(missing3) + " (batch 22 ships ZERO new strings; the census proves the absence)")
 
@@ -13436,7 +13440,7 @@ if problems:
 
 print("  CHECK93: the resume rail says where you left off and the admin meets Live TV")
 print("  in one hop - percent custody, the gated tv walk with hidden-entry law on both")
-print("  sides, the 391-key v1.20.0 absence census, and the docs pair")
+print("  sides, the 392-key v1.21.0 absence census, and the docs pair")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
@@ -13487,11 +13491,15 @@ echo "$PYOUT"
 #   R4 the seven-key set move - syncplay's code_hint/code_label/code_missing/
 #      join/join_with_code/password_label/status_hash_unavailable are present
 #      and non-empty in all seven ships and the en copy is pinned verbatim;
-#      the set rides v1.20.0 - CHECK48 R3, CHECK87 R1 and CHECK93 R3's
-#      literals rotated to it in this SAME commit (a bump that skips a pin
-#      site is not a bump, it is a drift) and the 391-leaf census moved with
-#      them (387 batch-21, 384 MN-26, 391 MJ-2 - the OBS-1 recital-drift the
-#      audit named died in that rotation, disclosed).
+#      the set rode v1.20.0 when this leg minted it - CHECK48 R3, CHECK87 R1
+#      and CHECK93 R3's literals rotated to it in this SAME commit (a bump
+#      that skips a pin site is not a bump, it is a drift) and the 391-leaf
+#      census moved with them (387 batch-21, 384 MN-26, 391 MJ-2 - the OBS-1
+#      recital-drift the audit named died in that rotation, disclosed). The
+#      ride is v1.21.0 since the RT-032 concurrent-stream singular mint
+#      (w11L1, 2026-11-09, 392 leaves); all four current-ride legs - CHECK48
+#      R3, CHECK87 R1, CHECK93 R3 and this R4 - rotate together on every set
+#      move, which is exactly what this leg's own law demands.
 #   R5 docs pair + README truth - row 94 exists naming MJ-2; the CHANGELOG
 #      names MJ-2, the digest function and the button; the README's SyncPlay
 #      block no longer LIES: the convicted "simply fail to join" clause and
@@ -13715,8 +13723,8 @@ for loc in LOCALES:
         v = sec.get(key)
         if not isinstance(v, str) or v.strip() == "":
             r4.append(f"{path}: syncplay.{key} missing or empty")
-    if cat.get("_metadata", {}).get("version") != "1.20.0":
-        r4.append(f"{path}: _metadata.version is not 1.20.0 - the MJ-2 mint rides it")
+    if cat.get("_metadata", {}).get("version") != "1.21.0":
+        r4.append(f"{path}: _metadata.version is not 1.21.0 - the MJ-2 mint rode v1.20.0; the RT-032 singular-key mint rides it")
 en = None
 try:
     en = json.load(io.open("locale/en_US/strings.json", encoding="utf-8"))
@@ -13761,7 +13769,8 @@ if problems:
     sys.exit(1)
 
 print("  CHECK94: a code from any device opens the room - digest-only custody,")
-print("  the panel-owned form, the seven-key v1.20.0 mint, and the honest README")
+print("  the panel-owned form, the seven-key mint (born v1.20.0, riding v1.21.0),")
+print("  and the honest README")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

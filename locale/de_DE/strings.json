@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.20.0",
+    "version": "1.21.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -459,6 +459,7 @@
     "blocked_tags": "Blockierte Tags",
     "concurrent_stream_limits": "Gleichzeitige Stream-Limits",
     "current_limit": "Aktuelles Limit: {count} gleichzeitige Streams",
+    "current_limit_one": "Aktuelles Limit: {count} gleichzeitiger Stream",
     "delete_selected": "Ausgewählte löschen",
     "hint_max_streams": "1-10",
     "hint_schedule_name": "z. B. Bettzeit an Wochentagen",

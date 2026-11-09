@@ -133,3 +133,28 @@ sub TestIsPlayableItem()
 
     print "TestIsPlayableItem passed"
 end sub
+
+' ---- ConcurrentStreamLimitText (RT-032): the singular/plural selection law.
+' Headless catalog state is KEY ECHO (a missing catalog returns the key), so
+' the assertions compare against direct TranslateWithParams calls - the law
+' holds in BOTH catalog states (loaded device run, key-echo run), per the
+' TranslateWithParams.test.brs pairing precedent - and pin the branch itself
+' with assertNotEqual across the singular/plural boundary.
+sub TestConcurrentStreamLimitTextSelectionLaw()
+    assertEqual(ConcurrentStreamLimitText(1), TranslateWithParams("parentalcontrols_current_limit_one", { count: 1 }))
+    assertEqual(ConcurrentStreamLimitText(0), TranslateWithParams("parentalcontrols_current_limit", { count: 0 }))
+    assertEqual(ConcurrentStreamLimitText(2), TranslateWithParams("parentalcontrols_current_limit", { count: 2 }))
+    assertEqual(ConcurrentStreamLimitText(3), TranslateWithParams("parentalcontrols_current_limit", { count: 3 }))
+    ' Int() truncation mirrors the MembersCountText precedent (1.7 -> 1 = singular, 3.0 -> 3 = plural).
+    assertEqual(ConcurrentStreamLimitText(1.7), TranslateWithParams("parentalcontrols_current_limit_one", { count: 1 }))
+    assertEqual(ConcurrentStreamLimitText(3.0), TranslateWithParams("parentalcontrols_current_limit", { count: 3 }))
+    ' The branch itself: singular and plural render differently in every
+    ' catalog state (echo: distinct keys; loaded: distinct values).
+    assertNotEqual(ConcurrentStreamLimitText(1), ConcurrentStreamLimitText(2))
+    ' Both keys are live catalog members: they resolve to a non-empty line
+    ' in any catalog state (value or echo), same never-empty census class as
+    ' TestTranslateWithParamsKnownCodeNeverEmpty.
+    assertTrue(TranslateWithParams("parentalcontrols_current_limit", { count: 1 }) <> "")
+    assertTrue(TranslateWithParams("parentalcontrols_current_limit_one", { count: 1 }) <> "")
+    print "TestConcurrentStreamLimitTextSelectionLaw passed"
+end sub

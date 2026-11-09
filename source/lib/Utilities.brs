@@ -333,6 +333,22 @@ function RedirectHopLimit() as Integer
     return 3
 end function
 
+' One or many: the concurrent-stream limit line, singular when the budget
+' allows exactly one stream, plural otherwise (RT-032 - the "(s)"-slashed
+' English is retired). The count is normalized through Int() and the key
+' choice is section-qualified, both per the MembersCountText precedent
+' (SyncPlayScene.brs); ApplyNamedTokens fills the same {count} slot either
+' way. Int() truncates non-integers, mirroring the precedent exactly.
+' CHECK48 R3 / CHECK93 R3 / CHECK94 R4 hold the catalog half; the headless
+' law is asserted in tests/unit/Utilities.test.brs.
+function ConcurrentStreamLimitText(n as Object) as String
+    count = Int(n)
+    if count = 1 then
+        return TranslateWithParams("parentalcontrols_current_limit_one", { count: count })
+    end if
+    return TranslateWithParams("parentalcontrols_current_limit", { count: count })
+end function
+
 ' Canonical lowercase origin "scheme://host[:port]" of a URL, DEFAULT ports
 ' folded (http://h:80 -> http://h, https://h:443 -> https://h) so a hop that
 ' merely spells the default is still same-origin. "" for anything non-http(s),

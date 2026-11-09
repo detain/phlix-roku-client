@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.20.0",
+    "version": "1.21.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -142,7 +142,7 @@
     "like_unlike": "Unlike",
     "row_cast": "Cast",
     "row_extras": "Extras",
-    "row_trailers": "Trailers & Promo",
+    "row_trailers": "Trailers and Promos",
     "row_crew": "Crew",
     "no_collections_available": "No collections available.",
     "collection_no_id": "Collection has no ID"
@@ -458,7 +458,8 @@
     "add_schedule": "Add Schedule",
     "blocked_tags": "Blocked Tags",
     "concurrent_stream_limits": "Concurrent Stream Limits",
-    "current_limit": "Current limit: {count} concurrent stream(s)",
+    "current_limit": "Current limit: {count} concurrent streams",
+    "current_limit_one": "Current limit: {count} concurrent stream",
     "delete_selected": "Delete Selected",
     "hint_max_streams": "1-10",
     "hint_schedule_name": "e.g. Weekday Bedtime",

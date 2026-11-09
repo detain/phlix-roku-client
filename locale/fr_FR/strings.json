@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.20.0",
+    "version": "1.21.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -459,6 +459,7 @@
     "blocked_tags": "Étiquettes bloquées",
     "concurrent_stream_limits": "Limites de flux simultanés",
     "current_limit": "Limite actuelle : {count} flux simultanés",
+    "current_limit_one": "Limite actuelle : {count} flux simultané",
     "delete_selected": "Supprimer la selezione",
     "hint_max_streams": "1-10",
     "hint_schedule_name": "par ex. heure du coucher en semaine",

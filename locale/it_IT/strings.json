@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "it_IT",
     "language_name": "Italiano (Italia)",
-    "version": "1.20.0",
+    "version": "1.21.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -459,6 +459,7 @@
     "blocked_tags": "Etichette bloccate",
     "concurrent_stream_limits": "Limiti di stream simultanei",
     "current_limit": "Limite attuale: {count} stream simultanei",
+    "current_limit_one": "Limite attuale: {count} stream simultaneo",
     "delete_selected": "Elimina selezionati",
     "hint_max_streams": "1-10",
     "hint_schedule_name": "ad es. ora della nanna nei feriali",

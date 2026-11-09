@@ -90,6 +90,9 @@ const EXCLUDED_TESTS = {
         TestTranslateWithParamsNeverCrashesOnUnknownKey: "brs gap: same LoadLocaleStrings._loaded function-object state through Translate",
         TestTranslateWithParamsKnownCodeNeverEmpty: "brs gap: same LoadLocaleStrings._loaded function-object state through Translate",
     },
+    Utilities: {
+        TestConcurrentStreamLimitTextSelectionLaw: "brs gap: ConcurrentStreamLimitText -> TranslateWithParams -> Translate -> LoadLocaleStrings._loaded function-object state (Utilities.brs:1542) — the same exclusion family as the TranslateWithParams trio above; device runs execute it",
+    },
     Utilities2: {
         TestNormalizeServerUrlInvalid: "brs gap: brs refuses invalid for an 'as String' formal (NormalizeServerUrl, Utilities.brs:160) — the device coerces invalid to '' and the product guard answers",
         TestUrlEncodeInvalid: "brs gap: same invalid-to-typed-String-formal strictness (UrlEncode)",

@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "pt_BR",
     "language_name": "Português (Brasil)",
-    "version": "1.20.0",
+    "version": "1.21.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -459,6 +459,7 @@
     "blocked_tags": "Tags bloqueadas",
     "concurrent_stream_limits": "Limites de streams simultâneos",
     "current_limit": "Limite atual: {count} streams simultâneos",
+    "current_limit_one": "Limite atual: {count} stream simultâneo",
     "delete_selected": "Excluir selecionados",
     "hint_max_streams": "1-10",
     "hint_schedule_name": "ex. hora de dormir nos dias úteis",

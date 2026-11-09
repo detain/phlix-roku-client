@@ -575,7 +575,7 @@ sub RenderStreamLimits()
         maxStreams = Int(m.streamLimit.maxConcurrentStreams)
     end if
 
-    m.currentStreamLimitLabel.text = TranslateWithParams("parentalcontrols_current_limit", { count: maxStreams })
+    m.currentStreamLimitLabel.text = ConcurrentStreamLimitText(maxStreams)
     if m.maxStreamsInput <> invalid then m.maxStreamsInput.text = str(maxStreams).trim()
 end sub
 

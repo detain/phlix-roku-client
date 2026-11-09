@@ -51,6 +51,50 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — RT-031 + RT-032: the concurrent-stream limit line earns a real singular (key mint v1.21.0, 392 leaves, four current-ride legs rotated in the same commit), and the unconsumed "Trailers & Promo" row label is restated in plain English — 2026-11-09
+
+- **RT-032 (info #15, streams-count):** `parentalcontrols.current_limit`
+  rendered "Current limit: {count} concurrent stream(s)" — the slashed both-
+  forms English, alone among the seven families (every sibling already says
+  "Streams"/"Streams"/"ストリーム" plainly). The fix is the estate's own
+  precedent (MembersCountText, SyncPlayScene.brs — Int() the count, branch
+  the key, ApplyNamedTokens fills the same slot either way): a new
+  `current_limit_one` leaf minted adjacent-after its plural in ALL SEVEN
+  catalogs (keys never reorder; Check 21 mirrors set+order; ja may legally
+  equal its plural — measured true), the en_US plural de-escuated to
+  "Current limit: {count} concurrent streams", and a `ConcurrentStreamLimitText(n)`
+  helper in Utilities.brs (documented Int() truncation, mirroring the
+  precedent exactly). `ParentalControlsScene.brs` now calls the helper at the
+  render site (the card named scene+locale+tests; rewiring the sole consumer
+  is the scope completion that makes the branch reachable — disclosed).
+  The catalogs bump as a set: v1.20.0 → v1.21.0, 391 → 392 leaves.
+- **Gate (four current-ride legs, same-commit rotation, MEASURED red-first):**
+  with the catalogs minted but the pins old, the suite convicted exactly
+  CHECK48 R3 x7 + CHECK87 R1 + CHECK93 R3 + CHECK94 R4 (four pin groups,
+  rc=1, captured before rotation). Post-rotation all four recite the new
+  ride (v1.21.0 / 392 leaves / the RT-032 mint folded into each provenance
+  chain as history), and `docs/static-checks.md` rows 87/93/94 carry the
+  appended ride; CHECK94's header now names all FOUR current-ride legs and
+  the rotate-together law they enforce. Check 21 re-derived 392 flattened
+  keys from disk (no rotation needed — it never hardcoded the count).
+- **RT-031 (info #14, trailers wording):** en_US `row_trailers` read
+  "Trailers & Promo" — ampersand shorthand with a singular half-word, and
+  (measured) a catalog-only row: the `row_*` grid labels carry NO consumer
+  since the DetailScene extras-rows removal, siblings included. Value-only
+  cure to "Trailers and Promos"; no key change, no sibling churn (the
+  siblings are each grammatical in their language), no Check 67 row rotates
+  (grep-measured: no gate recites the retired value). Rides the same set
+  bump's commit as an honest value move.
+- **Tests:** `tests/unit/Utilities.test.brs` gains
+  `TestConcurrentStreamLimitTextSelectionLaw` — echo-paired assertions
+  hold in BOTH catalog states (the TranslateWithParams.test.brs pairing
+  precedent), `assertNotEqual` pins the branch itself, and the never-empty
+  census covers both keys. Headless runs the known brs function-object gap
+  class (LoadLocaleStrings._loaded state through Translate — the same family
+  as the TranslateWithParams trio), so the runner EXCLUDED_TESTS gains one
+  honestly-reasoned entry (total 222→221 executed, excluded 53→54, failed
+  0; device runs execute the sub).
+
 ### Fixed — RT-030: the second legacy Roku doc family (developer-program) is rotated to canonical /dev/docs targets, eleven sites, and Check 69 now bans both families with eleven carriers pinned — 2026-11-09
 
 - **RT-030 (writer #13):** R-ROKU-26 consumed only the `references/` pre-reorg

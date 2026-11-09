@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.20.0",
+    "version": "1.21.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -459,6 +459,7 @@
     "blocked_tags": "ブロックされたタグ",
     "concurrent_stream_limits": "同時ストリーム制限",
     "current_limit": "現在の制限: 同時 {count} ストリーム",
+    "current_limit_one": "現在の制限: 同時 {count} ストリーム",
     "delete_selected": "選択したものを削除",
     "hint_max_streams": "1-10",
     "hint_schedule_name": "例: 平日の就寝時間",

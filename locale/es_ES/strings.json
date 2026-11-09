@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "es_ES",
     "language_name": "Español (España)",
-    "version": "1.20.0",
+    "version": "1.21.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -459,6 +459,7 @@
     "blocked_tags": "Etiquetas bloqueadas",
     "concurrent_stream_limits": "Límites de streams concurrentes",
     "current_limit": "Límite actual: {count} streams concurrentes",
+    "current_limit_one": "Límite actual: {count} stream concurrente",
     "delete_selected": "Eliminar seleccionados",
     "hint_max_streams": "1-10",
     "hint_schedule_name": "p. ej., hora de acostarse entre semana",
