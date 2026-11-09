@@ -51,6 +51,102 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — the w08L3 doc-truth + Makefile-hygiene fold: every target phony-stamped, bif-thumbs re-derived, CLAUDE test rows and a fictional module retired, apitask coordinates re-anchored, README time-sync brought current (RT-011 RT-012 RT-013 RT-014 RT-015 RT-016) — 2026-11-09
+
+- **RT-011 (info, Makefile).** `.PHONY` listed 14 of the 25 declared targets;
+  the eleven without an entry (`bslint check docs-api launch stop
+  test-integration test-unit _update-manifest validate validate-xml
+  verify-runtime`) are all file-less build steps that must never be shadowed
+  by a repo-root artifact of the same name. Drift disclosed: the review's
+  prose said eight missing — the measured set at landing is eleven, and this
+  era's numbers are measured. Check 97 R2 holds the set from now on.
+- **RT-012 (major, docs/bif_thumbs.md).** The client half of trickplay was
+  written as ❌ NOT WIRED with "bifDisplay has zero matches" and line
+  coordinates (:701-704, :272-273) dead two eras. Re-derived at `b6c20b2`:
+  the R6.10 wave (`fb296b7`) wired the player — the absence-tolerant guard
+  and `bifDisplay` set live at `PlayerScene.brs:481-484`, and `bifDisplay`
+  has four real grep hits (wiring + P2-S5-era history comments). The status
+  table, integration section, re-add list and timeline now say the client is
+  wired and waiting on the still-dead server producer — the one truthful
+  reading of the same evidence. The 2026-08-07 revision table is kept
+  verbatim as history with a dated supersession note recording this turn.
+- **RT-013 (major, CLAUDE.md).** The architecture block cited
+  `source/data/Theme.brs → constants` — a file that exists nowhere in this
+  tree (no `source/data/`, no Theme module in any grep). Line removed. The
+  same pass names the fiction class in the README's headless-gate exclusion
+  prose: the `Theme` EXCLUDED entry is not a device idiom — its tests never
+  ran anywhere, device included (`tests/scripts/run-headless-unit.mjs`
+  reason string, quoted honestly rather than rounded into "device-only
+  idioms").
+- **RT-014 (major, CLAUDE.md).** Two stale test rows. `make test` /
+  `make test-unit` without a host do NOT "fall back to make lint and exit 1"
+  / "list files and exit 2" — they run the headless BrightScript interpreter
+  gate, a real runner where red exits red (M-ROKU-18); `make test-integration`
+  keeps its device-only loud failure. `test.yml` does not gate the unit step
+  on `ROKU_HOST` — it runs `node tests/scripts/run-headless-unit.mjs`
+  unconditionally (M-ROKU-17), lint/routes/manifest/check after it; the on-
+  device rooibos run is the maintainer's manual path, now described as such.
+  `make verify-runtime`'s "26 runtime-defect checks" was stale since a
+  hundred waves of checks accrued — restated count-free as one leg per
+  registered Check.
+- **RT-015 (minor, docs/architecture-apitask.md).** The add-an-op
+  coordinates pointed at `ApiTask.brs:33-241` with a sample shape
+  `m.top.response = m.api.myMethod(params)` — :33-241 is the cache-helper
+  region, the dispatch lives inside `ExecRequest()` (:297), and its `req.op`
+  chain spans :330-777 as exactly 82 branches (measured; the doc said 70, a
+  count two eras stale). The sample now mirrors the shipped idiom
+  (`env = api.myMethod(params)` + `ApplyEnvelope(result, env)`) and the
+  scaling-problem section carries the measured 82 with the region truth.
+- **RT-016 (minor, README.md).** The time-sync walk was pre-cure: step 3
+  said `t4 = local NowMs()` with `rtt < 0 or rtt > 1000` rejection, and
+  step 5's drift formula rode `NowMs()`. The shipped code rides t1 AND t4 on
+  `NowMonoMs()` — the same monotonic base at send and receipt, so an NTP
+  step can neither forge nor poison an rtt (MJ-15) — rejects only
+  `rtt > MAX_RTT` with `MAX_RTT = 5000` (MN-13 retired the 1000 ms bound
+  that starved the estimator on congested Wi-Fi), and `GetAdjustedPositionMs`
+  computes the corrected position from `NowMonoMs() + offset`. Both steps
+  now quote the code verbatim; the still-true legs (≈4 s tick,
+  `1/max(1,rtt)` weights, 5 samples, variance < 50 stability, drift EMA
+  clamp [0.99, 1.01], seek in seconds) stand untouched.
+- **Vendor-cite truth repair (fold provenance, REVIEW-w07L5roku-r2).** The
+  CHECK70 docblock in `scripts/verify-runtime.sh` cited the hub's
+  Websocket.php handshake at ":511-523, sent at :558" — re-verified against
+  hub master `81be1692`: key read + 400 branch :509-514, digest computed
+  :516, the 101 built :518-522 and **sent at :557**. Docblock corrected. The
+  2026-11-08 entries keep their era numbers verbatim (history-verbatim);
+  this entry is the forward record, per the same rule that pinned the r2
+  review's finding. The review's remaining Infos need no repo change: the
+  gate path is already `tests/scripts/verify-route-manifest.mjs` in every
+  repo file (the card's shorthand is the only wrong cite, fixed upstream of
+  here), the PASS-metric disclosure lands in this lane's register, and the
+  `make -n` executes-`$(MAKE)` venue note is embedded in Check 97's R1
+  rationale.
+
+### Added — Check 97: Makefile recipe-comment dollar-escape law (R1), .PHONY completeness (R2), escape-site anti-vacuity (R3), fold doc-pair (R4) — 2026-11-09
+
+- Numbering derivation: 97 is the next-free slot, measured at the dispatch
+  tip `b6c20b2` — highest header in the script was 96 and `git grep` for
+  'Check 97'/'CHECK97' returned rc=1 before this block was written.
+- Red-parent over `b6c20b2` measured exactly 12 convictions: R2 ×11 (the
+  missing `.PHONY` entries, one named line each) plus one R4 aggregate line
+  (this era's doc pair not yet landed). R1 and R3 are green at the parent
+  by design — the r2 review found the dollar-escape prose law UNPINNED, a
+  hardening gap rather than a live violation; the leg is its first teeth,
+  disclosed rather than backdated.
+- Executed plant-and-restore: a bare `$(shell printf > plant)` planted into
+  a tab-indented comment line convicts R1 with exactly one aggregate line;
+  deleting one R3 anchor literal convicts R3 alone; legs 1–96 stay green on
+  both plants; restore-to-green is the full-script exit 0 recorded in the
+  same push.
+- Why R1 exists (r2 Minor + Info #4 venue note): make expands every `$(...)`
+  across the WHOLE recipe line before the shell ever sees the `#`, and
+  `make -n` still executes `$(MAKE)` sub-invocations inside recipes — so a
+  bare dollar-parenthesis inside a recipe comment is code, not prose. The
+  Makefile carries two prose sites that legitimately name `$$(shell ...)`
+  and `$$(shell ...) assignment` forms; R3 pins their literals so the law
+  cannot lose its subjects silently. R4 is the standing docs-pair law (this
+  entry + `docs/static-checks.md` row 97).
+
 ### Fixed — the w07 hygiene wave: the search re-arms instead of dropping, dead seams stay dead, an empty version stamp cannot ship, clean really cleans, and the release reset fails loud (RT-005 RT-006 RT-007 RT-008 RT-009 RT-010) — 2026-11-06
 
 - **RT-005 (Minor, search debounce).** `OnSearchTimerFire` dropped the fired

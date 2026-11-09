@@ -61,10 +61,12 @@ Each scene that dispatches through `ApiTask` must observe this rule. R1.4 added 
 
 1. **Choose the op name** — string constant matching the server route (e.g. `"getWatchHistory"`)
 
-2. **Add to `ApiTask.brs:33-241`** — add an `if op = "myop" then` branch:
+2. **Add a branch inside `ExecRequest()` in `components/ApiTask.brs`** — the `req.op` chain runs
+   from `getLibraries` (:330) to `logout` (:777); follow the shipped idiom (see `clearWatchHistory`):
    ```brightscript
-   else if op = "myop"
-       m.top.response = m.api.myMethod(params)
+   else if req.op = "myop" then
+       env = api.myMethod(params)
+       ApplyEnvelope(result, env)
    end if
    ```
 
@@ -74,9 +76,11 @@ Each scene that dispatches through `ApiTask` must observe this rule. R1.4 added 
 
 ---
 
-## The 70-Branch Dispatch (Known Scaling Problem)
+## The 82-Branch Dispatch (Known Scaling Problem)
 
-`ApiTask.brs:33-241` is a 70-branch if/else chain. A table dispatch would be better:
+The `req.op` chain inside `ExecRequest()` (`components/ApiTask.brs:330-777`) is an 82-branch if/else
+chain (measured 2026-11-09 at `b6c20b2`; the file's :33-241 region is the cache-helper layer, not the
+dispatch). A table dispatch would be better:
 
 ```brightscript
 ' Better: table-based dispatch

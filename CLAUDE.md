@@ -18,7 +18,7 @@ All workflows go through `Makefile`. `package.json` exists only to alias these f
 | `make launch` / `make stop` | ECP keypress/launch calls — also need `ROKU_IP` etc. |
 | `make lint` | Runs `npx bsc --project bsconfig.json` (brighterscript type-check). This IS a hard gate — it exits non‑zero on any diagnostic (type error, missing field, malformed XML/component pairing). The old grep-script description is stale. |
 | `make bslint` | Runs `npx bslint --project bsconfig.json` (brighterscript style linter). A separate hard gate from `make lint` — exits non-zero on any error or warning. |
-| `make test` / `make test-unit` / `make test-integration` | Drive `rooibos` (`npx rooibos-roku`), which **requires a device** — they only execute when `ROKU_HOST` (or `ROKU_TEST_HOST`) is set. Without one `make test` falls back to `make lint` and exits 1, and `make test-unit` lists the `tests/unit/*.test.brs` files and exits 2. |
+| `make test` / `make test-unit` / `make test-integration` | With `ROKU_HOST` (or `ROKU_TEST_HOST`) set, drive `rooibos` (`npx rooibos-roku`) on the device. Without one, `make test` / `make test-unit` run the device-free headless BrightScript gate (`node tests/scripts/run-headless-unit.mjs`) — a real test runner where red exits red, not a lint-substitute (M-ROKU-18). `make test-integration` needs hardware: without a host it prints the reason and exits 1. |
 | `make validate-routes` | S280 route gate — `node tests/scripts/verify-route-manifest.mjs` scans every URL the client can issue and compares it **tuple-exact** against the vendored `tests/fixtures/server-route-manifest.json`, then re-runs with `--self-test` to prove it can still go red. |
 | `make validate-manifest` / `make validate-xml` | Greps `manifest` for required keys; `scripts/validate-xml.sh` checks every `components/*.xml` contains `<?xml` + `</component>` and **fails loudly if it discovers zero files** (no vacuous green). Both `exit 1` on failure. |
 
@@ -26,7 +26,7 @@ Running a single test: there is no host runner — `rooibos --group unit` / `--g
 
 ### CI caveat
 
-`lint.yml` runs `bsc`, `bslint`, `validate-xml`, and `verify-runtime` as hard gates — no `|| true`. `test.yml` runs `make lint`, `make validate-routes`, `make validate-manifest`, and `make check`, and runs the unit-test step only when `ROKU_HOST` is set. Don't trust CI alone — verify by sideloading.
+`lint.yml` runs `bsc`, `bslint`, `validate-xml`, and `verify-runtime` as hard gates — no `|| true`. `test.yml` runs the headless unit gate (`node tests/scripts/run-headless-unit.mjs`, unconditional — it needs no device), then `make lint`, `make validate-routes`, `make validate-manifest`, and `make check`. The on-device rooibos run is the maintainer's manual path, not a CI step. Don't trust CI alone — verify by sideloading.
 
 ## Automated Quality Gates
 
@@ -39,7 +39,7 @@ Running a single test: there is no host runner — `rooibos --group unit` / `--g
 These commands are run in CI and must pass before merging:
 
 - `npx bsc --project bsconfig.json` — brighterscript type-check (zero diagnostics required)
-- `make verify-runtime` — 26 runtime-defect checks (`scripts/verify-runtime.sh`; CHECK 26 pins the API-envelope unwrap choke — see `docs/api-envelope.md`); hard CI gate in lint.yml and package.yml
+- `make verify-runtime` — the runtime-defect check suite, one leg per registered CHECK (`scripts/verify-runtime.sh`; CHECK 26 pins the API-envelope unwrap choke — see `docs/api-envelope.md`); hard CI gate in lint.yml and package.yml
 - `make validate-routes` — S280 route gate: every issued URL is tuple-exact against `tests/fixtures/server-route-manifest.json`; hard CI gate in test.yml
 - `make validate-manifest` — manifest has required fields
 - `make validate-xml` — all XML files are valid SceneGraph documents (`scripts/validate-xml.sh`; a zero-file discovery is a hard fail, never a vacuous pass — red-leg in `tests/scripts/verify-runtime-portable.sh` leg 13)
@@ -54,7 +54,6 @@ These commands are run in CI and must pass before merging:
 source/main.brs            → boots an roSGScreen, instantiates the PhlixApp scene, runs the message loop
 components/*.{brs,xml}      → SceneGraph scenes + Task nodes (PhlixApp, Connect, Login, ServerPicker, Home, Library, Detail, Player, Recommendations, ApiTask, SyncPlayTask, HubCommandTask, ToastScene, …)
 source/lib/*.brs           → pure BrightScript modules, all using the factory-object pattern (incl. SyncPlayProtocol, SyncPlayManager, ToastManager)
-source/data/Theme.brs      → constants
 locale/en_US/strings.json  → base-locale user-facing strings (see docs/i18n.md)
 ```
 

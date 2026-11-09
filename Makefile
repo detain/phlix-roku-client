@@ -1,4 +1,10 @@
-.PHONY: all package package-signed install clean test lint lint-fix validate-manifest validate-routes verify-package _run_rooibos _run_rooibos_unit _run_rooibos_integration
+# RT-011 (review roku__devops #6): EVERY declared target is phony — no target
+# here produces a file under its own name (build output lives in build/ and
+# phlix.zip, never beside a target label). An undeclared target whose name
+# later collides with a root file/dir would be treated as up-to-date and
+# silently skip its recipe, which is the fail-open class this repo legislated
+# against elsewhere. CHECK97 R2 reddens a new target without a .PHONY entry.
+.PHONY: all package package-signed install launch stop clean test test-unit test-integration lint lint-fix bslint validate validate-manifest validate-xml validate-routes check verify-runtime verify-package docs-api _run_rooibos _run_rooibos_unit _run_rooibos_integration _update-manifest
 
 # Roku IP address (set via environment or edit here)
 ROKU_IP ?= 192.168.1.100

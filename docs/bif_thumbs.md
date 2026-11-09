@@ -21,7 +21,7 @@ Roku's Video node supports **trickplay thumbnails** — a strip of preview image
 | **Server — routes** | ⚠️ PARTIAL | Beyond `sprite.jpg` + `timeline.json` there is a whole `src/Media/Streaming/Trickplay/` subsystem (`TrickplayGenerator`, `TrickplayController`, `TrickplayResult.index_xml`) and three registered routes, one of which the code itself calls *"BIF index XML"*. Closer to BIF than a bare gap. |
 | **Server — producer** | 🚨 DEAD | **`StreamManager::setTrickplay()` has no callers**, so `TrickplayGenerator` never runs and those routes serve files nothing writes. This is the real blocker — see [The producer is unreachable](#-the-real-blocker-the-producer-is-unreachable). |
 | **Server — `.bif`** | ❌ GAP | No binary BIF is produced or served anywhere. |
-| **Roku client** | ❌ NOT WIRED | `bifDisplay` appears **nowhere** in this repo. P2-S5 **deliberately removed** the trickplay plumbing — see [Client integration](#client-integration-not-done-work-required-here). |
+| **Roku client** | 🟡 WIRED — NO DATA | `PlayerScene.brs:481-484` (R6.10) sets `m.videoPlayer.bifDisplay` when the playback info carries a non-empty `trickplay_bif_url`; an absent URL is a tolerated no-op. No server response ever carries the key — the blocker is the dead producer above, not client code. See [Client integration status](#client-integration-status). |
 
 ### What the Server Currently Provides
 
@@ -217,29 +217,34 @@ When a new item is added, convert the sprite.jpg + timeline.json into a BIF file
 
 ---
 
-## Client integration — NOT done, work required here
+## Client integration status
 
-🔴 **An earlier draft of this document claimed the client was "already wired" and that no client
-changes would be needed. That is not the case**, and it matters, because it means shipping the server
-half alone will change nothing on the device.
+🟡 **The player-side consumption is wired; the data it waits for still does not exist.** An earlier
+draft of this document claimed the client was "already wired" when it was not — the 2026-08-07
+correction below is accurate for its date. The R6.10 wave has since landed the client half, so
+end-to-end trickplay still shows nothing on the device, but the reason is now the **dead server
+producer**, not missing client code.
 
-Measured in this repo:
+Measured in this repo (re-verified 2026-11-09 at `b6c20b2`):
 
-- `grep -rn "bifDisplay" --include=*.brs --include=*.xml .` → **zero matches**.
-- `components/DetailScene.brs:701-704` — *"P2-S5: trickplay BIF previews are not wired on Roku … The
-  dead `m.trickplay` plumbing was **removed** to avoid leaving write-only state (server gap: no BIF
-  URL is currently exposed)."*
-- `components/PlayerScene.brs:272-273` — *"P2-S5: trickplay was **removed** — `m.trickplay` was
-  write-only dead plumbing."*
+- `grep -rn "bifDisplay" --include=*.brs --include=*.xml .` → **4 matches**: the R6.10 wiring and
+  comments below, plus P2-S5-era historical prose.
+- `components/PlayerScene.brs:481-484` (R6.10, commit `fb296b7`) — guard
+  `m.playbackInfo.trickplay_bif_url <> invalid and … <> ""`, then
+  `m.videoPlayer.bifDisplay = m.playbackInfo.trickplay_bif_url`.
+- `components/DetailScene.brs:793-796` and `components/PlayerScene.brs:344` — P2-S5-era comments
+  describing the *original removal* of the write-only `m.trickplay` plumbing; kept as history.
 
-So the plumbing was deliberately deleted, not left waiting for data.
+### What the old "re-add list" needs now
 
-### What has to be re-added
-
-1. **PlayerScene.brs** — request trickplay data during playback initialisation.
+1. **PlayerScene.brs** — request trickplay data during playback initialisation. **Half-done:** the
+   player consumes `trickplay_bif_url` from the playback-info payload it already receives
+   (`PlayerScene.brs:483`), but no server response ever carries the key — see step 1 of Required
+   Server API Changes.
 2. **PlayerScene.brs** — when the response carries a non-empty `trickplay_bif_url`, set
-   `m.videoPlayer.bifDisplay = url`.
-3. **Absent URL stays a no-op** — no thumbnails, no crash, no error. Keep this tolerant permanently:
+   `m.videoPlayer.bifDisplay = url`. **DONE** (`PlayerScene.brs:484`).
+3. **Absent URL stays a no-op — DONE, and it is a law.** The `:483` guard makes it: no thumbnails,
+   no crash, no error. Keep this tolerant permanently:
    under Option B the BIF does not exist until the item's asset job has run, so an absent field is a
    normal steady state, not a transitional one.
 
@@ -282,14 +287,15 @@ The client expects the API response for a media item to include:
 
 ## Timeline
 
-Two halves, and **both are required** — the earlier claim that the client needed no changes was wrong.
+Two halves, and **both are required** — the earlier claim that the client needed no changes was
+wrong when made; the client half has since landed (R6.10, commit `fb296b7`).
 
 1. **Server (plan step S275):** close the producer gap, emit a spec-correct `.bif`, serve it, and add
    `trickplay_bif_url` when the file exists.
-2. **Roku client (this repo):** re-add the plumbing P2-S5 removed and set `bifDisplay`.
+2. **Roku client (this repo):** ✅ done — the player consumes `trickplay_bif_url` and sets
+   `bifDisplay` behind the absence-tolerant guard at `PlayerScene.brs:481-484`.
 
-Trickplay thumbnails appear once both have landed. Shipping only the server half changes nothing
-visible on the device.
+Trickplay thumbnails appear when the server half lands — the client half is already waiting for it.
 
 ---
 
@@ -321,3 +327,10 @@ writes. That is the actual blocker, and it is why "Server Changes Required" now 
 
 Option A (on-demand generation) was demoted from "recommended" because phlix-server is a resident
 Workerman worker and an in-request ffmpeg pass would block the event loop.
+
+**2026-11-09 — client-half supersession (RT-012, w08L3).** The 2026-08-07 row-2 correction ("Not
+wired") was true on its date and is kept verbatim as history, but the R6.10 wave (commit `fb296b7`)
+has since landed the client half: `bifDisplay` now has real uses at `PlayerScene.brs:481-484`, not
+zero matches. The status table, the integration section, and the timeline above were re-derived from
+`grep` at `b6c20b2`. End-to-end trickplay remains invisible on the device for a single reason: the
+server producer is still dead (step 0) and no response carries `trickplay_bif_url`.

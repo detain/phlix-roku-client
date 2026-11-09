@@ -10037,8 +10037,10 @@ echo "=== Check 70: the hub-relay dial proves Sec-WebSocket-Accept before any se
 # proven by cross-repo read before wiring (fixlog/R-ROKU-05__fix.md): the
 # hub :8804 101 is emitted by Workerman's Websocket protocol, which echoes
 # base64(SHA1(offered key + GUID)) unconditionally on every upgrade
-# (phlix-hub vendor/workerman/workerman/src/Protocols/Websocket.php:511-523,
-# sent at :558) — proof never bricks a live relay.
+# (phlix-hub vendor/workerman/workerman/src/Protocols/Websocket.php —
+# coordinates re-verified against hub master 81be1692 on 2026-11-09 by the
+# w08L3 fold: key read + 400 branch :509-514, digest computed :516, the 101
+# built :518-522 and sent :557) — proof never bricks a live relay.
 #
 # WHAT IT PINS (arms follow the CHECK46 R2 precedent: shape-identity needles,
 # fail-loud on unreadable inputs, mask() before any code-shape scan):
@@ -14210,6 +14212,162 @@ if problems:
 print("  CHECK96: the search re-arms instead of dropping, dead seams stay dead,")
 print("  an empty version stamp cannot ship, clean really cleans, and the")
 print("  release reset fails loud instead of shrugging")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 97: Makefile recipe-comment dollar-escape law, .PHONY completeness, fold doc-pair (RT-011, REVIEW-w07L5roku-r2 Minor) ==="
+# NUMBERING: 97 is the next-FREE leg (96 taken by the w07 hygiene era, measured
+# on this lane at b6c20b2: highest header in this file is Check 96; 'Check 97'/
+# 'CHECK97' appear nowhere in scripts/, tests/, docs/, README.md, CLAUDE.md or
+# CHANGELOG.md — git grep rc=1, measured before this block was written).
+#
+# WHY THE LEG EXISTS (the w08L3 card fold):
+#  (a) REVIEW-w07L5roku-r2.md Minor — the $$(shell ...) escape that keeps the
+#      Makefile's RT-007 recipe comments inert is itself unpinned. GNU make
+#      expands $(...) across a whole recipe line BEFORE the shell ever sees
+#      it, and the shell's '#' never hides a make-time expansion: a future
+#      edit dropping one '$' turns a comment into a command make executes
+#      while reading the file. Every gate would stay green through that edit
+#      (verify-runtime never executes make), which is exactly how the
+#      w07L5-era phantom probe could have written /tmp from a 'comment'.
+#  (b) RT-011 (review roku__devops #6) — .PHONY was incomplete (14 of the 25
+#      declared targets at dispatch tip; the review counted 8 unlisted at its
+#      own era — drift disclosed): make treats a target whose name collides
+#      with a root file/dir as up to date when its prerequisites do not
+#      change, so the recipe silently never runs while make exits 0. Six of
+#      the eight the review named are CI-gate invocations (make bslint,
+#      validate-xml, verify-runtime, check) — the fail-open class this repo
+#      already legislated against in validate-xml.sh (zero-file guard) and
+#      CHECK40. No such root names exist today; the pin keeps that latent
+#      state from rotting into an active one.
+#  The era additionally repairs the CHECK70 docblock's hub-vendor line cites
+#  (:511-523/:558 era values drifted; re-verified at hub master 81be1692:
+#  101 built :518-522, sent :557) — prose truth only, no pin (cross-repo
+#  line numbers move with every hub edit; pinning them would import hub
+#  churn into this battery).
+#
+# WHAT IT PINS (fail-loud on unreadable inputs):
+#   R1 recipe-comment dollar-escape law — every tab-line whose text (after an
+#      optional '@' and whitespace) starts with '#' may contain '$(' only in
+#      the '$$(' escaped form; convictions name Makefile:line. Scope is
+#      comment-led lines on purpose: code-led recipes legitimately use
+#      $(MAKE)/$(PKG_NAME), and '#' mid-command is shell text make passes
+#      through, not something this leg can classify without over-convicting.
+#   R2 .PHONY completeness — every target the Makefile defines must appear on
+#      the .PHONY line, unless a root-level file/dir actually bears its name
+#      (then up-to-date semantics are the real contract). The exemption set
+#      is empty today (measured); a genuine future file-producing target
+#      rotates this pin from a measured red, with the reason in its row.
+#   R3 anti-vacuity — the two RT-007 escape-comment sites (the empty-
+#      $$(shell) guard block and the PKG_VERSION-collapses block) still exist
+#      with their escapes, so R1 can never be satisfied by deleting them.
+#   R4 docs pair — this row (97) exists naming RT-011 and the w07L5-r2
+#      lineage, and the CHANGELOG era entry names RT-011..RT-016 + Check 97.
+# Zero new catalog keys, zero wire codes: nothing user-visible changes.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+problems = []
+
+MK = read("Makefile")
+if MK is None:
+    print("  Makefile - CHECK97: unreadable")
+    sys.exit(1)
+lines = MK.splitlines()
+
+# ---- R1 recipe-comment dollar-escape law ------------------------------------
+r1 = []
+for n, line in enumerate(lines, 1):
+    if not line.startswith("\t"):
+        continue
+    rest = line[1:]
+    if rest.startswith("@"):
+        rest = rest[1:]
+    rest = rest.lstrip()
+    if not rest.startswith("#"):
+        continue
+    for m in re.finditer(r"\$\(", line):
+        if m.start() == 0 or line[m.start() - 1] != "$":
+            r1.append(f"Makefile:{n} - a recipe comment carries an un-escaped "
+                      f"'$(' — make expands it while READING the recipe, so the "
+                      f"comment executes; spell it '$$('")
+if r1:
+    problems.append("  recipe-comment dollar-escape law - CHECK97 R1:\n    "
+                    + "\n    ".join(r1))
+
+# ---- R2 .PHONY completeness --------------------------------------------------
+phony = []
+targets = []
+for line in lines:
+    if line.startswith(".PHONY:"):
+        phony = line.split(":", 1)[1].split()
+    m = re.match(r"^([A-Za-z_][A-Za-z0-9._-]*)\s*:(?!=)", line)
+    if m:
+        targets.append(m.group(1))
+declared = set(phony)
+r2 = []
+for t in targets:
+    if t in declared:
+        continue
+    if os.path.exists(t):
+        continue  # a real file bearing the name: up-to-date semantics apply
+    r2.append(f"target '{t}' is not declared .PHONY (a root file/dir of that "
+              f"name would make 'make {t}' exit 0 without running its recipe)")
+if r2:
+    for item in r2:
+        problems.append("  .PHONY completeness - CHECK97 R2: " + item)
+
+# ---- R3 anti-vacuity: the escape sites themselves ----------------------------
+r3 = []
+if "an empty $$(shell ...) result" not in MK:
+    r3.append("the _update-manifest empty-stamp escape-comment block left the "
+              "Makefile - R1 would walk an empty field and pass vacuously")
+if "PKG_VERSION rides a $$(shell ...) assignment" not in MK:
+    r3.append("the package empty-PKG_VERSION escape-comment block left the "
+              "Makefile - R1 would walk an empty field and pass vacuously")
+if r3:
+    problems.append("  escape-site anti-vacuity - CHECK97 R3: " + "; ".join(r3))
+
+# ---- R4 docs pair -------------------------------------------------------------
+r4 = []
+docs = read("docs/static-checks.md")
+if docs is None or not re.search(r"^\|\s*97\s*\|.*RT-011\b.*w07L5", docs, re.M):
+    r4.append("docs/static-checks.md row 97 is missing or does not name RT-011 "
+              "and the w07L5-r2 lineage")
+cl = read("CHANGELOG.md")
+missing = [rid for rid in ("RT-011", "RT-012", "RT-013", "RT-014", "RT-015", "RT-016")
+           if cl is None or rid not in cl]
+if missing:
+    r4.append("CHANGELOG.md does not name this era's items: " + " ".join(missing))
+if cl is not None and "Check 97" not in cl:
+    r4.append("CHANGELOG.md does not name Check 97")
+if r4:
+    problems.append("  docs pair - CHECK97 R4: " + "; ".join(r4))
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK97: %d conviction(s) - the Makefile comment-escape and .PHONY laws are broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK97: recipe comments stay inert to make, every target declares itself")
+print("  .PHONY, the escape sites hold their ground, and the docs pair is complete")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

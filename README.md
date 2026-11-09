@@ -319,13 +319,16 @@ Implemented in `SyncPlayProtocol.brs` TimeSync, mirroring `@phlix/syncplay` SPEC
 1. Every tick (~4s) the client sends `syncplay_time_ping` with `client_time` = t1 (ms).
 2. The server replies `syncplay_time_pong` with `client_time` (echoed t1) and `server_time` (t2 =
    server receive time; there is **no** t3/`server_receive_time` field).
-3. Per pong (t3 = t2, t4 = local `NowMs()`): `rtt = t4 - t1`; `oneWay = rtt/2`;
-   `offset = t2 - t1 + oneWay`. Samples with `rtt < 0` or `rtt > 1000` are rejected.
+3. Per pong (t3 = t2): `rtt = t4 - t1`, where t1 and t4 both ride `NowMonoMs()` — the same
+   monotonic base at send and receipt, so an NTP step can neither forge nor poison an rtt
+   (MJ-15). `oneWay = rtt/2`; `offset = t2 - t1 + oneWay`. Samples with `rtt > MAX_RTT`
+   (5000 ms) are rejected — MN-13: the old 1000 ms bound starved the offset estimator on
+   congested Wi-Fi, so every sample over one second was dropped and the party ran uncorrected.
 4. `offset` is the **weighted mean** (weight `1/max(1,rtt)`) over the last 5 samples; it is
    considered **stable** when there are ≥5 samples and the recent-offset variance is `< 50`.
 5. A drift-rate EMA `1.0 + 0.1*(Δoffset/Δt)/1000` (clamped to `[0.99, 1.01]`) scales the follow
-   position: adjusted ms = `position + (NowMs() + offset - serverTime) * driftRate`, converted to
-   seconds before any `video.seek`.
+   position: adjusted ms = `position + (NowMonoMs() + offset - serverTime) * driftRate`, converted
+   to seconds before any `video.seek`.
 
 ## Configuration
 
@@ -422,9 +425,11 @@ ROKU_HOST=192.168.1.100 make test-unit
 # Device-free (the CI default): make test-unit / make test run the headless
 # BrightScript interpreter gate — node tests/scripts/run-headless-unit.mjs —
 # which executes every pure-logic suite in brs and exits non-zero on any
-# failure. Suites that depend on device-only idioms are excluded there with
-# per-test reasons (function-object state, roByteArray, NUL bytes…), listed
-# in that script's EXCLUDED maps and the W-min91 fixlog. Integration suites
+# failure. Suites are excluded there with per-test reasons (function-object
+# state, roByteArray, NUL bytes…), listed in that script's EXCLUDED maps and
+# the W-min91 fixlog — one entry is NOT a device idiom but a fiction class:
+# the `Theme` suite drives theme constants that exist nowhere in the tree, so
+# those tests never ran anywhere, device included. Integration suites
 # still require a device: `make test-integration` says so and fails loudly.
 ```
 
