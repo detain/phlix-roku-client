@@ -9889,7 +9889,7 @@ echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
 echo ""
-echo "=== Check 69: Roku doc citations are canonical /dev/docs URLs; the legacy redirect family stays extinct (R-ROKU-26) ==="
+echo "=== Check 69: Roku doc citations are canonical /dev/docs URLs; both legacy redirect families stay extinct (R-ROKU-26 + RT-030) ==="
 # NUMBERING (probed, CHECK62/CHECK66 precedent): at composition time the
 # highest header in this script is Check 68, and neither 'Check 69' nor
 # 'CHECK69' appears anywhere in scripts/, tests/, docs/, README.md or
@@ -9942,12 +9942,28 @@ echo "=== Check 69: Roku doc citations are canonical /dev/docs URLs; the legacy 
 #       citation launders documentation instead of curing it — the arm
 #       convicts file, page and the loss. (This script's own two rotated
 #       comments are NOT pinned: a gate self-citing its subject is circular.)
-#       Carrier list: R-ROKU-26's five files, plus the six surfaces RT-030
-#       rotated (source/main.brs, manifest, components/PhlixApp.brs,
-#       docs/publishing.md, docs/bif_thumbs.md's second page,
-#       docs/device-verification.md) — each era stages the files its own
-#       pins read, and the twin's CI-layout stage list already carries all
-#       of them (measured: twin lines 195/311 + the components cp -a).
+#       Carrier list: TEN carrier files pinning SEVENTEEN pages — R-ROKU-26's
+#       five files (AppContext.brs, ApiClient.brs, PlayerScene.brs, README.md,
+#       bif_thumbs.md) plus the five new files RT-030 rotated (main.brs,
+#       manifest, PhlixApp.brs, publishing.md, device-verification.md);
+#       bif_thumbs.md joins the rotation with a SECOND pinned page
+#       (mjpeg-bif), so it counts once as a carrier — the r1 wave's "eleven
+#       carriers" prose double-counted it (CHANGELOG carries the forward
+#       correction; verbatim history keeps its entry). Each era stages the
+#       files its own pins read, and the twin's CI-layout stage list carries
+#       all of them (measured: twin :195/:210/:225/:235/:248/:261/:266/:267 +
+#       the manifest cp and the components cp -a).
+#   R3  LEDGER SELF-CENSUS (w11L1 r2): docs/static-checks.md row 69 must
+#       carry a "CARRIERS (n carriers, p pins)" census block whose segments
+#       equal THIS dict — names and per-carrier page sets, derived, not
+#       paraphrased. The r1 review convicted a booked-but-never-landed row
+#       amendment (prose ahead of disk — this wave's own quarry); R3 makes
+#       that decay shape convict in the gate, naming the drift either way.
+#       A missing row 69 or missing ledger convicts LOUD (the arm certifies
+#       what it reads). No new Check number; the twin's CHECK69 plants do
+#       not touch the ledger, so its exactly-two-convictions assertion
+#       stands; R3's own falsification is measured red-first in the lane's
+#       scratch clone (register .reviews/2026-11-09/FIX-roku-w11L1-round2.md).
 PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
@@ -10036,6 +10052,73 @@ for carrier in sorted(CARRIERS):
                 f"{CANON + page} citation vanished — the rotated law-comment "
                 "must name the live page; deleting a citation launders "
                 "documentation, it is not a cure")
+
+# R3 (w11L1 r2): the checks ledger must AGREE with the dict above — derived
+# equality, not paraphrase. Row 69 carries a "CARRIERS (n carriers, p pins)"
+# census block whose segments are one 'path: page, page' per carrier, closed
+# by the next em-dash. Marker absent = the counts drifted (dict grew or the
+# amendment never landed — the r1 booking-lag class this arm exists to
+# catch); a missing/added carrier or a page-set drift convicts, named either
+# way. A row-less or ledger-less layout convicts LOUD: the self-census
+# certifies what it reads; it may not silently skip its subject.
+LEDGER = "docs/static-checks.md"
+LEDGER_MARK = "CARRIERS (%d carriers, %d pins)" % (
+    len(CARRIERS), sum(len(pages) for pages in CARRIERS.values()))
+row69 = None
+for line in texts.get(LEDGER, "").splitlines():
+    if line.startswith("| 69 "):
+        row69 = line
+        break
+if row69 is None:
+    problems.append("  " + LEDGER + " - CHECK69 R3: no row 69 in the checks "
+                    "ledger — the self-census certifies what it reads; it "
+                    "may not silently skip its subject")
+else:
+    at = row69.find(LEDGER_MARK)
+    if at == -1:
+        problems.append("  " + LEDGER + " - CHECK69 R3: row 69 carries no "
+                        "'" + LEDGER_MARK + "' census — the ledger and the "
+                        "gate dict disagree on the counts (rotate the row's "
+                        "CARRIERS block with the dict in the same commit)")
+    else:
+        block = row69[at + len(LEDGER_MARK):]
+        sep = " \u2014 "
+        if block.startswith(sep):
+            block = block[len(sep):]
+        cut = block.find(sep)
+        if cut != -1:
+            block = block[:cut]
+        parsed = {}
+        for seg in block.split(";"):
+            seg = seg.strip()
+            if not seg:
+                continue
+            name, colon, pages = seg.partition(":")
+            if not colon or not pages.strip():
+                problems.append("  " + LEDGER + " - CHECK69 R3: census "
+                                "segment '" + seg + "' is not a "
+                                "'path: page, page' shape")
+                continue
+            parsed[name.strip()] = frozenset(
+                p.strip() for p in pages.split(",") if p.strip())
+        expected = dict((k, frozenset(v)) for k, v in CARRIERS.items())
+        for carrier in sorted(set(expected) - set(parsed)):
+            problems.append("  " + LEDGER + " - CHECK69 R3: the gate dict "
+                            "pins carrier '" + carrier + "' but row 69 does "
+                            "not name it — the docs census lags the gate")
+        for carrier in sorted(set(parsed) - set(expected)):
+            problems.append("  " + LEDGER + " - CHECK69 R3: row 69 names "
+                            "carrier '" + carrier + "' the gate dict does "
+                            "not pin — the ledger claims teeth the gate "
+                            "does not have")
+        for carrier in sorted(set(parsed) & set(expected)):
+            if parsed[carrier] != expected[carrier]:
+                problems.append(
+                    "  " + LEDGER + " - CHECK69 R3: row 69's page set for '"
+                    + carrier + "' (" + ", ".join(sorted(parsed[carrier]))
+                    + ") drifts from the dict pin ("
+                    + ", ".join(sorted(expected[carrier]))
+                    + ") — rotate the row with the dict")
 
 if problems:
     for prob in problems:

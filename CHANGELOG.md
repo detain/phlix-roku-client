@@ -51,6 +51,61 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — w11L1 r2 doc-currency cure: the Check 69 ledger row lands the two-family amendment its r1 register booked but never shipped, the "eleven carriers" figure is forward-corrected to the measured ten carrier files / 17 pins, and the leg's new R3 arm self-pins the row against the gate dict — 2026-11-09
+
+- **The defect (r1 review MAJOR-1, `.reviews/2026-11-09/REVIEW-w11L1roku.md`):**
+  the RT-030 wave booked a `docs/static-checks.md` row-69 amendment ("five
+  cells") in its register AND in this file's own entry ("The PASS echo and
+  docs/static-checks.md row 69 carry the amendment") — neither amendment ever
+  landed: row 69 still recited the ONE-family law ("the contiguous pre-reorg
+  `docs/refer-ences/` prefix", "the five carriers") while the shipped gate
+  bans both prefixes and pins ten carrier files. A docs-currency wave
+  shipping its own doc-currency defect, uncatchable by any leg. The cure is
+  the amendment for real: cell 2 now carries the two-family ban, the
+  `CARRIERS (10 carriers, 17 pins)` census block (dict-keyed paths and
+  per-carrier page sets), and the R3 law; cells 3–6 carry the appended
+  RT-030/r2 provenance, the re-anchored plant line (:135, identical at wave
+  base `22e88550` and tip; the row's ":129" had drifted), and the full
+  carrier/ledger staging truth. BEFORE/AFTER diff in the r2 register.
+- **The figure (r1 review Minor-1):** this file's RT-030 entry says "eleven
+  carriers" — measured from the shipped `CARRIERS` dict, the truth is TEN
+  carrier files pinning SEVENTEEN pages; the 5+6 prose double-counted
+  `docs/bif_thumbs.md` (it is both an R-ROKU-26 carrier —
+  media-playback-nodes — and an RT-030 second-page surface — mjpeg-bif — but
+  ONE file). The "eleven sites rotated" figure stands: sites ≠ carriers,
+  and the site census is exact (main.brs x4, manifest x1, PhlixApp x1,
+  publishing x2, bif_thumbs x1, device-verification x2). Per the verbatim-
+  history law the RT-030 entry above keeps its wording; THIS is the
+  correction. The register-side twin anchor drift (":3270" vs. the actual
+  `tests/scripts/verify-runtime-portable.sh:3275` GREEN69 assert) is a
+  register erratum recorded in the r2 register — that register is not
+  rewritten either.
+- **The gate (R3, additive arm inside Check 69 — no new Check number, zero
+  weakening):** Check 69's python now derives the ledger row's census from
+  its own dict — marker counts, carrier-name set equality, per-carrier page
+  set equality — so the booking-lag class convicts by name in either
+  direction (row lags the dict, row claims carriers the dict lacks, page
+  drift, stale counts, row-less or ledger-less layout: all LOUD). Red-first
+  MEASURED in a scratch clone (`/tmp/opencode/rok-w11r2-plants.sh`): P1
+  stripping the `source/main.brs` segment, P2 re-naming a page
+  (closed-captionx), P3 stale marker counts (9 vs. 10) — each exited 1 with
+  exactly one named CHECK69 R3 conviction and zero collateral-check FAILs;
+  restore → exit 0 over all 98 headers, R3 silent-green. The portable twin
+  needed NO edit (its plants never touch row 69, its exactly-two-convictions
+  assertion stands, and the CI-layout stage list already carries all ten
+  carriers plus this ledger — measured twin :195/:210/:225/:235/:248/:261/
+  :266/:267 + the manifest cp + the whole-components `cp -a`). The Check 69
+  header echo and the script's WHAT-IT-PINS block now recite the two-family
+  truth; the twin's line-1 PASS prefix pin is untouched.
+- **Era-law recount:** every figure cited here or in the amended row was
+  re-measured at this working tree (10 carriers, 17 pins, 11 sites, :135,
+  :3275, 98 headers). `/en-us/` spelling note: the ban matches the two
+  contiguous host-rooted prefixes, so a RE-ADDITION of the rotated /en-us/
+  variant ALONGSIDE its canonical cite would slip R1 (R2 owns only the
+  deletion side) — disclosed in the row's own words as law-shape, never
+  overclaimed; extending the ban is an owner-reel candidate, not this
+  docs-currency wave.
+
 ### Fixed — RT-035..RT-040 (w12L3 era: guarded nil-player read, dead type-gate revived, host-parsing consolidated, doc truth shipped) — 2026-11-09
 
 - **RT-035 (review `roku__exploiter` #9, Info):** `StopPlayback` guarded
