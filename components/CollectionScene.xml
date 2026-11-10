@@ -42,5 +42,13 @@
                    color="#AAAAAA"
                    id="descriptionLabel" />
         </Rectangle>
+
+        <!-- RT-094 [w15L9 R-B]: focusable retry shown by the browse
+             failure arm (LoadCollection). The title literal is the en-fallback
+             design-time value; ApplyXmlChrome re-localizes it through
+             common_retry, the CHECK25 pairing. -->
+        <Button id="retryButton" translation="[560,320]"
+                width="160" height="36"
+                title="Retry" focusable="true" visible="false" />
     </children>
 </component>

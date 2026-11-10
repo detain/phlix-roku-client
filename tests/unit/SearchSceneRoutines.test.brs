@@ -89,3 +89,32 @@ sub TestSearchLoadMoreRetryAfterBusySucceeds()
     assertEqual(g.apiTask.control, "run")
     print "TestSearchLoadMoreRetryAfterBusySucceeds passed"
 end sub
+
+' ===============================================================
+' W15L9-R2 RT-094 [M] - the search failure leg must disclose
+' FAILURE, not reuse "No results" over a dead server. The pure
+' outcome choke below carries the law; CHECK101 pins the routing.
+' ===============================================================
+
+sub TestSearchBrowseOutcomeNotOk()
+    ' refused response and ok-but-malformed payload both fail the browse:
+    assertEqual(SearchBrowseOutcome(false, false), "search_failed")
+    assertEqual(SearchBrowseOutcome(true, false), "search_failed")
+    print "TestSearchBrowseOutcomeNotOk passed"
+end sub
+
+sub TestSearchBrowseOutcomeSuccessHasNoDisclosure()
+    ' a usable payload answers no key - search_no_results stays the
+    ' honest verdict of a SUCCESSFUL zero-hit search only.
+    assertEqual(SearchBrowseOutcome(true, true), "")
+    print "TestSearchBrowseOutcomeSuccessHasNoDisclosure passed"
+end sub
+
+sub TestSearchBrowseOutcomeNeverInventsEmptiness()
+    ' non-empty means the FAILURE key, never the no-results copy.
+    k1 = SearchBrowseOutcome(false, true)
+    k2 = SearchBrowseOutcome(false, false)
+    assertEqual(k1, "search_failed")
+    assertEqual(k2, "search_failed")
+    print "TestSearchBrowseOutcomeNeverInventsEmptiness passed"
+end sub

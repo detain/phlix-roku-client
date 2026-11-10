@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "de_DE",
     "language_name": "Deutsch (Deutschland)",
-    "version": "1.21.0",
+    "version": "1.22.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -387,6 +387,7 @@
     "no_servers": "Keine Server"
   },
   "search": {
+    "failed": "Suche konnte nicht ausgeführt werden — OK zum Wiederholen drücken",
     "hint": "Suchbegriff eingeben…",
     "no_results": "Keine Ergebnisse — weniger oder andere Wörter versuchen"
   },
@@ -402,10 +403,12 @@
     "content_unavailable_message": "Dieser Inhalt ist auf Ihrem Server nicht verfügbar. Bitte versuchen Sie es später erneut."
   },
   "favorites": {
-    "empty": "Noch keine Favoriten"
+    "empty": "Noch keine Favoriten",
+    "failed": "Favoriten konnten nicht geladen werden — OK zum Wiederholen drücken"
   },
   "collection": {
-    "empty": "Diese Sammlung ist leer"
+    "empty": "Diese Sammlung ist leer",
+    "failed": "Sammlung konnte nicht geladen werden — OK zum Wiederholen drücken"
   },
   "collections": {
     "empty": "Keine Sammlungen"
@@ -434,6 +437,7 @@
     "title": "Serienregeln"
   },
   "library": {
+    "failed": "Bibliothek konnte nicht geladen werden — OK zum Wiederholen drücken",
     "filter_label": "Filter: {filter}",
     "jump_to": "Springe zu:",
     "sort_label": "Sortierung: {sort}",

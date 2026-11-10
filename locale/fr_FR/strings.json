@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "fr_FR",
     "language_name": "Français (France)",
-    "version": "1.21.0",
+    "version": "1.22.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -387,6 +387,7 @@
     "no_servers": "Aucun serveur"
   },
   "search": {
+    "failed": "Impossible de lancer la recherche — appuyez sur OK pour réessayer",
     "hint": "Saisissez votre recherche…",
     "no_results": "Aucun résultat — essayez avec moins de mots ou des mots différents"
   },
@@ -402,10 +403,12 @@
     "content_unavailable_message": "Ce contenu n’est pas disponible sur votre serveur. Veuillez réessayer plus tard."
   },
   "favorites": {
-    "empty": "Pas encore de favoris"
+    "empty": "Pas encore de favoris",
+    "failed": "Impossible de charger les favoris — appuyez sur OK pour réessayer"
   },
   "collection": {
-    "empty": "Cette collection est vide"
+    "empty": "Cette collection est vide",
+    "failed": "Impossible de charger cette collection — appuyez sur OK pour réessayer"
   },
   "collections": {
     "empty": "Aucune collection"
@@ -434,6 +437,7 @@
     "title": "Règles de série"
   },
   "library": {
+    "failed": "Impossible de charger la bibliothèque — appuyez sur OK pour réessayer",
     "filter_label": "Filtre : {filter}",
     "jump_to": "Aller à :",
     "sort_label": "Tri : {sort}",

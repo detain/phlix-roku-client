@@ -155,3 +155,34 @@ sub TestLetterBucketOffsetMalformedShapes()
     assertEqual(LetterBucketOffset("A"), -1)
     print "TestLetterBucketOffsetMalformedShapes passed"
 end sub
+
+' ===============================================================
+' W15L9-R2 RT-094 [M] - the library items failure arm used to be
+' SILENT (loadingPage=false + return: the grid simply stops
+' filling). The pure outcome choke carries the disclosure law;
+' the usable-payload verdict folds in the W-min93 M-ROKU-10
+' roArray shape law the guard keeps. CHECK101 pins the routing.
+' ===============================================================
+
+sub TestLibraryBrowseOutcomeNotOk()
+    assertEqual(LibraryBrowseOutcome(false, false), "library_failed")
+    ' ok-but-malformed (dict-shaped or absent items) is a browse failure:
+    assertEqual(LibraryBrowseOutcome(true, false), "library_failed")
+    print "TestLibraryBrowseOutcomeNotOk passed"
+end sub
+
+sub TestLibraryBrowseOutcomeSuccessHasNoDisclosure()
+    ' a real-array payload answers no key; the grid's own
+    ' common_select_item chrome stays untouched.
+    assertEqual(LibraryBrowseOutcome(true, true), "")
+    print "TestLibraryBrowseOutcomeSuccessHasNoDisclosure passed"
+end sub
+
+sub TestLibraryBrowseOutcomeNeverInventsEmptiness()
+    ' the only non-empty verdict is the failure key:
+    k1 = LibraryBrowseOutcome(false, true)
+    k2 = LibraryBrowseOutcome(false, false)
+    assertEqual(k1, "library_failed")
+    assertEqual(k2, "library_failed")
+    print "TestLibraryBrowseOutcomeNeverInventsEmptiness passed"
+end sub

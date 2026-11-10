@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "ja_JP",
     "language_name": "日本語 (日本)",
-    "version": "1.21.0",
+    "version": "1.22.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -387,6 +387,7 @@
     "no_servers": "サーバーなし"
   },
   "search": {
+    "failed": "検索を実行できません — OKを押して再試行",
     "hint": "入力して検索…",
     "no_results": "結果がありません — 単語を減らすか、別の単語でお試しください"
   },
@@ -402,10 +403,12 @@
     "content_unavailable_message": "このコンテンツはサーバーで利用できません。後でもう一度お試しください。"
   },
   "favorites": {
-    "empty": "お気に入りがまだありません"
+    "empty": "お気に入りがまだありません",
+    "failed": "お気に入りを表示できません — OKを押して再試行"
   },
   "collection": {
-    "empty": "このコレクションは空です"
+    "empty": "このコレクションは空です",
+    "failed": "このコレクションを表示できません — OKを押して再試行"
   },
   "collections": {
     "empty": "コレクションなし"
@@ -434,6 +437,7 @@
     "title": "シールール"
   },
   "library": {
+    "failed": "ライブラリを表示できません — OKを押して再試行",
     "filter_label": "フィルター: {filter}",
     "jump_to": "ジャンプ:",
     "sort_label": "並び替え: {sort}",

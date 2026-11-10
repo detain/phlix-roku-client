@@ -51,6 +51,35 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — RT-094 — the four browse screens stop rendering emptiness (or silence) over a dead server — 2026-11-10
+
+- `REVIEW-w15L9roku.md` residual R-B (RT-094, review
+  `roku__gameux` lineage): a failed Favorites browse rendered
+  "No favorites yet", a failed Search rendered "No results", a failed
+  Library page-load rendered nothing at all, and a failed Collection load
+  cleared its description strip — four screens where a dead server
+  dressed itself as an empty shelf. Each scene now routes the
+  failure-vs-empty verdict through a pure per-scene choke
+  (`FavoritesBrowseOutcome`, `SearchBrowseOutcome`,
+  `LibraryBrowseOutcome`, `CollectionBrowseOutcome`) — headless-pinned by
+  twelve new `tests/unit` legs across the four BrowseOutcome suites —
+  and discloses it with the new catalog keys `favorites_failed`,
+  `search_failed`, `library_failed` and `collection_failed` (minted
+  across all seven locales with the set bumping to v1.22.0; CHECK48 R3,
+  CHECK87 R1, CHECK93 R3 and CHECK94 R4's current-ride legs rotated in
+  this same commit, red measured first) plus a focusable retry button in
+  the HomeScene exemplar shape: Favorites and Search re-fire their load
+  directly, Search re-arms the shipped debounce (the RT-005 idiom — the
+  newest keyboard text always gets searched), Library re-runs
+  `RefreshItems`, Collection re-runs `LoadCollection` with its stored
+  identity. The healthy-response paths stand the failure chrome down, and
+  the empty copy keeps its sole writer — `favorites_empty`,
+  `search_no_results` and `collection_empty` may now only ever be spoken
+  over a real, successful zero-item response. Check 101 lands the static
+  custody for every one of those inline limbs (27-arm equality census +
+  the twin's per-arm red-leg plants), and Check 100's cohort census
+  stands untouched beside it. No wire, no router, no new error codes.
+
 ### Added — Check 100 — the RT-092 boxed-lift cohort and the RT-105 routing window gain static limb custody — 2026-11-10
 
 - The independent adversarial review of the w15L9 chain

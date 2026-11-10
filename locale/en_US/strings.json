@@ -2,7 +2,7 @@
   "_metadata": {
     "locale": "en_US",
     "language_name": "English (US)",
-    "version": "1.21.0",
+    "version": "1.22.0",
     "source_files": [
       "components/AdminScene.brs",
       "components/AudiobookPlayerScene.brs",
@@ -387,6 +387,7 @@
     "no_servers": "No servers"
   },
   "search": {
+    "failed": "Couldn't run the search — press OK to retry",
     "hint": "Type to search…",
     "no_results": "No results — try fewer or different words"
   },
@@ -402,10 +403,12 @@
     "content_unavailable_message": "This content is not available on your server. Please try again later."
   },
   "favorites": {
-    "empty": "No favorites yet"
+    "empty": "No favorites yet",
+    "failed": "Couldn't load favorites — press OK to retry"
   },
   "collection": {
-    "empty": "This collection is empty"
+    "empty": "This collection is empty",
+    "failed": "Couldn't load this collection — press OK to retry"
   },
   "collections": {
     "empty": "No collections"
@@ -434,6 +437,7 @@
     "title": "Series Rules"
   },
   "library": {
+    "failed": "Couldn't load the library — press OK to retry",
     "filter_label": "Filter: {filter}",
     "jump_to": "Jump to:",
     "sort_label": "Sort: {sort}",

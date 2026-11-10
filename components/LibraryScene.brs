@@ -46,6 +46,13 @@ sub Init()
         m.optionsButton.ObserveField("buttonSelected", "OnOptionsPressed")
     end if
 
+    ' RT-094: focusable retry for the failure arm (HomeScene exemplar);
+    ' its title localizes through ApplyXmlChrome via common_retry (CHECK25).
+    m.retryButton = m.top.FindNode("retryButton")
+    if m.retryButton <> invalid then
+        m.retryButton.ObserveField("buttonSelected", "OnLibraryRetryPressed")
+    end if
+
     ' Route all data access through one-shot ApiTask nodes (off the render
     ' thread). A SINGLE task node cannot accept a new request while its old run
     ' is in flight (control="run" is ignored mid-run, HomeScene comment R1.4),
@@ -442,8 +449,22 @@ sub OnApiResponse(event as Object)
         ' idiom: an invalid-only check lets a dict-shaped `items` (PHP preserved-
         ' key drift) through, and roArray.Append(roAssociativeArray) is a runtime
         ' error that crashes the channel. Type-guard the array explicitly.
-        if not resp.ok or resp.data = invalid or resp.data.items = invalid or type(resp.data.items) <> "roArray" then
+        ' RT-094 [w15L9 R-B]: this arm used to be SILENT - a failed page-0
+        ' browse just stopped filling the grid. The pure choke (headless-
+        ' pinned by tests/unit/LibrarySceneRoutines.test.brs; routing
+        ' custody CHECK101) turns it into an honest failure disclosure
+        ' with a focusable retry; the usable-payload verdict keeps the
+        ' W-min93 M-ROKU-10 roArray shape law above folded in.
+        browseOutcome = LibraryBrowseOutcome(resp.ok = true, resp.data <> invalid and resp.data.items <> invalid and type(resp.data.items) = "roArray")
+        if browseOutcome = "library_failed" then
             m.loadingPage = false
+            if m.descriptionLabel <> invalid then
+                m.descriptionLabel.text = Translate("library_failed")
+            end if
+            if m.retryButton <> invalid then
+                m.retryButton.visible = true
+                m.retryButton.SetFocus(true)
+            end if
             return
         end if
 
@@ -499,6 +520,13 @@ sub OnApiResponse(event as Object)
         m.offset = m.offset + itemCount
         m.hasMore = (itemCount = m.limit)
         m.loadingPage = false
+
+        ' RT-094: a healthy response stands the failure chrome down and
+        ' restores the resting description copy.
+        if m.retryButton <> invalid then m.retryButton.visible = false
+        if m.descriptionLabel <> invalid and m.descriptionLabel.text = Translate("library_failed") then
+            m.descriptionLabel.text = Translate("common_select_item")
+        end if
 
     else if resp.op = "getMediaFacets" then
         ' Store available genres for filtering
@@ -742,6 +770,9 @@ sub Teardown()
     if m.optionsButton <> invalid
         m.optionsButton.UnObserveField("buttonSelected")
     end if
+    if m.retryButton <> invalid then
+        m.retryButton.UnObserveField("buttonSelected")
+    end if
     ' C03-r2: deliberately NO m.top.UnObserveField("requestClose") here.
     ' This Teardown is reached from our self-observe arm INSIDE the
     ' requestClose dispatch, registered BEFORE our parent's arm; unobserving
@@ -784,4 +815,19 @@ sub ApplyXmlChrome()
     if n <> invalid then n.text = Translate("common_select_item")
     n = m.top.findNode("loadingLabel")
     if n <> invalid then n.text = Translate("common_loading")
+    n = m.top.findNode("retryButton")
+    if n <> invalid then n.title = Translate("common_retry")
+end sub
+
+' RT-094: browse failure-vs-usable verdict, pure so the headless suite can
+' convict it (same shape law as FavoritesBrowseOutcome; the literal-key
+' dispatch keeps CHECK20's single dynamic exemption untouched).
+function LibraryBrowseOutcome(ok as Boolean, hasItems as Boolean) as String
+    if not ok or not hasItems then return "library_failed"
+    return ""
+end function
+
+sub OnLibraryRetryPressed()
+    if m.retryButton <> invalid then m.retryButton.visible = false
+    RefreshItems()
 end sub

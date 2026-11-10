@@ -35,6 +35,13 @@ sub Init()
 
     m.statusLabel = m.top.FindNode("statusLabel")
 
+    ' RT-094: focusable retry for the failure arm (HomeScene exemplar);
+    ' its title localizes through ApplyXmlChrome via common_retry (CHECK25).
+    m.retryButton = m.top.FindNode("retryButton")
+    if m.retryButton <> invalid then
+        m.retryButton.ObserveField("buttonSelected", "OnFavoritesRetryPressed")
+    end if
+
     ' Route all data access through the ApiTask node (off the render thread).
     m.apiTask = CreateObject("roSGNode", "ApiTask")
     m.apiTask.ObserveField("response", "OnApiResponse")
@@ -94,13 +101,24 @@ sub OnApiResponse(event as Object)
             m.statusLabel.text = ""
         end if
 
-        if not resp.ok or resp.data = invalid or resp.data.items = invalid then
+        ' RT-094 [review roku__gameux, w15L9 R-B]: a FAILED browse used to
+        ' render "No favorites yet" - emptiness dressed over a dead server.
+        ' The pure choke (headless-pinned by
+        ' tests/unit/FavoritesSceneRoutines.test.brs, routing custody by
+        ' CHECK101) now owns the failure-vs-empty verdict, and the failure
+        ' branch speaks only the failure key with a focusable retry.
+        browseOutcome = FavoritesBrowseOutcome(resp.ok = true, resp.data <> invalid and resp.data.items <> invalid)
+        if browseOutcome = "favorites_failed" then
             m.results = []
             if m.favoritesGrid <> invalid then
                 m.favoritesGrid.content = CreateObject("roSGNode", "ContentNode")
             end if
             if m.statusLabel <> invalid and not m.loadingPage then
-                m.statusLabel.text = Translate("favorites_empty")
+                m.statusLabel.text = Translate("favorites_failed")
+            end if
+            if m.retryButton <> invalid and not m.loadingPage then
+                m.retryButton.visible = true
+                m.retryButton.SetFocus(true)
             end if
             m.loadingPage = false
             m.hasMore = false
@@ -155,7 +173,26 @@ sub OnApiResponse(event as Object)
                 m.statusLabel.text = ""
             end if
         end if
+
+        ' RT-094: a healthy response stands the failure chrome down.
+        if m.retryButton <> invalid then m.retryButton.visible = false
     end if
+end sub
+
+' RT-094: browse failure-vs-empty verdict, pure so the headless suite can
+' convict it. A non-ok response or a payload without a usable items member
+' is a FAILURE; a usable payload returns "" and the success path owns the
+' honest empty distinction. The scene compares the returned key against
+' its own literal (dynamic Translate keys are CHECK20's exempt-tracked
+' class - favorites must not grow a second one).
+function FavoritesBrowseOutcome(ok as Boolean, hasItems as Boolean) as String
+    if not ok or not hasItems then return "favorites_failed"
+    return ""
+end function
+
+sub OnFavoritesRetryPressed()
+    if m.retryButton <> invalid then m.retryButton.visible = false
+    RefetchFavorites()
 end sub
 
 ' Caption per result type: episodes use the episode caption; everything else
@@ -249,6 +286,9 @@ sub Teardown()
     if m.apiTask <> invalid then
         m.apiTask.UnObserveField("response")
     end if
+    if m.retryButton <> invalid then
+        m.retryButton.UnObserveField("buttonSelected")
+    end if
     m.top.UnObserveField("visible")
 end sub
 
@@ -328,4 +368,6 @@ sub ApplyXmlChrome()
     if n <> invalid then n.text = Translate("common_favorites")
     n = m.top.findNode("statusLabel")
     if n <> invalid then n.text = Translate("common_loading")
+    n = m.top.findNode("retryButton")
+    if n <> invalid then n.title = Translate("common_retry")
 end sub

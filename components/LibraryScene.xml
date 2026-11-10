@@ -78,5 +78,13 @@
         <Label id="loadingLabel" text="Loading…"
                translation="[640, 340]"
                horizAlign="center" color="#888888" visible="false" />
+
+        <!-- RT-094 [w15L9 R-B]: focusable retry shown by the browse
+             failure arm (RefreshItems). The title literal is the en-fallback
+             design-time value; ApplyXmlChrome re-localizes it through
+             common_retry, the CHECK25 pairing. -->
+        <Button id="retryButton" translation="[560,320]"
+                width="160" height="36"
+                title="Retry" focusable="true" visible="false" />
     </children>
 </component>

@@ -41,6 +41,13 @@ sub Init()
 
     m.statusLabel = m.top.FindNode("statusLabel")
 
+    ' RT-094: focusable retry for the failure arm (HomeScene exemplar);
+    ' its title localizes through ApplyXmlChrome via common_retry (CHECK25).
+    m.retryButton = m.top.FindNode("retryButton")
+    if m.retryButton <> invalid then
+        m.retryButton.ObserveField("buttonSelected", "OnSearchRetryPressed")
+    end if
+
     ' Route all data access through the ApiTask node (off the render thread).
     m.apiTask = CreateObject("roSGNode", "ApiTask")
     m.apiTask.ObserveField("response", "OnApiResponse")
@@ -191,13 +198,22 @@ sub OnApiResponse(event as Object)
             m.statusLabel.text = ""
         end if
 
-        if not resp.ok or resp.data = invalid or resp.data.items = invalid then
+        ' RT-094 [w15L9 R-B]: a failed search used to render "No results" -
+        ' the same emptiness-over-dead-server class as FavoritesScene. The
+        ' pure choke (tests/unit/SearchSceneRoutines.test.brs) owns the
+        ' verdict; CHECK101 pins the routing.
+        browseOutcome = SearchBrowseOutcome(resp.ok = true, resp.data <> invalid and resp.data.items <> invalid)
+        if browseOutcome = "search_failed" then
             m.results = []
             if m.resultsGrid <> invalid then
                 m.resultsGrid.content = CreateObject("roSGNode", "ContentNode")
             end if
             if m.statusLabel <> invalid and not m.loadingPage then
-                m.statusLabel.text = Translate("search_no_results")
+                m.statusLabel.text = Translate("search_failed")
+            end if
+            if m.retryButton <> invalid and not m.loadingPage then
+                m.retryButton.visible = true
+                m.retryButton.SetFocus(true)
             end if
             m.loadingPage = false
             m.hasMore = false
@@ -252,6 +268,29 @@ sub OnApiResponse(event as Object)
                 m.statusLabel.text = ""
             end if
         end if
+
+        ' RT-094: a healthy response (even a zero-hit one) stands the
+        ' failure chrome down - no-results is now ONLY a success verdict.
+        if m.retryButton <> invalid then m.retryButton.visible = false
+    end if
+end sub
+
+' RT-094: search failure-vs-no-results verdict, pure so the headless suite
+' can convict it (same shape law as FavoritesBrowseOutcome; the literal-key
+' dispatch keeps CHECK20's single dynamic exemption untouched).
+function SearchBrowseOutcome(ok as Boolean, hasItems as Boolean) as String
+    if not ok or not hasItems then return "search_failed"
+    return ""
+end function
+
+sub OnSearchRetryPressed()
+    ' Re-run the current query through the shipped debounce: re-arming the
+    ' consumed one-shot timer (RT-005 idiom) fires OnSearchTimerFire, which
+    ' reads m.keyboard.text fresh - no synthetic event, no second search path.
+    if m.retryButton <> invalid then m.retryButton.visible = false
+    if m.searchTimer <> invalid then
+        m.searchTimer.control = "stop"
+        m.searchTimer.control = "start"
     end if
 end sub
 
@@ -380,6 +419,9 @@ sub Teardown()
         m.searchTimer.control = "stop"
         m.searchTimer.UnObserveField("fire")
     end if
+    if m.retryButton <> invalid then
+        m.retryButton.UnObserveField("buttonSelected")
+    end if
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean
@@ -435,4 +477,6 @@ sub ApplyXmlChrome()
     if n <> invalid then n.text = Translate("common_search")
     n = m.top.findNode("statusLabel")
     if n <> invalid then n.text = Translate("search_hint")
+    n = m.top.findNode("retryButton")
+    if n <> invalid then n.title = Translate("common_retry")
 end sub

@@ -68,6 +68,7 @@ const ALLOWED = [
     // names (Init/Teardown/OnApiResponse/LoadMoreItems...) and brs refuses
     // duplicate declarations in one program.
     "AdminScanRoutines", "LibrarySceneRoutines", "SearchSceneRoutines", "HomeSceneRoutines",
+    "FavoritesSceneRoutines", "CollectionSceneRoutines",
 ];
 // Suites kept off the headless list and why (measured, not assumed — each
 // entry was run and its crash reason recorded in the W-min91 fixlog).
@@ -179,6 +180,9 @@ const EXTRA_SOURCES = {
     LibrarySceneRoutines: ["components/LibraryScene.brs"],
     SearchSceneRoutines: ["components/SearchScene.brs"],
     HomeSceneRoutines: ["components/HomeScene.brs"],
+    // W15L9-R2 RT-094: one scene behind each new door (same law).
+    FavoritesSceneRoutines: ["components/FavoritesScene.brs"],
+    CollectionSceneRoutines: ["components/CollectionScene.brs"],
 };
 
 // --- symbol index -----------------------------------------------------------

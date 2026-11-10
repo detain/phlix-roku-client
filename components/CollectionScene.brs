@@ -41,6 +41,14 @@ sub Init()
     if m.backButton <> invalid then
         m.backButton.ObserveField("buttonSelected", "OnBackPressed")
     end if
+
+    ' RT-094: focusable retry for the failure arm (HomeScene exemplar);
+    ' its title localizes through ApplyXmlChrome via common_retry (CHECK25).
+    m.retryButton = m.top.FindNode("retryButton")
+    if m.retryButton <> invalid then
+        m.retryButton.ObserveField("buttonSelected", "OnCollectionRetryPressed")
+    end if
+
     m.titleLabel = m.top.FindNode("titleLabel")
     m.descriptionLabel = m.top.FindNode("descriptionLabel")
     m.loadingLabel = m.top.FindNode("loadingLabel")
@@ -50,6 +58,7 @@ sub Init()
     m.apiTask.ObserveField("response", "OnApiResponse")
 
     m.collectionId = ""
+    m.collectionName = ""
     m.items = []
 
     ' Observe our own requestClose so a child can ask us to close.
@@ -60,6 +69,8 @@ end sub
 ' calls this right after Append. collectionName fills the header title.
 sub LoadCollection(collectionId as String, collectionName as String)
     m.collectionId = collectionId
+    ' RT-094: retry re-fires this very load, so the name rides along.
+    m.collectionName = collectionName
 
     if m.titleLabel <> invalid then
         name = collectionName
@@ -88,13 +99,22 @@ sub OnApiResponse(event as Object)
             m.loadingLabel.visible = false
         end if
 
-        if not resp.ok or resp.data = invalid or resp.data.items = invalid or type(resp.data.items) <> "roArray" then
+        ' RT-094 [w15L9 R-B]: a failed load used to CLEAR the description
+        ' strip - indistinguishable from an empty collection. The pure
+        ' choke (tests/unit/CollectionSceneRoutines.test.brs; routing
+        ' custody CHECK101) now discloses the failure with a retry.
+        browseOutcome = CollectionBrowseOutcome(resp.ok = true, resp.data <> invalid and resp.data.items <> invalid and type(resp.data.items) = "roArray")
+        if browseOutcome = "collection_failed" then
             m.items = []
             if m.itemsGrid <> invalid then
                 m.itemsGrid.content = CreateObject("roSGNode", "ContentNode")
             end if
             if m.descriptionLabel <> invalid then
-                m.descriptionLabel.text = ""
+                m.descriptionLabel.text = Translate("collection_failed")
+            end if
+            if m.retryButton <> invalid then
+                m.retryButton.visible = true
+                m.retryButton.SetFocus(true)
             end if
             return
         end if
@@ -135,9 +155,31 @@ sub OnApiResponse(event as Object)
 
         if m.itemsGrid <> invalid then m.itemsGrid.content = content
 
+        ' RT-094: stand the failure chrome down before the honest
+        ' success-empty leg speaks; collection_empty stays a SOLE writer
+        ' of the empty verdict over a healthy response.
+        if m.retryButton <> invalid then m.retryButton.visible = false
+        if m.descriptionLabel <> invalid and m.descriptionLabel.text = Translate("collection_failed") then
+            m.descriptionLabel.text = Translate("common_select_item")
+        end if
+
         if m.descriptionLabel <> invalid and m.items.Count() = 0 then
             m.descriptionLabel.text = Translate("collection_empty")
         end if
+    end if
+end sub
+
+' RT-094: collection failure-vs-usable verdict, pure so the headless suite
+' can convict it (same shape law; literal-key dispatch, CHECK20 intact).
+function CollectionBrowseOutcome(ok as Boolean, hasItems as Boolean) as String
+    if not ok or not hasItems then return "collection_failed"
+    return ""
+end function
+
+sub OnCollectionRetryPressed()
+    if m.retryButton <> invalid then m.retryButton.visible = false
+    if m.collectionId <> "" then
+        LoadCollection(m.collectionId, m.collectionName)
     end if
 end sub
 
@@ -244,6 +286,9 @@ sub Teardown()
     if m.apiTask <> invalid then
         m.apiTask.UnObserveField("response")
     end if
+    if m.retryButton <> invalid then
+        m.retryButton.UnObserveField("buttonSelected")
+    end if
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean
@@ -275,4 +320,6 @@ sub ApplyXmlChrome()
     if n <> invalid then n.text = Translate("common_loading")
     n = m.top.findNode("descriptionLabel")
     if n <> invalid then n.text = Translate("common_select_item")
+    n = m.top.findNode("retryButton")
+    if n <> invalid then n.title = Translate("common_retry")
 end sub

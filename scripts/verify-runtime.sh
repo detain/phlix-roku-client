@@ -6255,8 +6255,8 @@ for L in LOCALES:
     for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
         if cat.get("connect", {}).get(key, "") == "":
             problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
-    if cat.get("_metadata", {}).get("version") != "1.21.0":
-        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.21.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, then by the review CR-2/Check74 batch with the ten form-chrome keys, then by the MJ-4 batch with home_start_failed, then by the MJ-20 pass (no mint), then by the MJ-11 batch with the four transport-label keys, then by the MN-26 batch retiring the dead detail.error_favorite_save key (removal, no mint), then by the MJ-2 deferred-lane batch with the seven syncplay join-code keys (v1.20.0, 391 leaves), then by the RT-032 batch with the concurrent-stream singular key (v1.21.0, 392 leaves), disclosed)")
+    if cat.get("_metadata", {}).get("version") != "1.22.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.22.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, then by the review CR-2/Check74 batch with the ten form-chrome keys, then by the MJ-4 batch with home_start_failed, then by the MJ-20 pass (no mint), then by the MJ-11 batch with the four transport-label keys, then by the MN-26 batch retiring the dead detail.error_favorite_save key (removal, no mint), then by the MJ-2 deferred-lane batch with the seven syncplay join-code keys (v1.20.0, 391 leaves), then by the RT-032 batch with the concurrent-stream singular key (v1.21.0, 392 leaves), then by the RT-094 batch with the four browse-failure keys (v1.22.0, 396 leaves), disclosed)")
 
 # ---- R4 the device harness pins the law -----------------------------------
 test = read(TEST)
@@ -12561,7 +12561,9 @@ echo "=== Check 87: catalog, manifest and input-field hygiene - retired keys sta
 #       (CHECK48 R3's literal rotated with it, per the M-ROKU-20/R-ROKU-10
 #       set-bump precedent: removal, no mint), v1.20.0 with the MJ-2
 #       join-code mint (deferred lane, 2026-11-03), then v1.21.0 with the
-#       RT-032 concurrent-stream singular mint (w11L1, 2026-11-09); R1's
+#       RT-032 concurrent-stream singular mint (w11L1, 2026-11-09), then
+#       v1.22.0 with the RT-094 four browse-failure mint (w15L9 R-B,
+#       2026-11-10); R1's
 #       own version literal below is the CURRENT ride, not a historical
 #       claim.
 #   R2  the manifest ships only documented, hd-relevant keys: splash_width,
@@ -12596,7 +12598,7 @@ def read(path):
         return None
 
 
-# ---- R1 the retired favorite-save key stays buried; set rides the current v1.21.0 ----
+# ---- R1 the retired favorite-save key stays buried; set rides the current v1.22.0 ----
 r1 = []
 for loc in LOCALES:
     path = f"locale/{loc}/strings.json"
@@ -12614,8 +12616,8 @@ for loc in LOCALES:
         r1.append(f"{path} dead detail.error_favorite_save re-grown")
     if "error_favorite_save_message" not in detail:
         r1.append(f"{path} live detail.error_favorite_save_message vanished")
-    if cat.get("_metadata", {}).get("version") != "1.21.0":
-        r1.append(f"{path} _metadata.version is not 1.21.0")
+    if cat.get("_metadata", {}).get("version") != "1.22.0":
+        r1.append(f"{path} _metadata.version is not 1.22.0")
 if r1:
     problems.append("  locale/* - CHECK87 R1: catalog hygiene broken: " + "; ".join(r1))
 
@@ -12676,9 +12678,10 @@ if problems:
 
 print("  CHECK87: the buried catalog key stays buried, the manifest ships only its")
 print("           documented set, and no input field takes unbounded text - the")
-print("           MN-21/MN-26/MN-6 trio (catalog set rides v1.21.0 - the current ride,")
-print("           rotated again by the MJ-2 join-code mint and once more by the")
-print("           RT-032 singular-key mint; see R1's provenance note).")
+print("           MN-21/MN-26/MN-6 trio (catalog set rides v1.22.0 - the current ride,")
+print("           rotated again by the MJ-2 join-code mint, the RT-032")
+print("           singular-key mint and the RT-094 four browse-failure mint;")
+print("           see R1's provenance note).")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
@@ -13336,10 +13339,11 @@ echo "=== Check 93: the resume rail says where you left off and the admin meets 
 #      ApplyXmlChrome speaks the shipped key; README walks the real chain.
 #   R3 keyset-held absence law - the cure minted NOTHING, but the census
 #      literal is the CURRENT state and rotates with every later set move:
-#      en_US rides v1.21.0 and all seven ships hold exactly 392 leaf keys
+#      en_US rides v1.22.0 and all seven ships hold exactly 396 leaf keys
 #      (measured: 387 at batch-21, 384 after the MN-26 removal, 391 after the
 #      MJ-2 join-code mint, 392 after the RT-032 concurrent-stream singular
-#      mint (w11L1) - this era-pass retires the pre-rotation 387 that
+#      mint (w11L1), 396 after the RT-094 four browse-failure mint (w15L9
+#      R-B, v1.22.0) - this era-pass retires the pre-rotation 387 that
 #      the docblock and the PASS narration recited while the pin enforced 384;
 #      the audit's OBS-1 drift, fixed at its true home), common.live_tv is
 #      present and non-empty in all seven, and no percent-flavored key may
@@ -13498,8 +13502,8 @@ for loc in LOCALES:
     leaves = {s + "_" + k: v for s, sub in cat.items()
               if s != "_metadata" and isinstance(sub, dict)
               for k, v in sub.items() if isinstance(v, str)}
-    if len(leaves) != 392:
-        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 392 - the keyset moved")
+    if len(leaves) != 396:
+        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 396 - the keyset moved")
     if not leaves.get("common_live_tv", "").strip():
         missing3.append(f"{loc} lost the shipped common_live_tv value")
     percent_keys = [k for k in leaves if "percent" in k.lower() or "progress_" in k.lower()]
@@ -13511,8 +13515,8 @@ try:
         en = json.load(f)
 except (OSError, ValueError):
     missing3.append("en_US unreadable for the version pin")
-if en is not None and en.get("_metadata", {}).get("version") != "1.21.0":
-    missing3.append("en_US _metadata.version is not 1.21.0 - the census rides the CURRENT set (the literal rotated with the MJ-2 mint; batch-22 itself minted NOTHING and its absence law is what the census proves)")
+if en is not None and en.get("_metadata", {}).get("version") != "1.22.0":
+    missing3.append("en_US _metadata.version is not 1.22.0 - the census rides the CURRENT set (the literal rotates with every mint: MJ-2 at v1.20.0, RT-032 at v1.21.0, RT-094 at v1.22.0; batch-22 itself minted NOTHING and its absence law is what the census proves)")
 if missing3:
     problems.append("  locale catalogs - CHECK93 R3: " + "; ".join(missing3) + " (batch 22 ships ZERO new strings; the census proves the absence)")
 
@@ -13532,7 +13536,7 @@ if problems:
 
 print("  CHECK93: the resume rail says where you left off and the admin meets Live TV")
 print("  in one hop - percent custody, the gated tv walk with hidden-entry law on both")
-print("  sides, the 392-key v1.21.0 absence census, and the docs pair")
+print("  sides, the 396-key v1.22.0 absence census, and the docs pair")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
@@ -13588,8 +13592,9 @@ echo "$PYOUT"
 #      that skips a pin site is not a bump, it is a drift) and the 391-leaf
 #      census moved with them (387 batch-21, 384 MN-26, 391 MJ-2 - the OBS-1
 #      recital-drift the audit named died in that rotation, disclosed). The
-#      ride is v1.21.0 since the RT-032 concurrent-stream singular mint
-#      (w11L1, 2026-11-09, 392 leaves); all four current-ride legs - CHECK48
+#      ride is v1.22.0 since the RT-094 four browse-failure mint (w15L9
+#      R-B, 2026-11-10, 396 leaves; v1.21.0 rode the RT-032 singular mint,
+#      w11L1 2026-11-09); all four current-ride legs - CHECK48
 #      R3, CHECK87 R1, CHECK93 R3 and this R4 - rotate together on every set
 #      move, which is exactly what this leg's own law demands.
 #   R5 docs pair + README truth - row 94 exists naming MJ-2; the CHANGELOG
@@ -13815,8 +13820,8 @@ for loc in LOCALES:
         v = sec.get(key)
         if not isinstance(v, str) or v.strip() == "":
             r4.append(f"{path}: syncplay.{key} missing or empty")
-    if cat.get("_metadata", {}).get("version") != "1.21.0":
-        r4.append(f"{path}: _metadata.version is not 1.21.0 - the MJ-2 mint rode v1.20.0; the RT-032 singular-key mint rides it")
+    if cat.get("_metadata", {}).get("version") != "1.22.0":
+        r4.append(f"{path}: _metadata.version is not 1.22.0 - the MJ-2 mint rode v1.20.0 and the RT-032 singular-key mint rode v1.21.0; the RT-094 browse-failure mint rides it")
 en = None
 try:
     en = json.load(io.open("locale/en_US/strings.json", encoding="utf-8"))
@@ -13861,7 +13866,7 @@ if problems:
     sys.exit(1)
 
 print("  CHECK94: a code from any device opens the room - digest-only custody,")
-print("  the panel-owned form, the seven-key mint (born v1.20.0, riding v1.21.0),")
+print("  the panel-owned form, the seven-key mint (born v1.20.0, riding v1.22.0),")
 print("  and the honest README")
 PYEOF
 ) || PYRET=$?
@@ -15164,6 +15169,137 @@ if problems:
 print("  CHECK100: every shipped limb of the RT-092 boxed-lift cohort and the")
 print("  RT-105 unknown-container routing window stands where it landed, and")
 print("  the era keeps its custody in the checks ledger and the CHANGELOG")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 101: the RT-094 browse-failure routing keeps every shipped limb (w15L9 R-B custody) ==="
+# NUMBERING: next-FREE probe at this lane's tree - Check 100 is this wave's own
+# R-A landing (the highest at dispatch base was 99), so 101 is free.
+# WHY (REVIEW-w15L9roku.md R-B / RT-094): four browse scenes used to render
+# emptiness - or nothing at all - over a dead server. The cure routes every
+# failure decision through a pure per-scene choke (headless-pinned by the
+# four BrowseOutcome suites) and discloses it with literal Translate keys
+# plus a focusable retry (HomeScene exemplar). The INLINE routing limbs -
+# the choke call, the failure write, the sole-writer empty copy, the
+# observer pairing and the XML retry chrome - are device-side lines no
+# headless battery can reach, so this static census is their honest home
+# (the CHECK100 precedent). Exact-equality arms: a limb stripped, doubled
+# or collapsed back to the empty era reddens by arm name; every arm has a
+# red-leg plant in the portable twin.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+# (path, label, regex, want) - counts MEASURED from disk at this commit.
+ARMS = [
+    ("components/FavoritesScene.brs", "fav-choke-call",
+     r'browseOutcome = FavoritesBrowseOutcome\(', 1),
+    ("components/FavoritesScene.brs", "fav-failure-write",
+     r'Translate\("favorites_failed"\)', 1),
+    ("components/FavoritesScene.brs", "fav-empty-sole-writer",
+     r'Translate\("favorites_empty"\)', 1),
+    ("components/FavoritesScene.brs", "fav-observe",
+     r'ObserveField\("buttonSelected", "OnFavoritesRetryPressed"\)', 1),
+    ("components/FavoritesScene.brs", "fav-unobserve",
+     r'm\.retryButton\.UnObserveField\("buttonSelected"\)', 1),
+    ("components/FavoritesScene.xml", "fav-xml-retry-id",
+     r'id="retryButton"', 1),
+    ("components/FavoritesScene.xml", "fav-xml-retry-chrome",
+     r'title="Retry" focusable="true" visible="false"', 1),
+    ("components/SearchScene.brs", "sea-choke-call",
+     r'browseOutcome = SearchBrowseOutcome\(', 1),
+    ("components/SearchScene.brs", "sea-failure-write",
+     r'Translate\("search_failed"\)', 1),
+    ("components/SearchScene.brs", "sea-noresults-sole-writer",
+     r'Translate\("search_no_results"\)', 1),
+    ("components/SearchScene.brs", "sea-observe",
+     r'ObserveField\("buttonSelected", "OnSearchRetryPressed"\)', 1),
+    ("components/SearchScene.brs", "sea-unobserve",
+     r'm\.retryButton\.UnObserveField\("buttonSelected"\)', 1),
+    ("components/SearchScene.xml", "sea-xml-retry-id",
+     r'id="retryButton"', 1),
+    ("components/SearchScene.xml", "sea-xml-retry-chrome",
+     r'title="Retry" focusable="true" visible="false"', 1),
+    ("components/LibraryScene.brs", "lib-choke-call",
+     r'browseOutcome = LibraryBrowseOutcome\(', 1),
+    ("components/LibraryScene.brs", "lib-failed-limbs",
+     r'Translate\("library_failed"\)', 2),
+    ("components/LibraryScene.brs", "lib-observe",
+     r'ObserveField\("buttonSelected", "OnLibraryRetryPressed"\)', 1),
+    ("components/LibraryScene.brs", "lib-unobserve",
+     r'm\.retryButton\.UnObserveField\("buttonSelected"\)', 1),
+    ("components/LibraryScene.xml", "lib-xml-retry-id",
+     r'id="retryButton"', 1),
+    ("components/LibraryScene.xml", "lib-xml-retry-chrome",
+     r'title="Retry" focusable="true" visible="false"', 1),
+    ("components/CollectionScene.brs", "col-choke-call",
+     r'browseOutcome = CollectionBrowseOutcome\(', 1),
+    ("components/CollectionScene.brs", "col-failed-limbs",
+     r'Translate\("collection_failed"\)', 2),
+    ("components/CollectionScene.brs", "col-empty-sole-writer",
+     r'Translate\("collection_empty"\)', 1),
+    ("components/CollectionScene.brs", "col-observe",
+     r'ObserveField\("buttonSelected", "OnCollectionRetryPressed"\)', 1),
+    ("components/CollectionScene.brs", "col-unobserve",
+     r'm\.retryButton\.UnObserveField\("buttonSelected"\)', 1),
+    ("components/CollectionScene.xml", "col-xml-retry-id",
+     r'id="retryButton"', 1),
+    ("components/CollectionScene.xml", "col-xml-retry-chrome",
+     r'title="Retry" focusable="true" visible="false"', 1),
+]
+
+problems = []
+for path, label, rx, want in ARMS:
+    if not os.path.exists(path):
+        problems.append(f"  {path} - CHECK101 R1 [{label}]: the RT-094 carrier vanished")
+        continue
+    with open(path, encoding="utf-8") as f:
+        src = f.read()
+    got = len(re.findall(rx, src))
+    if got != want:
+        problems.append(
+            f"  {path} - CHECK101 R1 [{label}]: expected exactly {want}, "
+            f"found {got} - the RT-094 failure-vs-empty routing limb was "
+            f"stripped, doubled or collapsed back to the empty era without "
+            f"rotating this census in the same commit")
+
+# R2: docs pair custody - the ledger row and the CHANGELOG entry name the era.
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+DOCS = read(os.path.join("docs", "static-checks.md"))
+CHLOG = read("CHANGELOG.md")
+if DOCS is not None:
+    row = re.search(r"(?m)^\|\s*101\s*\|.*$", DOCS)
+    if not row:
+        problems.append("  docs/static-checks.md - CHECK101 R2: no row 101 in the checks table")
+    elif "RT-094" not in row.group(0):
+        problems.append("  docs/static-checks.md - CHECK101 R2: row 101 does not name RT-094")
+if CHLOG is not None:
+    for idiom in ("RT-094", "Check 101"):
+        if idiom not in CHLOG:
+            problems.append("  CHANGELOG.md - CHECK101 R2: does not name %s" % idiom)
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK101: %d browse-failure custody pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK101: every RT-094 browse scene routes failure through its")
+print("  choke to the failure copy with a focusable retry, the empty verdicts")
+print("  keep their sole writers, and the era keeps its custody in the")
+print("  checks ledger and the CHANGELOG")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
