@@ -508,8 +508,14 @@ function PushScreen(nodeType as String, params as Object) as Object
     ' [W-min94 M-ROKU-28, review roku__exploiter m7] Depth cap: unauthenticated
     ' ECP deep-link spam (supports_input_launch=1) used to push one DetailScene
     ' per accepted link with zero bound, an OOM walk-down on low-tier Rokus.
-    ' Beyond the cap the push is refused loudly (print + toast-style state is
-    ' the scene's own chrome); the existing stack keeps working.
+    ' Beyond the cap the push is REFUSED: this print is the only thing the
+    ' refusal itself does, and the return value is invalid — disclosure is the
+    ' CALLER's duty. [W13L3 RT-042, review roku__casualgamer #3] the old
+    ' docblock claimed "toast-style state is the scene's own chrome" — no
+    ' scene's chrome ever spoke for a push this function refused, because a
+    ' refused push creates no scene. The deep-link arms now surface the
+    ' refusal through ShowDeepLinkError() (dialog, then home, R3.1 posture);
+    ' callers that route a refusal elsewhere own their own notice.
     if m.screenStack.Count() >= 12 then
         print "PushScreen refused: screenStack at cap (12) — deep-link spam guard"
         return invalid
@@ -988,6 +994,21 @@ sub ProcessDeepLink()
         return
     end if
 
+    ' [W13L3 RT-045, review roku__exploiter #6] The one-in-flight choke,
+    ' promoted from the hub arm's local guard (DispatchPendingHubCommand)
+    ' into THE choke so every entry lane shares it. Without it a second
+    ' concurrent call overwrote m.deepLinkFetchTask, orphaning the first
+    ' ApiTask node: still mounted on m.top, still observing "response",
+    ' and its eventual callback dropped by the node-identity guard — an
+    ' observer + node leak per stacked call. The refusal sits AFTER the
+    ' shape gate so a malformed id still fails VISIBLE (R3.1) regardless
+    ' of what is in flight; the in-flight idiom (print + return) mirrors
+    ' the hub arm's documented ignore posture.
+    if m.deepLinkFetchTask <> invalid then
+        print "ProcessDeepLink refused: deep-link fetch already in flight"
+        return
+    end if
+
     print "Processing deep link: contentId=" safeId " action=" action
 
     ' Use the library manager to fetch the item metadata.
@@ -1045,8 +1066,20 @@ sub OnDeepLinkItemResponse(event as Object)
         ' Push DetailScene and tell it to auto-play when loaded.
         detailScene = PushScreen("DetailScene", {})
         ' [W-min94 M-ROKU-28] PushScreen refuses beyond the stack cap.
+        ' [W13L3 RT-042, review roku__casualgamer #3] the refused deep link
+        ' used to land on ShowHome() silently: the viewer pressed a button
+        ' (or Alexa spoke) and the TV answered with the home screen and no
+        ' explanation. A refusal now rides the existing deep-link error
+        ' dialog - its copy ("Could not load the requested content. Please
+        ' try again later.") is true of the cap refusal (the item could not
+        ' be loaded; popping a screen or two makes the retry succeed) - and
+        ' the dialog's dismiss returns to home, exactly where the silent
+        ' ShowHome() landed. Minting a dedicated catalog string would grow
+        ' the seven-catalog key SET, which the CHECK48/87/93/94 current-ride
+        ' legs pin by count; that mint + set bump is prescribed as a
+        ' gate-rotation wave (register .reviews/2026-11-09/FIX-roku-w13L3.md).
         if detailScene = invalid then
-            ShowHome()
+            ShowDeepLinkError()
         else
             detailScene.autoPlayOnLoad = true
             detailScene.LoadItem(item.id)
@@ -1059,6 +1092,12 @@ sub OnDeepLinkItemResponse(event as Object)
         seasonScene = PushScreen("SeasonScene", {})
         if seasonScene <> invalid then
             seasonScene.LoadSeason(item.id, seasonName)
+        else
+            ' [W13L3 RT-042, review roku__casualgamer #3] the season refusal
+            ' did not even ShowHome — it fell off the end of the branch with
+            ' zero feedback on a stale frame. Same honest dialog as the play
+            ' arm's refusal (see the RT-042 note there).
+            ShowDeepLinkError()
         end if
     else
         ' Unknown action — fall back to home
@@ -1076,8 +1115,12 @@ sub ShowContentNotFoundDialog()
     ShowHome()
 end sub
 
-' ShowDeepLinkError - show a generic error dialog when deep-link processing fails
-' due to a network or server error (not a missing-content case).
+' ShowDeepLinkError - generic visible-failure dialog for the deep-link family:
+' fetch errors (network/server) AND, since [W13L3 RT-042], the stack-cap
+' push refusals in OnDeepLinkItemResponse (a refused push is "could not load
+' the requested content" from the viewer's seat - and it is TRUE that a
+' retry after popping a screen succeeds, which is what the copy promises).
+' Not for missing content (that rides ShowContentNotFoundDialog, R3.1).
 ' Returns to home after dismissal.
 sub ShowDeepLinkError()
     ShowErrorDialog(m.top, "Unable to Load Content", "Could not load the requested content. Please try again later.")
@@ -1093,6 +1136,19 @@ end sub
 '                                  { contentId, mediaType, action }
 sub HandleWarmDeepLink(deepLinkParams as Object)
     if deepLinkParams = invalid then return
+
+    ' [W13L3 RT-045, review roku__exploiter #6] One deep-link fetch in
+    ' flight at a time. The hub-relay arm (DispatchPendingHubCommand) has
+    ' refused this shape since M-ROKU-13; the warm ECP lane must refuse the
+    ' same way, and it must refuse BEFORE stomping m.deepLinkParams - the
+    ' in-flight fetch's callback (OnDeepLinkItemResponse) reads the action
+    ' off that global, so an overwrite mid-flight would route the OLD item
+    ' under the NEW link's action. Posture: ignore (the hub arm's documented
+    ' law), the first link keeps its promise.
+    if m.deepLinkFetchTask <> invalid then
+        print "HandleWarmDeepLink refused: deep-link fetch already in flight"
+        return
+    end if
 
     m.deepLinkParams = deepLinkParams
     print "HandleWarmDeepLink: action=" deepLinkParams.action
@@ -1123,7 +1179,24 @@ end sub
 ' R6.4: One-shot timer callback to defer ProcessDeepLink by one event-loop tick.
 ' This allows PopScreen (triggered by ClosePlayer's requestClose) to complete
 ' before we push a new scene onto the stack.
-sub OnWarmDeepLinkDeferred()
+'
+' [W13L3 RT-045, review roku__exploiter #6] Release the timer that just
+' fired. It was AppendChild'd to m.top by HandleWarmDeepLink and, before
+' this cure, stayed there FOREVER: every warm ECP launch during playback
+' left another invisible Timer node (and its "fire" observer) mounted on
+' the App root for the life of the channel — a slow leak with zero
+' functional purpose once the one-shot fired. Unobserve first (the callback
+' runs inside the fire-notification; the observer must not outlive the
+' node), then detach from the parent that hosted it (GetParent of the
+' firing node — the same m.top HandleWarmDeepLink appended to).
+sub OnWarmDeepLinkDeferred(event as Object)
+    timer = invalid
+    if event <> invalid then timer = event.GetNode()
+    if timer <> invalid then
+        timer.UnObserveField("fire")
+        parent = timer.GetParent()
+        if parent <> invalid then parent.RemoveChild(timer)
+    end if
     ProcessDeepLink()
 end sub
 

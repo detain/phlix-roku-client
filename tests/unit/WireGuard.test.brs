@@ -95,7 +95,7 @@ sub TestGetErrorMessageSurvivesHostileEnvelopes()
     assertEqual(GetErrorMessage(invalid), generic)
     assertEqual(GetErrorMessage(""), generic)
     ' Well-behaved values keep their mapped semantics.
-    assertEqual(GetErrorMessage("http_401"), "You are not logged in. Please sign in again.")
+    assertEqual(GetErrorMessage("http_401"), "You are not logged in. Please log in again.")
     assertEqual(GetErrorMessage("http_404"), "The requested item was not found.")
     ' M-ROKU-03 (review roku__webux, shipped in W-min89) is the NEWER law for
     ' everything else: server prose is not user copy. A non-transport string
@@ -109,7 +109,7 @@ sub TestGetErrorMessageTraversesGuardBeforeMap()
     ' A hostile long string is capped BEFORE the http_ compare and a control
     ' char inside cannot split the sink: order of the choke is observable.
     padded = "  http_401  " + Chr(10)
-    assertEqual(GetErrorMessage(padded), "You are not logged in. Please sign in again.")
+    assertEqual(GetErrorMessage(padded), "You are not logged in. Please log in again.")
     long = "http_"
     for i = 1 to 400
         long = long + "9"

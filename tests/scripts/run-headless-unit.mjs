@@ -164,6 +164,9 @@ const EXCLUDED_TESTS = {
 // set — the existing battery cannot shift shape through this door.
 const EXTRA_SOURCES = {
     DetailSceneYear: ["components/DetailScene.brs"],
+    // W13L3 RT-045: the warm-deeplink timer-release + in-flight-choke legs
+    // drive components/PhlixApp.brs subs directly (same door, same law).
+    PhlixApp: ["components/PhlixApp.brs"],
 };
 
 // --- symbol index -----------------------------------------------------------

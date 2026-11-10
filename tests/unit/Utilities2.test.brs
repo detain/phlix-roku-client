@@ -582,3 +582,53 @@ sub TestPlayableTypes()
     assertTrue(__typeListHas(types, "audiobook"), "audiobook in playable types")
     print "TestPlayableTypes passed"
 end sub
+
+' ---- Utf8BytesForCodePoint (W13L3 RT-041, review roku__secnet #5) ----
+' The repo's single UTF-8 law: code point -> 1..4 byte values. UrlEncode
+' percent-escapes these bytes (its live "naïve" -> na%C3%AFve pin covers the
+' percent-escape leg); SyncPlayPasswordHash digests the raw bytes. Pure
+' integer in / integer array out - fully live headless (no roByteArray
+' needed), so this table runs in the battery, not only on-device.
+sub TestUtf8BytesForCodePointTruthTable()
+    ' ASCII: identity single byte (boundaries: 0, 127).
+    a = Utf8BytesForCodePoint(97)
+    assertEqual(a.Count(), 1)
+    assertEqual(a[0], 97)
+    z = Utf8BytesForCodePoint(127)
+    assertEqual(z.Count(), 1)
+    assertEqual(z[0], 127)
+    ' 2-byte family (U+00E9 e-acute -> C3 A9 = [195,169]).
+    e = Utf8BytesForCodePoint(233)
+    assertEqual(e.Count(), 2)
+    assertEqual(e[0], 195)
+    assertEqual(e[1], 169)
+    ' 2-byte boundary (U+07FF -> DF BF).
+    b = Utf8BytesForCodePoint(2047)
+    assertEqual(b.Count(), 2)
+    assertEqual(b[0], 223)
+    assertEqual(b[1], 191)
+    ' 3-byte family (U+20AC EURO -> E2 82 AC = [226,130,172], probe-measured
+    ' headless).
+    u = Utf8BytesForCodePoint(8364)
+    assertEqual(u.Count(), 3)
+    assertEqual(u[0], 226)
+    assertEqual(u[1], 130)
+    assertEqual(u[2], 172)
+    ' 3-byte top-of-range boundary (U+FFFF -> EF BF BF, probe-measured).
+    ' NOTE the variable is mx, never m: `m` is BrightScript's reserved
+    ' scope-pointer token and rebinding it collapses a local to the
+    ' ambient AA (a probe's m.Count() answered 0 on exactly these bytes).
+    mx = Utf8BytesForCodePoint(65535)
+    assertEqual(mx.Count(), 3)
+    assertEqual(mx[0], 239)
+    assertEqual(mx[1], 191)
+    assertEqual(mx[2], 191)
+    ' 4-byte family (U+10437 DESERET LETTER YEA -> F0 90 90 B7, probe-measured).
+    s = Utf8BytesForCodePoint(66615)
+    assertEqual(s.Count(), 4)
+    assertEqual(s[0], 240)
+    assertEqual(s[1], 144)
+    assertEqual(s[2], 144)
+    assertEqual(s[3], 183)
+    print "TestUtf8BytesForCodePointTruthTable passed"
+end sub

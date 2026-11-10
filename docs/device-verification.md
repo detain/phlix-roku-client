@@ -123,14 +123,14 @@ previous render-thread block.
 
 ## R1.2 Login Async Smoke Test
 
-After R1.2 the login screen shows immediate feedback (button disabled, "Signing in…"
+After R1.2 the login screen shows immediate feedback (button disabled, "Logging in…"
 label) before the network request fires, and re-enables the button on every failure.
 
 1. Open the login screen (`LoginScene`). Confirm the button is enabled and no
    status label is visible.
 2. Press **Login** with valid credentials. Confirm:
    - Button is disabled **immediately** (before any network activity).
-   - "Signing in…" (or equivalent) status label appears.
+   - "Logging in…" (or equivalent) status label appears.
    - Home screen appears on success.
 3. Press **Login** with **invalid credentials**. Confirm:
    - Button is disabled immediately.

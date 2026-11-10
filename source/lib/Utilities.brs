@@ -700,6 +700,40 @@ function ByteToHex(n as Integer) as String
     return Mid(hexDigits, hi + 1, 1) + Mid(hexDigits, lo + 1, 1)
 end function
 
+' [W13L3 RT-041, review roku__secnet #5] The repo's UTF-8 law in ONE place:
+' a Unicode code point -> its 1..4 UTF-8 byte values (roArray of Integers).
+' Mid()/Asc() yield code points (the platform string law this repo's
+' UrlEncode has always relied on — its 65536+ arm presumes values beyond a
+' UTF-16 unit), so supplementary code points take the 4-byte form here.
+' Consumers: UrlEncode percent-escapes these bytes; SyncPlayPasswordHash
+' pushes them into the roByteArray the SPEC §4 digest runs over. A
+' code point < 128 yields the single identity byte (ASCII is its own UTF-8).
+' @param code Integer - the Unicode code point
+' @return Object - roArray of Integer byte values (always 1..4 entries)
+function Utf8BytesForCodePoint(code as Integer) as Object
+    bytes = []
+    if code < 128 then
+        ' 1-byte: 0xxxxxxx (identity)
+        bytes.Push(code)
+    else if code < 2048 then
+        ' 2-byte UTF-8: 110xxxxx 10xxxxxx
+        bytes.Push(192 + (code \ 64))
+        bytes.Push(128 + (code mod 64))
+    else if code < 65536 then
+        ' 3-byte UTF-8: 1110xxxx 10xxxxxx 10xxxxxx
+        bytes.Push(224 + (code \ 4096))
+        bytes.Push(128 + ((code \ 64) mod 64))
+        bytes.Push(128 + (code mod 64))
+    else
+        ' 4-byte UTF-8: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+        bytes.Push(240 + (code \ 262144))
+        bytes.Push(128 + ((code \ 4096) mod 64))
+        bytes.Push(128 + ((code \ 64) mod 64))
+        bytes.Push(128 + (code mod 64))
+    end if
+    return bytes
+end function
+
 ' URL-encode a string (percent-encode according to RFC 3986).
 ' roUrlTransfer.Escape() does not exist in the Roku SDK (verified against ROKU_SDK_12+).
 ' RFC 3986 unreserved characters: A-Z a-z 0-9 - . _ ~
@@ -726,29 +760,12 @@ function UrlEncode(str as String) as String
                 ' Percent sign - encode first
                 result = result + "%25"
             else if code >= 128 then
-                ' Non-ASCII: encode as UTF-8 bytes, then percent-encode each byte
-                ' Characters 128-2047 need 2 UTF-8 bytes
-                ' Characters 2048-65535 need 3 UTF-8 bytes
-                ' Characters 65536+ need 4 UTF-8 bytes
-                if code < 2048 then
-                    ' 2-byte UTF-8: 110xxxxx 10xxxxxx
-                    b1 = 192 + (code \ 64)
-                    b2 = 128 + (code mod 64)
-                    result = result + "%" + ByteToHex(b1) + "%" + ByteToHex(b2)
-                else if code < 65536 then
-                    ' 3-byte UTF-8: 1110xxxx 10xxxxxx 10xxxxxx
-                    b1 = 224 + (code \ 4096)
-                    b2 = 128 + ((code \ 64) mod 64)
-                    b3 = 128 + (code mod 64)
-                    result = result + "%" + ByteToHex(b1) + "%" + ByteToHex(b2) + "%" + ByteToHex(b3)
-                else
-                    ' 4-byte UTF-8: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-                    b1 = 240 + (code \ 262144)
-                    b2 = 128 + ((code \ 4096) mod 64)
-                    b3 = 128 + ((code \ 64) mod 64)
-                    b4 = 128 + (code mod 64)
-                    result = result + "%" + ByteToHex(b1) + "%" + ByteToHex(b2) + "%" + ByteToHex(b3) + "%" + ByteToHex(b4)
-                end if
+                ' Non-ASCII: encode as UTF-8 bytes, then percent-encode each
+                ' byte. The byte math is the shared Utf8BytesForCodePoint law
+                ' [W13L3 RT-041] — one expression of UTF-8 for the whole repo.
+                for each b in Utf8BytesForCodePoint(code)
+                    result = result + "%" + ByteToHex(b)
+                end for
             else
                 ' All other characters (including space, &, =, ?, /, :, #, [, ], etc.)
                 result = result + "%" + ByteToHex(code)
@@ -1279,7 +1296,7 @@ function GetErrorMessage(apiError as Object) as String
     if left(safeError, 5) = "http_" then
         ' Generic HTTP error codes - use friendly messages
         code = right(safeError, len(safeError) - 5)
-        if code = "401" then return "You are not logged in. Please sign in again."
+        if code = "401" then return "You are not logged in. Please log in again."
         if code = "403" then return "You don't have permission to do that."
         if code = "404" then return "The requested item was not found."
         if code = "500" then return "Server error. Please try again later."
@@ -2050,13 +2067,28 @@ end function
 ' cannot prove it knows the gate, so the protected join is refused, never
 ' attempted with a forged/absent digest. Empty input returns "" (a blank
 ' password is not a gate; the caller only hashes a non-empty one).
+'
+' [W13L3 RT-041, review roku__secnet #5] The digest runs over the raw UTF-8
+' BYTES of the password, matching the server's group gate, which hashes the
+' request body's bytes (PHP strings are byte strings): fromAsciiString
+' ASCII-folded every code point >= 128, so a non-ASCII password digested to
+' a value the server could never reproduce - the join failed for the correct
+' password. The bytes now come from the shared Utf8BytesForCodePoint law.
+' No trim: a leading/trailing space is password material (estate parity -
+' mobile sha256.ts hashes the raw string; the gate compares the hash of what
+' the host typed).
 function SyncPlayPasswordHash(plain as String) as String
     if plain = invalid or plain = "" then return ""
     evp = CreateObject("roEVPDigest")
     if evp = invalid then return ""
     if evp.Setup("sha256") <> 0 then return ""
     src = CreateObject("roByteArray")
-    src.fromAsciiString(plain)
+    if src = invalid then return ""
+    for i = 1 to Len(plain)
+        for each b in Utf8BytesForCodePoint(Asc(Mid(plain, i, 1)))
+            src.Push(b)
+        end for
+    end for
     hexStr = evp.Process(src)
     if hexStr = invalid then return ""
     ' The firmware returns the hex upper-cased (the IsHex40 sibling pinned this

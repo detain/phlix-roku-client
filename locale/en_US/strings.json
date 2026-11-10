@@ -248,7 +248,7 @@
     "sort": "Sort"
   },
   "errors": {
-    "not_authenticated": "Sign in before using Watch Together.",
+    "not_authenticated": "Log in before using Watch Together.",
     "not_in_group": "You are not in a watch group.",
     "not_host": "Only the group host can do that.",
     "unknown_message": "The server rejected an unrecognized request. Please try again.",
@@ -289,7 +289,7 @@
     "create_group": "Create Group",
     "err_access_schedule": "Playback blocked by access schedule. Try again during allowed hours.",
     "err_playback_failed": "Playback failed. Please try again.",
-    "err_session_expired": "Your session has expired. Please sign in again to continue saving progress.",
+    "err_session_expired": "Your session has expired. Please log in again to continue saving progress.",
     "err_stream_limit": "Stream limit reached. Stop another stream to continue watching.",
     "err_transcode_no_stream": "Transcode produced no stream URL.",
     "err_transcode_timeout": "Transcode timed out.",
@@ -372,7 +372,7 @@
     "password": "Password",
     "username": "Username",
     "err_no_inputs": "Please enter username and password",
-    "status_signing_in": "Signing in…",
+    "status_signing_in": "Logging in…",
     "status_loading": "Loading servers…",
     "err_bad_credentials": "Invalid username or password.",
     "err_server": "Server error: {detail}",
@@ -397,7 +397,7 @@
   "app": {
     "boot_cannot_reach": "Can't reach the server",
     "boot_unable": "Unable to connect after multiple attempts",
-    "server_problem_message": "The server had a problem checking your sign-in. Please log in again.",
+    "server_problem_message": "The server had a problem checking your login. Please log in again.",
     "content_unavailable_title": "Content Not Available",
     "content_unavailable_message": "This content is not available on your server. Please try again later."
   },

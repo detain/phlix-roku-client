@@ -248,7 +248,7 @@
     "sort": "並べ替え"
   },
   "errors": {
-    "not_authenticated": "ウォッチパーティを使う前にサインインしてください。",
+    "not_authenticated": "ウォッチパーティを使う前にログインしてください。",
     "not_in_group": "現在グループに参加していません。",
     "not_host": "この操作はグループのホストだけが行えます。",
     "unknown_message": "サーバーが認識できないリクエストを拒否しました。もう一度お試しください。",
@@ -289,7 +289,7 @@
     "create_group": "グループを作成",
     "err_access_schedule": "アクセススケジュールにより再生がブロックされています。許可された時間帯にもう一度お試しください。",
     "err_playback_failed": "再生に失敗しました。もう一度お試しください。",
-    "err_session_expired": "セッションの有効期限が切れました。進捗の保存を続けるにはもう一度サインインしてください。",
+    "err_session_expired": "セッションの有効期限が切れました。進捗の保存を続けるにはもう一度ログインしてください。",
     "err_stream_limit": "ストリームの上限に達しました。他のストリームを停止して視聴を続けてください。",
     "err_transcode_no_stream": "トランスコードからストリームURLが生成されませんでした。",
     "err_transcode_timeout": "トランスコードがタイムアウトしました。",
@@ -372,14 +372,14 @@
     "password": "パスワード",
     "username": "ユーザー名",
     "err_no_inputs": "ユーザー名とパスワードを入力してください",
-    "status_signing_in": "サインイン中…",
+    "status_signing_in": "ログイン中…",
     "status_loading": "サーバーを読み込み中…",
     "err_bad_credentials": "ユーザー名またはパスワードが正しくありません",
     "err_server": "サーバーエラー: {detail}",
-    "err_failed": "サインインできませんでした。もう一度お試しください",
+    "err_failed": "ログインできませんでした。もう一度お試しください",
     "err_servers": "サーバーを読み込めませんでした。もう一度お試しください",
     "expired_title": "セッションの有効期限切れ",
-    "expired_message": "セッションの有効期限が切れました。もう一度サインインしてください"
+    "expired_message": "セッションの有効期限が切れました。もう一度ログインしてください"
   },
   "serverpicker": {
     "choose": "サーバーを選択してください",
@@ -397,7 +397,7 @@
   "app": {
     "boot_cannot_reach": "サーバーに接続できません",
     "boot_unable": "複数の試行後に接続できませんでした",
-    "server_problem_message": "サーバーでサインインの確認中に問題が発生しました。もう一度サインインしてください",
+    "server_problem_message": "サーバーでログインの確認中に問題が発生しました。もう一度ログインしてください",
     "content_unavailable_title": "コンテンツは利用できません",
     "content_unavailable_message": "このコンテンツはサーバーで利用できません。後でもう一度お試しください。"
   },

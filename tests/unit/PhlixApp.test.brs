@@ -67,3 +67,80 @@ sub TestPhlixAppStateManagement()
     assertTrue(true)
     print "TestPhlixAppStateManagement passed"
 end sub
+' ===========================================
+' [W13L3 RT-045, review roku__exploiter #6] Warm deep-link leak family:
+' one-shot Timer release + the one-in-flight choke. Driven live through
+' the harness EXTRA_SOURCES door (components/PhlixApp.brs loads verbatim;
+' w12L3-R3 DetailSceneYear precedent). Fake event/timer/parent objects
+' are assocarrays with function members recording their calls into
+' GetGlobalAA() — the same AA-function idiom the battery already carries.
+' ===========================================
+
+sub TestPhlixAppWarmDeepLinkTimerIsReleased()
+    g = GetGlobalAA()
+    g.wdtUnobserveField = ""
+    g.wdtRemoved = false
+    g.wdtParent = {
+        RemoveChild: sub(node as Object)
+            gg = GetGlobalAA()
+            if node <> invalid then gg.wdtRemoved = true
+        end sub
+    }
+    ' end-sub/end-function lines carry the member comma on the SAME line:
+    ' a lone ',' on its own line is a brs parse error (measured at first
+    ' tip battery), the Storage.brs:104 end-function-comma form parses on
+    ' both carriers.
+    g.wdtTimer = {
+        UnObserveField: sub(field as String)
+            gg = GetGlobalAA()
+            gg.wdtUnobserveField = field
+        end sub,
+        GetParent: function() as Object
+            return GetGlobalAA().wdtParent
+        end function
+    }
+    fakeEvent = {
+        GetNode: function() as Object
+            return GetGlobalAA().wdtTimer
+        end function
+    }
+    ' The callback's other leg is ProcessDeepLink; with no params stashed
+    ' it early-returns (its own invalid guard), isolating the release law.
+    g.deepLinkParams = invalid
+    OnWarmDeepLinkDeferred(fakeEvent)
+    assertEqual(g.wdtUnobserveField, "fire")
+    assertTrue(g.wdtRemoved)
+    print "TestPhlixAppWarmDeepLinkTimerIsReleased passed"
+end sub
+
+sub TestPhlixAppHandleWarmDeepLinkRefusesWhileFetchInFlight()
+    g = GetGlobalAA()
+    g.deepLinkFetchTask = { marker: "inflight" }
+    g.deepLinkParams = { contentId: "OLDID", action: "play" }
+    HandleWarmDeepLink({ contentId: "NEWID", action: "season" })
+    ' Refusal BEFORE the stomp: the in-flight fetch's callback reads the
+    ' action off m.deepLinkParams, so a mid-flight overwrite would route
+    ' the OLD item under the NEW link's action. The first link keeps its
+    ' promise; the second is ignored (the hub arm's documented posture).
+    assertEqual(g.deepLinkParams.contentId, "OLDID")
+    assertEqual(g.deepLinkParams.action, "play")
+    print "TestPhlixAppHandleWarmDeepLinkRefusesWhileFetchInFlight passed"
+end sub
+
+sub TestPhlixAppProcessDeepLinkRefusesWhileFetchInFlight()
+    g = GetGlobalAA()
+    safeUuid = "3f2504e0-4f89-11d3-9a0c-0305e4b66334"
+    ' The id must pass the shape gate for the refusal leg to be the guard's
+    ' own print (a malformed id must still fail VISIBLE, R3.1 - pinned by
+    ' ContentIdGuard.test.brs; here IsSafeContentId is referenced directly
+    ' so the closure also loads it for ProcessDeepLink's own use).
+    assertTrue(IsSafeContentId(safeUuid))
+    g.deepLinkParams = { contentId: safeUuid, action: "play" }
+    g.deepLinkFetchTask = { marker: "first" }
+    ProcessDeepLink()
+    ' The choke returns BEFORE CreateObject: the in-flight task global is
+    ' untouched (pre-cure, a second call overwrote it, orphaning the first
+    ' mounted ApiTask + observer pair).
+    assertEqual(g.deepLinkFetchTask.marker, "first")
+    print "TestPhlixAppProcessDeepLinkRefusesWhileFetchInFlight passed"
+end sub

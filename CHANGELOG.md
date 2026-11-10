@@ -51,6 +51,105 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — w13L3 batch RT-041..RT-046: the join digest stops ASCII-folding, deep-link refusals speak instead of vanishing, the warm defer timer unmounts, the player observe list closes symmetric, the certification key row joins the present, and the auth-verb families resolve to one — 2026-11-10
+
+- **RT-041 — the syncplay join digest hashes the password's UTF-8 bytes
+  (`source/lib/Utilities.brs`).** `SyncPlayPasswordHash` fed
+  `roByteArray.fromAsciiString`, which ASCII-folds every code point >= 128:
+  a CORRECT non-ASCII password digested to a value the server — which
+  hashes its request body's bytes, PHP strings being byte strings — can
+  never reproduce, so the join failed on the right password. The bytes now
+  come from `Utf8BytesForCodePoint` (:713), the UTF-8 law `UrlEncode` had
+  been hand-rolling inside its >=128 branch; that branch now iterates the
+  shared function (:762-767) and the digest builds its `roByteArray` from
+  the same core (:2086-2090). No trim is reintroduced: a space is password
+  material (estate parity — mobile `sha256.ts` hashes the raw string). The
+  input-Trim the review named was already cured at this base (register
+  books the per-row re-derivation). New pins:
+  `TestUtf8BytesForCodePointTruthTable` (headless LIVE — 1/2/3/4-byte
+  families and boundaries) and
+  `TestSyncPlayPasswordHashUtf8BytesDualShape` (device arm the golden
+  sha256 of `"cafe"+U+00E9` = 850f7dc4... and the " pw "/"pw"
+  non-equality; headless arm the fail-closed "" family, brs having no
+  roEVPDigest — the same venue split the MJ-2 suite already documents).
+- **RT-042 — push-cap refusals on the deep-link routes became visible
+  (`components/PhlixApp.brs`).** `PushScreen` prints and answers invalid
+  past the 12-deep cap; the fetched-item callback used to take that answer
+  and land the viewer on `ShowHome()` with zero explanation (play arm) or
+  fall off the branch with the stale frame on screen (season arm). Both
+  refusals now ride the EXISTING deep-link error dialog
+  (`ShowDeepLinkError`, :1125) — its copy "Could not load the requested
+  content. Please try again later." is true of a cap refusal (the item
+  could not load; popping a screen makes the retry succeed) and its
+  dismiss returns home — and the `PushScreen` docblock's false "toast-style
+  state is the scene's own chrome" claim is retracted (:512-519). Nothing
+  was minted deliberately: a dedicated string would grow the seven-catalog
+  key SET, which CHECK48/87/93/94 pin by count and version — that mint +
+  the v1.22.0 set-bump and in-commit leg rotations are PRESCRIBED to a
+  gate-rotation wave (register `.reviews/2026-11-09/FIX-roku-w13L3.md`).
+- **RT-043 — `docs/certification.md` row 3.1 spoke legacy SDK1.** It named
+  `instantreplay` twice; the shipped handler arms are the current RSG set
+  (options, up, down, back, OK, play, pause, rewind, fastforward, left,
+  right, replay, info — `components/PlayerScene.brs` onKeyEvent), and the
+  row now says so (:68). The caption-menu "Instant Replay" label row
+  survives untouched — that is a firmware caption MODE name, not a key
+  string.
+- **RT-044 — `ClosePlayer` closes what `Init` opened
+  (`components/PlayerScene.brs`).** The teardown released `state` and
+  `position` but never `buffering` (:29) or `globalCaptionMode` (:32);
+  :1349-1352 is now the symmetric four. Ritual hygiene, disclosed honestly:
+  on-device `PopScreen` destroys the whole subtree, so the asymmetry leaked
+  nothing measurable — which is exactly why the row had no headless test
+  (the ClosePlayer chain drives node lifecycles the brs mock does not
+  model; register-argued).
+- **RT-045 — the warm deep-link defer path stops mounting debris and
+  stacking fetches (`components/PhlixApp.brs`).** `HandleWarmDeepLink`'s
+  one-event-loop-tick deferral appended a one-shot `Timer` to `m.top` and
+  never took it back: every mid-playback deep link left a node and a live
+  field observer behind, forever. `OnWarmDeepLinkDeferred` (:1192) now
+  unmounts its own timer via `event.GetNode()` — unobserve `fire`,
+  `RemoveChild` from its parent — before routing. And the one-in-flight
+  guard that M-ROKU-13 left stranded on the hub-pending-command arm becomes
+  the shared law: `ProcessDeepLink` refuses while a fetch is in flight
+  (:997-1009, AFTER the shape gate so the R3.1 visible refusal of malformed
+  ids survives regardless of what is in flight), and `HandleWarmDeepLink`
+  refuses BEFORE stomping `m.deepLinkParams` (:1144-1150) — the callback
+  reads the action off that global, so a refused second link can no longer
+  hijack the first one's routing. Three headless conviction tests
+  (`tests/unit/PhlixApp.test.brs` :79-145, driving the SHIPPED subs through
+  the harness's EXTRA_SOURCES door) pin the unmount, the refusal-before-
+  stomp, and the choke's task-survival.
+- **RT-046 — one auth verb family (`locale/en_US/strings.json` +
+  `source/lib/Utilities.brs`).** The catalog mixed two families for one
+  action — "Sign in before using Watch Together." (:251), "Please sign in
+  again to continue saving progress." (:292), "checking your sign-in"
+  inside a "log in again" sentence (:400, the double-mix the review
+  singled out), and the 401 wire fallback `GetErrorMessage` returned "…sign
+  in again" (Utilities.brs :1299) — against the "Log In" button and
+  "Logged in as:" anchors. All four moved to the log-in family;
+  `status_signing_in` joined ("Logging in…", with the two
+  `docs/device-verification.md` renderings). No version bump or leg
+  rotation was owed: VALUE moves mint nothing (the MN-27 precedent), and
+  no gate, twin, test or doc anywhere cites a mirror value verbatim
+  (grep-proven zero hits for the moved ja/de sentences). The five mirrors
+  de/es/fr/it/pt were verified internally one-family at base — booked
+  already-cured with per-key proof. ja_JP carried the SAME defect class
+  (サインイン in six message values against the ログイン button and
+  "logged in as" anchor) and was normalized to the button's family by a
+  mechanical six-site サインイン→ログイン substitution — zero other
+  bytes moved, JSON re-validated, Checks 21/67 read the file green. The two
+  verbatim-pinned 401 expectations in `tests/unit/WireGuard.test.brs`
+  rotated measured-from-red (both legs red at the pre-rotation tip run).
+- Era moves (all measured at this commit): headless battery 226 -> 231
+  cases (the five new legs above; parent 226/0/54 rc=0, tip 231/0/54 rc=0,
+  exclusions unmoved); `make lint` 26 -> 26 diagnostic lines (rc=0);
+  `scripts/verify-runtime.sh` full pass rc=0, 101 PASS legs — Check 69's
+  self-census untouched (no static-checks row moved, no carrier citation),
+  Check 98 green; `tests/scripts/verify-route-manifest.mjs` gate and
+  `--self-test` both rc=0; the portable twin's verdict and the CI table
+  ride the register. Zero new wire codes, zero new catalog keys, zero
+  gate-script edits.
+
 ### Fixed — w12L3-R3 truth amendment: the RT-037 hub leg is disclosed as a cure, not an identity, the revived RT-036 year arm gains its render pin, and the w12L3 register figures are re-measured — 2026-11-09
 
 - **RT-037 hub leg — evidence falsity, forward correction (the era entry

@@ -76,3 +76,38 @@ sub TestSyncPlayPasswordHashCanonicalOrFailClosed()
     end if
     print "TestSyncPlayPasswordHashCanonicalOrFailClosed passed"
 end sub
+
+' ===========================================
+' [W13L3 RT-041, review roku__secnet #5] The digest runs over RAW UTF-8
+' BYTES with NO trim — SPEC §4's "unsalted SHA-256 hex of the password"
+' evaluated against the byte-string the server's group gate hashes
+' (PHP strings are byte strings). The pre-cure body used
+' roByteArray.fromAsciiString, which ASCII-folds every code point >= 128:
+' a non-ASCII password digested to a value the server could never
+' reproduce, failing correct-password joins. The bytes now come from the
+' shared Utf8BytesForCodePoint law (whose pure math is pinned live in
+' Utilities2.test.brs). Same dual-shape venue idiom as the sibling
+' canonical-or-fail-closed test: brs answers invalid for roEVPDigest, so
+' headless walks the fail-closed arm while device/emulator must produce
+' the byte-exact vectors.
+' ===========================================
+
+sub TestSyncPlayPasswordHashUtf8BytesDualShape()
+    ' sha256(63 61 66 C3 A9) — the UTF-8 bytes of "café" ("caf" + U+00E9).
+    ' The pre-cure fromAsciiString fold could NOT produce this value.
+    cafeVector = "850f7dc43910ff890f8879c0ed26fe697c93a067ad93a7d50f466a7028a9bf4e"
+    h = SyncPlayPasswordHash("caf" + Chr(233))
+    if h <> "" then
+        assertEqual(h, cafeVector)
+        assertTrue(IsCanonicalPasswordHash(h))
+        ' No-trim law: " pw " and "pw" are DIFFERENT passwords (the input
+        ' Trim removed at base; this pins it stays removed).
+        assertNotEqual(SyncPlayPasswordHash(" pw "), SyncPlayPasswordHash("pw"))
+        assertEqual(SyncPlayPasswordHash("pw"), "30c952fab122c3f9759f02a6d95c3758b246b4fee239957b2d4fee46e26170c4")
+    else
+        ' Headless brs (no roEVPDigest) — fail-closed arm is still LAW.
+        assertEqual(SyncPlayPasswordHash("caf" + Chr(233)), "")
+        assertEqual(SyncPlayPasswordHash(" pw "), "")
+    end if
+    print "TestSyncPlayPasswordHashUtf8BytesDualShape passed"
+end sub

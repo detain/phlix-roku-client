@@ -1338,9 +1338,18 @@ sub ClosePlayer()
     end if
 
     ' Unobserve the video node fields registered in Init.
+    ' [W13L3 RT-044, review roku__crossfe #7] symmetry: Init observes four
+    ' videoPlayer fields (:27 state, :28 position, :29 buffering, :32
+    ' globalCaptionMode); the teardown used to release only the first two.
+    ' The ritual is belt-and-braces on the device (PopScreen destroys the
+    ' node subtree, taking observers with it) but an ASYMMETRIC ritual is
+    ' the kind of drift that makes the next real leak invisible; the
+    ' buffering and globalCaptionMode arms now release beside their siblings.
     if m.videoPlayer <> invalid then
         m.videoPlayer.UnObserveField("state")
         m.videoPlayer.UnObserveField("position")
+        m.videoPlayer.UnObserveField("buffering")
+        m.videoPlayer.UnObserveField("globalCaptionMode")
     end if
 
     ' Unobserve button observers registered in Init.
