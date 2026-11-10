@@ -11260,7 +11260,7 @@ NEEDLES = [
 # every doc except this gate's own ledger (R4 reads that file), every
 # workflow YAML, and every shipped .brs.
 ANCHORS = ("Makefile", "README.md", "CLAUDE.md")
-FILES = list(ANCHORS)
+FILES = list(ANCHORS) + ["DEVELOPER.md"]  # w15L9 R-D RT-096: the guide joins the guarded surface
 FILES += sorted(f for f in glob.glob("docs/*.md")
                 if f != "docs/static-checks.md")
 FILES += sorted(glob.glob(".github/workflows/*.yml"))
@@ -11297,8 +11297,9 @@ for path in ("Makefile", "README.md"):
 
 # ---- R3: the scan cannot go vacuous ------------------------------------------
 # Anchors are mandatory members; the file-count floor was measured at ship
-# time (76 in the repo AND the twin layout — the twin stages the complete
-# scan set for exactly this reason).
+# time (76 in the repo AND the twin layout; the RT-096 DEVELOPER.md pass
+# grew it to 77 there too — the twin stages the complete scan set for
+# exactly this reason).
 for path in ANCHORS:
     if not os.path.isfile(path):
         problems.append(
@@ -11308,7 +11309,8 @@ for path in ANCHORS:
 if len(FILES) < 70:
     problems.append(
         f"  CHECK75 R3: the scan observed {len(FILES)} files (floor 70, set "
-        "by measurement at ship time: 76 in repo and twin layouts) — the "
+        "by measurement at ship time: 76 files, 77 since the RT-096 "
+        "DEVELOPER.md pass, in repo and twin layouts alike) — the "
         "glob or the tree changed shape; rotate with disclosure, never let "
         "this leg go vacuous")
 
@@ -11331,6 +11333,26 @@ else:
                         f"  docs/static-checks.md - CHECK75 R4: row 75 lost "
                         f"its cure marker {marker!r} — ledger and leg "
                         "rotate in the same commit")
+
+# ---- R5: DEVELOPER.md cannot re-grow live-tense fictional managers ----------
+# RT-096 (w15L9 R-D): the guide's Key Components table shipped SessionManager,
+# LibraryManager and TaskManager for a client that never had them (the real
+# surface is AuthManager/ToastManager/SyncPlayManager + Storage, with
+# AppContext owning the connection). One-time prose surgery cannot stop a
+# paste-back — CHECK75 R1 DNA — so any DEVELOPER.md line naming a fictional
+# manager must carry its dead marker (the R7.5 cull sentence). Blanket naming
+# is impossible repo-wide on purpose: CLAUDE.md and PhlixApp.brs mention the
+# trio HONESTLY in dead tense; this arm is scoped to the guide alone.
+DEV = read("DEVELOPER.md")
+if DEV is None:
+    problems.append("  DEVELOPER.md - CHECK75 R5: unreadable scan member")
+else:
+    for i, line in enumerate(DEV.splitlines(), 1):
+        if re.search(r"SessionManager|LibraryManager|TaskManager", line) and not re.search(
+                r"deleted|removed|gone|retired|dead|no longer", line, re.I):
+            problems.append(
+                f"  DEVELOPER.md:{i} - CHECK75 R5: a fictional manager is named "
+                "live-tense again — the R7.5 cull row keeps its dead marker")
 
 if problems:
     for prob in problems:

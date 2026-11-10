@@ -46,10 +46,16 @@ This document provides detailed information for developers working on the Phlix 
 | `PhlixApp` | Main app controller, scene navigation |
 | `ApiClient` | All HTTP communication with Phlix server |
 | `ApiTask` | Task node that moves HTTP off the render thread |
-| `SessionManager` | Session lifecycle management |
-| `LibraryManager` | Library browsing and item retrieval |
+| `AuthManager` | Session lifecycle, credential custody, token refresh |
 | `Storage` | Persistent local storage (registry) |
-| `TaskManager` | Background task scheduling |
+| `SyncPlayManager` | Watch-party group state and transport |
+| `ToastManager` | Non-blocking notices layered over scenes |
+
+The era `SessionManager`, `LibraryManager` and `TaskManager` rows were deleted
+in the R7.5 manager cull and are gone: `AppContext` owns the server connection
+and device identity, `AuthManager` owns the session lifecycle, `Storage` owns
+the registry, and scenes fetch data through `ApiTask` operation fields — there
+are no other manager classes on the shipped surface.
 
 See [docs/architecture-apitask.md](docs/architecture-apitask.md) for detailed ApiTask dispatch architecture.
 
@@ -118,7 +124,7 @@ The `source/lib/` directory contains pure BrightScript modules:
 | Constants | UPPER_SNAKE | `MAX_RETRIES`, `API_TIMEOUT` |
 | Component IDs | camelCase | `titleLabel`, `playButton` |
 | Fields | camelCase | `m.top.userData` |
-| Files | PascalCase + .brs | `ApiClient.brs`, `LibraryManager.brs` |
+| Files | PascalCase + .brs | `ApiClient.brs`, `AuthManager.brs` |
 
 ### Function Guidelines
 
@@ -366,11 +372,14 @@ end sub
 ### Running Tests
 
 ```bash
-# List tests
+# Run the unit battery. With ROKU_HOST configured this drives the rooibos
+# suite on the device; WITHOUT one it runs the headless BrightScript
+# interpreter gate (node tests/scripts/run-headless-unit.mjs) — the same
+# battery CI executes, so tests run device-free by default.
 make test
 
-# Deploy to device for actual execution
-make install
+# Static runtime gate (100+ legs over the shipped tree, no device needed)
+bash scripts/verify-runtime.sh
 ```
 
 ### Mocking
@@ -400,14 +409,16 @@ end function
 ### Request Format
 
 ```brightscript
-' All API calls go through ApiClient.request()
-response = m.api.request("GET", "/Items/" + id, {})
+' All HTTP moves through ApiClient.request() — never on the render thread:
+' scenes arm an ApiTask operation field and the task calls through. Paths
+' ride the canonical /api/v1 contract; ApiClient prefixes baseUrl with
+' "/api/v1" itself, so call sites pass the contract path. Real examples
+' from the shipped task layer:
+response = api.request("GET", "/libraries", invalid)
+response = api.request("GET", "/me/continue-watching", invalid)
+response = api.request("GET", "/users/me/next-up", invalid)
 
-' POST with body
-response = m.api.request("POST", "/Playstate", {
-    session_id: m.sessionId
-    command: "play"
-})
+' A POST carries a snake_case JSON body object as the third argument.
 ```
 
 ### Response Handling

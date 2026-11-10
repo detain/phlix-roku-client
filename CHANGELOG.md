@@ -51,6 +51,40 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — RT-096 — the developer guide's fictional managers, route shapes and test law meet the truth; Check 75 now guards the guide — 2026-11-10
+
+- **RT-096 (REVIEW-w15L9roku.md R-D, Major):** `DEVELOPER.md` still narrated the
+  pre-R7.5 world. Four regions meet the truth: the Key Components table's
+  `SessionManager`, `LibraryManager` and `TaskManager` rows are replaced by the
+  managers that actually ship (`AuthManager`, `Storage`, `SyncPlayManager`,
+  `ToastManager` — `AppContext` owns the connection, and scenes dispatch typed
+  `ApiTask` operations, never a manager facade); the history of the R7.5
+  manager cull now carries its dead marker in the prose; the naming-example
+  row swaps the fictional `LibraryManager.brs` for the real
+  `AuthManager.brs`; the Running Tests block states the shipped law (the
+  rooibos device suite needs `ROKU_HOST`; the headless BrightScript battery
+  runs `node tests/scripts/run-headless-unit.mjs` without a device; the
+  static gate is `bash scripts/verify-runtime.sh` — the Makefile targets the
+  guide invented never existed); and the Request Format block's DIDL-era
+  `/Items/` + `/Playstate` fictions are replaced with real `ApiTask`
+  operation paths (`/libraries`, `/me/continue-watching`, `/users/me/next-up`)
+  riding the `ApiClient` `/api/v1` prefix law.
+- **Check 75 extension (scan-set + in-check arm, count unchanged):**
+  `DEVELOPER.md` joins the gate's human-surface scan set (the file-count
+  narration rotates 76 -> 77 in the R3 floor comment, its conviction text, the
+  checks ledger row 75, and the portable twin's staging comment and PASS
+  echo; the vacuity floor 70 and the six install/toolchain needles are
+  untouched — they already guard the guide the moment it is scanned). A new
+  DEVELOPER.md-scoped R5 arm keeps the dead trio buried: any line naming
+  `SessionManager`, `LibraryManager` or `TaskManager` must carry a dead
+  marker (`deleted`, `removed`, `gone`, `retired`, `dead`, `no longer`) on
+  the same line, so live-tense re-growth convicts by file:line. Red-first
+  evidence: a live-tense probe line fired exactly one `CHECK75 R5` conviction
+  with every other Check green, and the probe was removed to restore exit 0.
+  The portable twin re-arms the same plant (assert-guarded, restore-exit-0)
+  so the arm can never rot into a vacuous pin. Zero runtime-code, zero wire,
+  zero locale movement.
+
 ### Fixed — RT-095 — CHECK19 convicts EVERY raw ShowErrorDialog argument (the Translate-sibling escape dies) and the enumerated hardcoded user-copy survivors mint catalog keys — 2026-11-10
 
 - **RT-095 (review `roku__casualgamer` #2, Minor, w15L9 R-C):** the Check 19
