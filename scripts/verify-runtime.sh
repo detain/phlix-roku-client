@@ -15041,4 +15041,132 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 100: the RT-092 boxed-lift cohort and the RT-105 routing arm keep every shipped limb (w15L9 era custody) ==="
+# NUMBERING: next-FREE probe at this lane's base 3d26ee7f - max Check in this
+# script was 99 (grep "^=== Check" tail), so 100 is free.
+# WHY (REVIEW-w15L9roku.md MAJOR, executed strip table): an adversarial review
+# stripped one coercion limb per site at 7b76043b and found 8 of the 9 shipped
+# RT-092 inline arms plus the RT-105 unknown-container routing arm stayed GREEN
+# across BOTH the headless battery and this gate - the pure-function mapper arms
+# are convicted by tests/unit tables, but the inline scene legs had no pin
+# anywhere, so a future re-boxing or limb-deletion could silently delete the
+# cure. This is the static custody the cohort needed: per-limb exact-equality
+# census (a limb that vanishes OR multiplies without rotating this dict
+# reddens), the routing window pinned as one indivisible shape, and the docs
+# pair that keeps the era named where it was adjudicated. Every arm has a
+# red-leg plant in the portable twin (strip -> CHECK100 convicts BY NAME ->
+# restore), so no pin here can rot into a vacuous count.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+# (path, label, kind, needle, want) - kind "re" = regex findall over raw text,
+# "str" = literal substring count. Counts were MEASURED from disk at base
+# 3d26ee7f (line cites era-verified there); equality, not floor: a limb
+# stripped convicts, a limb pasted twice convicts, and the census itself must
+# rotate in the commit that moves the cohort.
+ARMS = [
+    ("components/DetailScene.brs", "S1-detail-title", "re",
+     r'TextOrEmpty\(item\.name\)', 1),
+    ("components/DetailScene.brs", "S2-detail-agg-score", "re",
+     r'IsBoxedNumber\(agg\.score\)', 1),
+    ("components/DetailScene.brs", "S2-detail-agg-rating", "re",
+     r'IsBoxedNumber\(agg\.rating\)', 1),
+    ("components/PlayerScene.brs", "S3a-player-title-lifts", "re",
+     r'TextOrEmpty\(m\.item\.name\)', 6),
+    ("components/PlayerScene.brs", "S3b-player-member-count", "re",
+     r'IsBoxedNumber\(group\.member_count\)', 1),
+    ("components/PlayerScene.brs", "R105-route-window", "str",
+     '    if streamFormat = "" then\n'
+     "        canDirectPlay = false\n"
+     "    else\n"
+     '        canDirectPlay = DeviceCanDecodeVideo(DirectPlayProbeCodec(), streamFormat, "")\n'
+     "    end if", 1),
+    ("components/PlayerScene.brs", "R105-empty-branches", "re",
+     r'if streamFormat = "" then', 2),
+    ("components/HomeScene.brs", "S4-home-position-ticks", "re",
+     r'IsBoxedNumber\(cw\.position_ticks\)', 1),
+    ("components/HomeScene.brs", "H-nm-item", "re",
+     r'nm = TextOrEmpty\(item\.name\)', 3),
+    ("components/HomeScene.brs", "H-nm-library", "re",
+     r'nm = TextOrEmpty\(library\.name\)', 1),
+    ("components/HomeScene.brs", "H-nm-cw-name", "re",
+     r'nm = TextOrEmpty\(cw\.name\)', 1),
+    ("components/HomeScene.brs", "H-libName", "re",
+     r'libName = TextOrEmpty\(library\.name\)', 1),
+    ("components/LibraryScene.brs", "S5b-grid-name", "re",
+     r'gridName = TextOrEmpty\(item\.name\)', 1),
+    ("components/LibraryScene.brs", "S5b-grid-overview", "re",
+     r'gridOverview = TextOrEmpty\(item\.overview\)', 1),
+    ("components/AudiobookPlayerScene.brs", "S6-chapter-window", "re",
+     r'IsBoxedNumber\(ch\.start_seconds\) and IsBoxedNumber\(ch\.end_seconds\)', 1),
+    ("components/AudiobookPlayerScene.brs", "S6-start-gate", "re",
+     r'if ch <> invalid and IsBoxedNumber\(ch\.start_seconds\) then', 1),
+    ("components/AudiobookPlayerScene.brs", "AB-title", "re",
+     r'TextOrEmpty\(audiobook\.title\)', 2),
+    ("components/AudiobookPlayerScene.brs", "AB-author", "re",
+     r'TextOrEmpty\(audiobook\.author\)', 1),
+    ("components/AudiobookPlayerScene.brs", "AB-chapter-title", "re",
+     r'TextOrEmpty\(ch\.title\)', 2),
+    ("components/AudiobookPlayerScene.brs", "AB-saved-position", "re",
+     r'IsBoxedNumber\(resp\.data\.position_ms\)', 1),
+    ("components/AudiobookPlayerScene.brs", "AB-saved-chapter", "re",
+     r'IsBoxedNumber\(resp\.data\.current_chapter_index\)', 1),
+]
+
+problems = []
+for path, label, kind, needle, want in ARMS:
+    if not os.path.exists(path):
+        problems.append(f"  {path} - CHECK100 R1 [{label}]: the cohort carrier file vanished")
+        continue
+    with open(path, encoding="utf-8") as f:
+        src = f.read()
+    got = src.count(needle) if kind == "str" else len(re.findall(needle, src))
+    if got != want:
+        problems.append(
+            f"  {path} - CHECK100 R1 [{label}]: expected exactly {want}, "
+            f"found {got} - the RT-092/RT-105 limb was stripped, re-boxed or "
+            f"multiplied without rotating this census in the same commit")
+
+# R2: docs pair custody - the ledger row and the CHANGELOG entry name the era.
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+DOCS = read(os.path.join("docs", "static-checks.md"))
+CHLOG = read("CHANGELOG.md")
+if DOCS is not None:
+    row = re.search(r"(?m)^\|\s*100\s*\|.*$", DOCS)
+    if not row:
+        problems.append("  docs/static-checks.md - CHECK100 R2: no row 100 in the checks table")
+    else:
+        for idiom in ("RT-092", "RT-105"):
+            if idiom not in row.group(0):
+                problems.append("  docs/static-checks.md - CHECK100 R2: row 100 does not name %s" % idiom)
+if CHLOG is not None:
+    for idiom in ("RT-092", "RT-105", "Check 100"):
+        if idiom not in CHLOG:
+            problems.append("  CHANGELOG.md - CHECK100 R2: does not name %s" % idiom)
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK100: %d cohort-custody pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK100: every shipped limb of the RT-092 boxed-lift cohort and the")
+print("  RT-105 unknown-container routing window stands where it landed, and")
+print("  the era keeps its custody in the checks ledger and the CHANGELOG")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

@@ -51,6 +51,30 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Added — Check 100 — the RT-092 boxed-lift cohort and the RT-105 routing window gain static limb custody — 2026-11-10
+
+- The independent adversarial review of the w15L9 chain
+  (`REVIEW-w15L9roku.md`, Major) executed a one-strip-per-site table: eight
+  of the nine inline `RT-092` coercion limbs and the `RT-105`
+  unknown-container routing limb stayed green under removal across both
+  the headless battery and the runtime gate — the pure mapper arms are
+  convicted by `tests/unit` tables, but the inline scene limbs had no pin
+  anywhere, so a future re-boxing could delete the cure silently.
+  `scripts/verify-runtime.sh` Check 100 lands that custody: a 21-arm
+  exact-equality census across the five cohort carriers (`DetailScene`,
+  `PlayerScene`, `HomeScene`, `LibraryScene`, `AudiobookPlayerScene`),
+  the RT-105 routing window pinned as one indivisible five-line shape
+  plus its empty-branch count, and a docs pair that keeps the era named
+  in the checks ledger and here. The portable twin re-arms the red-leg
+  plants: stripping any limb fires exactly one named `CHECK100 R1`
+  conviction with the sibling Checks green, and restore returns exit 0 —
+  no pin here can rot into a vacuous count. The two in-source comments
+  that pre-announced "Check 100" (the `Utilities.brs` helper docblock and
+  the `Utilities2.test.brs` cohort note) are true statements from this
+  commit on, re-verified against the shipped files at this tip. Zero
+  runtime-code, zero wire, zero locale movement — the headless battery
+  figures are unchanged by this entry's commit.
+
 ### Fixed — w15L9 batch RT-092 RT-105: server-shaped scalars stop crashing typed-field writes through the boxed-lift choke, and the direct-play container derivation stops claiming a format it cannot observe — 2026-11-10
 
 - **RT-092 (review `roku__exploiter` #1, Major):** the boxed-type-lift cohort.
