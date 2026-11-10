@@ -2903,7 +2903,9 @@ assert_contains "CHECK59: the CHANGELOG names the vehicle that exists" "$GREEN59
 # suite (MJ-2 booked the 23→24 era at 21/24; w12L3-R3's DetailSceneYear made the 25th
 # unit suite, rotating these to 22/25; w14L1's four routine suites - AdminScanRoutines,
 # HomeSceneRoutines, LibrarySceneRoutines, SearchSceneRoutines - made the 26th-29th,
-# rotating these to 26/29);
+# rotating these to 26/29); the w15L9 R-B browse-failure suites made the
+# 30th-31st, rotating the plant anchors to 28/31 (w15L9 round-3 G — the first
+# REAL full-twin execution convicted the stale 29-era anchor and this needle);
 # CHECK52/CHECK56/CHECK58/CHECK60/CHECK61 stay
 # PASS (gate independence — the plant touches none of their pinned surfaces: the
 # Project-Structure map rows and locale-family rows are untouched); full restore
@@ -2937,8 +2939,8 @@ era_block = """tests/
 text = text[: m.start(1)] + era_block + text[m.end(1):]
 
 # P2 the stale count literal
-assert "**29 rooibos unit suites**" in text, "CHECK62 plant: cured count literal shape drifted"
-text = text.replace("**29 rooibos unit suites**", "**3 rooibos unit suites**", 1)
+assert "**31 rooibos unit suites**" in text, "CHECK62 plant: cured count literal shape drifted"
+text = text.replace("**31 rooibos unit suites**", "**3 rooibos unit suites**", 1)
 
 # P3 the dev-false dependency sentence returns; the npm ci truth leaves the section
 dep = re.search(r"(?ms)^### 3\. Install Dependencies\s*\n(.*?)(?=\n#{2,3} )", text)
@@ -2961,7 +2963,7 @@ set -e
 [ "$RED62_RC" -ne 0 ] || fail "verify-runtime.sh should exit non-zero when the review-era README inventories are re-planted (got 0 — the CHECK62 pin is toothless)"
 sed -n '/=== Check 62:/,$p' <<<"$RED62_OUT" | grep -qF "CHECK62 R1: the Test Structure block names phantom suites ['SessionManager.test.brs']" ||
 	fail "CHECK62 red must convict the phantom suite name naming it (got: $RED62_OUT)"
-sed -n '/=== Check 62:/,$p' <<<"$RED62_OUT" | grep -qF "CHECK62 R2: 26 shipped suite(s) are absent" ||
+sed -n '/=== Check 62:/,$p' <<<"$RED62_OUT" | grep -qF "CHECK62 R2: 28 shipped suite(s) are absent" ||
 	fail "CHECK62 red must convict the unlisted real suites (got: $RED62_OUT)"
 sed -n '/=== Check 62:/,$p' <<<"$RED62_OUT" | grep -qF "CHECK62 R3: the Unit Tests section claims 3 rooibos unit suites" ||
 	fail "CHECK62 red must convict the stale count literal against the census (got: $RED62_OUT)"
