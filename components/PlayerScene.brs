@@ -350,9 +350,10 @@ sub Show(itemId as String, args as Object)
     m.chapterLabelTimer = invalid
     m.chapterMarkers = []
 
-    ' Title
+    ' Title (RT-092 [review roku__exploiter #1]: m.item.name is a boxed wire
+    ' value; a non-string crossing into this typed String field crashed. Lifted.)
     if m.titleLabel <> invalid and m.item <> invalid then
-        m.titleLabel.text = m.item.name
+        m.titleLabel.text = TextOrEmpty(m.item.name)
     end if
 
     ' Skip markers - pass the playback-info skip_button_spec through, but ONLY
@@ -422,11 +423,16 @@ sub Show(itemId as String, args as Object)
         return
     end if
 
-    ' R6.8: Derive stream format from the URL extension via GetFileExtension + GetStreamFormat.
-    ' GetStreamFormat: https://developer.roku.com/dev/docs/ifdeviceinfo
-    ' Default to "mp4" if no extension is present (the most common format).
+    ' R6.8 / RT-105 [review roku__crossfe M2]: derive the platform-valid
+    ' StreamFormat token from the URL extension via GetFileExtension +
+    ' GetStreamFormat. GetStreamFormat answers "" for an unknown or absent
+    ' container - the honest result for the signer-minted
+    ' /media/{uuid}/stream?exp=..&sig=.. URLs the server hands this client,
+    ' which carry no dot. The old `containerExt = "" -> "mp4"` default was an
+    ' UNOBSERVABLE claim: it made every direct play probe a fabricated mp4, so
+    ' the capability gate could never refuse a container the device cannot
+    ' decode. An empty token now routes straight to the transcode lane.
     containerExt = GetFileExtension(streamUrl)
-    if containerExt = "" then containerExt = "mp4"
     streamFormat = GetStreamFormat(containerExt)
 
     ' R6.8: Gate direct play on device capability check.
@@ -434,14 +440,23 @@ sub Show(itemId as String, args as Object)
     ' The probe codec is the estate's canonical delivery codec, named by
     ' DirectPlayProbeCodec - its docblock owns the rationale (the source's
     ' true codec never reaches this client); empty profile means "any".
-    ' If the device cannot decode that codec in this container, go straight
-    ' to transcode.
-    canDirectPlay = DeviceCanDecodeVideo(DirectPlayProbeCodec(), streamFormat, "")
+    ' RT-105: an unknown container ("") is never claimed playable - it takes
+    ' the same transcode lane as a container the device genuinely cannot
+    ' decode. Only a known token is worth probing.
+    if streamFormat = "" then
+        canDirectPlay = false
+    else
+        canDirectPlay = DeviceCanDecodeVideo(DirectPlayProbeCodec(), streamFormat, "")
+    end if
     if not canDirectPlay then
-        print "Device cannot decode " DirectPlayProbeCodec() " in " streamFormat ", starting transcode immediately"
+        if streamFormat = "" then
+            print "Unknown container in stream URL, starting transcode immediately"
+        else
+            print "Device cannot decode " DirectPlayProbeCodec() " in " streamFormat ", starting transcode immediately"
+        end if
         m.transcodeAttempted = true
         if m.titleLabel <> invalid and m.item <> invalid then
-            m.titleLabel.text = m.item.name + " (Preparing...)"
+            m.titleLabel.text = TextOrEmpty(m.item.name) + " (Preparing...)"
         end if
         ' C20 [review roku__gameux C1]: the hint lives in the overlay's
         ' titleLabel - surface the chrome (passively) so the wait is visible.
@@ -523,7 +538,7 @@ sub OnPlayerStateChange(event as Object)
         if not m.transcodeAttempted then
             m.transcodeAttempted = true
             if m.titleLabel <> invalid and m.item <> invalid then
-                m.titleLabel.text = m.item.name + " (Preparing...)"
+                m.titleLabel.text = TextOrEmpty(m.item.name) + " (Preparing...)"
             end if
             ' C20: surface the (Preparing...) hint live (see the Show() twin).
             ShowControls(true, true)
@@ -738,8 +753,9 @@ sub PlayHls(url as Object)
         return
     end if
 
+    ' RT-092 lift (see Show() title site): boxed name into String field.
     if m.titleLabel <> invalid and m.item <> invalid then
-        m.titleLabel.text = m.item.name
+        m.titleLabel.text = TextOrEmpty(m.item.name)
     end if
 
     stream = CreateObject("roSGNode", "ContentNode")
@@ -1786,8 +1802,11 @@ sub ShowItemInfo()
     
     ' Format the info text
     title = ""
-    if m.item <> invalid and m.item.name <> invalid then
-        title = m.item.name
+    if m.item <> invalid then
+        ' RT-092 [review roku__exploiter #1]: title crosses into the
+        ' `title + "  |  "` String concat at the infoLabel write below; a boxed
+        ' name raised Type Mismatch. TextOrEmpty passes a real string through.
+        title = TextOrEmpty(m.item.name)
     end if
     
     position = 0
@@ -2403,8 +2422,13 @@ sub HandleSyncEvent(ev as Object)
 
             gname = ""
             if group.DoesExist("group_name") and type(group.group_name) = "roString" and group.group_name <> "" then gname = group.group_name
+            ' RT-092 [review roku__exploiter #1]: member_count is Int()-ed into a
+            ' numeric param; the gname line above gates type, this arm only checked
+            ' invalid. Same law, applied: gate the shape then Int() the NATIVE.
             count = ""
-            if group.DoesExist("member_count") and group.member_count <> invalid then count = TranslateWithParams("player_sync_members_in_group", { count: Int(group.member_count) })
+            if group.DoesExist("member_count") and IsBoxedNumber(group.member_count) then
+                count = TranslateWithParams("player_sync_members_in_group", { count: Int(group.member_count) })
+            end if
             role = Translate("syncplay_role_guest")
             if m.syncIsHost then role = Translate("syncplay_role_host")
             SetSyncStatus(TranslateWithParams("player_sync_status_group", { group: gname, members: count, role: role }))
@@ -3653,7 +3677,7 @@ sub OnPlaybackRetry(index as Integer)
     if m.item = invalid or m.itemId = invalid or m.itemId = "" then return
     m.transcodeAttempted = true
     if m.titleLabel <> invalid then
-        m.titleLabel.text = m.item.name + " (Preparing...)"
+        m.titleLabel.text = TextOrEmpty(m.item.name) + " (Preparing...)"
     end if
     if m.apiTask.state = "run" then return
     m.apiTask.request = { op: "startTranscode", itemId: m.itemId }

@@ -322,11 +322,22 @@ end sub
 ' {letter,offset,count} rows returned by GET /media/letter-index. Unknown or
 ' empty buckets answer -1 so callers can ignore the press.
 function LetterBucketOffset(letter as String) as Integer
+    ' RT-092 [review roku__exploiter #1]: /media/letter-index rows are boxed
+    ' DecodeJson shape. `bucket.letter = letter` is a String compare and
+    ' `bucket.count <= 0` is an ORDERED numeric compare — a wrong-shaped boxed
+    ' value crashed both, and CInt(offset) on a non-numeric raised the same way.
+    ' Gate the bucket to an AA, then gate each member's SHAPE before touching
+    ' the NATIVE (separate arms — BrightScript `or` is not guaranteed to
+    ' short-circuit, so a crash-guard must never share an expression with the
+    ' compare it protects).
     for each bucket in m.letterIndex
-        if bucket <> invalid and bucket.letter <> invalid and bucket.letter = letter then
-            if bucket.count = invalid or bucket.count <= 0 then return -1
-            if bucket.offset = invalid then return 0
-            return CInt(bucket.offset)
+        if bucket <> invalid and type(bucket) = "roAssociativeArray" then
+            if TextOrEmpty(bucket.letter) = letter then
+                if not IsBoxedNumber(bucket.count) then return -1
+                if bucket.count <= 0 then return -1
+                if not IsBoxedNumber(bucket.offset) then return 0
+                return CInt(bucket.offset)
+            end if
         end if
     end for
     return -1
@@ -452,11 +463,16 @@ sub OnApiResponse(event as Object)
 
         ' Build ContentNode children for the new items
         for each item in newItems
+            ' RT-092 [review roku__exploiter #1]: grid ContentNode String fields
+            ' (Title/Description/ShortDescriptionLine1) crossed from boxed wire
+            ' shape unlifted — the same class the description handler cures.
+            gridName = TextOrEmpty(item.name)
+            gridOverview = TextOrEmpty(item.overview)
             contentItem = m.contentNode.AddChild({
-                Title: item.name
-                accessibleLabel: item.name
-                Description: item.overview
-                ShortDescriptionLine1: item.name
+                Title: gridName
+                accessibleLabel: gridName
+                Description: gridOverview
+                ShortDescriptionLine1: gridName
                 Type: item.type
                 id: item.id
             })
@@ -594,10 +610,13 @@ sub OnItemFocused(event as Object)
     if index >= 0 and index < m.items.Count() then
         item = m.items[index]
         if m.descriptionLabel <> invalid then
+            ' RT-092 [review roku__exploiter #1]: overview/name boxed into a String
+            ' field write; the lift keeps good rows byte-identical and renders the
+            ' sentinel for a malformed shape instead of crashing.
             if item.overview <> invalid then
-                m.descriptionLabel.text = item.overview
+                m.descriptionLabel.text = TextOrEmpty(item.overview)
             else
-                m.descriptionLabel.text = item.name
+                m.descriptionLabel.text = TextOrEmpty(item.name)
             end if
         end if
 

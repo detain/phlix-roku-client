@@ -74,16 +74,46 @@ sub TestGetFileExtension()
 end sub
 
 sub TestGetStreamFormat()
-    ' Test stream format detection
+    ' RT-105 [review roku__crossfe M2]: only Roku platform-valid StreamFormat
+    ' tokens may be emitted; mov/m4v fold onto mp4, and every unknown or
+    ' unsupported container answers "" (the honest "claim nothing" sentinel)
+    ' instead of the old fabricated mp4.
     assertEqual(GetStreamFormat("mp4"), "mp4")
     assertEqual(GetStreamFormat("m4v"), "mp4")
+    assertEqual(GetStreamFormat("mov"), "mp4")
     assertEqual(GetStreamFormat("mkv"), "mkv")
-    assertEqual(GetStreamFormat("ts"), "mpegts")
-    assertEqual(GetStreamFormat("webm"), "webm")
     assertEqual(GetStreamFormat("m3u8"), "hls")
+    assertEqual(GetStreamFormat("mp3"), "mp3")
+    assertEqual(GetStreamFormat("wma"), "wma")
 
     print "TestGetStreamFormat passed"
 end sub
+
+sub TestGetStreamFormatRejectsInvalidFormats()
+    ' The three values the OLD mapper returned that are NOT valid Roku
+    ' StreamFormat tokens, plus the empty/unknown/garbage shapes, all collapse
+    ' to "" - the sentinel PlayerScene routes to the transcode lane.
+    assertEqual(GetStreamFormat("ts"), "")
+    assertEqual(GetStreamFormat("webm"), "")
+    assertEqual(GetStreamFormat(""), "")
+    assertEqual(GetStreamFormat("flv"), "")
+    ' A signer-minted stream URL carries no dot, so the extension derivation
+    ' yields "" and the format claim is "" - the exact production shape that
+    ' made the old default-mp4 a capability probe that could never say no.
+    signerUrl = "http://host/media/011ac181-2b3c-4d5e-8f90-1a2b3c4d5e6f/stream?exp=1790000000&sig=aB3-xY9_zW2"
+    assertEqual(GetFileExtension(signerUrl), "")
+    assertEqual(GetStreamFormat(GetFileExtension(signerUrl)), "")
+    ' Platform-valid-set pin: every known container resolves to a token in
+    ' Roku's StreamFormat table (mp4/hls/mkv/mp3/wma); nothing maps to a value
+    ' outside it, and case folds through LCase.
+    assertEqual(GetStreamFormat("mka"), "mkv")
+    assertEqual(GetStreamFormat("mks"), "mkv")
+    assertEqual(GetStreamFormat("MP4"), "mp4")
+    assertEqual(GetStreamFormat("MOV"), "mp4")
+    assertEqual(GetStreamFormat("M3U8"), "hls")
+    print "TestGetStreamFormatRejectsInvalidFormats passed"
+end sub
+
 sub TestIsPlayableType()
     ' Every playable leaf member of the media_items.type ENUM.
     assertTrue(IsPlayableType("movie"))

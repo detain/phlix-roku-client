@@ -669,3 +669,72 @@ sub TestUtf8BytesFromStringTruthTable()
     assertEqual(mixed[4], 98)
     print "TestUtf8BytesFromStringTruthTable passed"
 end sub
+
+' ---- RT-092 boxed-type-lift helpers (review roku__exploiter #1) ----
+' The cohort choke: every DecodeJson scalar that crosses into a typed String
+' field, an ordered numeric compare, or arithmetic routes through these three.
+' Static per-site pins live in Check 100; these are the behavior table so a
+' re-boxed site (or a broken helper) reddens both ways.
+
+sub TestIsBoxedNumberTruthTable()
+    ' The whole numeric family (intrinsic + ro names) answers true.
+    assertTrue(IsBoxedNumber(5))
+    assertTrue(IsBoxedNumber(-1))
+    assertTrue(IsBoxedNumber(2.5))
+    assertTrue(IsBoxedNumber(0))
+    ' Non-numeric shapes answer false - including a numeric STRING and true,
+    ' the two the old `<> invalid` guard waved straight through to `Int()`.
+    assertFalse(IsBoxedNumber("5"))
+    assertFalse(IsBoxedNumber(true))
+    assertFalse(IsBoxedNumber(false))
+    assertFalse(IsBoxedNumber(invalid))
+    assertFalse(IsBoxedNumber({}))
+    assertFalse(IsBoxedNumber([]))
+    print "TestIsBoxedNumberTruthTable passed"
+end sub
+
+sub TestTextOrEmptyTruthTable()
+    ' A real string is byte-identical.
+    assertEqual(TextOrEmpty("hello"), "hello")
+    assertEqual(TextOrEmpty(""), "")
+    ' invalid and every non-string box answer "" (the empty-text sentinel)
+    ' instead of crashing the downstream .text= write / string compare.
+    assertEqual(TextOrEmpty(invalid), "")
+    assertEqual(TextOrEmpty(456), "")
+    assertEqual(TextOrEmpty({}), "")
+    assertEqual(TextOrEmpty([]), "")
+    assertEqual(TextOrEmpty(true), "")
+    print "TestTextOrEmptyTruthTable passed"
+end sub
+
+sub TestNormalizeCollectionItemLiftsMalformedShapes()
+    ' Happy path: a well-formed row keeps every value verbatim.
+    good = NormalizeCollectionItem({ id: "c1", name: "Star Wars", type: "movie", overview: "A film", year: 1977 })
+    assertEqual(good.id, "c1")
+    assertEqual(good.name, "Star Wars")
+    assertEqual(good.type, "movie")
+    assertEqual(good.overview, "A film")
+    assertEqual(good.year, 1977)
+
+    ' Wire drift: name/overview arrive boxed as numbers and type as an AA.
+    ' The old `<> invalid` guards waved these through to a crashing .text=
+    ' write; the lift answers "" (no dead button, no Type Mismatch).
+    bad = NormalizeCollectionItem({ id: 12, name: 456, type: { a: 1 }, metadata: { overview: 789, year: "2020" } })
+    assertEqual(bad.id, "")
+    assertEqual(bad.name, "")
+    assertEqual(bad.type, "")
+    assertEqual(bad.overview, "")
+    assertTrue(bad.year = invalid)
+
+    ' metadata as a bare string (the docblock's named hazard) is not read as an AA.
+    strMeta = NormalizeCollectionItem({ name: "X", metadata: "not-an-aa" })
+    assertEqual(strMeta.name, "X")
+    assertEqual(strMeta.overview, "")
+
+    ' invalid row collapses to the empty sentinel shape.
+    nulled = NormalizeCollectionItem(invalid)
+    assertEqual(nulled.id, "")
+    assertEqual(nulled.name, "")
+    assertTrue(nulled.year = invalid)
+    print "TestNormalizeCollectionItemLiftsMalformedShapes passed"
+end sub

@@ -358,33 +358,54 @@ end sub
 sub RenderItem()
     item = m.item
 
+    ' RT-092 [review roku__exploiter #1]: every scalar below arrives boxed from
+    ' DecodeJson. The old guards screened only `<> invalid`, so a String field
+    ' write, a `+` concat, or a `* 60` arithmetic on a non-matching boxed type
+    ' crashed at runtime. Each crossing now routes through the shared lift; the
+    ' `<> invalid` gate on the RAW value is kept so a genuinely-absent field
+    ' behaves exactly as before (no write), and only the malformed-shape row
+    ' that used to crash now degrades to the lift's sentinel.
     if m.titleLabel <> invalid then
-        m.titleLabel.text = item.name
+        if item.name <> invalid then m.titleLabel.text = TextOrEmpty(item.name)
     end if
 
     if m.descriptionLabel <> invalid then
         if item.overview <> invalid then
-            m.descriptionLabel.text = item.overview
+            m.descriptionLabel.text = TextOrEmpty(item.overview)
         end if
     end if
 
-    if m.posterImage <> invalid and item.poster_url <> invalid and item.poster_url <> "" then
-        m.posterImage.uri = item.poster_url
+    posterUrl = TextOrEmpty(item.poster_url)
+    if m.posterImage <> invalid and posterUrl <> "" then
+        m.posterImage.uri = posterUrl
     end if
 
     ' Info line: year + runtime (MINUTES) + content-rating LABEL + chapter count.
     if m.infoLabel <> invalid then
         info = ""
-        if item.year <> invalid then
+        ' RT-092 [review roku__exploiter #1]: year/runtime are boxed wire
+        ' values. Guard the SHAPE then consume the NATIVE member — str()/
+        ' arithmetic on a guard-passed member are the ContinueWatchPercent
+        ' idiom; a missing key answers invalid and IsBoxedNumber is false.
+        if IsBoxedNumber(item.year) then
             info = info + str(item.year).trim()
         end if
-        if item.runtime <> invalid then
+        if IsBoxedNumber(item.runtime) then
             if info <> "" then info = info + " • "
             info = info + FormatTime(item.runtime * 60)
         end if
-        if item.rating <> invalid and item.rating <> "" then
+        ' RT-092 companion: a boxed-numeric rating used to CRASH the `info +`
+        ' concat (String + Integer = Type Mismatch). The render intent — the
+        ' rating participates in the info line — is kept: strings pass through
+        ' TextOrEmpty, numerics stringify honestly, and only Boolean/Array/AA
+        ' shapes (never a legitimate rating) degrade to no-segment.
+        rating = TextOrEmpty(item.rating)
+        if rating = "" and IsBoxedNumber(item.rating) then
+            rating = str(item.rating).trim()
+        end if
+        if rating <> "" then
             if info <> "" then info = info + " • "
-            info = info + item.rating
+            info = info + rating
         end if
         ' P2-S5: show chapter count if chapters are available on the item.
         if item.chapters <> invalid and type(item.chapters) = "roArray" and item.chapters.count() > 0 then
@@ -606,9 +627,15 @@ sub RenderAggregateRating()
                 if ratings.DoesExist("aggregate") then
                     agg = ratings.aggregate
                     if type(agg) = "roAssociativeArray" then
-                        if agg.DoesExist("score") then
+                        ' RT-092 [review roku__exploiter #1]: aggregateScore
+                        ' crosses into RatingBadge.xml's type="float" field at
+                        ' the write below; the direct-agg and rating-fallback
+                        ' arms already gate numeric, these two arms lifted raw.
+                        ' Gate the shape, store the NATIVE member (the sibling
+                        ' direct-agg arm below does exactly this).
+                        if agg.DoesExist("score") and IsBoxedNumber(agg.score) then
                             aggregateScore = agg.score
-                        else if agg.DoesExist("rating") then
+                        else if agg.DoesExist("rating") and IsBoxedNumber(agg.rating) then
                             aggregateScore = agg.rating
                         end if
                     else if type(agg) = "Float" or type(agg) = "roFloat" or type(agg) = "Integer" or type(agg) = "roInt" then

@@ -593,23 +593,32 @@ function GetFileExtension(url as String) as String
     return ""
 end function
 
-' Determine stream format from container
+' Determine the Roku StreamFormat token for a container extension.
+' RT-105 [review roku__crossfe M2]: the old mapping emitted "mov", "mpegts"
+' and "webm" - none of which are accepted values in Roku's content-metadata
+' StreamFormat table (valid: mp4, hls, dash, ism, mkv/mka/mks, mp3, wma) - and
+' its trailing `return "mp4"` claimed mp4 for EVERYTHING. The invalid branches
+' were masked by the derivation never seeing an extension (signer-minted
+' /media/{uuid}/stream URLs contain no dot); both layers are wrong together.
+' Contract now: a known container answers its platform-valid token (mov/m4v
+' fold onto mp4 per the table's note); ts/mpegts, webm, and every unknown or
+' empty input answer "" - the honest "no observable container" sentinel.
+' Callers MUST treat "" as "claim nothing": PlayerScene routes it straight to
+' the transcode lane rather than probing a fabricated mp4.
 function GetStreamFormat(container as String) as String
-    container = LCase(container)
-    if container = "mp4" or container = "m4v" then
+    ext = LCase(container)
+    if ext = "mp4" or ext = "m4v" or ext = "mov" then
         return "mp4"
-    else if container = "mkv" then
+    else if ext = "mkv" or ext = "mka" or ext = "mks" then
         return "mkv"
-    else if container = "mov" then
-        return "mov"
-    else if container = "ts" then
-        return "mpegts"
-    else if container = "webm" then
-        return "webm"
-    else if container = "m3u8" then
+    else if ext = "m3u8" then
         return "hls"
+    else if ext = "mp3" then
+        return "mp3"
+    else if ext = "wma" then
+        return "wma"
     end if
-    return "mp4"
+    return ""
 end function
 
 ' Escape string for display
@@ -1011,7 +1020,10 @@ end function
 ' keys when it is an roAssociativeArray. `type` stays top-level so series ->
 ' SeriesScene / season -> SeasonScene routing still works. Reads top-level first
 ' then metadata fallback (defensive; raw rows have these only under metadata).
-' `year` is kept as-is (Integer or invalid). Guards invalid.
+' RT-092 lift law: id/name/type/overview pass through TextOrEmpty (real strings
+' untouched; every other decoded shape answers the "" sentinel); year is gated
+' with IsBoxedNumber and stored as the NATIVE member (numeric or invalid).
+' Guards invalid AND malformed shape.
 ' @param raw Object - a raw collection-item row (may be invalid)
 ' @return Object - the normalized item (sentinel with empty strings when invalid)
 function NormalizeCollectionItem(raw as Object) as Object
@@ -1023,9 +1035,15 @@ function NormalizeCollectionItem(raw as Object) as Object
         if type(raw.metadata) = "roAssociativeArray" then meta = raw.metadata
     end if
 
-    if raw.DoesExist("id") and raw.id <> invalid then item.id = raw.id
-    if raw.DoesExist("name") and raw.name <> invalid then item.name = raw.name
-    if raw.DoesExist("type") and raw.type <> invalid then item.type = raw.type
+    ' RT-092 [review roku__exploiter #1]: id/name/type cross into typed String
+    ' fields downstream (ContentNode.Title/id, roSGLabel.text) and into the
+    ' ShowSeries/ShowSeason String formals. The old `<> invalid` guard only
+    ' screened invalid - a boxed number or assocarray from wire drift passed
+    ' straight through and crashed the write. TextOrEmpty keeps byte-identical
+    ' behavior for real strings and answers "" for every malformed shape.
+    item.id = TextOrEmpty(raw.id)
+    item.name = TextOrEmpty(raw.name)
+    item.type = TextOrEmpty(raw.type)
 
     ' poster_url: top-level (defensive) then metadata.
     if raw.DoesExist("poster_url") and raw.poster_url <> invalid and raw.poster_url <> "" then
@@ -1034,17 +1052,23 @@ function NormalizeCollectionItem(raw as Object) as Object
         item.poster_url = meta.poster_url
     end if
 
-    ' overview: top-level then metadata.
-    if raw.DoesExist("overview") and raw.overview <> invalid then
-        item.overview = raw.overview
-    else if meta <> invalid and meta.DoesExist("overview") and meta.overview <> invalid then
-        item.overview = meta.overview
-    end if
+    ' overview: top-level then metadata. RT-092: same lift law as id/name/type —
+    ' item.overview crosses into Description/text String fields downstream, and
+    ' the old `<> invalid` guard waved a boxed number straight through to the
+    ' write that crashes.
+    overviewText = TextOrEmpty(raw.overview)
+    if overviewText = "" and meta <> invalid then overviewText = TextOrEmpty(meta.overview)
+    item.overview = overviewText
 
-    ' year: top-level then metadata (kept as-is; may be Integer or invalid).
-    if raw.DoesExist("year") and raw.year <> invalid then
+    ' year: top-level then metadata. RT-092 same family — item.year reaches
+    ' Int(item.year) in CollectionScene's grid builder, and Int() on a boxed
+    ' String/AssocArray raises exactly the class this choke exists to stop.
+    ' Guard the shape then store the NATIVE member (a lift helper would re-wrap
+    ' it into an object brs cannot compare); non-numeric stays invalid, which
+    ' is the declared "no year" sentinel.
+    if raw.DoesExist("year") and IsBoxedNumber(raw.year) then
         item.year = raw.year
-    else if meta <> invalid and meta.DoesExist("year") and meta.year <> invalid then
+    else if meta <> invalid and meta.DoesExist("year") and IsBoxedNumber(meta.year) then
         item.year = meta.year
     end if
 
@@ -1458,6 +1482,51 @@ function IsTruthyFlag(container as Object, key as String) as Boolean
     if t = "Boolean" or t = "roBoolean" then return v
     if t = "Integer" or t = "roInt" or t = "LongInteger" or t = "roLongInteger" or t = "Float" or t = "roFloat" or t = "Double" or t = "roDouble" then return (Int(v) = 1)
     return false
+end function
+
+' ============================================================
+' RT-092 [review roku__exploiter #1] — boxed-type lifts
+' ============================================================
+' DecodeJson hands back native boxed values: an unquoted JSON number arrives
+' as roInteger/roLongInteger/roDouble (the headless brs interpreter reports
+' the intrinsic names Integer/LongInteger/Double for the same shape), a quoted
+' string as roString/String, a flag as roBoolean. A boxed number written into
+' a typed String field (roSGLabel.text, ContentNode.Title), fed to the `+`
+' operator, or used as an arithmetic operand CRASHES at runtime (Type
+' Mismatch) — and the guards that let it through were always `<> invalid`
+' checks, which never screened for the shape that actually slips. IsTruthyFlag
+' above legislates the boolean/numeric compare side of the family;
+' HomeScene.ContinueWatchPercent carries the exemplar numeric gate. These
+' helpers generalize that exemplar: IsBoxedNumber is the shape predicate and
+' TextOrEmpty is the String-field choke. Callers pair the predicate with the
+' NATIVE member (guard `if IsBoxedNumber(x.field)` then read x.field directly)
+' rather than a lift helper — a boxed return re-wraps the value into an object
+' the headless brs interpreter refuses to compare to an integer literal, while
+' a native member read straight off the assocarray survives arithmetic and
+' ordered compares on both device and brs. Check 100 pins each cohort site by
+' name.
+
+' Type-set predicate: is this a boxed numeric (both ro* and intrinsic names)?
+' @param value Dynamic - any decoded-wire shape (may be invalid)
+' @return Boolean - true only for the numeric family
+function IsBoxedNumber(value as Dynamic) as Boolean
+    if value = invalid then return false
+    t = type(value)
+    return t = "Integer" or t = "roInt" or t = "LongInteger" or t = "roLongInteger" or t = "Float" or t = "roFloat" or t = "Double" or t = "roDouble"
+end function
+
+' Lift for a typed String field (roSGLabel.text, ContentNode.Title) or a
+' plus-concat operand. A real string passes through untouched — good wire
+' rows keep byte-identical behavior. Anything else (boxed number, Boolean,
+' Array, AssocArray, invalid) becomes "": the field shows nothing, which is
+' neither a crash nor a lie about the content.
+' @param value Dynamic - the raw decoded field (may be invalid / any shape)
+' @return String - the value when a String, else ""
+function TextOrEmpty(value as Dynamic) as String
+    if value = invalid then return ""
+    t = type(value)
+    if t = "String" or t = "roString" then return value
+    return ""
 end function
 
 ' The playable leaf members of the server's `media_items.type` ENUM - the types

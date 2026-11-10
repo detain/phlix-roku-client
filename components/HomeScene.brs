@@ -259,11 +259,14 @@ sub OnLibrariesResponse(resp as Object)
         ' Build the grid from each library's canonical name/id.
         content = CreateObject("roSGNode", "ContentNode")
         for each library in m.libraries
+            ' RT-092: library.name crossed unlifted into three ContentNode String
+            ' fields here (the card's HomeScene site); lifted once for the cluster.
+            libName = TextOrEmpty(library.name)
             contentItem = content.AddChild({
-                Title: library.name
-                accessibleLabel: library.name
+                Title: libName
+                accessibleLabel: libName
                 Description: "Library"
-                ShortDescriptionLine1: library.name
+                ShortDescriptionLine1: libName
                 Type: "library"
                 id: library.id
             })
@@ -366,10 +369,13 @@ sub OnContinueWatchingResponse(resp as Object)
 
     content = CreateObject("roSGNode", "ContentNode")
     for each item in items
+        ' RT-092 [review roku__exploiter #1]: item.name is boxed DecodeJson shape
+        ' crossing into ContentNode typed String fields; lift once, feed all three.
+        nm = TextOrEmpty(item.name)
         contentItem = content.AddChild({
-            Title: item.name
-            accessibleLabel: item.name
-            ShortDescriptionLine1: item.name
+            Title: nm
+            accessibleLabel: nm
+            ShortDescriptionLine1: nm
             ' MN-2: the honest "where you left off" cue - a whole-percent
             ' string on the tile's second description line (the SAME
             ' ShortDescriptionLine2 the Library/Photos/Collection/Audiobook
@@ -433,10 +439,12 @@ sub OnUpNextResponse(resp as Object)
     m.upNextItems = [item]
 
     content = CreateObject("roSGNode", "ContentNode")
+    ' RT-092: up-next tile name lifted before its ContentNode String fields.
+    nm = TextOrEmpty(item.name)
     contentItem = content.AddChild({
-        Title: item.name
-        accessibleLabel: item.name
-        ShortDescriptionLine1: item.name
+        Title: nm
+        accessibleLabel: nm
+        ShortDescriptionLine1: nm
         Type: "upnext"
     })
     ' R5: Lazy image loading — resolve URL first, then store for later activation
@@ -523,8 +531,12 @@ sub OnUpNextItemFocused(event as Object)
     item = m.upNextItems[index]
     if item = invalid then return
 
-    if m.descriptionLabel <> invalid and item.name <> invalid then
-        m.descriptionLabel.text = item.name
+    if m.descriptionLabel <> invalid then
+        ' RT-092 [review roku__exploiter #1]: a boxed name crossed the `<>invalid`
+        ' twin-rail guard straight into this String field write. TextOrEmpty keeps
+        ' a real string; every other decoded shape renders blank (no lie, no crash).
+        nm = TextOrEmpty(item.name)
+        if nm <> "" then m.descriptionLabel.text = nm
     end if
 end sub
 
@@ -669,7 +681,10 @@ sub OnLibraryItemFocused(event as Object)
     if library = invalid then return
 
     if m.descriptionLabel <> invalid then
-        m.descriptionLabel.text = library.name
+        ' RT-092: library.name is raw DecodeJson shape; a non-string crashed the
+        ' String-field write (this handler had no guard at all before the lift).
+        nm = TextOrEmpty(library.name)
+        if nm <> "" then m.descriptionLabel.text = nm
     end if
 end sub
 
@@ -689,7 +704,12 @@ sub OnContinueItemSelected(event as Object)
     if mediaItemId = invalid or mediaItemId = "" then return
 
     resumeSeconds = 0.0
-    if cw.position_ticks <> invalid then
+    ' RT-092 [review roku__exploiter #1]: position_ticks is a boxed wire value and
+    ' the `<>invalid` guard waved a String/Boolean straight into the `/ 1e7`
+    ' arithmetic (crash). The ContinueWatchPercent exemplar 60 lines up gates the
+    ' same field's shape then consumes the NATIVE member; this Play-path read
+    ' now shares that law.
+    if IsBoxedNumber(cw.position_ticks) then
         resumeSeconds = cw.position_ticks / 10000000.0
     end if
 
@@ -713,8 +733,11 @@ sub OnContinueItemFocused(event as Object)
     cw = m.continueItems[index]
     if cw = invalid then return
 
-    if m.descriptionLabel <> invalid and cw.name <> invalid then
-        m.descriptionLabel.text = cw.name
+    if m.descriptionLabel <> invalid then
+        ' RT-092: cw.name twin-rail focus handler — boxed shape crossed the
+        ' `<>invalid` guard into the String write (see the item.name twin above).
+        nm = TextOrEmpty(cw.name)
+        if nm <> "" then m.descriptionLabel.text = nm
     end if
 end sub
 

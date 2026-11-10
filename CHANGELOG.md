@@ -51,6 +51,59 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — w15L9 batch RT-092 RT-105: server-shaped scalars stop crashing typed-field writes through the boxed-lift choke, and the direct-play container derivation stops claiming a format it cannot observe — 2026-11-10
+
+- **RT-092 (review `roku__exploiter` #1, Major):** the boxed-type-lift cohort.
+  DecodeJson scalars reached typed `roSGNode` field writes, ordered numeric
+  comparisons, and arithmetic guarded only against `invalid` — a boxed number,
+  boolean, or assocarray from wire drift sailed past `<> invalid` and raised a
+  Type Mismatch (`String <> Integer` in a comparison; `Float >= String`; `Int()`
+  on a non-numeric). Two shared choke predicates are added to `source/lib/Utilities.brs`
+  — `IsBoxedNumber(value)` (the whole numeric family, intrinsic *and* `ro` type
+  names) and `TextOrEmpty(value)` (a real string passes byte-identical, every
+  other shape answers the `""` sentinel) — applied across the cohort sites: the
+  `DetailScene` render item (title/overview/year/runtime/rating) and aggregate
+  rating; the three `PlayerScene` title writes, the `(Preparing…)` concat arms,
+  and the group-state member count; the `HomeScene` focus/description strip
+  writes and the continue-watching resume division; `LibraryScene`'s
+  `LetterBucketOffset` and the grid/description rows; and `AudiobookPlayerScene`'s
+  chapters container, the stored position, and the chapter start/end reads. The
+  lift pairs each predicate with the **native** member rather than a boxed-return
+  helper: a lift that re-wrapped its result would carry the object wrap forward
+  into the same arithmetic the fix exists to guard (and the headless `brs`
+  interpreter refuses to compare a boxed return to an integer literal). The
+  canonical numeric exemplar this follows is `HomeScene`'s `ContinueWatchPercent`
+  — guard the shape, then consume the native. `NormalizeCollectionItem` lifts at
+  the shared boundary, so `CollectionScene` is covered through it (closed-by-SSOT,
+  no scene-level edit). Unit conviction: five new headless tests
+  (`TestIsBoxedNumberTruthTable`, `TestTextOrEmptyTruthTable`,
+  `TestNormalizeCollectionItemLiftsMalformedShapes` in `tests/unit/Utilities2.test.brs`;
+  `TestLetterBucketOffsetHappyPath`, `TestLetterBucketOffsetMalformedShapes` in
+  `tests/unit/LibrarySceneRoutines.test.brs`); the battery moved 258 → 264, zero
+  failures. A dedicated per-inline-site static check (the next free number after
+  99) is **not** added in this era: the check ledger is range-coupled across
+  `scripts/verify-runtime.sh`, its portable twin, and `docs/static-checks.md`
+  narration, so a correct new check rotates all three in lockstep with a
+  red-first plant — deferred as its own hardening pass rather than landed half
+  and reddening the gate for the repo and its siblings.
+
+- **RT-105 (review `roku__crossfe` #2, Major):** direct-play container
+  derivation. `GetStreamFormat` emitted `mov`, `mpegts`, and `webm` — values that
+  are **not** accepted Roku `StreamFormat` tokens — and its trailing `return
+  "mp4"` claimed mp4 for every unknown container. The invalid branches were
+  masked by the derivation: signer-minted stream URLs (`/media/{uuid}/stream?exp=…&sig=…`)
+  carry no dot, so `GetFileExtension` always answered `""` and the caller's
+  `if containerExt = "" then containerExt = "mp4"` default made the probe test a
+  fabricated mp4 regardless of the real bytes. `GetStreamFormat` now answers only
+  platform-valid tokens (mp4/mov/m4v → mp4, mkv/mka/mks → mkv, m3u8 → hls, mp3,
+  wma) and the `""` sentinel for every other input, including `ts`/`webm`;
+  `PlayerScene` drops the `""`-to-mp4 default and routes an unknown container
+  straight to the transcode lane instead of probing a claim it cannot observe.
+  Unit conviction: `tests/unit/Utilities.test.brs`'s `TestGetStreamFormat` rotated
+  off the pinned-invalid expectations (measured red first) and a new
+  `TestGetStreamFormatRejectsInvalidFormats` pins the `""` for `ts`/`webm`/empty/garbage,
+  the signer-URL derivation, and the case folds.
+
 ### Fixed — w14L1 batch RT-047 RT-048 RT-049 RT-091: the admin scan screen gains its auto-poll timer, the library sort order finally flips and speaks, a busy task cannot stick pagination or arm a phantom session state, and the join digest's UTF-8 routing gains the conviction headless never could — 2026-11-10
 
 - **RT-047 (review `roku__gameux` #4, Info):** `LibraryAdminActionsScene`

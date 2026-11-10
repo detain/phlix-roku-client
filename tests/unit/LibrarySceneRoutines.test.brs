@@ -109,3 +109,49 @@ sub TestLibrarySortOrderCompositionLaw()
     assertEqual(order, "asc")
     print "TestLibrarySortOrderCompositionLaw passed"
 end sub
+
+' ---- RT-092 [review roku__exploiter #1]: LetterBucketOffset box gates ----
+' The /media/letter-index rows are raw DecodeJson. `m` is the global AA under
+' the harness (seed g.letterIndex), the same shim the sort tests use.
+sub TestLetterBucketOffsetHappyPath()
+    g = GetGlobalAA()
+    ' Closure pin: the gate's choke helpers must be named HERE too — the
+    ' headless harness builds its program from the SUITE's reference walk, and
+    ' the two calls below (which the gated site consumes) pull Utilities.brs
+    ' into the program. Drop them and LetterBucketOffset's TextOrEmpty call
+    ' resolves to nothing.
+    assertEqual(TextOrEmpty("A"), "A")
+    assertTrue(IsBoxedNumber(5))
+    g.letterIndex = [ _
+        { letter: "A", count: 5, offset: 0 }, _
+        { letter: "B", count: 3, offset: 5 } ]
+    assertEqual(LetterBucketOffset("B"), 5)
+    assertEqual(LetterBucketOffset("A"), 0)   ' a real offset of 0 stays 0, not -1
+    assertEqual(LetterBucketOffset("Z"), -1)  ' unmatched letter
+    print "TestLetterBucketOffsetHappyPath passed"
+end sub
+
+sub TestLetterBucketOffsetMalformedShapes()
+    g = GetGlobalAA()
+    ' Closure pin (see HappyPath): name the choke helpers the gated site calls.
+    ' The boxed-String rejection below is the same law, at the helper level.
+    assertEqual(TextOrEmpty(456), "")
+    assertFalse(IsBoxedNumber("9"))
+    ' A boxed String count and a boxed String offset would crash the old
+    ' `bucket.count <= 0` ordered compare and `CInt` respectively; the guard
+    ' turns both into the documented sentinel instead. (The junk-element leg
+    ' is its own array below — brs rejects a heterogeneous array LITERAL,
+    ' and the product's letterIndex arrays come from DecodeJson anyway.)
+    g.letterIndex = [ _
+        { letter: "C", count: "9", offset: 1 }, _
+        { letter: "D", count: 4 }, _
+        { letter: "E", count: 2, offset: 11 } ]
+    assertEqual(LetterBucketOffset("C"), -1)  ' count is not numeric -> empty bucket
+    assertEqual(LetterBucketOffset("D"), 0)   ' valid count, absent offset -> 0
+    assertEqual(LetterBucketOffset("E"), 11)  ' the real bucket still resolves
+    ' A bare string element (not an AA) is skipped by the type gate; the old
+    ' code indexed .letter on it and raised.
+    g.letterIndex = ["junk-not-an-aa"]
+    assertEqual(LetterBucketOffset("A"), -1)
+    print "TestLetterBucketOffsetMalformedShapes passed"
+end sub

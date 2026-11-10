@@ -76,16 +76,20 @@ sub LoadAudiobook(audiobook as Object)
     ' Set basic info from audiobook object
     m.itemId = audiobook.id
 
+    ' RT-092 [review roku__exploiter #1]: the audiobook payload is wire-shaped;
+    ' title/author cross into typed String .text fields. TextOrEmpty keeps real
+    ' strings byte-identical and answers "" for a malformed box instead of
+    ' crashing the write.
     if m.titleLabel <> invalid then
-        m.titleLabel.text = audiobook.title
+        m.titleLabel.text = TextOrEmpty(audiobook.title)
     end if
 
     if m.titleLabel2 <> invalid then
-        m.titleLabel2.text = audiobook.title
+        m.titleLabel2.text = TextOrEmpty(audiobook.title)
     end if
 
     if m.authorLabel <> invalid then
-        m.authorLabel.text = audiobook.author
+        m.authorLabel.text = TextOrEmpty(audiobook.author)
     end if
 
     if m.coverImage <> invalid and audiobook.cover_url <> invalid then
@@ -119,7 +123,16 @@ sub OnApiResponse(event as Object)
 
     if resp.op = "getAudiobookChapters" then
         if resp.ok and resp.data <> invalid then
-            m.chapters = resp.data.chapters
+            ' RT-092 [review roku__exploiter #1]: resp.data.chapters is a wire
+            ' shape - on server drift it can arrive as a boxed scalar or an
+            ' assocarray, and m.chapters is immediately Count()-ed and for-each-ed
+            ' (OnPositionUpdate, SeekToChapterStart, UpdateChapterLabel,
+            ' BuildChapterListContent) plus compared against savedChapterIndex.
+            ' roArray-gate at the boundary: a malformed container keeps the []
+            ' initialized in LoadAudiobook, so playback proceeds with an honest
+            ' empty chapter list instead of crashing Count() on a String.
+            chaptersValue = resp.data.chapters
+            if type(chaptersValue) = "roArray" then m.chapters = chaptersValue
             m.chaptersLoaded = true
             BuildChapterListContent()
         end if
@@ -256,10 +269,13 @@ sub OnPositionUpdate(event as Object)
             for i = 0 to m.chapters.Count() - 1
                 ch = m.chapters[i]
                 if ch <> invalid then
-                    startSec = ch.start_seconds
-                    endSec = ch.end_seconds
-                    if startSec <> invalid and endSec <> invalid then
-                        if position >= startSec and position < endSec then
+                    ' RT-092 [review roku__exploiter #1]: ch.start_seconds /
+                    ' ch.end_seconds are boxed wire values; the old `<> invalid`
+                    ' guard waved a boxed String through to `position >= startSec`
+                    ' and `position < endSec` (Float >= String raises). Gate both
+                    ' shapes first, then compare the NATIVE members.
+                    if IsBoxedNumber(ch.start_seconds) and IsBoxedNumber(ch.end_seconds) then
+                        if position >= ch.start_seconds and position < ch.end_seconds then
                             if m.currentChapterIndex <> i then
                                 m.currentChapterIndex = i
                                 UpdateChapterLabel()
@@ -334,7 +350,10 @@ end sub
 sub SeekToChapterStart()
     if m.currentChapterIndex >= 0 and m.currentChapterIndex < m.chapters.Count() then
         ch = m.chapters[m.currentChapterIndex]
-        if ch <> invalid and ch.start_seconds <> invalid then
+        ' RT-092 [review roku__exploiter #1]: ch.start_seconds crosses into the
+        ' Audio node's typed Float `seek` field; a boxed String raises the write.
+        ' Gate the shape, then seek on the NATIVE member.
+        if ch <> invalid and IsBoxedNumber(ch.start_seconds) then
             m.audioPlayer.seek = ch.start_seconds
         end if
     end if
@@ -435,8 +454,20 @@ sub OnProgressResponse(event as Object)
     ' Handle getAudiobookProgress response
     if resp.op = "getAudiobookProgress" then
         if resp.ok and resp.data <> invalid then
-            m.savedPositionMs = resp.data.position_ms
-            m.savedChapterIndex = resp.data.current_chapter_index
+            ' RT-092 [review roku__exploiter #1]: position_ms and
+            ' current_chapter_index are boxed wire values. savedPositionMs is
+            ' later compared `> 0` and divided by 1000 (:200), and
+            ' savedChapterIndex is compared against m.chapters.Count() and used
+            ' as an index (:206) - a boxed String raises on `>` (and Int()-ing a
+            ' non-numeric raises). Gate the shape then store the NATIVE member
+            ' directly into the field (a lift helper's boxed return would carry
+            ' the wrap forward into those compares); 0 is the declared "nothing
+            ' saved" shape (init at :60-61), so a malformed box degrades to
+            ' no-restore rather than a crash.
+            m.savedPositionMs = 0
+            if IsBoxedNumber(resp.data.position_ms) then m.savedPositionMs = resp.data.position_ms
+            m.savedChapterIndex = 0
+            if IsBoxedNumber(resp.data.current_chapter_index) then m.savedChapterIndex = Int(resp.data.current_chapter_index)
             m.progressLoaded = true
             m.progressConsecutiveFailures = 0
 
@@ -483,7 +514,9 @@ sub BuildChapterListContent()
     for each ch in m.chapters
         if ch = invalid then goto nextChapterBuild
         child = CreateObject("roSGNode", "ContentNode")
-        child.Title = ch.title
+        ' RT-092 [review roku__exploiter #1]: ch.title is a boxed wire value
+        ' crossing into ContentNode.Title (a String field); lift at the boundary.
+        child.Title = TextOrEmpty(ch.title)
         content.appendChild(child)
         nextChapterBuild:
     end for
@@ -496,8 +529,10 @@ sub UpdateChapterLabel()
 
     if m.currentChapterIndex >= 0 and m.currentChapterIndex < m.chapters.Count() then
         ch = m.chapters[m.currentChapterIndex]
-        if ch <> invalid and ch.title <> invalid then
-            m.chapterLabel.text = ch.title
+        ' RT-092: ch.title crosses into a typed String .text field.
+        if ch <> invalid then
+            title = TextOrEmpty(ch.title)
+            if title <> "" then m.chapterLabel.text = title
         end if
     end if
 end sub
