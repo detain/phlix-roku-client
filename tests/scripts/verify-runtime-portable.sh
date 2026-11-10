@@ -917,7 +917,7 @@ NE19=$(sed -n '/=== Check 19:/,/=== Check 20:/p' <<<"$RED19E_OUT" | grep -c "CHE
 [ "$NE19" -eq 1 ] || fail "exactly one CHECK19 violation expected for the escape plant (the Translate sibling must stay exempt); got $NE19"
 sed -n '/=== Check 20:/,/=== Check 21:/p' <<<"$RED19E_OUT" | grep -q "CHECK20: all" ||
 	fail "Check 20 must stay PASS while Check 19 is red (gate independence, escape leg)"
-sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED19E_OUT" | grep -q "CHECK25: chrome literals" ||
+sed -n '/=== Check 25:/,/=== Check 26:/p' <<<"$RED19E_OUT" | grep -q "CHECK25: all" ||
 	fail "Check 25 must stay PASS while Check 19 is red (gate independence, escape leg)"
 
 # --- Check 25 red proof on an independent scratch copy: the XML-chrome
