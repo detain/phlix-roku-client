@@ -632,3 +632,40 @@ sub TestUtf8BytesForCodePointTruthTable()
     assertEqual(s[3], 183)
     print "TestUtf8BytesForCodePointTruthTable passed"
 end sub
+
+' W14L1 RT-041 fold-in: the string-level UTF-8 fold the join-password
+' digest now routes through. Every byte law pinned per-code-point above
+' is composed HERE over whole strings - and the digest call-site wiring
+' is pinned statically by Check 99 (the roEVPDigest leg stops headless
+' execution short of the loop, so this vector pin + that static leg are
+' the full conviction the reviewer's M-041A proved missing).
+sub TestUtf8BytesFromStringTruthTable()
+    ' ASCII identity + multibyte folds, probe-truth-tabled vectors.
+    empty = Utf8BytesFromString("")
+    assertEqual(empty.Count(), 0)
+
+    ab = Utf8BytesFromString("ab")
+    assertEqual(ab.Count(), 2)
+    assertEqual(ab[0], 97)
+    assertEqual(ab[1], 98)
+
+    cafe = Utf8BytesFromString("café")
+    assertEqual(cafe.Count(), 5)
+    assertEqual(cafe[0], 99)
+    assertEqual(cafe[1], 97)
+    assertEqual(cafe[2], 102)
+    assertEqual(cafe[3], 195)
+    assertEqual(cafe[4], 169)
+
+    euro = Utf8BytesFromString("€")
+    assertEqual(euro.Count(), 3)
+    assertEqual(euro[0], 226)
+    assertEqual(euro[1], 130)
+    assertEqual(euro[2], 172)
+
+    mixed = Utf8BytesFromString("a€b")
+    assertEqual(mixed.Count(), 5)
+    assertEqual(mixed[0], 97)
+    assertEqual(mixed[4], 98)
+    print "TestUtf8BytesFromStringTruthTable passed"
+end sub

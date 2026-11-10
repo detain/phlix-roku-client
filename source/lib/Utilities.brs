@@ -734,6 +734,32 @@ function Utf8BytesForCodePoint(code as Integer) as Object
     return bytes
 end function
 
+' [W14L1 fold-in RT-041, review roku__secnet #5 via REVIEW-w13L3roku Minor 1]
+' The whole-string leg of the UTF-8 law: every character's code point through
+' Utf8BytesForCodePoint, concatenated - a pure String -> roArray(Integer) fold
+' (invalid/empty give an empty array). SyncPlayPasswordHash pushes exactly
+' these bytes into the roByteArray the SPEC §4 digest runs over, and UrlEncode
+' percent-escapes the same law character by character. Before this extraction
+' the join-password digest carried the loop inline: M-041A (an input-encoding
+' regression - e.g. a raw FromAsciiString-style byte loop) shipped HEADLESS
+' GREEN at w13L3 because the roEVPDigest leg stops every headless call short
+' of the loop, leaving the byte law with zero automated conviction. The
+' extraction makes the byte sequence itself headless-testable (a truth-vector
+' pin in Utilities2) and gives the gate a call-site law to pin: the digest
+' body must route through this function (Check 99 R2).
+' @param text String - the raw string (invalid tolerated -> empty array)
+' @return Object - roArray of Integer UTF-8 byte values, in order
+function Utf8BytesFromString(text as String) as Object
+    bytes = []
+    if text = invalid or text = "" then return bytes
+    for i = 1 to Len(text)
+        for each b in Utf8BytesForCodePoint(Asc(Mid(text, i, 1)))
+            bytes.Push(b)
+        end for
+    end for
+    return bytes
+end function
+
 ' URL-encode a string (percent-encode according to RFC 3986).
 ' roUrlTransfer.Escape() does not exist in the Roku SDK (verified against ROKU_SDK_12+).
 ' RFC 3986 unreserved characters: A-Z a-z 0-9 - . _ ~
@@ -2084,10 +2110,12 @@ function SyncPlayPasswordHash(plain as String) as String
     if evp.Setup("sha256") <> 0 then return ""
     src = CreateObject("roByteArray")
     if src = invalid then return ""
-    for i = 1 to Len(plain)
-        for each b in Utf8BytesForCodePoint(Asc(Mid(plain, i, 1)))
-            src.Push(b)
-        end for
+    ' [W14L1 RT-041 fold-in] The byte law now routes through the extracted
+    ' pure Utf8BytesFromString (see its header): the digest and the headless
+    ' truth-vector tests exercise the SAME function, so the input-encoding
+    ' law the inline loop used to hide behind is pinned on every battery run.
+    for each b in Utf8BytesFromString(plain)
+        src.Push(b)
     end for
     hexStr = evp.Process(src)
     if hexStr = invalid then return ""

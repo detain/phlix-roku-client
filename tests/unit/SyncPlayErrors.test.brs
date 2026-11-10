@@ -226,3 +226,126 @@ sub TestLocalizeSyncPlayLocalErrorNeverEmpty()
     assertTrue(LocalizeSyncPlayLocalError(42) <> "")
     print "TestLocalizeSyncPlayLocalErrorNeverEmpty passed"
 end sub
+
+' ================================================================
+' W14L1 LW-034 [minor] - the error-code census gets its CROSS-REPO
+' pin. tests/fixtures/error-codes.json is a byte-for-byte vendor of
+' @phlix/contracts dist/error-codes.json (trio md5 5d1783a7... held);
+' the harness stages tests/fixtures into the brs root so the REAL
+' bytes are parsed here - not a transcribed twin (fixture-vs-fixture
+' is the vacuity class this law forbids). Registry integrity (md5) is
+' convicted by Check 99 R1 in scripts/verify-runtime.sh; equality and
+' containment below are convicted HERE, device-side semantics intact.
+' ================================================================
+
+sub SyncPlayFixtureCodes(codesOut as Object)
+    raw = ReadAsciiFile("pkg:/tests/fixtures/error-codes.json")
+    codesOut.arr = invalid
+    if raw = invalid or Len(raw) = 0 then return
+    reg = ParseJson(raw)
+    if reg = invalid then return
+    codesOut.arr = reg.codes
+end sub
+
+' Family filter over the RAW registry list: "syncplay" -> the dotted
+' syncplay.* specialization family; "screaming" -> the bare (no-dot)
+' carrier set. Everything else in the registry belongs to other wire
+' domains and must not leak into either leg.
+function SyncPlayFixtureFamily(codes as Object, family as String) as Object
+    out = []
+    for each c in codes
+        if family = "syncplay" then
+            if Left(c, 9) = "syncplay." then out.Push(c)
+        else if family = "screaming" then
+            if InStr(1, c, ".") = 0 then out.Push(c)
+        end if
+    end for
+    return out
+end function
+
+sub TestSyncPlayFixtureVendsTheContractsRegistry()
+    holder = {}
+    SyncPlayFixtureCodes(holder)
+    codes = holder.arr
+    ' If this reddens, the harness stopped staging tests/fixtures (the
+    ' file is pinned by Check 99 too - the pin fails LOUD, never silently).
+    assertTrue(codes <> invalid)
+    ' 205 wire codes (line-vs-code honesty: the registry file carries
+    ' 205 ENTRIES; 210 was the route-manifest-era line count in the
+    ' console twin - the count this gate pins is the CODE count).
+    assertEqual(codes.Count(), 205)
+    fam = SyncPlayFixtureFamily(codes, "syncplay")
+    assertEqual(fam.Count(), 8)
+    print "TestSyncPlayFixtureVendsTheContractsRegistry passed"
+end sub
+
+sub TestSyncPlayCensusDottedEqualsRegistrySyncplayFamily()
+    holder = {}
+    SyncPlayFixtureCodes(holder)
+    codes = holder.arr
+    assertTrue(codes <> invalid)
+    registrySync = SyncPlayFixtureFamily(codes, "syncplay")
+    censusDotted = []
+    for each c in SyncPlayKnownErrorCodes()
+        if Left(c, 9) = "syncplay." then censusDotted.Push(c)
+    end for
+    ' Set equality, both directions. A registry addition (a new syncplay
+    ' specialization) reddens the first loop until the census maps it; a
+    ' retired/dropped census code reddens the second.
+    assertEqual(censusDotted.Count(), registrySync.Count())
+    for each c in censusDotted
+        found = false
+        for each r in registrySync
+            if r = c then found = true
+        end for
+        assertTrue(found)
+    end for
+    for each r in registrySync
+        found2 = false
+        for each c in censusDotted
+            if r = c then found2 = true
+        end for
+        assertTrue(found2)
+    end for
+    print "TestSyncPlayCensusDottedEqualsRegistrySyncplayFamily passed"
+end sub
+
+sub TestSyncPlayCensusScreamingContainedInRegistry()
+    ' CONTAINMENT (console LW-090-b law 3, mirrored): every SCREAMING
+    ' carrier the census maps is a real registry code. The registry's
+    ' bare (non-dotted) half spans OTHER wire domains too - 76 members
+    ' measured in the vendored artifact, 64 of them non-syncplay
+    ' snake_case codes this client never speaks - so the law here is
+    ' one-directional on purpose; the syncplay.* family above is where
+    ' the law is full set-equality.
+    holder = {}
+    SyncPlayFixtureCodes(holder)
+    codes = holder.arr
+    assertTrue(codes <> invalid)
+    registryBare = SyncPlayFixtureFamily(codes, "screaming")
+    assertEqual(registryBare.Count(), 76)
+    censusScreaming = []
+    for each c in SyncPlayKnownErrorCodes()
+        if Left(c, 9) <> "syncplay." then censusScreaming.Push(c)
+    end for
+    ' 12 = 9 live + 3 pre-flip legacy twins (the twin-flip dual map).
+    assertEqual(censusScreaming.Count(), 12)
+    for each s in censusScreaming
+        assertTrue(InStr(1, s, ".") = 0)
+        found = false
+        for each r in registryBare
+            if r = s then found = true
+        end for
+        assertTrue(found)
+    end for
+    print "TestSyncPlayCensusScreamingContainedInRegistry passed"
+end sub
+
+sub TestSyncPlayCensusSizeIsTwenty()
+    ' emitted-verified (20) + reserved (0) - the census the fixture now
+    ' pins against is itself held at the 12+3+8 shape the header docblocks
+    ' recite (9 live SCREAMING + 3 pre-flip legacy + 8 dotted).
+    assertEqual(SyncPlayKnownErrorCodes().Count(), 20)
+    assertEqual(SyncPlayReservedErrorCodes().Count(), 0)
+    print "TestSyncPlayCensusSizeIsTwenty passed"
+end sub

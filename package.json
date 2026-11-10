@@ -11,7 +11,10 @@
     "validate": "make validate",
     "validate-manifest": "make validate-manifest",
     "check": "make check",
-    "package": "make package"
+    "package": "make package",
+    "audit": "node scripts/audit-gate.mjs",
+    "audit-self-test": "node scripts/audit-gate.mjs --self-test",
+    "test-audit-gate": "node --test tests/audit-gate.test.mjs"
   },
   "repository": {
     "type": "git",

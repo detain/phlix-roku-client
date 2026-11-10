@@ -30,6 +30,18 @@ jobs:
         # device-only suites are excluded there with per-item reasons).
         run: node tests/scripts/run-headless-unit.mjs
 
+      - name: npm audit gate (RT-088)
+        # Documented allow-list (scripts/audit-gate.mjs): the seven allowed
+        # advisories are all brs@0.45.0-subtree dev-chain entries with NO
+        # reachable fix (proofs printed on every run); ANY other advisory —
+        # at any severity — reddens this step, unlike a bare
+        # --audit-level=moderate. Self-test + mirror tests first: a neutered
+        # decision layer fails the job even if a green audit shrugs.
+        run: |
+          npm run audit-self-test
+          npm run test-audit-gate
+          npm run audit
+
       - name: Run lint
         run: |
           make lint

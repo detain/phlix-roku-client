@@ -14707,4 +14707,338 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+# ---------------------------------------------------------------------------
+echo "=== Check 99: w14L1 era - the vendored contracts registry is byte-pinned, the syncplay census meets it through equality and containment, and the RT-041/042/047/048/049/091 laws hold in their carriers (LW-034 RT-041 RT-042 RT-047 RT-048 RT-049 RT-091) ==="
+# NUMBERING: 99 is the next-FREE leg (98 taken by w12L3, measured on this lane
+# at 131df6b289: highest header in this file is Check 98; 'Check 99'/'CHECK99'
+# appeared nowhere in scripts/ or docs/ before this block was written - the
+# only hits are this era's own forward-references in tests and the register).
+#
+# WHY THE LEG EXISTS (card w14 L1, reviews 2026-11-09):
+#  (a) LW-034 (review roku__devops) - the estate's error-code census had NO
+#      cross-repo pin on roku: the console family learned this lesson the hard
+#      way (38b068cb ContractsErrorCodesGateTest) - fixture-vs-fixture twins
+#      are the vacuity class, so R1 pins the vendored bytes by md5 against the
+#      contracts registry ITSELF (dist/error-codes.json at the FROZEN trio md5
+#      5d1783a71a3c4e128b2021327cad3717, 205 codes) and R2 meets the Bright-
+#      Script census with real EQUALITY (the 8 dotted syncplay.* members) and
+#      honest CONTAINMENT (the 12 SCREAMING members live inside the 76 bare
+#      registry members of mixed domains - the same law 3 the console gate
+#      carries). Drift in EITHER direction reddens: a census member the
+#      registry lacks, or a family rename registry-side the census never
+#      followed.
+#  (b) RT-041 fold-in (REVIEW-w13L3roku Minor 1) - the join-password digest
+#      R2 ships a cure whose headless conviction was a gap: M-041A (revert to
+#      the FromAsciiString spelling) sailed green because the roEVPDigest leg
+#      stops headless. R3 pins the ROUTING statically: SyncPlayPasswordHash
+#      must feed through the pure Utf8BytesFromString, must not regrow the
+#      inline Asc(Mid(plain split, and the helper must keep delegating to the
+#      truth-table'd Utf8BytesForCodePoint.
+#  (c) RT-042 fold-in (REVIEW-w13L3roku Minor 2) - the push-cap refusal rides
+#      zero automated render conviction headless (brs mocks unknown
+#      roSGNode types as Invalid, so ShowErrorDialog cannot execute); R4
+#      statically pins both deep-link arms routing their refusal through
+#      ShowDeepLinkError (never a silent ShowHome) and the cap's disclose-
+#      invalid order inside PushScreen. The headless cap-refusal test
+#      (PhlixApp.test.brs) convicts the return-invalid leg.
+#  (d) R4 also carries the era's ORDER laws - RT-049 (busy check precedes the
+#      loadingPage stick), RT-091 (busy check precedes the pendingUpNext arm),
+#      RT-047 (poll decision sits above the device-only label rendering; the
+#      timer is created, observed, silenced through RefreshStatus(silent) and
+#      released in Teardown), RT-048 (the order marker rides the label, the
+#      cycle steps through NextSortStep, and the dead " *" construction stays
+#      extinct in ShowSortOptions).
+#  (e) R5 docs pair - this row + the CHANGELOG era entry naming every id and
+#      Check 99 + scripts/audit-gate.mjs (RT-088), the CHECK97/98 closure law.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import hashlib, json, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+FIXTURE = "tests/fixtures/error-codes.json"
+FIXTURE_MD5 = "5d1783a71a3c4e128b2021327cad3717"
+REGISTRY_COUNT = 205
+SYNCPLAY_FAMILY = 8
+BARE_MEMBERS = 76
+CENSUS_TOTAL = 20
+CENSUS_DOTTED = 8
+CENSUS_SCREAMING = 12
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def mask(text):
+    out = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
+def sub_body(text, name):
+    m = re.search(r"(?m)^(?:sub|function)\s+%s\b[^\n]*\n(.*?)^end (?:sub|function)" % re.escape(name),
+                  text, re.DOTALL)
+    return m.group(0) if m else None
+
+
+def before(body, first, second, leg, label, problems):
+    a, b = body.find(first), body.find(second)
+    if a < 0:
+        problems.append("  %s - CHECK99 %s: literal %s vanished" % (label, leg, repr(first)))
+    elif b < 0:
+        problems.append("  %s - CHECK99 %s: literal %s vanished" % (label, leg, repr(second)))
+    elif a > b:
+        problems.append("  %s - CHECK99 %s: %s must precede %s" % (label, leg, repr(first), repr(second)))
+
+
+problems = []
+
+RAW_FIX = read(FIXTURE)
+UTIL = read("source/lib/Utilities.brs")
+LAA = read("components/LibraryAdminActionsScene.brs")
+LIB = read("components/LibraryScene.brs")
+SRCH = read("components/SearchScene.brs")
+HOME = read("components/HomeScene.brs")
+APP = read("components/PhlixApp.brs")
+DOCS = read("docs/static-checks.md")
+CHLOG = read("CHANGELOG.md")
+for path, blob in ((FIXTURE, RAW_FIX), ("source/lib/Utilities.brs", UTIL),
+                   ("components/LibraryAdminActionsScene.brs", LAA),
+                   ("components/LibraryScene.brs", LIB),
+                   ("components/SearchScene.brs", SRCH),
+                   ("components/HomeScene.brs", HOME),
+                   ("components/PhlixApp.brs", APP),
+                   ("docs/static-checks.md", DOCS), ("CHANGELOG.md", CHLOG)):
+    if blob is None:
+        problems.append("  %s - CHECK99 R0: unreadable" % path)
+
+# ---- R1: the vendored registry is the contracts registry, byte for byte ----
+codes = []
+if RAW_FIX is not None:
+    digest = hashlib.md5(RAW_FIX.encode("utf-8")).hexdigest()
+    if digest != FIXTURE_MD5:
+        problems.append("  %s - CHECK99 R1: md5 %s is not the FROZEN contracts trio md5 %s "
+                        "(re-vendor from phlix-contracts dist/error-codes.json, do not hand-edit)"
+                        % (FIXTURE, digest, FIXTURE_MD5))
+    try:
+        data = json.loads(RAW_FIX)
+    except ValueError as err:
+        data = None
+        problems.append("  %s - CHECK99 R1: unparseable JSON: %s" % (FIXTURE, err))
+    if data is not None:
+        comment = data.get("$comment", "")
+        if "emit-error-codes.mjs" not in comment:
+            problems.append("  %s - CHECK99 R1: $comment does not name the generator "
+                            "scripts/emit-error-codes.mjs" % FIXTURE)
+        raw_codes = data.get("codes")
+        if not isinstance(raw_codes, list) or not all(isinstance(c, str) for c in raw_codes):
+            problems.append("  %s - CHECK99 R1: codes is not a list of strings" % FIXTURE)
+            raw_codes = []
+        codes = raw_codes
+        if len(raw_codes) != REGISTRY_COUNT:
+            problems.append("  %s - CHECK99 R1: registry carries %d codes, expected %d"
+                            % (FIXTURE, len(raw_codes), REGISTRY_COUNT))
+        if len(set(raw_codes)) != len(raw_codes):
+            problems.append("  %s - CHECK99 R1: registry carries duplicates" % FIXTURE)
+
+registry_syncplay = sorted(c for c in codes if c.startswith("syncplay."))
+registry_bare = [c for c in codes if "." not in c]
+
+# ---- R2: the census MEETS the registry (equality + honest containment) ----
+census = []
+reserved_members = None
+if UTIL is not None:
+    m = re.search(r"function SyncPlayKnownErrorCodes\(\).*?end function", UTIL, re.S)
+    if not m:
+        problems.append("  source/lib/Utilities.brs - CHECK99 R2: SyncPlayKnownErrorCodes() not found")
+    else:
+        census = re.findall(r'"([^"]+)"', m.group(0))
+    r = re.search(r"function SyncPlayReservedErrorCodes\(\).*?end function", UTIL, re.S)
+    if not r:
+        problems.append("  source/lib/Utilities.brs - CHECK99 R2: SyncPlayReservedErrorCodes() not found")
+    else:
+        reserved_members = re.findall(r'"([^"]+)"', r.group(0))
+if census:
+    if len(census) != len(set(census)):
+        dupes = sorted({c for c in census if census.count(c) > 1})
+        problems.append("  source/lib/Utilities.brs - CHECK99 R2: census contains duplicates %s" % dupes)
+    if len(census) != CENSUS_TOTAL:
+        problems.append("  source/lib/Utilities.brs - CHECK99 R2: census carries %d codes, expected %d"
+                        % (len(census), CENSUS_TOTAL))
+    dotted = sorted(c for c in census if "." in c)
+    screaming = sorted(c for c in census if "." not in c)
+    if len(dotted) != CENSUS_DOTTED or len(screaming) != CENSUS_SCREAMING:
+        problems.append("  source/lib/Utilities.brs - CHECK99 R2: census split is %d dotted/%d bare, "
+                        "expected %d/%d" % (len(dotted), len(screaming), CENSUS_DOTTED, CENSUS_SCREAMING))
+    if registry_syncplay and dotted != registry_syncplay:
+        missing = sorted(set(dotted) - set(registry_syncplay))
+        extra = sorted(set(registry_syncplay) - set(dotted))
+        problems.append("  source/lib/Utilities.brs - CHECK99 R2: syncplay family drift "
+                        "(census-only %s | registry-only %s) - the census and the vendored "
+                        "contracts registry must move together" % (missing, extra))
+    lost = sorted(set(screaming) - set(registry_bare))
+    if lost:
+        problems.append("  source/lib/Utilities.brs - CHECK99 R2: SCREAMING members not in the "
+                        "registry bare set: %s" % lost)
+if reserved_members is not None and reserved_members:
+    problems.append("  source/lib/Utilities.brs - CHECK99 R2: SyncPlayReservedErrorCodes() is no longer "
+                    "the empty list (%s) - promote deliberately and move the census, do not silently arm"
+                    % reserved_members)
+
+# ---- R3: RT-041 - the digest routes through the pure UTF-8 helper ----
+if UTIL is not None:
+    hash_body = mask(sub_body(UTIL, "SyncPlayPasswordHash") or "")
+    helper_body = mask(sub_body(UTIL, "Utf8BytesFromString") or "")
+    if not hash_body:
+        problems.append("  source/lib/Utilities.brs - CHECK99 R3: SyncPlayPasswordHash not found")
+    else:
+        if "Utf8BytesFromString(plain)" not in hash_body:
+            problems.append("  source/lib/Utilities.brs - CHECK99 R3: SyncPlayPasswordHash no longer "
+                            "feeds the digest through Utf8BytesFromString(plain)")
+        if "Asc(Mid(plain" in hash_body:
+            problems.append("  source/lib/Utilities.brs - CHECK99 R3: the inline Asc(Mid(plain byte "
+                            "split regrew inside SyncPlayPasswordHash (M-041A class - headless cannot "
+                            "convict it, this leg is the only automated pin)")
+    if not helper_body:
+        problems.append("  source/lib/Utilities.brs - CHECK99 R3: Utf8BytesFromString not found")
+    elif "Utf8BytesForCodePoint(Asc(Mid(text" not in helper_body:
+        problems.append("  source/lib/Utilities.brs - CHECK99 R3: Utf8BytesFromString no longer "
+                        "delegates to the truth-table'd Utf8BytesForCodePoint(Asc(Mid(text")
+
+# ---- R4: era render/order laws in their carriers ----
+if LAA is not None:
+    init_body = mask(sub_body(LAA, "Init") or "")
+    resp_body = mask(sub_body(LAA, "OnApiResponse") or "")
+    tear_body = mask(sub_body(LAA, "Teardown") or "")
+    inflight = mask(sub_body(LAA, "IsScanJobInFlight") or "")
+    refresh_sig = sub_body(LAA, "RefreshStatus")
+    for needle, where, carrier in (("CreateChild(\"Timer\")", init_body, "Init"),
+                                   ("ObserveField(\"fire\", \"OnScanPollFire\")", init_body, "Init"),
+                                   ("SetScanPolling(IsScanJobInFlight(", resp_body, "OnApiResponse"),
+                                   ("m.scanTimer = invalid", tear_body, "Teardown")):
+        if needle not in where:
+            problems.append("  components/LibraryAdminActionsScene.brs - CHECK99 R4 (RT-047): "
+                            "%s missing from the %s carrier" % (repr(needle), carrier))
+    if resp_body and "scanStatusLabel" in resp_body:
+        before(resp_body, "SetScanPolling(IsScanJobInFlight(", "scanStatusLabel",
+               "R4 (RT-047)", "LibraryAdminActionsScene.OnApiResponse", problems)
+    elif resp_body:
+        problems.append("  components/LibraryAdminActionsScene.brs - CHECK99 R4 (RT-047): "
+                        "the scanStatusLabel carrier vanished from OnApiResponse")
+    for needle in ("\"queued\"", "\"running\""):
+        if needle not in inflight:
+            problems.append("  components/LibraryAdminActionsScene.brs - CHECK99 R4 (RT-047): "
+                            "IsScanJobInFlight no longer treats %s as in-flight" % needle)
+    if refresh_sig is None or "RefreshStatus(silent = false as Boolean)" not in refresh_sig:
+        problems.append("  components/LibraryAdminActionsScene.brs - CHECK99 R4 (RT-047): "
+                        "RefreshStatus lost its silent-parameter signature")
+if LIB is not None:
+    labels_body = mask(sub_body(LIB, "UpdateSortFilterLabels") or "")
+    sort_body = mask(sub_body(LIB, "ShowSortOptions") or "")
+    step_body = mask(sub_body(LIB, "NextSortStep") or "")
+    marker_body = mask(sub_body(LIB, "SortOrderMarker") or "")
+    if "+ SortOrderMarker(m.sortOrder)" not in labels_body:
+        problems.append("  components/LibraryScene.brs - CHECK99 R4 (RT-048): the sort label no "
+                        "longer carries + SortOrderMarker(m.sortOrder)")
+    for needle in ("NextSortStep(m.sortField, m.sortOrder)", "ApplySort(nxt.field, nxt.order)"):
+        if needle not in sort_body:
+            problems.append("  components/LibraryScene.brs - CHECK99 R4 (RT-048): ShowSortOptions "
+                            "no longer steps through %s" % needle)
+    if '" *"' in sort_body:
+        problems.append("  components/LibraryScene.brs - CHECK99 R4 (RT-048): the dead \" *\" "
+                        "selection-marker construction regrew in ShowSortOptions")
+    if "ToggleSortOrder(" not in step_body:
+        problems.append("  components/LibraryScene.brs - CHECK99 R4 (RT-048): NextSortStep no "
+                        "longer flips the order at the wrap")
+    if '"desc"' not in marker_body:
+        problems.append("  components/LibraryScene.brs - CHECK99 R4 (RT-048): SortOrderMarker "
+                        "lost its desc spelling")
+if SRCH is not None:
+    more_body = mask(sub_body(SRCH, "LoadMoreItems") or "")
+    if not more_body:
+        problems.append("  components/SearchScene.brs - CHECK99 R4 (RT-049): LoadMoreItems not found")
+    else:
+        before(more_body, "m.apiTask.state = \"run\"", "m.loadingPage = true",
+               "R4 (RT-049)", "SearchScene.LoadMoreItems", problems)
+if HOME is not None:
+    upnext_body = mask(sub_body(HOME, "OnUpNextItemSelected") or "")
+    if not upnext_body:
+        problems.append("  components/HomeScene.brs - CHECK99 R4 (RT-091): OnUpNextItemSelected not found")
+    else:
+        before(upnext_body, "m.apiTask.state = \"run\"", "m.pendingUpNext = {",
+               "R4 (RT-091)", "HomeScene.OnUpNextItemSelected", problems)
+if APP is not None:
+    dl_body = mask(sub_body(APP, "OnDeepLinkItemResponse") or "")
+    push_body = mask(sub_body(APP, "PushScreen") or "")
+    if not dl_body:
+        problems.append("  components/PhlixApp.brs - CHECK99 R4 (RT-042): OnDeepLinkItemResponse not found")
+    else:
+        for needle in ("if detailScene = invalid", "if seasonScene <> invalid"):
+            if needle not in dl_body:
+                problems.append("  components/PhlixApp.brs - CHECK99 R4 (RT-042): the %s arm "
+                                "vanished - a refused push must never ride on silently" % needle)
+        if dl_body.count("ShowDeepLinkError()") < 3:
+            problems.append("  components/PhlixApp.brs - CHECK99 R4 (RT-042): the deep-link error "
+                            "surface appears %d time(s), expected at least 3 (failure + both "
+                            "refusal arms)" % dl_body.count("ShowDeepLinkError()"))
+    if not push_body:
+        problems.append("  components/PhlixApp.brs - CHECK99 R4 (RT-042): PushScreen not found")
+    else:
+        cap = push_body.find("Count() >= 12")
+        create = push_body.find("CreateObject(")
+        if cap < 0 or create < 0:
+            problems.append("  components/PhlixApp.brs - CHECK99 R4 (RT-042): PushScreen lost its "
+                            "cap probe or its node construction")
+        elif cap > create:
+            problems.append("  components/PhlixApp.brs - CHECK99 R4 (RT-042): the >= 12 cap check "
+                            "must refuse BEFORE any node is built")
+        if "return invalid" not in push_body:
+            problems.append("  components/PhlixApp.brs - CHECK99 R4 (RT-042): the cap refusal no "
+                            "longer discloses invalid to its callers")
+
+# ---- R5: docs pair ----
+if DOCS is not None:
+    row = re.search(r"(?m)^\|\s*99\s*\|.*$", DOCS)
+    if not row:
+        problems.append("  docs/static-checks.md - CHECK99 R5: no row 99 in the checks table")
+    else:
+        for idiom in ("LW-034", "RT-041", "RT-042", "RT-047", "RT-048", "RT-049", "RT-091"):
+            if idiom not in row.group(0):
+                problems.append("  docs/static-checks.md - CHECK99 R5: row 99 does not name %s" % idiom)
+if CHLOG is not None:
+    for idiom in ("LW-034", "RT-041", "RT-042", "RT-047", "RT-048", "RT-049", "RT-091",
+                  "Check 99", "scripts/audit-gate.mjs"):
+        if idiom not in CHLOG:
+            problems.append("  CHANGELOG.md - CHECK99 R5: does not name %s" % idiom)
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK99: %d conviction(s) - the w14L1 era laws are broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK99: the vendored registry is the contracts registry byte-for-byte, the census")
+print("  meets it through syncplay-family equality and bare-set containment, and the era's")
+print("  digest routing, deep-link refusal and sort-order laws stand in their carriers")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

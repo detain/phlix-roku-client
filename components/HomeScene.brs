@@ -494,12 +494,22 @@ sub OnUpNextItemSelected(event as Object)
 
     if mediaItemId = "" then return
 
+    ' RT-091 [W14L1, review roku__exploiter #5]: the arm used to land BEFORE
+    ' the busy check, so a press while the shared apiTask was running (e.g.
+    ' a resume-chain getItem from OnContinueItemSelected) armed pendingUpNext
+    ' with ZERO request of its own in flight. The response dispatcher keys
+    ' on pendingUpNext <> invalid, so the NEXT getItem reply — belonging to
+    ' the other caller — was mis-consumed as this chain's answer (a wrong
+    ' title could launch), and the real press was swallowed. Busy now means
+    ' "not armed": the user simply presses again, mirroring the pendingResume
+    ' guard law above (guard precedes any state mutation).
+    if m.apiTask.state = "run" then return
+
     ' Start the serialized launch chain: getItem -> getItemPlaybackInfo -> PlayerScene.Show
     m.pendingUpNext = {
         mediaItemId: mediaItemId
         item: invalid
     }
-    if m.apiTask.state = "run" then return
     m.apiTask.request = { op: "getItem", itemId: mediaItemId }
     m.apiTask.control = "run"
 end sub

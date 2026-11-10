@@ -20,6 +20,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: npm audit gate (RT-088)
+        # Allow-list semantics + per-entry proofs in scripts/audit-gate.mjs.
+        run: npm run audit
+
       - name: brighterscript (zero-error gate)
         run: npx bsc --project bsconfig.json
 

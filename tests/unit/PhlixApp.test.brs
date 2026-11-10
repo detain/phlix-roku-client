@@ -144,3 +144,27 @@ sub TestPhlixAppProcessDeepLinkRefusesWhileFetchInFlight()
     assertEqual(g.deepLinkFetchTask.marker, "first")
     print "TestPhlixAppProcessDeepLinkRefusesWhileFetchInFlight passed"
 end sub
+
+' W14L1 fold-in MI-2 (RT-042): the push-cap refusal is the FIRST
+' leg of PushScreen and needs no render tree - a deep-link arriving at a
+' full stack (or any caller) gets the documented invalid back, and the
+' stack is untouched. The CAP-ARM of the RT-042 refusal→ShowDeepLinkError
+' routing is therefore headless-pinned here; the ERROR-LEAF side stays
+' device-only (brs returns Invalid for CreateObject("roSGNode","Dialog")
+' / ("HomeScene") - measured, disclosed in FIX-roku-w14L1.md) and is
+' convicted statically by Check 99 R3 (both arms route the refusal to
+' ShowDeepLinkError, never bare ShowHome).
+sub TestPhlixAppPushScreenCapRefusalIsDisclosedInvalid()
+    g = GetGlobalAA()
+    stack = CreateObject("roArray", 16, true)
+    for i = 0 to 11
+        stack.Push({ marker: i })
+    end for
+    g.screenStack = stack
+    g.deepLinkFetchTask = invalid
+    refused = PushScreen("DetailScene", {})
+    assertEqual(refused, invalid)
+    ' Refusal must not grow the stack (the OOM walk-down it prevents).
+    assertEqual(g.screenStack.Count(), 12)
+    print "TestPhlixAppPushScreenCapRefusalIsDisclosedInvalid passed"
+end sub

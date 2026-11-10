@@ -86,7 +86,11 @@ cd phlix-roku-client
 Nothing is required **on the device** — BrightScript is natively supported by Roku OS.
 The **development toolchain** is not: `make lint` runs `npx bsc`, and all three CI
 workflows (`lint.yml`, `test.yml`, `package.yml`) run `npm ci` against `package.json`'s
-devDependencies first. From a fresh checkout:
+devDependencies first. All three also run `scripts/audit-gate.mjs` (RT-088): a
+documented npm-audit allow-list — the seven allowed advisory ids all hang in the
+`brs@0.45.0` dev chain (the device-free test interpreter, superseded upstream) with
+NO reachable fix, per-entry proofs printed on every run; ANY other advisory at ANY
+severity reddens the gate, and a broken audit never exits green. From a fresh checkout:
 
 ```bash
 npm ci    # devDependencies: brighterscript, @rokucommunity/bslint, rooibos-roku
@@ -415,7 +419,7 @@ printf 'user = "rokudev:%s"\ndigest\nurl = "http://192.168.1.100/plugin_install"
 
 ### Unit Tests
 
-Unit tests live in `tests/unit/` — **25 rooibos unit suites** at time of writing, one
+Unit tests live in `tests/unit/` — **29 rooibos unit suites** at time of writing, one
 `*.test.brs` file per module. The full listing is the **Test Structure** block below;
 Check 62 pins this count and the listing to the shipped tree, so a re-drift reddens CI.
 
@@ -472,7 +476,8 @@ moment this block and the tree disagree, in either direction):
 
 ```
 tests/
-├── unit/                                  # 25 rooibos suites, one *.test.brs per module
+├── unit/                                  # 29 rooibos suites, one *.test.brs per module
+│   ├── AdminScanRoutines.test.brs
 │   ├── ApiClient.test.brs
 │   ├── ApiEnvelope.test.brs
 │   ├── AppContext.test.brs
@@ -481,10 +486,13 @@ tests/
 │   ├── ContentIdGuard.test.brs
 │   ├── DetailSceneYear.test.brs
 │   ├── Discovery.test.brs
+│   ├── HomeSceneRoutines.test.brs
 │   ├── HubRelayOriginLaw.test.brs
+│   ├── LibrarySceneRoutines.test.brs
 │   ├── PanelStack.test.brs
 │   ├── PhlixApp.test.brs
 │   ├── RedirectCustody.test.brs
+│   ├── SearchSceneRoutines.test.brs
 │   ├── SkipButton.test.brs
 │   ├── SleepTimer.test.brs
 │   ├── Storage.test.brs
@@ -803,11 +811,12 @@ phlix-roku/
 │   ├── LoginScene.brs            # Login screen (username/password only); after login probes GET /me/servers to detect hub vs direct
 │   └── ServerPickerScene.brs     # Hub mode: "Choose a server" list (one-shot GET /me/servers); pick persists active_server_id → relay routing
 ├── tests/
+│   ├── audit-gate.test.mjs       # node --test mirror of the npm audit gate decision layer (RT-088)
 │   ├── unit/                     # BrightScript unit tests (Storage/ApiClient/AuthManager/SyncPlay/WireGuard/…)
 │   ├── integration/              # BrightScript integration tests (ApiIntegration)
-│   ├── fixtures/                 # Vendored server-route-manifest.json (route gate)
+│   ├── fixtures/                 # Vendored server-route-manifest.json (route gate) + error-codes.json (Check 99 contracts-registry pin)
 │   └── scripts/                  # run-headless-unit.mjs (the device-free CI unit gate), verify-route-manifest.mjs, verify-runtime-portable.sh
-├── scripts/                      # verify-runtime.sh (static-check legs), validate-xml.sh, verify-package.sh, package-signed.sh, derive-version.sh, add-headers.py
+├── scripts/                      # verify-runtime.sh (static-check legs), validate-xml.sh, verify-package.sh, package-signed.sh, derive-version.sh, add-headers.py, audit-gate.mjs (documented-allow-list npm audit gate, RT-088)
 ├── locale/                       # Seven catalogs, same flattened key set (Check 21 parity; see docs/i18n.md)
 │   ├── de_DE/strings.json
 │   ├── en_US/strings.json        # Base locale — the fallback + comparison source

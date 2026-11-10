@@ -76,6 +76,15 @@ jobs:
       - name: Headless BrightScript unit gate (brs)
         run: node tests/scripts/run-headless-unit.mjs
 
+      - name: npm audit gate (RT-088)
+        # Same gate as Tests/Lint workflows; runs here too because M-ROKU-23
+        # law is that every publish-blocking device-free leg lives in THIS
+        # workflow's needs-chain (the audit verdict gates the zip as much as
+        # the unit battery does).
+        run: |
+          npm run audit-self-test
+          npm run audit
+
   # ===========================================
   # Device-dependent gates (run when ROKU_HOST is set, do NOT block publishing)
   # ===========================================

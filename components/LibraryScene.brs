@@ -193,7 +193,13 @@ end sub
 sub UpdateSortFilterLabels()
     if m.sortLabel <> invalid then
         ' Localized "Sort: <label>" via catalog token template.
-        m.sortLabel.text = TranslateWithParams("library_sort_label", { sort: TranslateSortLabel(m.sortField) })
+        ' RT-048: the catalog labels bake the ASCENDING walk ("Name (A-Z)"),
+        ' so the descending leg gets a non-lexical caret — chrome, not copy,
+        ' in the class of the retired " *" selection marker. Minting new
+        ' catalog keys is forbidden this lane (the flattened key SET is
+        ' pinned by Checks 48/87/93/94); " v" states the direction without
+        ' lying, and the letter-jump's forced asc leg removes it again.
+        m.sortLabel.text = TranslateWithParams("library_sort_label", { sort: TranslateSortLabel(m.sortField) }) + SortOrderMarker(m.sortOrder)
     end if
 
     if m.filterLabel <> invalid then
@@ -212,29 +218,74 @@ sub OnOptionsPressed()
 end sub
 
 sub ShowSortOptions()
-    ' Build list of sort options with current selection marked
-    sortList = []
-    idx = 0
-    for each field in [m.sortName, m.sortYear, m.sortRating, m.sortDateAdded, m.sortRuntime]
-        label = TranslateSortLabel(field)
-        if field = m.sortField then
-            label = label + " *"
-        end if
-        sortList.push(label)
-        idx = idx + 1
-    end for
-
-    ' TODO: replace the cycle-on-press fallback with a real picker surface.
-    ' The old text promised roListDialog - a Native UI (canvas-era) dialog
-    ' that cannot join a SceneGraph node tree; the shipped idiom here is a
-    ' LabelList/RowList fed by a ContentNode, or a dedicated roSGNode panel.
-    ' For now, cycle through options on each press
-    fields = [m.sortName, m.sortYear, m.sortRating, m.sortDateAdded, m.sortRuntime]
-    currentIdx = fields.find(m.sortField)
-    if currentIdx < 0 then currentIdx = 0
-    nextIdx = (currentIdx + 1) mod fields.count()
-    ApplySort(fields[nextIdx], m.sortOrder)
+    ' [W13L3 era cleanup, RT-048] A dead sortList build (labels marked with
+    ' " *" for a dialog that was never constructed) used to sit here; the
+    ' cycle-on-press path below is the shipped surface and the picker-surface
+    ' ambition stays a note, not a phantom list: the old text promised
+    ' roListDialog - a Native UI (canvas-era) dialog that cannot join a
+    ' SceneGraph node tree; a future real picker is a LabelList/RowList fed
+    ' by a ContentNode, or a dedicated roSGNode panel.
+    '
+    ' RT-048 [W14L1, review roku__gameux #3] cures the INERT ORDER: the
+    ' sort order was persisted, validated on load (incl "desc") and even
+    ' sent to the server - but every press rode m.sortOrder forward, so
+    ' "desc" was unreachable through any UI path. The cycle now flips
+    ' asc<->desc when it wraps back to the first field (see NextSortStep):
+    ' pressing Options walks Name -> Year -> Rating -> Added -> Runtime and
+    ' re-enters at Name in the opposite direction. Every state is reachable.
+    ' (nxt, not step: STEP is a BrightScript reserved word - the parser
+    ' convicts the name at load, measured at this lane's battery.)
+    nxt = NextSortStep(m.sortField, m.sortOrder)
+    ApplySort(nxt.field, nxt.order)
 end sub
+
+' RT-048: the sort fields in cycle order. Rebuilt fresh per call - callers
+' must not mutate module state through it (mirrors the census-return law).
+function SortFields() as Object
+    return [m.sortName, m.sortYear, m.sortRating, m.sortDateAdded, m.sortRuntime]
+end function
+
+' RT-048: PURE next-step law of the Options cycle - {field, order}. Wrapping
+' to the first field flips the direction; mid-list steps keep it. Unknown
+' current field starts at the first step (the old find()<0 arm, kept).
+function NextSortStep(currentField as String, currentOrder as String) as Object
+    fields = SortFields()
+    ' Explicit index scan, not fields.find(): the headless carrier convicts
+    ' .find as "not a function" (measured at this battery), while the
+    ' firmware's roArray does carry Find (LoadSortPreference has called it
+    ' on every LibraryScene open since that lane shipped without crash
+    ' reports). The scan below is total on BOTH carriers, which is the
+    ' whole point: the pure law is now headless-testable - exactly what
+    ' let the inert-order bug hide for this long.
+    idx = -1
+    for i = 0 to fields.Count() - 1
+        if fields[i] = currentField then
+            idx = i
+            exit for
+        end if
+    end for
+    if idx < 0 then idx = 0
+    nextIdx = (idx + 1) mod fields.Count()
+    order = currentOrder
+    if nextIdx = 0 then
+        order = ToggleSortOrder(currentOrder)
+    end if
+    return { field: fields[nextIdx], order: order }
+end function
+
+' RT-048: direction toggle. Anything not "desc" is ascending, so a garbage
+' stored order self-heals to desc on its first flip (and to itself otherwise).
+function ToggleSortOrder(order as String) as String
+    if LCase(order + "") = "desc" then return "asc"
+    return "desc"
+end function
+
+' RT-048: PURE label marker - "" ascending (the labels already read that
+' way), " v" descending. ASCII-only chrome; never localized, never a key.
+function SortOrderMarker(order as String) as String
+    if LCase(order + "") = "desc" then return " v"
+    return ""
+end function
 
 sub ApplySort(sortField as String, sortOrder as String)
     if sortField <> m.sortField or sortOrder <> m.sortOrder then

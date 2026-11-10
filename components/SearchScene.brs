@@ -149,6 +149,18 @@ sub LoadMoreItems()
     query = m.keyboard.text
     if query = invalid or Len(query.trim()) < 2 then return
 
+    ' RT-049 [W14L1, review roku__gameux #5]: the busy check used to run
+    ' AFTER the flag was raised, so a page request attempted while the
+    ' shared apiTask still ran a search set loadingPage=true, returned
+    ' without issuing anything, and NOTHING ever cleared the flag again
+    ' (OnApiResponse clears it only when a response for this generation
+    ' lands). Every later prefetch was then locked out by the guard above:
+    ' the lost page. The check now precedes the flag — busy means "retry
+    ' on the next key event", and the flag keeps its honest meaning: a
+    ' page request is genuinely outstanding. (RT-005 healed the debounced
+    ' search leg; this is the distinct pagination leg.)
+    if m.apiTask.state = "run" then return
+
     m.loadingPage = true
 
     ' R5.2: Capture current generation so stale page responses are discarded
@@ -161,7 +173,6 @@ sub LoadMoreItems()
         options: { limit: m.limit, offset: m.offset }
         searchGen: currentGen
     }
-    if m.apiTask.state = "run" then return
     m.apiTask.control = "run"
 end sub
 

@@ -62,6 +62,12 @@ const ALLOWED = [
     "HubRelayOriginLaw", "WireGuard", "AuthManager", "ApiClient",
     "AppContext", "PhlixApp", "SyncPlayManager", "SyncPlayWsTls", "PanelStack",
     "SyncPlayJoinCode", "DetailSceneYear",
+    // W14L1: four scene-routines suites drive one component each through
+    // the EXTRA_SOURCES door (RT-047/048/049/091). One component per suite
+    // is mandatory, not tidiness: the scenes share plain-text function
+    // names (Init/Teardown/OnApiResponse/LoadMoreItems...) and brs refuses
+    // duplicate declarations in one program.
+    "AdminScanRoutines", "LibrarySceneRoutines", "SearchSceneRoutines", "HomeSceneRoutines",
 ];
 // Suites kept off the headless list and why (measured, not assumed — each
 // entry was run and its crash reason recorded in the W-min91 fixlog).
@@ -167,6 +173,12 @@ const EXTRA_SOURCES = {
     // W13L3 RT-045: the warm-deeplink timer-release + in-flight-choke legs
     // drive components/PhlixApp.brs subs directly (same door, same law).
     PhlixApp: ["components/PhlixApp.brs"],
+    // W14L1 RT-047/048/049/091: one scene behind each new door (see the
+    // ALLOWED comment - shared plain-text names forbid co-loading).
+    AdminScanRoutines: ["components/LibraryAdminActionsScene.brs"],
+    LibrarySceneRoutines: ["components/LibraryScene.brs"],
+    SearchSceneRoutines: ["components/SearchScene.brs"],
+    HomeSceneRoutines: ["components/HomeScene.brs"],
 };
 
 // --- symbol index -----------------------------------------------------------
@@ -355,6 +367,18 @@ async function main() {
     const { index, files: sourceFiles } = buildIndex();
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "brs-unit-"));
     fs.writeFileSync(path.join(tmp, "manifest"), "title=BrsUnit\nmajor_version=0\nminor_version=0\nbuild_version=0\n");
+    // W14L1 LW-034: stage tests/fixtures under the brs root so a suite can
+    // ReadAsciiFile("pkg:/tests/fixtures/...") the VENDORED bytes (probe-
+    // measured: ReadAsciiFile resolves pkg:/ against the execution root in
+    // brs, so the .brs census test reads the real artifact, not a twin).
+    // bsconfig ships tests/**/*.brs into the channel zip but NOT
+    // tests/**/*.json - nothing under source/ or components/ ever reads
+    // these fixtures (the battery and Check 99 are their only consumers),
+    // so the zip stays lean and the pkg:/ leg only resolves under this
+    // harness's staged root.
+    if (fs.existsSync(path.join(REPO, "tests", "fixtures"))) {
+        fs.cpSync(path.join(REPO, "tests", "fixtures"), path.join(tmp, "tests", "fixtures"), { recursive: true });
+    }
     const preludePath = path.join(tmp, "__prelude.brs");
     fs.writeFileSync(preludePath, PRELUDE);
 

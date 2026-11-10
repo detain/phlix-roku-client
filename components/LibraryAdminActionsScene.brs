@@ -15,9 +15,15 @@
 '
 ' LibraryAdminScene creates + appends this scene and calls LoadLibrary(id,name)
 ' across the component boundary, so LoadLibrary is declared in the XML
-' <interface>. Status refresh is MANUAL (the Refresh button); after a queued
+' <interface>. Status refresh starts MANUAL (the Refresh button); after a queued
 ' scan/rescan/match action the OnApiResponse branch chains a RefreshStatus() so
-' the new job state shows. No auto-poll (would need a Timer node) - future work.
+' the new job state shows. RT-047 [W14L1, review roku__gameux #4] delivers the
+' auto-poll this header used to defer as "future work": a repeating 5-second
+' Timer node re-runs the status read while the job row reports an in-flight
+' state (IsScanJobInFlight), stops at terminal/failed reads, and is released on
+' Teardown. Ticks ride the SAME pendingOp-serialized RefreshStatus, so the
+' one-outstanding-request law still holds — a tick during an in-flight request
+' is simply a no-op.
 
 sub Init()
     ApplyXmlChrome()
@@ -50,10 +56,23 @@ sub Init()
     m.apiTask = CreateObject("roSGNode", "ApiTask")
     m.apiTask.ObserveField("response", "OnApiResponse")
 
+    ' RT-047: repeating status-poll timer (SearchScene's searchTimer owns the
+    ' same CreateChild idiom). It is only STARTED while a scan job reports an
+    ' in-flight state (SetScanPolling via OnApiResponse); an idle timer never
+    ' dials. duration 5s is the estate on-screen poll era (the server-side
+    ' sweep cadence is slower; this is user-visible state, not a lock).
+    m.scanTimer = m.top.CreateChild("Timer")
+    if m.scanTimer <> invalid then
+        m.scanTimer.duration = 5
+        m.scanTimer.repeat = true
+        m.scanTimer.ObserveField("fire", "OnScanPollFire")
+    end if
+
     ' State. m.pendingOp tracks the one outstanding op (invalid = idle) so a
     ' button press while a request is in flight is ignored.
     m.libraryId = ""
     m.pendingOp = invalid
+    m.scanPolling = false
 
     ' Focus the first action button.
     if m.scanButton <> invalid then m.scanButton.SetFocus(true)
@@ -75,14 +94,41 @@ end sub
 
 ' Read the current scan-status (serialized, guarded). Skipped while another op
 ' is in flight so two control="run" are never outstanding on the single task.
-sub RefreshStatus()
+sub RefreshStatus(silent = false as Boolean)
     if m.pendingOp <> invalid then return
     if m.libraryId = "" then return
 
     m.pendingOp = "getLibraryScanStatus"
-    SetStatus("Loading status…")
+    ' RT-047: timer ticks pass silent=true - a status read every five seconds
+    ' must not re-flash "Loading status…" over the operator's "Job queued"
+    ' message; only manual/initial reads announce the load.
+    if not silent then SetStatus("Loading status…")
     m.apiTask.request = { op: "getLibraryScanStatus", libraryId: m.libraryId }
     m.apiTask.control = "run"
+end sub
+
+' RT-047: poll tick = a silent status read. RefreshStatus's own pendingOp
+' guard makes a tick during an in-flight request a no-op (never two
+' control="run" on the single task), and its libraryId guard covers the
+' pre-LoadLibrary window.
+sub OnScanPollFire(event as Object)
+    RefreshStatus(true)
+end sub
+
+' RT-047: start/stop the repeating timer, idempotent in both directions.
+' The m.scanPolling flag is the truth of intent; the timer's control field
+' only accepts verbs, so state is tracked here (never re-issued every tick).
+sub SetScanPolling(wanted as Boolean)
+    if m.scanTimer = invalid then return
+    if wanted then
+        if m.scanPolling then return
+        m.scanPolling = true
+        m.scanTimer.control = "start"
+    else
+        if not m.scanPolling then return
+        m.scanPolling = false
+        m.scanTimer.control = "stop"
+    end if
 end sub
 
 sub OnScan(event as Object)
@@ -127,6 +173,23 @@ sub OnApiResponse(event as Object)
             job = resp.data.scan_status
         end if
 
+        ' RT-047: arm or stop the poll from the SAME response that renders the
+        ' summary - covers the initial read (an already-running job starts
+        ' auto-polling the moment the screen opens), post-action chains, manual
+        ' refreshes, and the ticks themselves. A failed/absent job row reads
+        ' as not-in-flight, so a transport failure stops the poll rather than
+        ' dialing forever; the Refresh button (or a re-open) re-arms it.
+        ' The decision sits ABOVE the label rendering: the never-scanned
+        ' fallback leg below routes through Translate (catalog state - a
+        ' device-only headless gap the w13L3 exclusions already document),
+        ' and the poll law must stand no matter what the label carrier can
+        ' execute.
+        jobStatus = ""
+        if job <> invalid and job.DoesExist("status") and job.status <> invalid then
+            jobStatus = job.status
+        end if
+        SetScanPolling(IsScanJobInFlight(jobStatus))
+
         if m.scanStatusLabel <> invalid then
             if job = invalid then
                 m.scanStatusLabel.text = Translate("libraryadminactions_never_scanned")
@@ -148,6 +211,17 @@ sub OnApiResponse(event as Object)
         end if
     end if
 end sub
+
+' RT-047: the in-flight law for scan job rows, from the server's own state
+' machine (phlix-server ScanJobRepository: 'queued' -> 'running' ->
+' 'completed' | 'failed'). TRUE means the job can still move - keep polling.
+' Anything else (terminal, unknown, empty, garbage) stops the poll: polling
+' only while the server says work is pending is the whole duty. Pure.
+function IsScanJobInFlight(status as String) as Boolean
+    if status = invalid then return false
+    s = LCase(status.Trim())
+    return s = "queued" or s = "running"
+end function
 
 ' Build a multi-line summary of a scan-status job row. All fields are Strings -
 ' guard DoesExist + invalid + "" (no numeric <> "" comparisons).
@@ -218,6 +292,16 @@ sub Teardown()
     if m.matchButton <> invalid then m.matchButton.UnObserveField("buttonSelected")
     if m.refreshButton <> invalid then m.refreshButton.UnObserveField("buttonSelected")
     if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
+    ' RT-047: the poll timer pairs with Init the same way the rest does -
+    ' stop the tick, drop the observer, leave the tree (PhlixApp's warm-deep
+    ' link timer release law: stop, UnObserveField("fire"), RemoveChild).
+    if m.scanTimer <> invalid then
+        m.scanTimer.control = "stop"
+        m.scanTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.scanTimer)
+        m.scanTimer = invalid
+    end if
+    m.scanPolling = false
 end sub
 
 function OnKeyEvent(key as String, press as Boolean) as Boolean

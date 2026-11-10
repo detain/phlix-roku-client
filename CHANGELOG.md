@@ -51,6 +51,115 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — w14L1 batch RT-047 RT-048 RT-049 RT-091: the admin scan screen gains its auto-poll timer, the library sort order finally flips and speaks, a busy task cannot stick pagination or arm a phantom session state, and the join digest's UTF-8 routing gains the conviction headless never could — 2026-11-10
+
+- **RT-047 (review `roku__gameux` #4, Info):** `LibraryAdminActionsScene`
+  carried a header note admitting "No auto-poll (would need a Timer node) —
+  future work"; the card is delivered. `Init` attaches a repeating 5 s Timer
+  (`m.top.CreateChild("Timer")`, the PhlixApp-guarded idiom); the in-flight
+  decision rides the SAME response that renders the summary —
+  `SetScanPolling(IsScanJobInFlight(jobStatus))` sits ABOVE the label block
+  (the never-scanned fallback leg routes through `Translate`, catalog state —
+  the poll law must stand regardless); `IsScanJobInFlight` treats the server's
+  `ScanJobRepository` in-flight pair queued/running as poll-worthy and every
+  terminal/failed read as stop (a transport failure stops rather than dialing
+  forever — the Refresh button re-arms); ticks call `RefreshStatus(silent)` so
+  the status line is not flapped under the viewer; `Teardown` releases the
+  timer per the warm-deep-link law (stop, UnObserveField("fire"), RemoveChild,
+  nil). 8 headless tests (`AdminScanRoutines`, all 8 red at 131df6b289).
+- **RT-048 (review `roku__gameux` #3, Minor):** the persisted `order` was
+  inert UI theater — `LoadSortPreference` read `"desc"` but no control ever
+  wrote it, and the sort dialog's cycle kept the order fixed while its
+  label-list build (" *"-marked, never rendered — a TODO admitted it) was
+  dead code. The cycle now steps through the pure `NextSortStep` (field
+  advance; at the wrap `ToggleSortOrder` flips asc/desc) and the label
+  carries the direction via `SortOrderMarker` — a plain ASCII glyph appended
+  OUTSIDE the translated sentence, because minting catalog keys was refused
+  (the 392-key set is pinned by Checks 48/87/93/94 this lane deliberately did
+  not rotate); the dead build is gone. 5 headless tests
+  (`LibrarySceneRoutines`, all 5 red at parent — `NextSortStep` does not even
+  exist there; `step` is a BrightScript reserved word, parser-convicted at
+  load, which is why the local is `nxt`).
+- **RT-049 (review `roku__gameux` #5, Info):** `LoadMoreItems` set
+  `m.loadingPage = true` and THEN returned on a busy apiTask — the flag
+  stuck with zero request outstanding and every later prefetch was locked out
+  by the guard above (RT-005 healed the debounced-search leg; this is the
+  distinct pagination leg). The busy check now precedes the stick; the flag
+  keeps its honest meaning (a page is genuinely outstanding). 2 defect legs +
+  2 characterization tests (`SearchSceneRoutines`; exactly the 2 defect legs
+  red at parent).
+- **RT-091 (review `roku__exploiter` #5, Major-cured-earlier-class):**
+  `OnUpNextItemSelected` armed `m.pendingUpNext` BEFORE its busy check — an
+  Up-Nest press against a busy task left a phantom armed state with no
+  request in flight, which the `getItem` dispatch then mis-consumed from
+  WHATEVER response landed (wrong-title launch class). The arm now sits after
+  the busy check, mirroring the `pendingResume` guard law two screens over.
+  `HomeSceneRoutines` drives the REAL product sub: exactly its 1 defect leg
+  red at parent, arming/retry/guard-order legs green.
+- Battery move, measured not assumed: 231/0/54 rc=0 at base 131df6b289 to
+  **258/0/54 rc=0** at this commit (+27: the four new suites 8+5+4+4, the
+  RT-041 truth table +1, the LW-034 cross-source legs +4, the RT-042
+  cap-refusal leg +1), one component per new suite (scenes share
+  Init/Teardown/OnApiResponse names — the loader refuses duplicates), the
+  harness now stages `tests/fixtures/` into its pkg:/ root.
+
+### Added — Check 99 + the npm audit gate (RT-088): the vendored contracts error-code registry is byte-pinned with cross-source census law, the RT-041 digest routing gets the only conviction headless cannot supply, and every reported advisory must be justified or the build reddens — 2026-11-10
+
+- **LW-034 (review `roku__devops`):** the syncplay error-code census lived
+  with no cross-repo pin — the console family (38b068cb) had already learned
+  that a fixture checked in beside a test that only compares itself to it is
+  the vacuity class. So `tests/fixtures/error-codes.json` is the contracts
+  registry itself (`dist/error-codes.json`, the FROZEN trio md5
+  `5d1783a71a3c4e128b2021327cad3717`, 205 codes), Check 99 R1 md5-pins the
+  bytes, R2 meets the BrightScript census against them through dotted-family
+  EQUALITY (both directions) and honest SCREAMING⊆bare CONTAINMENT over the
+  76-member mixed-domain set, and four battery tests re-derive the same laws
+  from the product census at runtime (`brs` reads the staged fixture —
+  `ReadAsciiFile`/`ParseJson` verified against the interpreter this lane
+  ships). Registry-side rename AND census-side rename both convict — executed
+  plants, not narrative.
+- **RT-041/RT-042 fold-in convictions (REVIEW-w13L3roku Minors 1-2):** the
+  digest's UTF-8 byte feed was extracted to the pure `Utf8BytesFromString`
+  (truth-table pinned in `Utilities2`) and Check 99 R3 statically forbids the
+  M-041A inline-split re-growth — the revert the headless battery ships GREEN
+  (the roEVPDigest leg stops above the loop), measured; the RT-042 push-cap
+  refusal is convicted headless for its return-invalid leg and statically for
+  the both-arms route through `ShowDeepLinkError` (the dialog leaf is
+  device-only: brs mocks unknown roSGNode component types as Invalid — the
+  boundary is disclosed here, per the review's own instruction).
+- **RT-088 (review `roku__devops`, card premise re-derived FIRST):** the
+  premise is REAL — `package.json` + `package-lock.json` + three CI jobs
+  running `npm ci`, and zero audit legs anywhere (grep, 131df6b289).
+  `scripts/audit-gate.mjs` ports the estate documented-allow-list design
+  (phlix-website d096ab9a, from windows 74fc744/bb9276d): the audit passes
+  only while the reported GHSA-id set is a subset of `ALLOWED_ADVISORIES`;
+  ANY other advisory at ANY severity reddens it (exit 1), and a broken/unread
+  audit exits 2 — never silently 0. The seven allowed ids are every advisory
+  the tree reports, all hanging under `brs@0.45.0` ALONE — the device-free
+  test interpreter, upstream superseded (0.45.0 is its FINAL release), with
+  decompress ×4 (newest-ever IS the flagged 4.2.1 — no patched release
+  exists), decode-uri-component ×2 (0.2.2 is the newest 0.2.x ever and
+  `npm update --package-lock-only` moved a BYTE-IDENTICAL lock, measured this
+  lane), and uuid ×1 (patched 11.1.1 is two majors above the ^8.3.0
+  declaration). npm's own remediation is a semver-major DOWNGRADE of brs to
+  0.39.0 — refused regression theater; cross-major overrides refused under
+  S430. Per-entry justifications print on every run with removal plans and
+  a re-verify-by 2027-02-10 watch. The gate runs in ALL THREE workflows
+  (test.yml carries its self-test + `node --test tests/audit-gate.test.mjs`
+  mirror first — anti-neutering: a decision layer weakened in the diff fails
+  the job even if a green audit shrugs; lint.yml and package.yml's
+  publish-gating leg run gate + self-test), and
+  `npm run audit / audit-self-test / test-audit-gate` join the scripts.
+- **Check 99 R5:** the docs pair — `docs/static-checks.md` row 99 + this
+  entry. Numbering collision-probed clean (98 taken by w12L3;
+  'Check 99'/'CHECK99' absent from scripts/, tests/ and docs/ before this
+  era). Portable twin (`tests/scripts/verify-runtime-portable.sh`) carries
+  the registry-corruption and digest-revert plant legs: exactly-2 +
+  exactly-2 convictions, gate independence proven (Checks 22/94/98 sleep),
+  restore to exit 0 — the vendored fixture rides the fake repo through the
+  whole-tests stage, so the cross-repo pin is proven portable, not
+  self-referential.
+
 ### Fixed — w13L3 batch RT-041..RT-046: the join digest stops ASCII-folding, deep-link refusals speak instead of vanishing, the warm defer timer unmounts, the player observe list closes symmetric, the certification key row joins the present, and the auth-verb families resolve to one — 2026-11-10
 
 - **RT-041 — the syncplay join digest hashes the password's UTF-8 bytes
