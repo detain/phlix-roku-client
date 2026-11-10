@@ -252,11 +252,18 @@ cp "$REAL_REPO/docs/bif_thumbs.md" "$FAKE_REPO/docs/bif_thumbs.md"
 # README, CLAUDE.md, every docs/*.md except the checks ledger, every workflow
 # YAML, every shipped .brs) and R3 floors the count at 70 with mandatory root
 # anchors — so CI layout and repo must measure the identical 77-file set
-# (the RT-096 pass added DEVELOPER.md to the scan set in both layouts).
+# (the RT-096 pass added DEVELOPER.md to the scan set; the portable twin
+#  stages it beside CLAUDE.md — the first full-twin execution convicted the
+#  omission via CHECK75 R1 'scan member unreadable' on the CI-layout positive
+#  run: FAIL: verify-runtime.sh should exit 0 from a CI layout, got 1).
 # CLAUDE.md, lint.yml and the five previously unstaged docs join the stage
 # list (CHECK41/CHECK60 staging-gap precedent); the source/ .brs set and the
 # whole components/ tree are already staged above.
 cp "$REAL_REPO/CLAUDE.md" "$FAKE_REPO/CLAUDE.md"
+# RT-096 follow-up (w15L9 R-D/E): the CHECK75 scan set grew DEVELOPER.md in the
+# gate; the stage list must carry it or the CI-layout positive run convicts
+# CHECK75 R1 'scan member unreadable' — the first full-twin execution proved it.
+cp "$REAL_REPO/DEVELOPER.md" "$FAKE_REPO/DEVELOPER.md"
 cp "$REAL_REPO/.github/workflows/lint.yml" "$FAKE_REPO/.github/workflows/lint.yml"
 cp "$REAL_REPO/docs/architecture-apitask.md" "$FAKE_REPO/docs/architecture-apitask.md"
 cp "$REAL_REPO/docs/BLOCKED_R0.1.md" "$FAKE_REPO/docs/BLOCKED_R0.1.md"
