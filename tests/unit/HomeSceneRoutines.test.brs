@@ -105,3 +105,47 @@ sub TestHomeUpNextGuardsPrecedTheArm()
     assertEqual(g.pendingUpNext, invalid)
     print "TestHomeUpNextGuardsPrecedTheArm passed"
 end sub
+
+sub TestHomeUpNextMalformedIdNeverArms()
+    ' [RT-093 W16L5] The shape gate is EXECUTED on this door, not merely
+    ' static-pinned: a delimiter-bearing and a numeric server return must
+    ' both leave the pendingUpNext custody slot un-armed and the apiTask
+    ' untouched. Pre-fix, the `= ""` probe admitted both shapes straight
+    ' into the arm (the numeric one then raised the task-thread Type
+    ' Mismatch the RT-091 law had just fenced around). Premise pins first:
+    ' the fixtures are genuinely hostile, by execution (estate law 2026-11).
+    ' (This call also seeds source/lib/Utilities.brs into the suite's
+    ' dependency closure — the PhlixApp.test.brs precedent for door suites
+    ' whose component begins calling the guard.)
+    assertFalse(IsSafeContentId("abc/../../evil"), "fixture premise")
+    assertFalse(IsSafeContentId(42), "fixture premise")
+    g = GetGlobalAA()
+    g.upNextItems = CreateObject("roArray", 2, true)
+    g.upNextItems.Push({ id: "abc/../../evil" })
+    g.upNextItems.Push({ id: 42 })
+    g.pendingUpNext = invalid
+    g.apiTask = {
+        state: ""
+        control: ""
+        request: invalid
+    }
+    ev0 = {
+        getData: function() as Integer
+            return 0
+        end function
+    }
+    OnUpNextItemSelected(ev0)
+    assertEqual(g.pendingUpNext, invalid)
+    assertEqual(g.apiTask.request, invalid)
+    assertEqual(g.apiTask.control, "")
+    ev1 = {
+        getData: function() as Integer
+            return 1
+        end function
+    }
+    OnUpNextItemSelected(ev1)
+    assertEqual(g.pendingUpNext, invalid)
+    assertEqual(g.apiTask.request, invalid)
+    assertEqual(g.apiTask.control, "")
+    print "TestHomeUpNextMalformedIdNeverArms passed"
+end sub

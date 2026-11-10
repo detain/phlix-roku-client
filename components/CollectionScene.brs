@@ -68,6 +68,17 @@ end sub
 ' Interface fn: load + render the given collection's items. CollectionsScene
 ' calls this right after Append. collectionName fills the header title.
 sub LoadCollection(collectionId as String, collectionName as String)
+    ' [RT-093 W16L5, review roku__exploiter #2] Entry choke, the LoadItem
+    ' precedent: collection ids are server returns (CollectionsScene rows,
+    ' the deep-link answer), and this one assignment is where they become
+    ' the /collections/ path segment for every later fetch. Refusal keeps
+    ' m.collectionId at "" — the existing empty-guard below makes the whole
+    ' loader inert (no request is ever built from a refused id).
+    if not IsSafeContentId(collectionId) then
+        print "CollectionScene: LoadCollection refused a malformed id"
+        return
+    end if
+
     m.collectionId = collectionId
     ' RT-094: retry re-fires this very load, so the name rides along.
     m.collectionName = collectionName
@@ -190,6 +201,19 @@ sub OnItemSelected(event as Object)
 
     item = m.items[index]
     if item = invalid then return
+
+    ' [RT-093 W16L5, review roku__exploiter #2] Grid-row ids are server
+    ' returns — in hub mode answered by an ARBITRARY federated machine.
+    ' Routing them straight through passes the typed ShowSeries/ShowSeason/
+    ' ShowItemDetail parameters and onward into every path interpolation
+    ' the chain makes. The shape law judges the raw Dynamic HERE, before
+    ' the typed boundary. Refusal is the established ignore-posture (print
+    ' + return, the OnPendingHubCommand precedent): a hostile row does not
+    ' crash the render thread, it simply is not routable.
+    if not IsSafeContentId(item.id) then
+        print "CollectionScene: ignoring a grid item with a malformed id"
+        return
+    end if
 
     ' Items can be any type; route every type sensibly (exactly like Favorites).
     if item.type = "series" then

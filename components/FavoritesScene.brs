@@ -218,6 +218,15 @@ sub OnResultSelected(event as Object)
     item = m.results[index]
     if item = invalid then return
 
+    ' [RT-093 W16L5, review roku__exploiter #2] Server-returned row ids are
+    ' routed to typed scene parameters below; the shape law judges the raw
+    ' Dynamic before that boundary (full note: CollectionScene's matching
+    ' OnItemSelected gate). Ignore-posture on refusal.
+    if not IsSafeContentId(item.id) then
+        print "FavoritesScene: ignoring a grid item with a malformed id"
+        return
+    end if
+
     ' Favorites can be any type; route every type sensibly.
     if item.type = "series" then
         ShowSeries(item.id, item.name)

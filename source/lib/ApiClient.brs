@@ -840,7 +840,12 @@ function ApiClient(baseUrl as String) as Object
         ' page opened blank. Non-OK responses also return invalid, but via an
         ' honest ok-check rather than a member miss.
         getItem: function(itemId as String) as Object
-            env = m.request("GET", "/media/" + itemId, invalid)
+            ' [RT-093 W16L5, review roku__exploiter #2] Path segments are
+            ' UrlEncode-wrapped: identity on every id the shape law admits
+            ' (the contract test pins it), so no legitimate request moves a
+            ' byte; the wrap exists for SURVIVORS of a producer gate — a
+            ' delimiter-bearing id can reshape the path no more.
+            env = m.request("GET", "/media/" + UrlEncode(itemId), invalid)
             if env = invalid or not env.ok then return invalid
             payload = UnwrapApiEnvelope(env)
             if payload <> invalid and payload.item <> invalid then
@@ -851,7 +856,7 @@ function ApiClient(baseUrl as String) as Object
 
         ' GET /media/{id}/playback-info -> whole object (markers/chapters/skip).
         getItemPlaybackInfo: function(itemId as String) as Object
-            return m.request("GET", "/media/" + itemId + "/playback-info", invalid)
+            return m.request("GET", "/media/" + UrlEncode(itemId) + "/playback-info", invalid)
         end function
 
         ' GET /media/facets?libraryId=<id> -> {genres: string[]} of distinct
@@ -908,12 +913,16 @@ function ApiClient(baseUrl as String) as Object
         ' POST /media/{id}/transcode (NO body; server picks profile from
         ' X-Phlix-Device-Type) -> {job_id, master_url, hls_url, dash_url, ...}
         startTranscode: function(itemId as String) as Object
-            return m.request("POST", "/media/" + itemId + "/transcode", invalid)
+            return m.request("POST", "/media/" + UrlEncode(itemId) + "/transcode", invalid)
         end function
 
         ' GET /transcode/{jobId}/status -> {job_id, status, playlist_ready, ...}
+        ' [RT-093] jobId is a server-returned value reaching a path
+        ' interpolation (the startTranscode payload); encoded like the
+        ' media ids — identity for every legitimate job id, shape-agnostic
+        ' because no alphabet law binds a job id.
         getTranscodeStatus: function(jobId as String) as Object
-            return m.request("GET", "/transcode/" + jobId + "/status", invalid)
+            return m.request("GET", "/transcode/" + UrlEncode(jobId) + "/status", invalid)
         end function
 
         ' ---------------------------------------------------------------------
@@ -1007,28 +1016,32 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         ' ---------------------------------------------------------------------
-        ' Favorites + ratings (per-user, account-level). itemId is a UUID and
-        ' goes straight into the path (no UrlEncode, consistent with getItem).
+        ' Favorites + ratings (per-user, account-level). [RT-093 W16L5,
+        ' review roku__exploiter #2] the pre-93 era said "goes straight into
+        ' the path (no UrlEncode, consistent with getItem)" — the
+        ' consistency it kept was the raw-concat defect itself. Every id
+        ' segment below is UrlEncode-wrapped like getItem (identity on the
+        ' admitted alphabet; survivors cannot reshape the request).
         ' ---------------------------------------------------------------------
 
         ' POST /media/{id}/favorite (NO body) -> {message} ; whole json.
         addFavorite: function(itemId as String) as Object
-            return m.request("POST", "/media/" + itemId + "/favorite", invalid)
+            return m.request("POST", "/media/" + UrlEncode(itemId) + "/favorite", invalid)
         end function
 
         ' DELETE /media/{id}/favorite (NO body) -> {message} ; whole json.
         removeFavorite: function(itemId as String) as Object
-            return m.request("DELETE", "/media/" + itemId + "/favorite", invalid)
+            return m.request("DELETE", "/media/" + UrlEncode(itemId) + "/favorite", invalid)
         end function
 
         ' PUT /media/{id}/rating {rating:<int 1-10>} -> {message} ; whole json.
         setRating: function(itemId as String, rating as Integer) as Object
-            return m.request("PUT", "/media/" + itemId + "/rating", { rating: rating })
+            return m.request("PUT", "/media/" + UrlEncode(itemId) + "/rating", { rating: rating })
         end function
 
         ' DELETE /media/{id}/rating (clear) -> {message} ; whole json.
         clearRating: function(itemId as String) as Object
-            return m.request("DELETE", "/media/" + itemId + "/rating", invalid)
+            return m.request("DELETE", "/media/" + UrlEncode(itemId) + "/rating", invalid)
         end function
 
         ' GET /users/me/favorites?limit&offset -> {items,limit,offset} ; whole
@@ -1060,13 +1073,13 @@ function ApiClient(baseUrl as String) as Object
         ' DELETE half exists) — the call 404'd on every tap; the manifest now
         ' pins it so the drift cannot return.
         markWatched: function(mediaItemId as String) as Object
-            return m.request("POST", "/media/" + mediaItemId + "/watched", invalid)
+            return m.request("POST", "/media/" + UrlEncode(mediaItemId) + "/watched", invalid)
         end function
 
         ' DELETE /users/me/history/{mediaItemId} -> {message} ; marks item as
         ' unwatched (removes from user's watch history).
         markUnwatched: function(mediaItemId as String) as Object
-            return m.request("DELETE", "/users/me/history/" + mediaItemId, invalid)
+            return m.request("DELETE", "/users/me/history/" + UrlEncode(mediaItemId), invalid)
         end function
 
         ' ---------------------------------------------------------------------
@@ -1075,7 +1088,7 @@ function ApiClient(baseUrl as String) as Object
 
         ' PUT /media/{id}/like -> {message} ; toggles like state.
         like: function(itemId as String) as Object
-            return m.request("PUT", "/media/" + itemId + "/like", invalid)
+            return m.request("PUT", "/media/" + UrlEncode(itemId) + "/like", invalid)
         end function
 
         ' ---------------------------------------------------------------------
@@ -1157,7 +1170,7 @@ function ApiClient(baseUrl as String) as Object
         ' metadata.*), NOT MediaItemShaper-shaped -> the scene normalizes each
         ' row with Utilities.NormalizeCollectionItem.
         getCollection: function(collectionId as String) as Object
-            return m.request("GET", "/collections/" + collectionId, invalid)
+            return m.request("GET", "/collections/" + UrlEncode(collectionId), invalid)
         end function
 
         ' ---------------------------------------------------------------------
@@ -1165,20 +1178,22 @@ function ApiClient(baseUrl as String) as Object
         ' OWNER-OR-ACTIVE-ADMIN authorization in-handler (server ab6d89a5): a
         ' member may write rows they own; a foreign or invisible id answers with
         ' the same 404 "Collection not found" shape as genuine absence (no 403
-        ' oracle). A collection id and media item id are both UUIDs -> path
-        ' directly (no UrlEncode, consistent with getItem/addFavorite).
+        ' oracle). [RT-093 W16L5] A collection id and media item id are both
+        ' server-returned values reaching a path interpolation; both segments
+        ' are UrlEncode-wrapped like every other id segment (identity on the
+        ' admitted shapes; survivors cannot reshape the request).
         ' ---------------------------------------------------------------------
 
         ' POST /collections/{id}/items/{mediaItemId} -> {message} ; adds an item
         ' to a collection.
         addToCollection: function(collectionId as String, mediaItemId as String) as Object
-            return m.request("POST", "/collections/" + collectionId + "/items/" + mediaItemId, invalid)
+            return m.request("POST", "/collections/" + UrlEncode(collectionId) + "/items/" + UrlEncode(mediaItemId), invalid)
         end function
 
         ' DELETE /collections/{id}/items/{mediaItemId} -> {message} ; removes an
         ' item from a collection.
         removeFromCollection: function(collectionId as String, mediaItemId as String) as Object
-            return m.request("DELETE", "/collections/" + collectionId + "/items/" + mediaItemId, invalid)
+            return m.request("DELETE", "/collections/" + UrlEncode(collectionId) + "/items/" + UrlEncode(mediaItemId), invalid)
         end function
 
         ' ---------------------------------------------------------------------
@@ -1686,7 +1701,7 @@ function ApiClient(baseUrl as String) as Object
         ' the dead chrome review CR-1 convicted; deleting the inert builders is
         ' its tail, mirroring the S280 getItemCast verdict below.
         getItemSimilar: function(mediaItemId as String) as Object
-            return m.request("GET", "/media/" + mediaItemId + "/similar", invalid)
+            return m.request("GET", "/media/" + UrlEncode(mediaItemId) + "/similar", invalid)
         end function
 
         ' ---------------------------------------------------------------------

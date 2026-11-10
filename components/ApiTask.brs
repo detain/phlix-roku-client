@@ -151,9 +151,13 @@ end sub
 
     ' Invalidate specific item if provided.
     if itemId <> invalid and itemId <> "" then
-        toDelete.push("GET:/media/" + itemId)
+        ' [RT-093 W16L5] Encoded to the same shape ApiTask caches under and
+        ' ApiClient requests: identity for every id the law admits, and the
+        ' hostile SURVIVOR shapes (a delimiter-bearing key that reached the
+        ' cache before this era) can never collide with a reshaped path.
+        toDelete.push("GET:/media/" + UrlEncode(itemId))
         ' Invalidate playback info too (changes with user state).
-        toDelete.push("GET:/media/" + itemId + "/playback-info")
+        toDelete.push("GET:/media/" + UrlEncode(itemId) + "/playback-info")
     end if
 
     for each key in toDelete
@@ -294,6 +298,68 @@ sub ApplyEnvelope(result as Object, env as Object)
     result.error = DeriveResponseError(env)
 end sub
 
+' =============================================
+' RT-093 [W16L5, review roku__exploiter #2] Request-dict content-id law.
+'
+' Server-RETURNED ids travel inside request dicts: scenes copy them out of
+' API payloads (grid rows, rail rows, similar lists, the deep-link getItem
+' response, the up-next wrapper). The scene gates judge them at routing
+' time; this is the TRANSPORT choke every dispatch passes anyway, so an id
+' that somehow slipped a producer gate still cannot (a) reshape the wire
+' path, (b) poison the cache-custody key built from the same value, or
+' (c) raise the task-thread Type Mismatch — the String + non-String
+' concat at "/media/" + req.itemId that fires BEFORE m.top.response is
+' written, leaving every caller-side mutationPending/playPending guard
+' latched forever with no response to unhitch it.
+'
+' Pure by law (headless-pinned in tests/unit/ContentIdGuard.test.brs
+' through the harness door — the RT-092 helper-family precedent): no
+' m.top, no network, no storage. The refusal is DATA (ok stays false +
+' a token), never prose: GetErrorMessage suppresses unknown tokens to
+' the generic catalog caption (M-ROKU-03), so no user-visible string is
+' minted here and no new wire code crosses the contract boundary (this
+' result never leaves the task node).
+' =============================================
+
+' True for the ops whose request dict carries an id that interpolates into
+' a server path. Field naming: every gated op uses itemId except
+' reportProgress (mediaItemId), getCollection (collectionId) and the two
+' collection writes (collectionId AND itemId).
+function OpCarriesContentId(op as Dynamic) as Boolean
+    if type(op) <> "roString" and type(op) <> "String" then return false
+    o = op
+    return o = "getItem" or o = "getItemPlaybackInfo" or o = "getItemSimilar" or o = "startTranscode" or o = "favorite" or o = "unfavorite" or o = "setRating" or o = "clearRating" or o = "markWatched" or o = "markUnwatched" or o = "like" or o = "reportProgress" or o = "getCollection" or o = "addToCollection" or o = "removeFromCollection"
+end function
+
+' The refusal token is DATA, pinned behind a named pure getter exactly like
+' the CHECK43-era WireErrorMessageMax() precedent: a bare string literal on
+' a `.error` line is the scan shape this family convicts (no path
+' exemptions, no comment escapes), and the honest cure for a PINNED token
+' is the pinned getter, never a token-splitting dodge.
+function InvalidContentIdReason() as String
+    return "invalid_content_id"
+end function
+
+' True when the request carries an id op whose id field fails the shape
+' law. Absence IS failure: an op that must carry an id but does not is
+' hostile or broken and refuses as honestly as a delimiter-bearing one.
+' Non-content-id ops are inert — the gate cannot over-convict the rest
+' of the dispatch.
+function ContentIdRequestRefused(req as Object) as Boolean
+    if req = invalid or type(req) <> "roAssociativeArray" then return false
+    if not OpCarriesContentId(req.op) then return false
+    if req.op = "reportProgress" then
+        return not IsSafeContentId(req.mediaItemId)
+    end if
+    if req.op = "getCollection" then
+        return not IsSafeContentId(req.collectionId)
+    end if
+    if req.op = "addToCollection" or req.op = "removeFromCollection" then
+        if not IsSafeContentId(req.collectionId) then return true
+    end if
+    return not IsSafeContentId(req.itemId)
+end function
+
 sub ExecRequest()
     ' R1.6: Invalidate the Storage read cache so we re-read the freshest values
     ' from the registry. This is the ONLY ResetCachedStorage call per Task run —
@@ -327,7 +393,16 @@ sub ExecRequest()
             result.requestId = req.requestId
         end if
 
-        if req.op = "getLibraries" then
+        if ContentIdRequestRefused(req) then
+            ' [RT-093 W16L5] First arm: an id-carrying op whose id fails the
+            ' shape law never reaches concat, cache custody or the network.
+            ' result.ok stays at its initialised false; the single response
+            ' sink at the foot of this sub still lands (that landing IS the
+            ' cure for the latch-forever class) and every caller's !ok arm
+            ' runs its existing honest failure path.
+            result.error = InvalidContentIdReason()
+            print "ApiTask: content-id shape law refused this request"
+        else if req.op = "getLibraries" then
             ' R5.9: Cache at request level (full envelope, unwrap on both hit
             ' and miss). ENVELOPE LAW + scene contract: HomeScene/LibraryAdmin
             ' Scene consume result.data AS the libraries ARRAY, so after the
@@ -413,7 +488,11 @@ sub ExecRequest()
             ' PhlixApp deep link): result.data IS the item OBJECT, so after the
             ' single transport unwrap this branch drills one further level into
             ' the server payload {item:{...}} (documented in docs/api-envelope.md).
-            cachePath = "/media/" + req.itemId
+            ' [RT-093 W16L5] UrlEncode is identity on every id the gate above
+            ' admits; wrapping here keeps the cache-custody key in lockstep
+            ' with the encoded request path ApiClient sends and the shape
+            ' CacheInvalidateItem deletes (a missplit would strand entries).
+            cachePath = "/media/" + UrlEncode(req.itemId)
             cachedResp = CacheTryGet(api, "GET", cachePath)
             if cachedResp = invalid then
                 cachedResp = api.request("GET", cachePath, invalid)

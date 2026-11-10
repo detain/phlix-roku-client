@@ -500,7 +500,15 @@ sub OnUpNextItemSelected(event as Object)
         mediaItemId = item.media_item_id
     end if
 
-    if mediaItemId = "" then return
+    ' [RT-093 W16L5, review roku__exploiter #2] The old `= ""` probe judged
+    ' only emptiness; numeric and delimiter-bearing server returns passed it
+    ' straight into the pendingUpNext custody slot and the getItem request
+    ' chain below. The shape law subsumes the dead arm BEFORE any arming,
+    ' so the whole serialized chain inherits one judgment.
+    if not IsSafeContentId(mediaItemId) then
+        print "HomeScene: up-next selection refused a malformed id"
+        return
+    end if
 
     ' RT-091 [W14L1, review roku__exploiter #5]: the arm used to land BEFORE
     ' the busy check, so a press while the shared apiTask was running (e.g.
@@ -701,7 +709,13 @@ sub OnContinueItemSelected(event as Object)
     if cw = invalid then return
 
     mediaItemId = cw.media_item_id
-    if mediaItemId = invalid or mediaItemId = "" then return
+    ' [RT-093 W16L5] Shape law replaces the invalid/"" probe BEFORE the
+    ' pendingResume custody arming below — the whole resume-launch chain
+    ' (getItem, getItemPlaybackInfo, scene.Show) inherits one judgment.
+    if not IsSafeContentId(mediaItemId) then
+        print "HomeScene: resume selection refused a malformed id"
+        return
+    end if
 
     resumeSeconds = 0.0
     ' RT-092 [review roku__exploiter #1]: position_ticks is a boxed wire value and

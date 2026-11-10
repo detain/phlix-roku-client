@@ -622,6 +622,15 @@ sub OnItemSelected(event as Object)
     item = m.items[index]
     if item = invalid then return
 
+    ' [RT-093 W16L5, review roku__exploiter #2] Server-returned row ids are
+    ' routed to typed scene parameters below; the shape law judges the raw
+    ' Dynamic before that boundary (full note: CollectionScene's matching
+    ' OnItemSelected gate). Ignore-posture on refusal.
+    if not IsSafeContentId(item.id) then
+        print "LibraryScene: ignoring a grid item with a malformed id"
+        return
+    end if
+
     ' F2: a series drills into its seasons (SeriesScene); every other top-level
     ' type (movie/audio/photo/...) opens the detail scene directly, which decides
     ' for itself whether the item is playable (see IsPlayableItem).

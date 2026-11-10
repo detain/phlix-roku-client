@@ -122,6 +122,75 @@ claim below re-checkable the same way:
   hardcoded-string remainder recorded by the review wave was deliberately
   NOT forced into this commit — both stay booked for a future wave.
 
+### Fixed — RT-093 — server-returned ids are shape-gated at every scene, rail and transport custody site — 2026-11-10
+
+- `REVIEW roku__exploiter #2` (card w16 L5): every id arriving in a
+  server RESPONSE — the deep-link detail payload, a similar-items tile,
+  a grid row, a rail item, an up-next selection — flowed unjudged into
+  typed `LoadItem` parameters, path interpolation and persisted custody
+  slots. Hub mode proxies ARBITRARY federated servers, so this was
+  exploitable, not theoretical: a hostile answer like
+  `x/../../admin/users` reshaped the request it was echoed into, and a
+  numeric id raised a task-thread Type Mismatch at the raw
+  `"/media/" + req.itemId` concat BEFORE `m.top.response` landed —
+  latching the detail screen's mutation/playback pendings forever.
+- Entry/choke gates, in the repo's own shapes (the Check 45/77/94
+  idiom, the ProcessDeepLink/RT-002 single-choke precedent): PhlixApp
+  gates the RESPONSE id before the deep-link handler routes to EITHER
+  `LoadItem` or `LoadSeason` — the launch-arg gate had judged the FETCH
+  key, not this ANSWER — and the refusal rides the existing
+  `ShowDeepLinkError` dialog (RT-042 law: no minted catalog keys);
+  `DetailScene.LoadItem` grew an entry choke that retracts the loading
+  cue and refuses before the `m.itemId` write, so every caller inherits
+  the law at one point; both collection-mutation sites re-judge
+  `m.itemId` + `collectionId`; `OnSimilarSelected`'s invalid/empty check
+  became the shape law; each of the four browse scenes gates its
+  selection routing once (covering the series/season/detail arms), and
+  `CollectionScene.LoadCollection` grew the same entry choke; HomeScene
+  gates the resume and up-next rail producers BEFORE the
+  `m.pendingResume`/`m.pendingUpNext` custody slots arm, and PlayerScene
+  gates its up-next dispatch the same way.
+- Transport choke: `ApiTask` grew a pure gate pair
+  (`OpCarriesContentId` + `ContentIdRequestRefused`) and a
+  dispatch-first refusal arm — any of the fifteen content-id-carrying
+  ops whose id fails the shape law is answered with the data-only token
+  `invalid_content_id` delivered through a pure getter (the CHECK43
+  pinned-token idiom — the bare literal write was the first conviction
+  this gate earned, disclosed here), and because the task RESPONDS
+  instead of crashing, no scene latch can freeze on a refused request;
+  the getItem cache custody key and the `CacheInvalidateItem` deletes
+  moved to the SAME encoding as the request path, so cache custody can
+  never hold a key the wire would not send.
+- Second layer: all fifteen id-path concat sites in `ApiClient`
+  (`/media/` x10, `/users/me/history/` x1, `/collections/` x3,
+  `/transcode/` x1) now pass the id segment through `UrlEncode` —
+  identity on the admitted alphabet, so every legal wire byte is
+  unchanged, and survivors are neutralised. The old docblock's "no
+  UrlEncode, consistent with getItem" consistency was keeping the
+  raw-concat defect itself; the truth is rewritten.
+- Second effect, disclosed: PlayerScene's up-next AUTO-FIRE path
+  previously had no RT-091 busy law at all — a timer firing over a
+  running apiTask clobbered the in-flight request. The busy guard now
+  sits at the arming site, and the auto-fire retries through the repo's
+  own one-shot timer with the countdown card left intact.
+- Custody gate: Check 102 pins the full shipped set — a 23-arm
+  exact-equality census (producer gates per scene, the transport choke
+  defs + arm + token, cache custody, the ApiClient encoded sites) plus
+  the docs pair. The portable twin carries an arm-narrow single-token
+  plant per limb: each fires exactly one named CHECK102 R1 conviction
+  with era Checks 100/101 green; the ledger-row deletion fires CHECK102
+  R2 alone; all restored -> exit 0.
+- Tests: `ContentIdGuard.test.brs` gained a headless door into ApiTask's
+  pure gate pair (harness `EXTRA_SOURCES`) — eight subs covering set
+  membership, per-op field refusals (absence IS a refusal), inertness
+  for id-free ops, the `UrlEncode` identity/neutralisation contract,
+  the double-layer chain run against the review's four hostile shapes,
+  and the numeric-crash-class pins; `HomeSceneRoutines.test.brs` proves
+  a seeded hostile up-next selection never arms the custody slot. Every
+  crafted bad-id carries a premise-falsification pin asserting by
+  execution that the input really produces its failure class.
+  Red-parent over the base commit measured exactly 7 convictions.
+
 ### Fixed — RT-094 — the four browse screens stop rendering emptiness (or silence) over a dead server — 2026-11-10
 
 - `REVIEW-w15L9roku.md` residual R-B (RT-094, review

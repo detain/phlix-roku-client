@@ -15420,4 +15420,142 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 102: the RT-093 server-id shape custody keeps every shipped limb (w16L5) ==="
+# NUMBERING: next-FREE probe at this lane's tree - 101 is the highest header
+# (w15L9 era) and grep found zero 102 mentions anywhere in scripts/ docs/
+# tests/ Makefile, so 102 is free. CHECK73's derivation self-pins this era:
+# every plant below is scratch-local (asserts ride GREEN102/RED102 vars, not
+# $POSITIVE_OUT), so the header-pin set does NOT rotate - the rotation this
+# commit carries instead is the twin PASS-echo + ledger-row era narration
+# (the CHECK73 R-ROKU-29 precedent, w15L9 CHECK100/101 form) and the docs
+# pair (R2 arms below).
+# WHY (review roku__exploiter #2, card w16 L5): server-RETURNED ids - the
+# values a federated box chooses - were the one id family the launch-arg and
+# server-id gates never judged. They ride API payloads into typed scene
+# parameters (LoadItem/LoadSeason/LoadCollection - invalid or numeric values
+# raise a render-thread Type Mismatch), into grid routing, into custody
+# slots (pendingUpNext/pendingResume armed before judgment under RT-091's
+# law), into the cache-custody keys, and at transport into raw
+# "/media/" + itemId concatenation (the review's x/../../admin/users,
+# x?profile=1, x#frag, x&extra=1 each reshape the Bearer-authenticated GET;
+# the numeric class crashes the task thread BEFORE m.top.response lands,
+# latching caller-side mutation/play guards forever). The cure is layered:
+# producer gates at every named routing/arming site (component scope - no
+# headless battery can reach them: the CHECK100/101 static-census doctrine
+# is their honest home), a transport choke in components/ApiTask.brs (its
+# pure legs ARE executed by tests/unit/ContentIdGuard.test.brs through the
+# EXTRA_SOURCES door - that suite is this leg's dynamic twin), and UrlEncode
+# at every id-path interpolation in source/lib/ApiClient.brs (identity on
+# the admitted alphabet, zero wire change). Exact-equality arms: a limb
+# stripped, doubled or reverted reddens BY ARM NAME without rotating this
+# census in the same commit.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+# (path, label, regex, want) - counts MEASURED from disk at this commit.
+ARMS = [
+    ("components/PhlixApp.brs", "dl-response-gate",
+     r'IsSafeContentId\(item\.id\)', 1),
+    ("components/DetailScene.brs", "detail-entry-choke",
+     r'IsSafeContentId\(itemId\)', 1),
+    ("components/DetailScene.brs", "detail-similar-gate",
+     r'IsSafeContentId\(mediaId\)', 1),
+    ("components/DetailScene.brs", "detail-collection-mutation-gates",
+     r'IsSafeContentId\(collectionId\)', 2),
+    ("components/DetailScene.brs", "detail-item-rejudge",
+     r'IsSafeContentId\(m\.itemId\)', 2),
+    ("components/CollectionScene.brs", "col-route-gate",
+     r'IsSafeContentId\(item\.id\)', 1),
+    ("components/CollectionScene.brs", "col-entry-choke",
+     r'IsSafeContentId\(collectionId\)', 1),
+    ("components/FavoritesScene.brs", "fav-route-gate",
+     r'IsSafeContentId\(item\.id\)', 1),
+    ("components/SearchScene.brs", "sea-route-gate",
+     r'IsSafeContentId\(item\.id\)', 1),
+    ("components/LibraryScene.brs", "lib-route-gate",
+     r'IsSafeContentId\(item\.id\)', 1),
+    ("components/HomeScene.brs", "home-rail-gates",
+     r'IsSafeContentId\(mediaItemId\)', 2),
+    ("components/PlayerScene.brs", "player-upnext-gate",
+     r'IsSafeContentId\(mediaItemId\)', 1),
+    ("components/ApiTask.brs", "task-op-set-def",
+     r'function OpCarriesContentId\(op as Dynamic\) as Boolean', 1),
+    ("components/ApiTask.brs", "task-choke-def",
+     r'function ContentIdRequestRefused\(req as Object\) as Boolean', 1),
+    ("components/ApiTask.brs", "task-reason-def",
+     r'function InvalidContentIdReason\(\) as String', 1),
+    ("components/ApiTask.brs", "task-dispatch-arm",
+     r'if ContentIdRequestRefused\(req\) then', 1),
+    ("components/ApiTask.brs", "task-token-write",
+     r'result\.error = InvalidContentIdReason\(\)', 1),
+    ("components/ApiTask.brs", "task-cache-getkey",
+     r'"/media/" \+ UrlEncode\(req\.itemId\)', 1),
+    ("components/ApiTask.brs", "task-cache-inval-keys",
+     r'"GET:/media/" \+ UrlEncode\(itemId\)', 2),
+    ("source/lib/ApiClient.brs", "media-paths-encoded",
+     r'"/media/" \+ UrlEncode\(', 10),
+    ("source/lib/ApiClient.brs", "history-path-encoded",
+     r'"/users/me/history/" \+ UrlEncode\(', 1),
+    ("source/lib/ApiClient.brs", "collection-paths-encoded",
+     r'"/collections/" \+ UrlEncode\(', 3),
+    ("source/lib/ApiClient.brs", "transcode-status-encoded",
+     r'"/transcode/" \+ UrlEncode\(', 1),
+]
+
+problems = []
+for path, label, rx, want in ARMS:
+    if not os.path.exists(path):
+        problems.append(f"  {path} - CHECK102 R1 [{label}]: the RT-093 carrier vanished")
+        continue
+    with open(path, encoding="utf-8") as f:
+        src = f.read()
+    got = len(re.findall(rx, src))
+    if got != want:
+        problems.append(
+            f"  {path} - CHECK102 R1 [{label}]: expected exactly {want}, "
+            f"found {got} - the RT-093 server-id custody limb was stripped, "
+            f"doubled or reverted without rotating this census in the same "
+            f"commit")
+
+# R2: docs pair custody - the ledger row and the CHANGELOG entry name the era.
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+DOCS = read(os.path.join("docs", "static-checks.md"))
+CHLOG = read("CHANGELOG.md")
+if DOCS is not None:
+    row = re.search(r"(?m)^\|\s*102\s*\|.*$", DOCS)
+    if not row:
+        problems.append("  docs/static-checks.md - CHECK102 R2: no row 102 in the checks table")
+    elif "RT-093" not in row.group(0):
+        problems.append("  docs/static-checks.md - CHECK102 R2: row 102 does not name RT-093")
+if CHLOG is not None:
+    for idiom in ("RT-093", "Check 102"):
+        if idiom not in CHLOG:
+            problems.append("  CHANGELOG.md - CHECK102 R2: does not name %s" % idiom)
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK102: %d server-id custody pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK102: every RT-093 gate - deep-link response routing, detail/browse/")
+print("  rail/up-next producers, the transport choke and the encoded path and")
+print("  cache-custody sites - stands where the review landed it, and the era")
+print("  keeps its custody in the checks ledger and the CHANGELOG")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

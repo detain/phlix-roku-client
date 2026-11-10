@@ -1059,6 +1059,22 @@ sub OnDeepLinkItemResponse(event as Object)
     item = result.data
     action = m.deepLinkParams.action
 
+    ' [RT-093 W16L5, review roku__exploiter #2] The RESPONSE id is the
+    ' second, previously un-gated value: ProcessDeepLink's shape choke
+    ' judged the FETCH key (the launch argument), not this ANSWER. In hub
+    ' mode the server answering can be any federated machine, and item.id
+    ' flows straight into the typed-parameter LoadItem()/LoadSeason() calls
+    ' below — and from there into every path interpolation the chain makes.
+    ' One gate before the routing covers every consuming arm. The refusal
+    ' rides the existing RT-042 dialog: minting a dedicated catalog key
+    ' would grow the seven-catalog key SET that CHECK48/87/93/94 pin by
+    ' count (mint + set bump is a gate-rotation wave, not a hotfix).
+    if not IsSafeContentId(item.id) then
+        print "Deep link response id failed the shape law: " + type(item.id)
+        ShowDeepLinkError()
+        return
+    end if
+
     ' Route based on the mediaType-derived action (R6.3 / Roku deep-linking spec)
     if action = "play" or action = "series" then
         ' "play": movie/episode/shortformvideo/tvspecial -> detail then auto-play

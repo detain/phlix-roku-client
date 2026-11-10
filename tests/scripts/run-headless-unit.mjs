@@ -189,6 +189,9 @@ const EXTRA_SOURCES = {
     // W15L9-R2 RT-094: one scene behind each new door (same law).
     FavoritesSceneRoutines: ["components/FavoritesScene.brs"],
     CollectionSceneRoutines: ["components/CollectionScene.brs"],
+    // W16L5 RT-093: the transport choke lives in components/ApiTask.brs —
+    // OpCarriesContentId/ContentIdRequestRefused are pure, same door law.
+    ContentIdGuard: ["components/ApiTask.brs"],
 };
 
 // --- symbol index -----------------------------------------------------------

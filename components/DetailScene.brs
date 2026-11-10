@@ -122,6 +122,23 @@ sub EndMutation()
 end sub
 
 sub LoadItem(itemId as String)
+    ' [RT-093 W16L5, review roku__exploiter #2] Single-entry choke, the
+    ' ProcessDeepLink/RT-002 precedent: every caller (deep-link routing,
+    ' grid selection, similar list, up-next chain) passes here, so the
+    ' shape law lives once and cannot be forgotten at a new call site.
+    ' The refusal keeps m.itemId at its last law-abiding value ("" from
+    ' Init on a cold scene) so every downstream `m.itemId = ""` guard
+    ' stays inert, and retracts the loading cue MN-10-style so a refused
+    ' re-load never strands a spinner on a stale frame. The invalid /
+    ' numeric crash class at the typed boundary is stopped one level up,
+    ' at the producer gates that judge the raw Dynamic before calling.
+    if not IsSafeContentId(itemId) then
+        print "DetailScene: LoadItem refused a malformed content id"
+        if m.loadingLabel <> invalid then m.loadingLabel.visible = false
+        if m.fetchSpinner <> invalid then m.fetchSpinner.visible = false
+        return
+    end if
+
     m.itemId = itemId
 
     ' Show loading indicator while data loads off the render thread.
@@ -596,7 +613,10 @@ end sub
 ' @param collectionId String - the collection ID to add to
 ' ---------------------------------------------------------------------
 sub AddItemToCollection(collectionId as String)
-    if m.itemId = "" or collectionId = "" then return
+    ' [RT-093 W16L5] Server-returned collection ids (picker rows, the
+    ' firstCollection.id shortcut) flow in here; shape-judge both ids
+    ' before they ride the request dict into the /collections/ path.
+    if not IsSafeContentId(m.itemId) or not IsSafeContentId(collectionId) then return
 
     SendMutation({ op: "addToCollection", collectionId: collectionId, itemId: m.itemId })
 end sub
@@ -606,7 +626,8 @@ end sub
 ' @param collectionId String - the collection ID to remove from
 ' ---------------------------------------------------------------------
 sub RemoveItemFromCollection(collectionId as String)
-    if m.itemId = "" or collectionId = "" then return
+    ' [RT-093 W16L5] Same custody as the add arm: both ids shape-judged.
+    if not IsSafeContentId(m.itemId) or not IsSafeContentId(collectionId) then return
 
     SendMutation({ op: "removeFromCollection", collectionId: collectionId, itemId: m.itemId })
 end sub
@@ -1072,7 +1093,11 @@ sub OnSimilarSelected(event as Object)
     if sim = invalid or type(sim) <> "roAssociativeArray" then return
 
     mediaId = sim.id
-    if mediaId = invalid or mediaId = "" then return
+    ' [RT-093 W16L5, review roku__exploiter #2 - this site is named in the
+    ' finding] The old invalid/"" probe let numeric and delimiter-bearing
+    ' server ids through to the typed LoadItem call and onward into path
+    ' concat; the shape law subsumes both dead arms.
+    if not IsSafeContentId(mediaId) then return
 
     child = CreateObject("roSGNode", "DetailScene")
     m.top.Append(child)

@@ -3833,7 +3833,17 @@ sub OnUpNextTimerFire()
     end if
 
     if m.upNextCountdown <= 0 then
-        ' Countdown reached 0 — auto-play
+        ' Countdown reached 0 — auto-play.
+        ' [RT-093 W16L5, second effect disclosed] RT-091's busy law was
+        ' never applied here; this path has no human to re-press, so a
+        ' busy shared task must RETRY, not race or drop: re-arm the repo's
+        ' own 1s one-shot with card and countdown intact and the next tick
+        ' re-enters this same decision. The manual button path guards at
+        ' the arming site in OnUpNextPlayNow (double press = first arm owns).
+        if m.apiTask <> invalid and m.apiTask.state = "run" then
+            StartUpNextTimer()
+            return
+        end if
         OnUpNextPlayNow()
     else
         ' Reschedule for the next second
@@ -3866,7 +3876,14 @@ sub OnUpNextPlayNow()
         mediaItemId = m.upNextItem.media_item_id
     end if
 
-    if mediaItemId = "" then return
+    ' [RT-093 W16L5] Shape law replaces the old `= ""` probe BEFORE the
+    ' custody arming (full note: HomeScene's OnUpNextItemSelected gate);
+    ' the auto-fire busy-RETRY lives in OnUpNextTimerFire — this drop arm
+    ' only fences the manual double press, where the first arm owns the
+    ' launch (RT-091 double-arm law).
+    if not IsSafeContentId(mediaItemId) then return
+
+    if m.apiTask <> invalid and m.apiTask.state = "run" then return
 
     ' Fire getItem -> getItemPlaybackInfo -> PlayerScene.Show (same pattern as HomeScene resume)
     m.pendingUpNextItem = m.upNextItem
