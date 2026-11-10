@@ -51,6 +51,43 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — w16L5-R2 batch: RT-093 claim truth, the full-file second-layer sweep, and the Check 102 R3 negative census — 2026-11-10
+
+The HH re-review of card w16 L5 (year-2026-11-10, PATCH-FIRST) convicted two
+claim defects, not code defects: every finding-named limb stands with
+independently reproduced teeth, but the round-1 survey read the transport
+layer as complete when it was not. Corrected here, verbatim-history style —
+the RT-093 entry above stays exactly as shipped (its claim "all fifteen
+id-path concat sites in `ApiClient` ... now pass the id segment through
+`UrlEncode`", read file-complete, was false-to-disk; family-scoped, it was
+true):
+
+- Full-file sweep over `source/lib/ApiClient.brs` found the unlisted residual
+  raw id-path concat families — `/sessions/`, `/libraries/`, `/admin/users/`,
+  `/admin/profiles/`, `/admin/livetv/channels/`, `/syncplay/groups/`,
+  `/profiles/` (schedules, tags and stream-limits ride it), `/audiobooks/` —
+  every one reachable from a server-returned payload id (the reviewer named
+  the AudiobookScene `getAudiobook` chain; the sweep traced provenance for all
+  of them). Each id segment now rides `UrlEncode` — the canonical second
+  layer, identity on admitted ids — together with the `components/ApiTask.brs`
+  logout arm.
+- The `/sessions/` survey row's premise was FALSIFIED on disk: `session_id`
+  is NOT client-minted entropy (`GetSecureUuid` exists nowhere in the repo);
+  it arrives from the POST `/sessions` server response and is restored from
+  persisted storage — the same server-derived custody class, which is why
+  those sites are guarded rather than waved.
+- Site-by-site provenance and the executed census derivation live in the lane
+  register `.reviews/2026-11-10/FIX-roku-w16L5-round2.md`; this entry stays
+  stable-form (the estate count-claim law: counts re-stale, locations do not).
+- Gate asymmetry closed (Check 102 R3, the review's Minor): the R1 arms
+  counted ONLY encoded sites, so a future raw concat site could never convict
+  — the reviewer's own inserted raw site fired nothing. The new R3 leg
+  re-derives the raw id-path set of `ApiClient` and the `ApiTask` carrier on
+  every run against a frozen provenance-bearing baseline (currently EMPTY —
+  the sweep left zero raw sites) and convicts a new raw site by family and
+  file:line. Red-leg plants ride the portable twin: a fabricated site, and
+  reverts of encodes in families R1 is blind to.
+
 ### Fixed — RT-096 — the developer guide's fictional managers, route shapes and test law meet the truth; Check 75 now guards the guide — 2026-11-10
 
 - **RT-096 (REVIEW-w15L9roku.md R-D, Major):** `DEVELOPER.md` still narrated the

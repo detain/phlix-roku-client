@@ -689,7 +689,7 @@ function ApiClient(baseUrl as String) as Object
         ' DELETE /sessions/{id} then clear all local credentials.
         logout: function() as Void
             if m.sessionId <> "" then
-                m.request("DELETE", "/sessions/" + m.sessionId, invalid)
+                m.request("DELETE", "/sessions/" + UrlEncode(m.sessionId), invalid)
             end if
             m.setToken("")
             m.setRefreshToken("")
@@ -706,7 +706,7 @@ function ApiClient(baseUrl as String) as Object
         ' Returns the TRANSPORT envelope (server payload {message} at .data).
         endSession: function() as Object
             if m.sessionId = "" then return invalid
-            result = m.request("DELETE", "/sessions/" + m.sessionId, invalid)
+            result = m.request("DELETE", "/sessions/" + UrlEncode(m.sessionId), invalid)
             m.setSession("")
             return result
         end function
@@ -979,7 +979,7 @@ function ApiClient(baseUrl as String) as Object
         ' Ticks are 100ns units (10_000_000 = 1 second).
         reportProgress: function(mediaItemId as String, positionTicks as LongInteger, durationTicks as LongInteger, isPaused as Boolean) as Object
             if m.sessionId = "" then return invalid
-            return m.request("POST", "/sessions/" + m.sessionId + "/progress", {
+            return m.request("POST", "/sessions/" + UrlEncode(m.sessionId) + "/progress", {
                 media_item_id: mediaItemId
                 position_ticks: positionTicks
                 duration_ticks: durationTicks
@@ -991,7 +991,7 @@ function ApiClient(baseUrl as String) as Object
         ' is removed from Continue Watching.
         completeSession: function() as Object
             if m.sessionId = "" then return invalid
-            return m.request("POST", "/sessions/" + m.sessionId + "/complete", invalid)
+            return m.request("POST", "/sessions/" + UrlEncode(m.sessionId) + "/complete", invalid)
         end function
 
         ' ---------------------------------------------------------------------
@@ -1156,8 +1156,9 @@ function ApiClient(baseUrl as String) as Object
         ' upstream reads were recorded as unauthenticated (a flagged server
         ' gap); that claim is superseded as of server ab6d89a5 (2026-10-02).
         ' These return the WHOLE envelope (mirror getFavorites/getAlbums); the
-        ' scene reads the named key. A collection id is a UUID -> path directly
-        ' (no UrlEncode, consistent with getItem).
+        ' scene reads the named key. A collection id is a UUID and passes
+        ' through UrlEncode like every other id segment (RT-093 law: identity
+        ' on the admitted shapes; survivors cannot reshape the request).
         ' ---------------------------------------------------------------------
 
         ' GET /collections -> {collections:[...]} ; whole json.
@@ -1249,19 +1250,19 @@ function ApiClient(baseUrl as String) as Object
         ' POST pattern, same as startTranscode). All return the WHOLE json.
         ' ---------------------------------------------------------------------
         scanLibrary: function(libraryId as String) as Object
-            return m.request("POST", "/libraries/" + libraryId + "/scan", invalid)
+            return m.request("POST", "/libraries/" + UrlEncode(libraryId) + "/scan", invalid)
         end function
 
         rescanLibrary: function(libraryId as String) as Object
-            return m.request("POST", "/libraries/" + libraryId + "/rescan", invalid)
+            return m.request("POST", "/libraries/" + UrlEncode(libraryId) + "/rescan", invalid)
         end function
 
         matchLibraryMetadata: function(libraryId as String) as Object
-            return m.request("POST", "/libraries/" + libraryId + "/match-metadata", invalid)
+            return m.request("POST", "/libraries/" + UrlEncode(libraryId) + "/match-metadata", invalid)
         end function
 
         getLibraryScanStatus: function(libraryId as String) as Object
-            return m.request("GET", "/libraries/" + libraryId + "/scan-status", invalid)
+            return m.request("GET", "/libraries/" + UrlEncode(libraryId) + "/scan-status", invalid)
         end function
 
         ' ---------------------------------------------------------------------
@@ -1280,23 +1281,23 @@ function ApiClient(baseUrl as String) as Object
         end function
 
         getAdminUser: function(userId as String) as Object
-            return m.request("GET", "/admin/users/" + userId, invalid)
+            return m.request("GET", "/admin/users/" + UrlEncode(userId), invalid)
         end function
 
         approveUser: function(userId as String) as Object
-            return m.request("POST", "/admin/users/" + userId + "/approve", invalid)
+            return m.request("POST", "/admin/users/" + UrlEncode(userId) + "/approve", invalid)
         end function
 
         disableUser: function(userId as String) as Object
-            return m.request("POST", "/admin/users/" + userId + "/disable", invalid)
+            return m.request("POST", "/admin/users/" + UrlEncode(userId) + "/disable", invalid)
         end function
 
         setUserAdmin: function(userId as String, isAdmin as Boolean) as Object
-            return m.request("POST", "/admin/users/" + userId + "/set-admin", { is_admin: isAdmin })
+            return m.request("POST", "/admin/users/" + UrlEncode(userId) + "/set-admin", { is_admin: isAdmin })
         end function
 
         resetUserPassword: function(userId as String) as Object
-            return m.request("POST", "/admin/users/" + userId + "/reset-password", invalid)
+            return m.request("POST", "/admin/users/" + UrlEncode(userId) + "/reset-password", invalid)
         end function
 
         ' ---------------------------------------------------------------------
@@ -1310,19 +1311,19 @@ function ApiClient(baseUrl as String) as Object
         ' DELETE. All return the WHOLE json (admin getters do not unwrap).
         ' ---------------------------------------------------------------------
         getUserProfiles: function(userId as String) as Object
-            return m.request("GET", "/admin/users/" + userId + "/profiles", invalid)
+            return m.request("GET", "/admin/users/" + UrlEncode(userId) + "/profiles", invalid)
         end function
 
         getProfile: function(profileId as String) as Object
-            return m.request("GET", "/admin/profiles/" + profileId, invalid)
+            return m.request("GET", "/admin/profiles/" + UrlEncode(profileId), invalid)
         end function
 
         setProfileRating: function(profileId as String, rating as Integer) as Object
-            return m.request("PUT", "/admin/profiles/" + profileId, { rating: rating })
+            return m.request("PUT", "/admin/profiles/" + UrlEncode(profileId), { rating: rating })
         end function
 
         clearProfilePin: function(profileId as String) as Object
-            return m.request("DELETE", "/admin/profiles/" + profileId + "/pin", invalid)
+            return m.request("DELETE", "/admin/profiles/" + UrlEncode(profileId) + "/pin", invalid)
         end function
 
         ' ---------------------------------------------------------------------
@@ -1344,7 +1345,7 @@ function ApiClient(baseUrl as String) as Object
         ' caller plays the returned url directly (Video carries no Bearer), and
         ' no credential is ever re-issued toward it.
         getChannelStreamUrl: function(channelId as String) as String
-            return m.resolveLocation("/admin/livetv/channels/" + channelId + "/stream")
+            return m.resolveLocation("/admin/livetv/channels/" + UrlEncode(channelId) + "/stream")
         end function
 
         ' Issue a GET and return the 3xx Location header WITHOUT following the
@@ -1589,12 +1590,12 @@ function ApiClient(baseUrl as String) as Object
 
         ' POST /syncplay/groups/{id}/join -> {sessionId,members,currentState}
         joinSyncPlayGroup: function(roomId as String) as Object
-            return m.request("POST", "/syncplay/groups/" + roomId + "/join", invalid)
+            return m.request("POST", "/syncplay/groups/" + UrlEncode(roomId) + "/join", invalid)
         end function
 
         ' POST /syncplay/groups/{id}/leave -> {message}
         leaveSyncPlayGroup: function(roomId as String) as Object
-            return m.request("POST", "/syncplay/groups/" + roomId + "/leave", invalid)
+            return m.request("POST", "/syncplay/groups/" + UrlEncode(roomId) + "/leave", invalid)
         end function
 
         ' ---------------------------------------------------------------------
@@ -1605,43 +1606,43 @@ function ApiClient(baseUrl as String) as Object
 
         ' GET /profiles/{id}/schedules -> {schedules:[...]}
         getProfileSchedules: function(profileId as String) as Object
-            return m.request("GET", "/profiles/" + profileId + "/schedules", invalid)
+            return m.request("GET", "/profiles/" + UrlEncode(profileId) + "/schedules", invalid)
         end function
 
         ' POST /profiles/{id}/schedules {name,start_time,end_time,days_of_week,is_active}
         ' -> {schedule} (the created schedule) or {error}
         createProfileSchedule: function(profileId as String, schedule as Object) as Object
-            return m.request("POST", "/profiles/" + profileId + "/schedules", schedule)
+            return m.request("POST", "/profiles/" + UrlEncode(profileId) + "/schedules", schedule)
         end function
 
         ' DELETE /profiles/{id}/schedules/{scheduleId} -> {message}
         deleteProfileSchedule: function(profileId as String, scheduleId as String) as Object
-            return m.request("DELETE", "/profiles/" + profileId + "/schedules/" + scheduleId, invalid)
+            return m.request("DELETE", "/profiles/" + UrlEncode(profileId) + "/schedules/" + UrlEncode(scheduleId), invalid)
         end function
 
         ' GET /profiles/{id}/tags -> {tags:[...]}
         getProfileTags: function(profileId as String) as Object
-            return m.request("GET", "/profiles/" + profileId + "/tags", invalid)
+            return m.request("GET", "/profiles/" + UrlEncode(profileId) + "/tags", invalid)
         end function
 
         ' POST /profiles/{id}/tags {tag,tag_type} -> {tag} (the created tag)
         createProfileTag: function(profileId as String, tag as Object) as Object
-            return m.request("POST", "/profiles/" + profileId + "/tags", tag)
+            return m.request("POST", "/profiles/" + UrlEncode(profileId) + "/tags", tag)
         end function
 
         ' DELETE /profiles/{id}/tags/{tagId} -> {message}
         deleteProfileTag: function(profileId as String, tagId as String) as Object
-            return m.request("DELETE", "/profiles/" + profileId + "/tags/" + tagId, invalid)
+            return m.request("DELETE", "/profiles/" + UrlEncode(profileId) + "/tags/" + UrlEncode(tagId), invalid)
         end function
 
         ' GET /profiles/{id}/stream-limits -> {stream_limit:{...}} (whole envelope)
         getProfileStreamLimits: function(profileId as String) as Object
-            return m.request("GET", "/profiles/" + profileId + "/stream-limits", invalid)
+            return m.request("GET", "/profiles/" + UrlEncode(profileId) + "/stream-limits", invalid)
         end function
 
         ' PUT /profiles/{id}/stream-limits {maxConcurrentStreams} -> {message}
         updateProfileStreamLimits: function(profileId as String, limits as Object) as Object
-            return m.request("PUT", "/profiles/" + profileId + "/stream-limits", limits)
+            return m.request("PUT", "/profiles/" + UrlEncode(profileId) + "/stream-limits", limits)
         end function
 
         ' ---------------------------------------------------------------------
@@ -1744,7 +1745,7 @@ function ApiClient(baseUrl as String) as Object
         ' rides at .data. The payload also carries signer-minted stream_url /
         ' read_url (AudiobookController) that the player scene consumes.
         getAudiobook: function(audiobookId as String) as Object
-            env = m.request("GET", "/audiobooks/" + audiobookId, invalid)
+            env = m.request("GET", "/audiobooks/" + UrlEncode(audiobookId), invalid)
             if env = invalid or not env.ok then return invalid
             payload = UnwrapApiEnvelope(env)
             if payload <> invalid and payload.audiobook <> invalid then
@@ -1755,17 +1756,17 @@ function ApiClient(baseUrl as String) as Object
 
         ' GET /audiobooks/{id}/chapters -> {chapters:[...]} ; returns whole json.
         getAudiobookChapters: function(audiobookId as String) as Object
-            return m.request("GET", "/audiobooks/" + audiobookId + "/chapters", invalid)
+            return m.request("GET", "/audiobooks/" + UrlEncode(audiobookId) + "/chapters", invalid)
         end function
 
         ' GET /audiobooks/{id}/progress -> {position_ms,current_chapter_index} ; whole json.
         getAudiobookProgress: function(audiobookId as String) as Object
-            return m.request("GET", "/audiobooks/" + audiobookId + "/progress", invalid)
+            return m.request("GET", "/audiobooks/" + UrlEncode(audiobookId) + "/progress", invalid)
         end function
 
         ' POST /audiobooks/{id}/progress {position_ms,current_chapter_index} -> {message}
         saveAudiobookProgress: function(audiobookId as String, positionMs as LongInteger, currentChapterIndex as Integer) as Object
-            return m.request("POST", "/audiobooks/" + audiobookId + "/progress", {
+            return m.request("POST", "/audiobooks/" + UrlEncode(audiobookId) + "/progress", {
                 position_ms: positionMs
                 current_chapter_index: currentChapterIndex
             })

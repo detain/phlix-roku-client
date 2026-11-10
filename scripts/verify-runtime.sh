@@ -15449,6 +15449,13 @@ echo "=== Check 102: the RT-093 server-id shape custody keeps every shipped limb
 # the admitted alphabet, zero wire change). Exact-equality arms: a limb
 # stripped, doubled or reverted reddens BY ARM NAME without rotating this
 # census in the same commit.
+# R3 ERA NOTE (w16L5-R2): the HH review proved the positive-only arms can
+# never convict a FUTURE raw id-path site (inserting one fired nothing). The
+# negative-census leg re-derives the raw set every run and demands equality
+# with a frozen provenance baseline - empty, because the full-set sweep now
+# guards every id segment in the file (incl. the sessions sites whose
+# "client-minted uuid" premise was falsified: session_id is a server payload
+# value; GetSecureUuid exists nowhere in the repo).
 PYRET=0
 PYOUT=$(
 	python3 - <<'PYEOF'
@@ -15543,6 +15550,58 @@ if CHLOG is not None:
         if idiom not in CHLOG:
             problems.append("  CHANGELOG.md - CHECK102 R2: does not name %s" % idiom)
 
+# R3 (w16L5-R2): NEGATIVE census. The R1 arms count only ENCODED sites, so a
+# future RAW id-path concat anywhere in source/lib/ApiClient.brs was gate-
+# invisible - the exact asymmetry the HH review convicted (verdict item 4).
+# This arm re-derives the raw set every run and demands equality with the
+# frozen BASELINE below, whose entries carry their server-derived provenance
+# note, so the gate encodes the truth and not just a number.
+#
+# BASELINE is EMPTY by construction of w16L5-R2: every id segment in the file
+# now rides UrlEncode (the full-set sweep closed the 34-site residual census
+# the register miscounted, incl. the sessions sites whose "client-minted"
+# premise was falsified - session_id is a SERVER payload value). A site may
+# enter the baseline only with a provenance note (id source + why lawful raw);
+# a NEW raw site convicts by family and file:line, and silently encoding a
+# baseline site convicts too - rotate the census in the same commit.
+BASELINE = {}
+# (path, path-literal, id-expr) -> (allowed count, provenance note)
+
+from collections import Counter
+RAW_FILES = ("source/lib/ApiClient.brs", "components/ApiTask.brs")
+RAW = re.compile(r'("(?:/[A-Za-z0-9._-]+)+/")( \+ )(?!UrlEncode[A-Za-z0-9_]*\()([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*)')
+derived = Counter()
+first_line = {}
+for API in RAW_FILES:
+    if not os.path.exists(API):
+        problems.append("  %s - CHECK102 R3: the RT-093 carrier vanished" % API)
+        continue
+    with open(API, encoding="utf-8") as f:
+        for i, line in enumerate(f, 1):
+            probe = line.lstrip()
+            if probe.startswith("'") or probe[:4].lower() in ("rem ", "rem\t"):
+                continue
+            for mt in RAW.finditer(line):
+                key = (API, mt.group(1), mt.group(3))
+                derived[key] += 1
+                first_line.setdefault(key, i)
+for key in sorted(derived):
+    want, _note = BASELINE.get(key, (0, ""))
+    if derived[key] > want:
+        fam = key[1].strip('"')
+        problems.append(
+            '  %s:%d - CHECK102 R3 [%s]: raw id-path concat "%s + %s" is '
+            'outside the frozen negative baseline (%d found, %d allowed) - '
+            'wrap the id segment in UrlEncode or enter the site with a '
+            'server-derived provenance note' % (key[0], first_line[key], fam, key[1], key[2], derived[key], want))
+for key in sorted(BASELINE):
+    if derived.get(key, 0) < BASELINE[key][0]:
+        fam = key[1].strip('"')
+        problems.append(
+            '  %s - CHECK102 R3 [%s]: baseline raw site vanished (%d expected, '
+            '%d found) - rotate the negative census in the same commit as the '
+            'code' % (key[0], fam, BASELINE[key][0], derived.get(key, 0)))
+
 if problems:
     for prob in problems:
         print(prob)
@@ -15551,7 +15610,9 @@ if problems:
 
 print("  CHECK102: every RT-093 gate - deep-link response routing, detail/browse/")
 print("  rail/up-next producers, the transport choke and the encoded path and")
-print("  cache-custody sites - stands where the review landed it, and the era")
+print("  cache-custody sites - stands where the review landed it; the R3")
+print("  negative census holds source/lib/ApiClient.brs raw-free against its")
+print("  provenance-bearing baseline; and the era")
 print("  keeps its custody in the checks ledger and the CHANGELOG")
 PYEOF
 ) || PYRET=$?

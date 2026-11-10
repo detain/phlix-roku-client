@@ -873,7 +873,7 @@ sub ExecRequest()
             if logoutBase <> "" and sessionId <> "" then
                 logoutApi = ApiClient(logoutBase)
                 if req.auth_token <> invalid and Type(req.auth_token) = "String" then logoutApi.token = req.auth_token
-                logoutApi.request("DELETE", "/sessions/" + sessionId, invalid)
+                logoutApi.request("DELETE", "/sessions/" + UrlEncode(sessionId), invalid)
             end if
             result.ok = true
         end if
