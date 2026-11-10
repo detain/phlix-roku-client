@@ -86,12 +86,25 @@ for brs in $(git ls-files -- '*.brs'); do
 	base="${brs%.brs}"
 	xml="${base}.xml"
 	if [[ ! -f "$xml" ]]; then continue; fi
+	# CHECK7 robustness (w15L9 round-3): read the <children> window ONCE per
+	# (brs,xml) pair, not once per FindNode id. The per-id awk fork could
+	# transiently fail under host load, and the old '2>/dev/null || true'
+	# turned a fork failure into EMPTY children_content — a FALSE 'no id='
+	# conviction on a random id that exists (the flake class that killed six
+	# real full-twin runs: diag3 GREEN68 + diag4 GREEN76 'chapterLabel',
+	# diag5b GREEN53 'skipButton' — every id verified present in the
+	# committed xml). An unreadable carrier now convicts LOUD (CHECK75 R1
+	# precedent) instead of silently poisoning the verdict.
+	if ! children_content=$(awk '/^[[:space:]]*<\/children>/{found=0} found{print} /^[[:space:]]*<children>/{found=1; next} END{if(found)print}' "$xml" 2>&1); then
+		echo "  $xml — CHECK7: the <children> extraction failed (carrier unreadable)"
+		FOUND=1
+		VIOLATIONS=1
+		continue
+	fi
 	while IFS=: read -r line content; do
 		ids=$(echo "$content" | grep -oP 'FindNode\s*\(\s*"\K[^"]+' 2>/dev/null || true)
 		for id in $ids; do
 			if [[ "$id" == *'$'* ]] || [[ "$id" == *'{'* ]]; then continue; fi
-			# Extract all content between <children> and </children> and search for id=
-			children_content=$(awk '/^[[:space:]]*<\/children>/{found=0} found{print} /^[[:space:]]*<children>/{found=1; next} END{if(found)print}' "$xml" 2>/dev/null || true)
 			if ! echo "$children_content" | grep -q "id=\"$id\"" 2>/dev/null; then
 				echo "  $brs:$line — CHECK7: FindNode(\"$id\") but no id=\"$id\" in $xml <children>"
 				FOUND=1
