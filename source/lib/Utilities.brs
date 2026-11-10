@@ -1342,16 +1342,16 @@ end function
 ' the SafeErrorMessage-normalized string.
 function GetErrorMessage(apiError as Object) as String
     safeError = SafeErrorMessage(apiError, "")
-    if safeError = "" then return "An error occurred. Please try again."
+    if safeError = "" then return Translate("utilities_err_generic")
     if left(safeError, 5) = "http_" then
         ' Generic HTTP error codes - use friendly messages
         code = right(safeError, len(safeError) - 5)
-        if code = "401" then return "You are not logged in. Please log in again."
-        if code = "403" then return "You don't have permission to do that."
-        if code = "404" then return "The requested item was not found."
-        if code = "500" then return "Server error. Please try again later."
-        if code = "502" or code = "503" then return "Server is temporarily unavailable."
-        return "An error occurred. Please try again."
+        if code = "401" then return Translate("utilities_err_unauthorized")
+        if code = "403" then return Translate("utilities_err_forbidden")
+        if code = "404" then return Translate("utilities_err_not_found")
+        if code = "500" then return Translate("utilities_err_server")
+        if code = "502" or code = "503" then return Translate("utilities_err_unavailable")
+        return Translate("utilities_err_generic")
     end if
     ' M-ROKU-03 (review roku__webux): the former default arm echoed the raw
     ' wire string straight into spoken dialogs ("if len(safeError) > 0 then
@@ -1364,7 +1364,7 @@ function GetErrorMessage(apiError as Object) as String
         ' MN-22: even the capped diagnostic keeps content out of the log.
         print "GetErrorMessage suppressed wire detail (" + Str(Len(safeError)).Trim() + " chars)"
     end if
-    return "An error occurred. Please try again."
+    return Translate("utilities_err_generic")
 end function
 
 ' ===========================================

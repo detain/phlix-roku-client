@@ -1123,7 +1123,7 @@ end sub
 ' Not for missing content (that rides ShowContentNotFoundDialog, R3.1).
 ' Returns to home after dismissal.
 sub ShowDeepLinkError()
-    ShowErrorDialog(m.top, "Unable to Load Content", "Could not load the requested content. Please try again later.")
+    ShowErrorDialog(m.top, Translate("app_deeplink_error_title"), Translate("app_deeplink_error_message"))
     ShowHome()
 end sub
 

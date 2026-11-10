@@ -101,7 +101,7 @@ sub RenderCurrent()
             summary = FormatExifSummary(photo.metadata)
         end if
         if summary = "" then
-            m.infoLabel.text = "No photo info"
+            m.infoLabel.text = Translate("common_no_photo_info")
         else
             m.infoLabel.text = summary
         end if

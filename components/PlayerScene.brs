@@ -3127,13 +3127,13 @@ sub ToggleChapterPicker()
 
     ' Chapters come from playbackInfo.chapters: [{start_seconds, end_seconds, title}, ...]
     if m.playbackInfo = invalid or m.playbackInfo.chapters = invalid then
-        ShowErrorDialog(m.top, Translate("common_notice"), "No chapters available for this content")
+        ShowErrorDialog(m.top, Translate("common_notice"), Translate("player_no_chapters"))
         return
     end if
 
     chapters = m.playbackInfo.chapters
     if type(chapters) <> "roArray" or chapters.Count() = 0 then
-        ShowErrorDialog(m.top, Translate("common_notice"), "No chapters available for this content")
+        ShowErrorDialog(m.top, Translate("common_notice"), Translate("player_no_chapters"))
         return
     end if
 

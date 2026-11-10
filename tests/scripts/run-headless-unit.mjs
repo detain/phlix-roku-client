@@ -107,6 +107,12 @@ const EXCLUDED_TESTS = {
     Utilities: {
         TestConcurrentStreamLimitTextSelectionLaw: "brs gap: ConcurrentStreamLimitText -> TranslateWithParams -> Translate -> LoadLocaleStrings._loaded function-object state (Utilities.brs:1542) — the same exclusion family as the TranslateWithParams trio above; device runs execute it",
     },
+    WireGuard: {
+        // RT-095: the catalog-minted GetErrorMessage returns now traverse
+        // Translate(), landing these two legs on the EXCLUDED family below.
+        TestGetErrorMessageTraversesGuardBeforeMap: "brs gap: Translate -> LoadLocaleStrings._loaded function-object state (Utilities.brs:1689) — same family as the Utilities2/TranslateWithParams exclusions; device runs execute it",
+        TestGetErrorMessageSurvivesHostileEnvelopes: "brs gap: same LoadLocaleStrings function-object state through Translate",
+    },
     Utilities2: {
         TestNormalizeServerUrlInvalid: "brs gap: brs refuses invalid for an 'as String' formal (NormalizeServerUrl, Utilities.brs:160) — the device coerces invalid to '' and the product guard answers",
         TestUrlEncodeInvalid: "brs gap: same invalid-to-typed-String-formal strictness (UrlEncode)",

@@ -218,7 +218,7 @@ sub OnApiResponse(event as Object)
 
         if m.detailLabel <> invalid then
             if profile = invalid then
-                m.detailLabel.text = "Profile not found"
+                m.detailLabel.text = Translate("profileactions_not_found")
             else
                 m.detailLabel.text = ProfileDetailSummary(profile)
             end if

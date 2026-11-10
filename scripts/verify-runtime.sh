@@ -846,6 +846,76 @@ EXEMPT_STATEMENT = [
     re.compile(r'TranslateWithParams\s*\('),  # i18n token-substitution fn (CHECK 24 law)
 ]
 
+def strip_line_comment(line):
+    # A ' outside a double-quoted string comments to end-of-line (same
+    # contract as code_view); returns the code-only view WITH contents.
+    kept = []
+    in_string = False
+    for ch in line:
+        if ch == '"':
+            in_string = not in_string
+            kept.append(ch)
+        elif ch == "'" and not in_string:
+            break
+        else:
+            kept.append(ch)
+    return "".join(kept)
+
+def show_error_dialog_raw_args(line):
+    # RT-095 [w15L9 R-C, review roku__casualgamer #2]: the ShowErrorDialog
+    # call-argument law runs BEFORE the global statement exemptions, because
+    # the era's Translate mask sheltered the WHOLE line - a single raw
+    # literal in any argument position slipped past whenever a sibling arg
+    # was a catalog call (the exact escape PlayerScene's "No chapters
+    # available for this content" pair shipped through; the old >=3
+    # sibling-count arm could never even see a masked-sibling line). This
+    # parses the balanced call, splits at top-level commas, exempts only the
+    # ARGUMENT'S OWN shape (a masked call is the catalog route, not a
+    # violation), and convicts every remaining literal. The short all-caps
+    # button-label amnesty still owns bare ["OK"]-style captions.
+    view = strip_line_comment(line)
+    out = []
+    for m in re.finditer(r'ShowErrorDialog\s*\(', view):
+        if view[:m.start()].rstrip().endswith(("sub", "function")):
+            continue  # the declaration itself, not a call
+        i = m.end()
+        depth = 1
+        args = []
+        cur = ""
+        in_str = False
+        closed = False
+        while i < len(view):
+            ch = view[i]
+            if ch == '"':
+                in_str = not in_str
+            if not in_str:
+                if ch in "([":
+                    depth += 1
+                elif ch in ")]":
+                    depth -= 1
+                    if depth == 0:
+                        closed = True
+                        break
+                elif ch == ",":
+                    args.append(cur)
+                    cur = ""
+            cur += ch
+            i += 1
+        if not closed:
+            continue  # a wrapped call head is not parsed on partial shape
+        args.append(cur)
+        for arg in args:
+            a = arg.strip()
+            if not a:
+                continue
+            if any(pa.search(code_view(a)) for pa in EXEMPT_STATEMENT):
+                continue
+            for s in re.findall(r'"([^"]*)"', a):
+                if s.isupper() and len(s) < 6:
+                    continue
+                out.append(s)
+    return out
+
 found_violation = False
 for tpath in TARGETS:
     if not os.path.isfile(tpath):
@@ -872,6 +942,13 @@ for tpath in TARGETS:
         # only the code_view with string contents and comments blanked.
         if any(p.search(line) for p in EXEMPT_CONTENT):
             continue
+        # RT-095: the ShowErrorDialog argument law is exempt from the global
+        # statement amnesty - a masked sibling call must not shelter a raw
+        # literal in another argument position. Convict first, then let the
+        # legacy shape law below continue its work.
+        for s in show_error_dialog_raw_args(line):
+            print(f"  {tpath}:{lineno} — CHECK19: hardcoded user-facing string: {s[:60]}")
+            found_violation = True
         if any(p.search(code_view(line)) for p in EXEMPT_STATEMENT):
             continue
 
@@ -893,11 +970,10 @@ for tpath in TARGETS:
         # Specific hardcoded strings in conditionals or assignments in Show*Dialog subs
         if re.search(r'(ShowAccount|ShowServer|ShowPlayback|ShowCaptions|ShowWatchHistory|ShowAbout|TogglePip)\(', line):
             is_ui_context = True
-        # Error dialog strings — these ARE user-facing and should be in locale
-        if 'ShowErrorDialog' in line:
-            # The string after ShowErrorDialog — check if it's in the call
-            if string_literals and len(string_literals) >= 3:
-                is_ui_context = True
+        # Error dialog strings are governed by the RT-095 pre-exemption
+        # argument law above; the era's >=3-sibling arm is retired - it
+        # could never see a line whose siblings carried a masked call, the
+        # shelter that let the survivor pair ship (CHECK19 twin plant).
 
         if is_ui_context:
             # Skip short all-caps (standard button labels)
@@ -6255,8 +6331,8 @@ for L in LOCALES:
     for key in ("err_redirect_refused", "cleartext_title", "cleartext_message", "cleartext_continue"):
         if cat.get("connect", {}).get(key, "") == "":
             problems.append(f"  {path} - CHECK48 R3: connect.{key} missing — the refusal and the consent dialog must be SPEAKABLE in every shipped locale")
-    if cat.get("_metadata", {}).get("version") != "1.22.0":
-        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.22.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, then by the review CR-2/Check74 batch with the ten form-chrome keys, then by the MJ-4 batch with home_start_failed, then by the MJ-20 pass (no mint), then by the MJ-11 batch with the four transport-label keys, then by the MN-26 batch retiring the dead detail.error_favorite_save key (removal, no mint), then by the MJ-2 deferred-lane batch with the seven syncplay join-code keys (v1.20.0, 391 leaves), then by the RT-032 batch with the concurrent-stream singular key (v1.21.0, 392 leaves), then by the RT-094 batch with the four browse-failure keys (v1.22.0, 396 leaves), disclosed)")
+    if cat.get("_metadata", {}).get("version") != "1.23.0":
+        problems.append(f"  {path} - CHECK48 R3: _metadata.version is not 1.23.0 — the catalogs bump as a set with this law (rotated by R-ROKU-10 with the common_notice mint, then by the review CR-2/Check74 batch with the ten form-chrome keys, then by the MJ-4 batch with home_start_failed, then by the MJ-20 pass (no mint), then by the MJ-11 batch with the four transport-label keys, then by the MN-26 batch retiring the dead detail.error_favorite_save key (removal, no mint), then by the MJ-2 deferred-lane batch with the seven syncplay join-code keys (v1.20.0, 391 leaves), then by the RT-032 batch with the concurrent-stream singular key (v1.21.0, 392 leaves), then by the RT-094 batch with the four browse-failure keys (v1.22.0, 396 leaves), then by the RT-095 batch with the thirteen dialog/error-copy keys (v1.23.0, 409 leaves), disclosed)")
 
 # ---- R4 the device harness pins the law -----------------------------------
 test = read(TEST)
@@ -12563,7 +12639,8 @@ echo "=== Check 87: catalog, manifest and input-field hygiene - retired keys sta
 #       join-code mint (deferred lane, 2026-11-03), then v1.21.0 with the
 #       RT-032 concurrent-stream singular mint (w11L1, 2026-11-09), then
 #       v1.22.0 with the RT-094 four browse-failure mint (w15L9 R-B,
-#       2026-11-10); R1's
+#       2026-11-10), then v1.23.0 with the RT-095 thirteen-key mint (w15L9
+#       R-C, 2026-11-10); R1's
 #       own version literal below is the CURRENT ride, not a historical
 #       claim.
 #   R2  the manifest ships only documented, hd-relevant keys: splash_width,
@@ -12598,7 +12675,7 @@ def read(path):
         return None
 
 
-# ---- R1 the retired favorite-save key stays buried; set rides the current v1.22.0 ----
+# ---- R1 the retired favorite-save key stays buried; set rides the current v1.23.0 ----
 r1 = []
 for loc in LOCALES:
     path = f"locale/{loc}/strings.json"
@@ -12616,8 +12693,8 @@ for loc in LOCALES:
         r1.append(f"{path} dead detail.error_favorite_save re-grown")
     if "error_favorite_save_message" not in detail:
         r1.append(f"{path} live detail.error_favorite_save_message vanished")
-    if cat.get("_metadata", {}).get("version") != "1.22.0":
-        r1.append(f"{path} _metadata.version is not 1.22.0")
+    if cat.get("_metadata", {}).get("version") != "1.23.0":
+        r1.append(f"{path} _metadata.version is not 1.23.0")
 if r1:
     problems.append("  locale/* - CHECK87 R1: catalog hygiene broken: " + "; ".join(r1))
 
@@ -12678,9 +12755,10 @@ if problems:
 
 print("  CHECK87: the buried catalog key stays buried, the manifest ships only its")
 print("           documented set, and no input field takes unbounded text - the")
-print("           MN-21/MN-26/MN-6 trio (catalog set rides v1.22.0 - the current ride,")
+print("           MN-21/MN-26/MN-6 trio (catalog set rides v1.23.0 - the current ride,")
 print("           rotated again by the MJ-2 join-code mint, the RT-032")
-print("           singular-key mint and the RT-094 four browse-failure mint;")
+print("           singular-key mint, the RT-094 four browse-failure mint and the")
+print("           RT-095 thirteen dialog/error-copy mint;")
 print("           see R1's provenance note).")
 PYEOF
 ) || PYRET=$?
@@ -13339,11 +13417,12 @@ echo "=== Check 93: the resume rail says where you left off and the admin meets 
 #      ApplyXmlChrome speaks the shipped key; README walks the real chain.
 #   R3 keyset-held absence law - the cure minted NOTHING, but the census
 #      literal is the CURRENT state and rotates with every later set move:
-#      en_US rides v1.22.0 and all seven ships hold exactly 396 leaf keys
+#      en_US rides v1.23.0 and all seven ships hold exactly 409 leaf keys
 #      (measured: 387 at batch-21, 384 after the MN-26 removal, 391 after the
 #      MJ-2 join-code mint, 392 after the RT-032 concurrent-stream singular
 #      mint (w11L1), 396 after the RT-094 four browse-failure mint (w15L9
-#      R-B, v1.22.0) - this era-pass retires the pre-rotation 387 that
+#      R-B, v1.22.0), 409 after the RT-095 thirteen-key mint (w15L9 R-C,
+#      v1.23.0) - this era-pass retires the pre-rotation 387 that
 #      the docblock and the PASS narration recited while the pin enforced 384;
 #      the audit's OBS-1 drift, fixed at its true home), common.live_tv is
 #      present and non-empty in all seven, and no percent-flavored key may
@@ -13502,8 +13581,8 @@ for loc in LOCALES:
     leaves = {s + "_" + k: v for s, sub in cat.items()
               if s != "_metadata" and isinstance(sub, dict)
               for k, v in sub.items() if isinstance(v, str)}
-    if len(leaves) != 396:
-        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 396 - the keyset moved")
+    if len(leaves) != 409:
+        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 409 - the keyset moved")
     if not leaves.get("common_live_tv", "").strip():
         missing3.append(f"{loc} lost the shipped common_live_tv value")
     percent_keys = [k for k in leaves if "percent" in k.lower() or "progress_" in k.lower()]
@@ -13515,8 +13594,8 @@ try:
         en = json.load(f)
 except (OSError, ValueError):
     missing3.append("en_US unreadable for the version pin")
-if en is not None and en.get("_metadata", {}).get("version") != "1.22.0":
-    missing3.append("en_US _metadata.version is not 1.22.0 - the census rides the CURRENT set (the literal rotates with every mint: MJ-2 at v1.20.0, RT-032 at v1.21.0, RT-094 at v1.22.0; batch-22 itself minted NOTHING and its absence law is what the census proves)")
+if en is not None and en.get("_metadata", {}).get("version") != "1.23.0":
+    missing3.append("en_US _metadata.version is not 1.23.0 - the census rides the CURRENT set (the literal rotates with every mint: MJ-2 at v1.20.0, RT-032 at v1.21.0, RT-094 at v1.22.0, RT-095 at v1.23.0; batch-22 itself minted NOTHING and its absence law is what the census proves)")
 if missing3:
     problems.append("  locale catalogs - CHECK93 R3: " + "; ".join(missing3) + " (batch 22 ships ZERO new strings; the census proves the absence)")
 
@@ -13536,7 +13615,7 @@ if problems:
 
 print("  CHECK93: the resume rail says where you left off and the admin meets Live TV")
 print("  in one hop - percent custody, the gated tv walk with hidden-entry law on both")
-print("  sides, the 396-key v1.22.0 absence census, and the docs pair")
+print("  sides, the 409-key v1.23.0 absence census, and the docs pair")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"
@@ -13592,8 +13671,9 @@ echo "$PYOUT"
 #      that skips a pin site is not a bump, it is a drift) and the 391-leaf
 #      census moved with them (387 batch-21, 384 MN-26, 391 MJ-2 - the OBS-1
 #      recital-drift the audit named died in that rotation, disclosed). The
-#      ride is v1.22.0 since the RT-094 four browse-failure mint (w15L9
-#      R-B, 2026-11-10, 396 leaves; v1.21.0 rode the RT-032 singular mint,
+#      ride is v1.23.0 since the RT-095 thirteen dialog/error-copy mint
+#      (w15L9 R-C, 2026-11-10, 409 leaves; v1.22.0 rode the RT-094
+#      browse-failure mint, w15L9 R-B; v1.21.0 rode the RT-032 singular mint,
 #      w11L1 2026-11-09); all four current-ride legs - CHECK48
 #      R3, CHECK87 R1, CHECK93 R3 and this R4 - rotate together on every set
 #      move, which is exactly what this leg's own law demands.
@@ -13820,8 +13900,8 @@ for loc in LOCALES:
         v = sec.get(key)
         if not isinstance(v, str) or v.strip() == "":
             r4.append(f"{path}: syncplay.{key} missing or empty")
-    if cat.get("_metadata", {}).get("version") != "1.22.0":
-        r4.append(f"{path}: _metadata.version is not 1.22.0 - the MJ-2 mint rode v1.20.0 and the RT-032 singular-key mint rode v1.21.0; the RT-094 browse-failure mint rides it")
+    if cat.get("_metadata", {}).get("version") != "1.23.0":
+        r4.append(f"{path}: _metadata.version is not 1.23.0 - the MJ-2 mint rode v1.20.0, the RT-032 singular-key mint rode v1.21.0 and the RT-094 browse-failure mint rode v1.22.0; the RT-095 thirteen-key dialog/error-copy mint rides it")
 en = None
 try:
     en = json.load(io.open("locale/en_US/strings.json", encoding="utf-8"))
@@ -13866,7 +13946,7 @@ if problems:
     sys.exit(1)
 
 print("  CHECK94: a code from any device opens the room - digest-only custody,")
-print("  the panel-owned form, the seven-key mint (born v1.20.0, riding v1.22.0),")
+print("  the panel-owned form, the seven-key mint (born v1.20.0, riding v1.23.0),")
 print("  and the honest README")
 PYEOF
 ) || PYRET=$?

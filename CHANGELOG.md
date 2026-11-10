@@ -51,6 +51,43 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — RT-095 — CHECK19 convicts EVERY raw ShowErrorDialog argument (the Translate-sibling escape dies) and the enumerated hardcoded user-copy survivors mint catalog keys — 2026-11-10
+
+- **RT-095 (review `roku__casualgamer` #2, Minor, w15L9 R-C):** the Check 19
+  ShowErrorDialog arm indicted a line only when it carried THREE OR MORE
+  string literals — a dialog hiding ONE raw English argument beside a
+  `Translate(...)` sibling sailed through (the exemption census masks the
+  sibling's literal, and the count gate then slept). The shipped class:
+  `PlayerScene`'s no-chapters dialog passed `"No chapters available for
+  this content"` as a raw third argument at two sites — red-first against
+  the new law, exactly two named convictions, no other line on the four
+  scoped files indicted. The arm is replaced by a pre-exemption raw-argument
+  law: every string literal in a `ShowErrorDialog` call's top-level argument
+  list that is not itself an exempt-call argument convicts, and the portable
+  twin carries an escape-class plant (one raw literal beside one `Translate`
+  sibling fires exactly one CHECK19 line with Check 20/25 green). The six
+  enumerated survivor families from the review now speak catalog copy: the
+  `PhlixApp` deep-link refusal dialog (title + message, beside its sibling
+  that already used catalog keys), the two `PlayerScene` no-chapters dialogs,
+  the `SkipButton` intro/outro labels, the `PhotoViewerScene` no-info label,
+  the `ProfileActionsScene` not-found detail, and the `Utilities`
+  `GetErrorMessage` HTTP-bucket returns. The thirteen new keys ride the
+  v1.23.0 catalog set (the mint is recorded as a historical event; the
+  current-ride numerals live in the census legs, rotated from measured red
+  in this commit).
+- Test-honesty disclosure: two `WireGuard` legs that now traverse
+  `Translate()` land on the documented brs function-object memo gap (the
+  `LoadLocaleStrings._loaded` class already excluded for `Storage` and the
+  `Utilities2`/`TranslateWithParams` families) and are excluded in
+  `tests/scripts/run-headless-unit.mjs` with named reasons — the laws stay
+  pinned on device, the headless battery counts them as excluded, never as
+  passing.
+- Honest scoped disposition (banked, w15L9 R-C): `PlayerScene`'s
+  `SetTrackListStatus("No chapters available")` sits outside the
+  ShowErrorDialog law and remains raw, and the full-census 203-site
+  hardcoded-string remainder recorded by the review wave was deliberately
+  NOT forced into this commit — both stay booked for a future wave.
+
 ### Fixed — RT-094 — the four browse screens stop rendering emptiness (or silence) over a dead server — 2026-11-10
 
 - `REVIEW-w15L9roku.md` residual R-B (RT-094, review

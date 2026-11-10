@@ -14,6 +14,9 @@
     </interface>
 
     <script type="text/brightscript" uri="pkg:/components/SkipButton.brs" />
+    <!-- RT-095: the skip labels speak catalog copy; Translate lives in
+         Utilities.brs (same import the sibling scenes carry). -->
+    <script type="text/brightscript" uri="pkg:/source/lib/Utilities.brs" />
 
     <children>
         <!-- Skip Button - positioned in bottom right -->

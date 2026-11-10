@@ -163,9 +163,9 @@ sub showButton(markerType as String)
 
     if m.label <> invalid then
         if markerType = "intro" then
-            m.label.text = "Skip Intro"
+            m.label.text = Translate("player_skip_intro")
         else if markerType = "outro" then
-            m.label.text = "Skip Outro"
+            m.label.text = Translate("player_skip_outro")
         end if
     end if
 end sub
