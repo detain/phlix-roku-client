@@ -4681,7 +4681,7 @@ assert_contains "CHECK85: the chapters pane renders through the component its ob
 python3 - <<'PYEOF86Z'
 import os
 p = os.path.join(os.environ["RED75_REPO"], "components/HomeScene.brs")
-anchor = "            accessibleLabel: item.name\n"
+anchor = "            accessibleLabel: nm\n"
 with open(p, encoding="utf-8") as f:
     text = f.read()
 assert text.count(anchor) == 1, "CHECK86 plant-Z: the continue-rail mirror anchor drifted (%d found)" % text.count(anchor)
