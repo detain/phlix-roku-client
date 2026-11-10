@@ -51,6 +51,19 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Docs — CP-023 [w35/L2]: device-class bearer-custody truth lines — the registry-stored tokens are declared by design, not a deferral, per the estate cookie-auth design — 2026-11-10
+
+- **Why:** the estate cookie-auth design (`COOKIE-DESIGN.md`) settled the permanent split —
+  same-origin browser clients ride session cookies, device-class clients (this channel among
+  them) ride bearer custody forever. Its §4.6 assigned this repo final landing debt: README and
+  the `Storage.brs` header stated the custody facts correctly but never said the shape is by
+  design, leaving them readable as a stopgap. They are not: a Roku channel has no cookie jar.
+- **What:** a custody paragraph in README.md (after the redirect-custody law) and a header
+  bullet in `source/lib/Storage.brs`, both naming the law (COOKIE-DESIGN §2.1/§4.6, owner
+  ruling D6c, 2026-11-05). The paragraph also distinguishes the M-ROKU-23 `roSecureSocket`
+  item: a hub-relay WSS *transport* deferral, with no bearing on token custody. Zero code or
+  wire change.
+
 ### Fixed — w16L5-R2 batch: RT-093 claim truth, the full-file second-layer sweep, and the Check 102 R3 negative census — 2026-11-10
 
 The HH re-review of card w16 L5 (year-2026-11-10, PATCH-FIRST) convicted two

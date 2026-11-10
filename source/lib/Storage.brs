@@ -16,6 +16,12 @@
 '   session_id, device_id — durability matters more than batching for these)
 ' - Invalidation: ResetCachedStorage() clears all cached reads
 ' - Budget tracking: sizeEstimate() reports bytes; warns past 12 KB threshold
+' - Custody law: bearer tokens held here are device-class BY DESIGN, not a
+'   deferral — a Roku channel has no cookie jar and never participates in
+'   browser-session cookie semantics, so these registry values plus the
+'   Authorization header (and the two-entry bearer subprotocol on the SyncPlay
+'   socket) are their permanent carrier shape (estate cookie-auth design,
+'   COOKIE-DESIGN §2.1/§4.6, owner ruling D6c, 2026-11-05).
 '
 ' Registry per-channel limit: 16 KB.  We warn at 12 KB to leave headroom.
 '

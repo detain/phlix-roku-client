@@ -125,6 +125,14 @@ hop itself and re-sends credentials only for a same-origin target (or a same-hos
 "redirect refused" error instead of walking a Bearer/password to a host the user never
 chose. The zero-credential `/health` probe still follows redirects normally.
 
+**Bearer custody is device-class by design, not a deferral** (estate cookie-auth design,
+COOKIE-DESIGN §2.1/§4.6, owner ruling D6c, 2026-11-05): a Roku channel has no cookie jar and
+never participates in browser-session cookie semantics, so the `Authorization: Bearer` header
+on API requests and the two-entry bearer subprotocol on the SyncPlay socket are the permanent
+carrier shape for the tokens this app persists in registry storage — they never migrate to
+cookie custody. (The M-ROKU-23 `roSecureSocket` deferral is a hub-relay WSS *transport*
+deferral pending on-device verification; it makes no claim about token custody.)
+
 On subsequent launches the persisted `server_url` is reused and the Connect screen is
 skipped (boot goes straight to login or, if a session is restored, Home). The login screen
 itself only collects username/password — it no longer has a server-URL field.
