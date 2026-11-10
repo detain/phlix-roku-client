@@ -18,10 +18,17 @@
  *   - Source dependency files are resolved by symbol: every global function/
  *     sub declared under source/lib and source is indexed, and the closure of
  *     what a suite references (plus what those files reference) is loaded.
- *   - Suites needing live devices, scene-graph nodes, sockets, or task hosts
- *     are NOT silently dropped: they are listed in EXCLUDED with a concrete
- *     reason and a pointer to the leg that covers the same laws on-device
- *     (scripts/verify-runtime.sh). Silent absence was the original sin.
+ *   - Suites needing live devices, sockets, task hosts, or function-object
+ *     state are NOT silently dropped: they are listed in EXCLUDED with a
+ *     concrete reason and a pointer to the leg that covers the same laws
+ *     on-device (scripts/verify-runtime.sh). Silent absence was the original
+ *     sin. Scene-graph nuance (w12L3-R3, probe-measured): brs 0.45 mocks
+ *     GENERIC content nodes well enough to drive component subs directly
+ *     (CreateObject("roSGNode","ContentNode") answers a node supporting
+ *     CreateChild/GetChild/property get+set, and an unset field answers the
+ *     device default ""), so component-scope behavior can ship headless
+ *     conviction through EXTRA_SOURCES below instead of relocating product
+ *     code into source/ for test reach.
  *
  * Usage:  node tests/scripts/run-headless-unit.mjs [--suite Name] [--list]
  * Exit:   0 all allow-listed suites fully green; 1 any FAIL/CRASH; 2 usage.
@@ -54,7 +61,7 @@ const ALLOWED = [
     "ContentIdGuard", "Discovery", "RedirectCustody", "Theme", "Storage",
     "HubRelayOriginLaw", "WireGuard", "AuthManager", "ApiClient",
     "AppContext", "PhlixApp", "SyncPlayManager", "SyncPlayWsTls", "PanelStack",
-    "SyncPlayJoinCode",
+    "SyncPlayJoinCode", "DetailSceneYear",
 ];
 // Suites kept off the headless list and why (measured, not assumed — each
 // entry was run and its crash reason recorded in the W-min91 fixlog).
@@ -146,6 +153,17 @@ const EXCLUDED_TESTS = {
         TestSyncPlayManagerBuildWsPartsWithNoSession: "brs gap: same Storage function-object state class",
         TestSyncPlayManagerUpdateFromGroupStateWithNoSession: "brs gap: same Storage function-object state class",
     },
+};
+
+// Per-suite program files OUTSIDE the source/ symbol index (added w12L3-R3
+// for the RT-036 render conviction): suites whose subject lives in component
+// scope list it here and the harness loads the shipped file verbatim between
+// the dependency closure and the suite. brs parses every component file
+// cleanly (measured); unresolved runtime refs would crash the test loudly,
+// never silently green. Suites WITHOUT an entry keep a byte-identical load
+// set — the existing battery cannot shift shape through this door.
+const EXTRA_SOURCES = {
+    DetailSceneYear: ["components/DetailScene.brs"],
 };
 
 // --- symbol index -----------------------------------------------------------
@@ -375,7 +393,13 @@ async function main() {
         const seeds = [...referencedNames(src)].filter((n) => index.has(n));
         const { files: deps, missing } = closureOf(seeds, index);
         // Never load the dispatcher's own name or assert helpers as deps.
-        const programBase = [preludePath, ...deps, file];
+        // EXTRA_SOURCES (w12L3-R3): component-scope files ride between the
+        // closure and the suite; a missing entry file fails the run loudly.
+        const extras = (EXTRA_SOURCES[s] || []).map((rel) => path.join(REPO, rel));
+        for (const e of extras) {
+            if (!fs.existsSync(e)) { console.error("EXTRA_SOURCES entry missing: " + e); return 2; }
+        }
+        const programBase = [preludePath, ...deps, ...extras, file];
         let suiteFails = 0;
         for (const t of tests) {
             const tReason = (EXCLUDED_TESTS[s] || {})[t];

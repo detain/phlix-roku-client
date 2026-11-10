@@ -730,9 +730,16 @@ sub StartHubCommandConsumer()
     ' fixed plaintext listener — the URL's own port belongs to the hub API
     ' server, not to :8804. RT-037: through the canonical HostOfUrl single
     ' source (Utilities.brs, the law CHECK48 R3 pins for the connect-class
-    ' predicates); the old hand-rolled split blanked bracketed IPv6 hosts at
-    ' the first colon and accepted userinfo authorities. The refusal gate
-    ' above stays BEFORE this read and before any credential is touched.
+    ' predicates). Measured per-site truth at w12L3-R3 over parent d34aa7b1:
+    ' the old hand-rolled hub leg stripped scheme and path but KEPT the port
+    ' in its output, so a port-bearing hub origin reached SetHostName as
+    ' "host:8096" and dialled broken — every port-bearing hub origin was an
+    ' unresolvable dial pre-cure. HostOfUrl's port-stripping FIXES that leg:
+    ' a disclosed bug-cure riding the refactor, not a behavior identity.
+    ' (The first-colon blanking of bracketed IPv6 hosts lived at the
+    ' PlayerScene builder site, not here; userinfo authorities were admitted
+    ' at both sites and HostOfUrl now refuses both.) The refusal gate above
+    ' stays BEFORE this read and before any credential is touched.
     host = HostOfUrl(hubUrl)
     if host = "" then return
 

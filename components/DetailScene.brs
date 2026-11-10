@@ -1013,11 +1013,17 @@ sub DisplaySimilar(similarItems as Object)
             end if
             ' RT-036: the old gate tested type(sim.year) = "Int", a name the
             ' firmware never emits — measured with a headless brs probe: a
-            ' JSON-parsed member answers "Integer" (hand-built paths
-            ' "roInt"), never "Int", so the arm was dead and the year line
-            ' rendered for nobody. The repo's boxed-family idiom (same as the
-            ' resume lift above) restores the intended behaviour across every
-            ' numeric spelling; str().trim() keeps the render shape.
+            ' JSON-parsed member answers "Integer" (hand-built members
+            ' answer "Integer" too; "roInt" is what type() shows through a
+            ' boxed Object formal — re-measured w12L3-R3), never "Int", so
+            ' the arm was dead and the year line rendered for nobody. The
+            ' repo's boxed-family idiom (same as the resume lift above)
+            ' restores the intended behaviour across every numeric spelling;
+            ' str().trim() keeps the render shape. The revival's render is
+            ' pinned headless by tests/unit/DetailSceneYear.test.brs (the
+            ' harness EXTRA_SOURCES loader brings in this component; a
+            ' dead-arm re-death plant and a family-narrowing plant each
+            ' measured red against the suite).
             yearType = type(sim.year)
             if sim.year <> invalid and (yearType = "Integer" or yearType = "roInt" or yearType = "LongInteger" or yearType = "roLongInteger" or yearType = "Float" or yearType = "roFloat" or yearType = "Double" or yearType = "roDouble") then
                 node.ShortDescriptionLine1 = str(sim.year).trim()

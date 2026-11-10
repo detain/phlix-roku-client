@@ -51,6 +51,53 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — w12L3-R3 truth amendment: the RT-037 hub leg is disclosed as a cure, not an identity, the revived RT-036 year arm gains its render pin, and the w12L3 register figures are re-measured — 2026-11-09
+
+- **RT-037 hub leg — evidence falsity, forward correction (the era entry
+  above stands verbatim per the append-only law).** That entry claimed the
+  consolidated legs were "Byte-identical to the canonical parser for every
+  origin the old code parsed correctly" and the w12L3 register booked a
+  parent-vs-tip table with `(identical)` rows on the hub leg. Measured over
+  parent d34aa7b1, that table was false for the HUB-origin leg: the
+  `StartHubCommandConsumer` split stripped only the scheme and the path and
+  KEPT the port, so `http://box.example.com:8096/x` yielded
+  `box.example.com:8096` — fed to `addr.SetHostName` (HubCommandTask.brs)
+  it is an unresolvable host, and every port-bearing hub origin was a
+  broken dial pre-cure. `HostOfUrl` strips the port, so the delegation
+  CURES those origins: a disclosed behavior change (bug-cure riding a
+  refactor), never an identity. The builder site's first-colon blanking of
+  bracketed IPv6 hosts stands (parent `BuildSyncPlayWsParts` only), and
+  userinfo authorities did reach the dial at BOTH sites pre-cure (true as
+  written), now refused with the empty host. No code behavior rides this
+  amendment — the cure landed in 1cd5461d; only the four truth surfaces
+  move: the `StartHubCommandConsumer` comment in `components/PhlixApp.brs`,
+  the RT-036 parenthetical in `components/DetailScene.brs`, the R2/R3
+  clauses of docs/static-checks.md row 98 (Check 98 stays green on all
+  five legs, Check 69's self-census row untouched), and an append-only
+  errata section in `.reviews/2026-11-09/FIX-roku-w12L3.md`.
+- **RT-036 render pin — the DD's untested-revival Minor.** New headless
+  suite `tests/unit/DetailSceneYear.test.brs` (4 tests) drives the SHIPPED
+  `DisplaySimilar` over the brs-mocked scene graph: a JSON-parsed integer
+  renders "1998", a hand-built Float renders "1998.5", absent/invalid/
+  String years leave the field at its unset default, and the venue premise
+  itself is pinned (a member never answers "Int"; "roInt" only through a
+  boxed Object formal). The harness `tests/scripts/run-headless-unit.mjs`
+  gained an `EXTRA_SOURCES` loader for suites that need a component file.
+  Measure-from-red, both plants executed: re-deathing the gate (the
+  `= "Int"` spelling) reddened the Integer and Float render tests, and
+  narrowing the family to JSON spellings reddened exactly the Float test;
+  restored, 4/4 green. The Check 98 R3 static leg is untouched (the gate
+  body lines are byte-identical). Battery: 222 to 226 total — +4 exact,
+  failures 0, exclusions 54, zero movement in any other suite.
+- **Register figure currency.** The w12L3 register booked `make lint` as
+  "1 warning"; measured at this base the repo carries 25 BS1013 "file is
+  not referenced by any other file in the project" warnings — one per
+  tests/**/*.brs file, identical count at parent d34aa7b1 and at b9ce8ac
+  — and this amendment's new suite lifts it to 26 at tip: the same
+  lane-owned class, the whole census in the one file this commit adds,
+  nothing else moved. Figure honesty is the cure; the warning names no
+  shipped-code defect.
+
 ### Fixed — w11L1 r2 doc-currency cure: the Check 69 ledger row lands the two-family amendment its r1 register booked but never shipped, the "eleven carriers" figure is forward-corrected to the measured ten carrier files / 17 pins, and the leg's new R3 arm self-pins the row against the gate dict — 2026-11-09
 
 - **The defect (r1 review MAJOR-1, `.reviews/2026-11-09/REVIEW-w11L1roku.md`):**
