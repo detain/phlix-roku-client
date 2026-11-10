@@ -538,6 +538,9 @@ Store submission takes the **signed `.pkg`**, not the sideload `phlix.zip`:
 The full flow, the CI release vehicle (a rolling `latest` GitHub prerelease —
 no versioned releases, no GitHub-side rollback; both are open owner decisions)
 and the certificate story live in [`docs/publishing.md`](docs/publishing.md).
+Device token storage is plaintext per-channel registry NVRAM — the platform
+offers no keystore; the full disclosure lives in that document's section
+"Security Notes — Device Token Storage (platform limits)".
 
 ### Private Channel Testing
 

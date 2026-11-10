@@ -728,12 +728,12 @@ sub StartHubCommandConsumer()
     ' Parse the hub host out of the persisted hub URL. Only http/legacy origins
     ' reach here (https origins were refused above), and the relay port is the
     ' fixed plaintext listener — the URL's own port belongs to the hub API
-    ' server, not to :8804.
-    host = hubUrl
-    schemeIdx = Instr(1, host, "://")
-    if schemeIdx > 0 then host = Mid(host, schemeIdx + 3)
-    slashIdx = Instr(1, host, "/")
-    if slashIdx > 0 then host = Left(host, slashIdx - 1)
+    ' server, not to :8804. RT-037: through the canonical HostOfUrl single
+    ' source (Utilities.brs, the law CHECK48 R3 pins for the connect-class
+    ' predicates); the old hand-rolled split blanked bracketed IPv6 hosts at
+    ' the first colon and accepted userinfo authorities. The refusal gate
+    ' above stays BEFORE this read and before any credential is touched.
+    host = HostOfUrl(hubUrl)
     if host = "" then return
 
     token = GetStorage().get("auth_token")

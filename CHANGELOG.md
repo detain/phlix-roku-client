@@ -51,6 +51,59 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — RT-035..RT-040 (w12L3 era: guarded nil-player read, dead type-gate revived, host-parsing consolidated, doc truth shipped) — 2026-11-09
+
+- **RT-035 (review `roku__exploiter` #9, Info):** `StopPlayback` guarded
+  the stop-control write against a nil player but read
+  `m.videoPlayer.position` two lines later OUTSIDE that guard — the same
+  mid-teardown nil the guard exists for faults the final progress report.
+  The read and its `ReportProgress` arm folded inside the guard.
+  `components/PlayerScene.brs`.
+- **RT-036 (review `roku__exploiter` #7, Minor):** `DisplaySimilar` gated
+  the year render on `type(sim.year) = "Int"` — a type name the firmware
+  never emits (measured, headless brs probe: JSON-parsed members answer
+  `type()` as "Integer", hand-built paths as "roInt"). The arm was dead:
+  the year line never rendered for any user. Now the repo's boxed-numeric
+  family idiom (the same eight-name gate the resume-position lift uses) —
+  behavior RESTORED to what the code always intended, not added.
+  `components/DetailScene.brs`.
+- **RT-037 (review `roku__secnet` #1, Minor):** the syncplay WS builder and
+  the hub command consumer each carried a hand-rolled scheme/path/colon
+  split. Byte-identical to the canonical parser for every origin the old
+  code parsed correctly (fixture table in the lane register), but the
+  first-colon cut blanked bracketed IPv6 hosts — dialing "[" — and let
+  userinfo authorities through. Both legs consolidated onto
+  `HostOfUrl` (source/lib/Utilities.brs), the single source CHECK48 R3
+  already pins for the connect-class predicates; userinfo/unclosed-bracket
+  hosts now yield the empty host and are refused. `components/PlayerScene.brs`,
+  `components/PhlixApp.brs`.
+- **RT-038 (review `roku__secnet` #2, Info):** truth pass on the
+  `SeedWebSocketEntropy` docblock: it promised a stream "no off-device
+  observer can enumerate" — overclaimed. The platform has no CSPRNG; the
+  re-roll is predictable-by-design hygiene over the convicted
+  seconds-granularity LCG failure, and the draws it protects (frame masks,
+  `Sec-WebSocket-Key`) are liveness proofs, not credentials. Docblock
+  states the honest bounds; code unchanged. `source/lib/SyncPlayProtocol.brs`.
+- **RT-039 (review `roku__secnet` #3, Info):** the plaintext reality of
+  device token storage is now documented: new "Security Notes — Device
+  Token Storage (platform limits)" section in `docs/publishing.md`
+  (per-channel registry scope is the whole on-device defense; DEV-mode/
+  sideloaded channels share that surface; BrightScript exposes no
+  keystore; the compensating controls are server-side) with a README.md
+  pointer. No code change exists to make — the platform limit is the fact.
+- **RT-040 (review `roku__secnet` #4, Info):** `probeHealth`'s
+  redirect-following is not an open "Info" loose end — it is the deliberate
+  single exemption from the manual-hop law, credential-free by design, and
+  CHECK48 R1 already convicts any future redirect-off mode. Docblock
+  rewritten to name the exemption and its pin; body zero-diff.
+  `source/lib/ApiClient.brs`.
+
+### Added — Check 98: the w12L3 era laws are pinned — final-position read inside its guard, HostOfUrl on both dial legs with the retired split shapes forbidden, alive year gate with the dead "Int" spelling banned, the era's truth phrases standing in their sources, docs pair (RT-035..RT-040) — 2026-11-09
+
+- Legs and rationale: `scripts/verify-runtime.sh` Check 98 (R1-R5) and
+  `docs/static-checks.md` row 98; red-parent convictions over d34aa7b1
+  recorded leg-by-leg in that row.
+
 ### Fixed — RT-034: every response body meets a 32 MiB parse cap before ParseJSON materializes it — three sites, two arms, fail-safe -1 sentinel (CHECK48 extended) — 2026-11-09
 
 - **RT-034 (review `roku__exploiter` #8, Info):** `sendRaw` and

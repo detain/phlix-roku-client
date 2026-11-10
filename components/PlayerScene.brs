@@ -934,12 +934,17 @@ sub StopPlayback()
 
     if m.videoPlayer <> invalid then
         m.videoPlayer.control = "stop"
-    end if
 
-    ' Report final position
-    position = m.videoPlayer.position
-    if position > 0 then
-        ReportProgress(position)
+        ' RT-035: the final-position read lives INSIDE the guard. The stop
+        ' control above is guarded because the node can already be gone
+        ' mid-teardown; the old unguarded m.videoPlayer.position line two
+        ' below contradicted that premise — on a nil player it faults the
+        ' sub right after the stop write (or, where the firmware tolerates
+        ' the member miss, reports a bogus position to ReportProgress).
+        position = m.videoPlayer.position
+        if position > 0 then
+            ReportProgress(position)
+        end if
     end if
 end sub
 
@@ -2042,19 +2047,17 @@ function BuildSyncPlayWsParts() as Object
     ' Refuse BEFORE the credential is even read from storage.
     if SyncPlayWsRefusedForOrigin(serverUrl) then return invalid
 
-    ' Strip scheme.
-    rest = serverUrl
-    schemeIdx = Instr(1, rest, "://")
-    if schemeIdx > 0 then rest = Mid(rest, schemeIdx + 3)
-
-    ' Drop any path/query after the authority.
-    slashIdx = Instr(1, rest, "/")
-    if slashIdx > 0 then rest = Left(rest, slashIdx - 1)
-
-    ' Split host:port (we IGNORE the origin port; SyncPlay is always :8097).
-    host = rest
-    colonIdx = Instr(1, rest, ":")
-    if colonIdx > 0 then host = Left(rest, colonIdx - 1)
+    ' RT-037: host authority through the canonical single-source parser
+    ' (Utilities.brs HostOfUrl — the same law CHECK48 R3 pins for the
+    ' connect-class predicates). The old hand-rolled three-step split was
+    ' broken on IPv6: cutting at the FIRST colon blanked "[::1]"-shaped
+    ' hosts to "[" and dialled garbage, and it silently accepted userinfo
+    ' "user@evil" authorities. HostOfUrl keeps bracket literals intact,
+    ' refuses userinfo with "", trims and lowercases (case-insensitive on
+    ' the wire, so dialling is unchanged for every host the old parser
+    ' parsed correctly — measured fixture table in the era register).
+    ' We still IGNORE the origin port; SyncPlay is always :8097.
+    host = HostOfUrl(serverUrl)
     if host = "" then return invalid
 
     token = GetStorage().get("auth_token")

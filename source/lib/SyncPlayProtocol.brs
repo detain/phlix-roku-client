@@ -391,10 +391,25 @@ function SyncPlayProtocol() as Object
         ' a pseudo-random number using the current pseudo-random "seed number"
         ' (generated internally and not accessible to user)' — so we seed via
         ' Rnd(-n) with n folded from a SHA-1 over the per-install channel
-        ' client id, the device model, and the millisecond wall clock. Every
-        ' dial — and every frame mask drawn after it — then runs on a stream
-        ' no off-device observer can enumerate. roEVPDigest absence degrades
-        ' to the time-only seed: still per-dial, never constant.
+        ' client id, the device model, and the millisecond wall clock.
+        ' RT-038 truth pass on what that buys: this is predictable-by-design
+        ' hygiene, NOT secrecy. The platform exposes no CSPRNG and Rnd stays
+        ' a documented LCG, so everything rides on the fold's inputs — the
+        ' model string is public, the millisecond term is only hidden inside
+        ' an observer's dial-time window, and an attacker who could also
+        ' learn the install's channel client id could reproduce the stream.
+        ' That adversary model is acceptable because nothing drawn from this
+        ' stream is a credential: frame masks and the Sec-WebSocket-Key are
+        ' liveness proofs (the accept hash shows the peer saw our key, not
+        ' that the key was high-entropy), the bearer JWT rides the same
+        ' socket under TLS-or-refused custody, and this client negotiates no
+        ' compression and talks to no cache — the BREACH class does not
+        ' exist here. What the re-roll DOES defeat is the convicted MJ-17
+        ' failure: the factory's seconds-granularity Rnd(0) seed, enumerable
+        ' from a boot-time window by an off-device observer. roEVPDigest
+        ' absence degrades to the time-only seed: still per-dial, never
+        ' constant. If firmware ever exposes a documented random source,
+        ' move to it.
         SeedWebSocketEntropy: function() as Void
             dev = CreateObject("roDeviceInfo")
             clientId = ""

@@ -1413,12 +1413,19 @@ function ApiClient(baseUrl as String) as Object
         '   { state: <transport bucket>, code: 0 }    - dns/refused/tls/...
         ' Async + bounded like sendRaw, so the task thread never blocks on an
         ' absent network forever.
-        ' Info (review M-ROKU-04 r1, issue 5): any response code outside the
-        ' arms above (1xx/3xx) is labeled through ClassifyUrlFailure with
-        ' started=true and no fail text, landing on "unreachable". Benign by
-        ' construction: roUrlTransfer follows redirects by default, so a bare
-        ' 3xx only surfaces if someone later calls SetRedirect(0) - if this
-        ' probe ever gains redirect-off mode, classify 1xx/3xx explicitly.
+        ' RT-040 (review roku__secnet #4): the firmware auto-follow is left
+        ' ON here DELIBERATELY, and CHECK48 R1 enforces the exemption — it
+        ' convicts if this probe ever grows redirect-off mode. Benign by
+        ' construction: this request carries ZERO credentials; the URL that
+        ' gets persisted and drives every later send is the user-typed one,
+        ' never a Location hop, so no 3xx can re-bind the credentialed lane;
+        ' those later sends all ride the M-ROKU-15 manual-hop law. An
+        ' http->https /health redirect must keep probing green on a
+        ' TLS-fronted host — auto-follow is what makes that true. Codes
+        ' outside the arms above (1xx/3xx after following completed) still
+        ' land on "unreachable" through ClassifyUrlFailure with started=true
+        ' and no fail text. If redirect-off mode is ever added, classify
+        ' 1xx/3xx explicitly here and rotate the CHECK48 R1 leg with it.
         probeHealth: function() as Object
             url = m.baseUrl + "/health"
 

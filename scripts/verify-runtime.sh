@@ -14421,4 +14421,207 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 98: w12L3 era - guarded final-position read, canonical host parser on both dial legs, boxed-family year gate, docblock/doc truth pins (RT-035 RT-036 RT-037 RT-038 RT-039 RT-040) ==="
+# NUMBERING: 98 is the next-FREE leg (97 taken by the w08L3 fold, measured on
+# this lane at d34aa7b1: highest header in this file is Check 97; 'Check 98'/
+# 'CHECK98' appear nowhere in scripts/, tests/, docs/, README.md, CLAUDE.md or
+# CHANGELOG.md — git grep rc=1, measured before this block was written).
+#
+# WHY THE LEG EXISTS (card w12 L3, reviews 2026-11-04):
+#  (a) RT-035 (review roku__exploiter #9, Info) — StopPlayback guarded the
+#      stop-control write against a nil player but read m.videoPlayer.position
+#      OUTSIDE that guard; the pin keeps the read folded back in, so a future
+#      re-flatten reddens.
+#  (b) RT-036 (review roku__exploiter #7, Minor) — DisplaySimilar gated the
+#      year render on type(sim.year) = "Int", a name the firmware never
+#      emits (headless brs probe: a JSON member answers "Integer"/"roInt",
+#      never "Int"), so the arm was dead. The pin forbids the dead spelling
+#      and requires the repo's boxed-family signature.
+#  (c) RT-037 (review roku__secnet #1, Minor) — the two syncplay/hub dial
+#      legs carried hand-rolled scheme/path/colon splits that were broken
+#      on IPv6 literals and accepted userinfo authorities. Cure: both parse
+#      through the canonical HostOfUrl (the delegation law CHECK48 R3
+#      already pins for the connect-class predicates). The pin requires
+#      HostOfUrl( on both bodies and forbids the retired split shapes from
+#      returning.
+#  (d) RT-038 (review roku__secnet #2, Info) — the entropy docblock claimed
+#      a stream "no off-device observer can enumerate"; truth: there is no
+#      CSPRNG on the platform and the re-roll is predictable-by-design
+#      hygiene over non-secret draws. RT-040 (review roku__secnet #4, Info)
+#      — the probeHealth docblock filed its redirect-following as a loose
+#      "Info"; truth: it is a deliberate CHECK48-pinned exemption. R4 pins
+#      the exact truth phrases so neither claim can quietly rot back.
+#  (e) RT-039 (review roku__secnet #3, Info) — plaintext device-registry
+#      token storage was undocumented. R4 pins the publishing.md section +
+#      the README pointer.
+#  (f) R5 docs pair — this table row + the CHANGELOG era entry, the same
+#      closure law CHECK97 R4 carries.
+# Zero new catalog keys, zero wire codes, zero user-visible strings.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def mask(text):
+    out = []
+    for line in text.split("\n"):
+        in_string = False
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_string = not in_string
+            elif ch == "'" and not in_string:
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
+def sub_body(text, name):
+    m = re.search(r"(?m)^(?:sub|function)\s+%s\b[^\n]*\n(.*?)^end (?:sub|function)" % re.escape(name),
+                  text, re.DOTALL)
+    return m.group(0) if m else None
+
+
+problems = []
+
+PS = read("components/PlayerScene.brs")
+PA = read("components/PhlixApp.brs")
+DS = read("components/DetailScene.brs")
+AC = read("source/lib/ApiClient.brs")
+SP = read("source/lib/SyncPlayProtocol.brs")
+PUB = read("docs/publishing.md")
+RDME = read("README.md")
+DOCS = read("docs/static-checks.md")
+CHANGE = read("CHANGELOG.md")
+
+unreadable = [name for name, src in
+              (("PlayerScene", PS), ("PhlixApp", PA), ("DetailScene", DS),
+               ("ApiClient", AC), ("SyncPlayProtocol", SP), ("publishing", PUB),
+               ("README", RDME), ("static-checks", DOCS), ("CHANGELOG", CHANGE))
+              if src is None]
+if unreadable:
+    print("  CHECK98 R0: unreadable input(s): " + ", ".join(unreadable) +
+          " - the era pins cannot run vacuously")
+    sys.exit(1)
+
+# ---- R1 StopPlayback: the final-position read lives inside the guard -------
+r1 = []
+body = sub_body(mask(PS), "StopPlayback")
+if body is None:
+    r1.append("sub StopPlayback vanished from PlayerScene.brs - the guard law has no body to inspect")
+else:
+    guard = body.find('if m.videoPlayer <> invalid then')
+    control = body.find('m.videoPlayer.control = "stop"')
+    posread = body.find('position = m.videoPlayer.position')
+    if guard < 0 or control < 0:
+        r1.append("the m.videoPlayer guard / control-stop landmarks left the masked body")
+    elif posread < 0:
+        r1.append("the final-position read (position = m.videoPlayer.position) left StopPlayback")
+    else:
+        # The guard's closing 'end if' is the FIRST one after the control
+        # write; the read must live strictly before it (and after the write).
+        guard_close = body.find("end if", control + len('m.videoPlayer.control = "stop"'))
+        if guard_close < 0:
+            r1.append("StopPlayback lost the end if closing its m.videoPlayer guard")
+        elif not (guard < control < posread < guard_close):
+            r1.append("m.videoPlayer.position is read OUTSIDE the m.videoPlayer <> invalid guard - on a nil player the unguarded member access faults the sub right after the stop write (RT-035)")
+if r1:
+    problems.append("  StopPlayback guard - CHECK98 R1:\n    " + "\n    ".join(r1))
+
+# ---- R2 both dial legs parse through HostOfUrl, hand-rolled splits stay gone
+r2 = []
+b = sub_body(mask(PS), "BuildSyncPlayWsParts")
+if b is None:
+    r2.append("function BuildSyncPlayWsParts vanished from PlayerScene.brs")
+else:
+    if "HostOfUrl(" not in b:
+        r2.append("BuildSyncPlayWsParts stopped parsing through the canonical HostOfUrl (RT-037)")
+    for shape in ('Instr(1, rest, "://")', 'Instr(1, rest, "/")', 'Instr(1, rest, ":")'):
+        if shape in b:
+            r2.append("the retired hand-rolled split " + shape + " is back in BuildSyncPlayWsParts - it blanks IPv6 literals at the first colon (RT-037)")
+b = sub_body(mask(PA), "StartHubCommandConsumer")
+if b is None:
+    r2.append("sub StartHubCommandConsumer vanished from PhlixApp.brs")
+else:
+    if "HostOfUrl(" not in b:
+        r2.append("StartHubCommandConsumer stopped parsing through the canonical HostOfUrl (RT-037)")
+    for shape in ('Instr(1, host, "://")', 'Instr(1, host, "/")'):
+        if shape in b:
+            r2.append("the retired hand-rolled split " + shape + " is back in StartHubCommandConsumer - same IPv6/userinfo defect class (RT-037)")
+if r2:
+    problems.append("  dial-leg host parsing - CHECK98 R2:\n    " + "\n    ".join(r2))
+
+# ---- R3 DisplaySimilar year gate: dead 'Int' spelling banned, family present
+r3 = []
+b = sub_body(mask(DS), "DisplaySimilar")
+if b is None:
+    r3.append("sub DisplaySimilar vanished from DetailScene.brs")
+else:
+    if re.search(r'=\s*"Int"', b):
+        r3.append('a type() gate against "Int" is back - the firmware never emits that name (a JSON member answers "Integer"/"roInt"; measured headless brs probe), the arm is dead and the year never renders (RT-036)')
+    if '"roLongInteger"' not in b or '"Integer"' not in b:
+        r3.append('the boxed-numeric family signature ("Integer".."roDouble") is missing from the year gate - the repo idiom is ApplyResumeFromContinueWatching/Utilities, not a bare arm (RT-036)')
+    if "sim.year <> invalid" not in b:
+        r3.append("the sim.year <> invalid presence check left the gate")
+if r3:
+    problems.append("  DisplaySimilar year gate - CHECK98 R3:\n    " + "\n    ".join(r3))
+
+# ---- R4 docblock/doc truth pins (RAW text - these ARE comments) -------------
+r4 = []
+for src, needle, why in (
+        (AC, "the firmware auto-follow is left",
+         "probeHealth's deliberate-exemption docblock is gone - the redirect-follow must be named as a CHECK48-pinned design decision (RT-040)"),
+        (AC, "CHECK48 R1 enforces the exemption",
+         "probeHealth's docblock no longer names the enforcing leg - the exemption and its pin must cite each other (RT-040)"),
+        (SP, "predictable-by-design",
+         "the entropy docblock lost its honest limits wording - no CSPRNG exists on this platform and the docblock must say so (RT-038)"),
+        (PUB, "## Security Notes \u2014 Device Token Storage",
+         "docs/publishing.md lost the device-token-storage section (RT-039)"),
+        (PUB, "no keystore",
+         "the device-token-storage section no longer states the platform limit (RT-039)"),
+        (RDME, "Security Notes \u2014 Device Token Storage",
+         "README.md lost its pointer to the device-token-storage section (RT-039)")):
+    if needle not in src:
+        r4.append(why)
+if r4:
+    problems.append("  docblock/doc truth - CHECK98 R4:\n    " + "\n    ".join(r4))
+
+# ---- R5 docs pair -----------------------------------------------------------
+r5 = []
+if not re.search(r"^\|\s*98\s*\|.*RT-035.*RT-040", DOCS, re.M):
+    r5.append("docs/static-checks.md row 98 is missing or does not name RT-035..RT-040")
+missing = [rid for rid in ("RT-035", "RT-036", "RT-037", "RT-038", "RT-039", "RT-040") if rid not in CHANGE]
+if missing:
+    r5.append("CHANGELOG.md does not name this era's items: " + " ".join(missing))
+if "Check 98" not in CHANGE:
+    r5.append("CHANGELOG.md does not name Check 98")
+if r5:
+    problems.append("  docs pair - CHECK98 R5: " + "; ".join(r5))
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK98: %d conviction(s) - the w12L3 era laws are broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK98: the final-position read stays guarded, both dial legs parse through")
+print("  HostOfUrl, the year gate is alive, and the era's doc truth stands")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

@@ -1011,8 +1011,15 @@ sub DisplaySimilar(similarItems as Object)
             else
                 node.HDPosterUrl = "pkg:/images/placeholder.png"
             end if
-            ' Same numeric-year idiom as RenderItem above (str().trim()).
-            if sim.year <> invalid and type(sim.year) = "Int" then
+            ' RT-036: the old gate tested type(sim.year) = "Int", a name the
+            ' firmware never emits — measured with a headless brs probe: a
+            ' JSON-parsed member answers "Integer" (hand-built paths
+            ' "roInt"), never "Int", so the arm was dead and the year line
+            ' rendered for nobody. The repo's boxed-family idiom (same as the
+            ' resume lift above) restores the intended behaviour across every
+            ' numeric spelling; str().trim() keeps the render shape.
+            yearType = type(sim.year)
+            if sim.year <> invalid and (yearType = "Integer" or yearType = "roInt" or yearType = "LongInteger" or yearType = "roLongInteger" or yearType = "Float" or yearType = "roFloat" or yearType = "Double" or yearType = "roDouble") then
                 node.ShortDescriptionLine1 = str(sim.year).trim()
             end if
         end if

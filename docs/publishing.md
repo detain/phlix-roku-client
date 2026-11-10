@@ -85,6 +85,41 @@ What exists **today** (pinned against drift by verify-runtime Check 40):
 
 ---
 
+## Security Notes — Device Token Storage (platform limits)
+
+The tokens a signed-in session holds — `auth_token`, `refresh_token`,
+plus `session_id`/`device_id` — persist in `roRegistrySection "phlix"`:
+plaintext non-volatile storage scoped per published channel. Storage.brs
+flushes exactly that key set immediately on write (durability over
+batching), but immediate-flush is a durability law, not a confidentiality
+one. **BrightScript exposes no keystore, no encrypted-preferences API and
+no device-unlock binding** — the platform has nothing to add here, and
+the trust model must say so out loud:
+
+- **Per-channel scoping is the whole on-device defense.** A published
+  retail channel can read only its own registry section; other retail
+  channels cannot read ours.
+- **Every DEV-mode / sideloaded channel shares one registry surface.**
+  Any dev-mode build on the device — including whatever `make install`
+  just pushed — reads and writes the same `phlix` section, so anyone
+  with developer-mode access to the device can read stored tokens. This
+  repo's release vehicle (the rolling `latest` zip above) is exactly
+  that sideload class.
+- **There is no client-side mitigation to add.** Do not spend a fix
+  cycle "encrypting" registry values with a key shipped in the package:
+  an attacker who can read the registry can read the decryptor just as
+  easily. That pattern is theater, not defense.
+- **The compensating controls are server-side.** Token lifetime and
+  refresh-token rotation bound how long a captured token is useful; the
+  client stores what the server issues and makes no on-device
+  expiry promises.
+
+Recorded from the 2026-11-04 estate review (`roku__secnet` #3); README.md
+points here from its security paragraph. Check 98 R4 pins this section's
+existence so the truth cannot quietly leave the docs.
+
+---
+
 ## Prerequisites
 
 1. **Roku Developer Account**
