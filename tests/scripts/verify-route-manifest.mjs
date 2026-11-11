@@ -9,12 +9,13 @@
  * against the VENDORED phlix-server route manifest
  * (`tests/fixtures/server-route-manifest.json`, a byte-for-byte copy of
  * `@phlix/contracts` `dist/server-route-manifest.json`). Current currency:
- * contracts TAG v0.5.6 (peel c89c8420) — content regen at phlix-server
- * `58530ec207b0d40c3386ed10215d5bda3eaf54af`, 415 tuples (the v0.5.3-era
- * 412 @ `758f91496c068551b310f1078093335f79c20e04` was the previous currency;
- * cs#48 re-vendor — the +3 tuples are server-side history/servers routes
- * this client does not issue; header prose re-anchored, the stale v0.5.3-era
- * label carried by WAVE-5-CHECK-TRIO2 is cured with it).
+ * contracts master `6335d818de3af78804e6af98a64421f928e08edb` (untagged
+ * regen era — the latest tag v0.5.7 still carries the 415 bytes) — content
+ * regen at phlix-server `413765b6d4385a3445ac1dddbc4ced16e0e281f6`, 418
+ * tuples (the v0.5.6-era 415 @ `58530ec207b0d40c3386ed10215d5bda3eaf54af`
+ * was the previous currency; the 5-client lag cure of 2026-11-11 re-vendors
+ * it byte-for-byte — the +3 tuples are POST /auth/logout plus GET/DELETE
+ * /auth/sessions, server-side session routes this client does not issue).
  * The two address classes the HTTP manifest CANNOT own are declared, not
  * hidden (M-ROKU-13): HUB_SITES (hub-registry paths — asserted ABSENT from
  * the server manifest, the same staleness law as PARTITIONED) and WS_SITES
@@ -52,13 +53,13 @@ const MANIFEST_FILE = path.join(REPO, 'tests', 'fixtures', 'server-route-manifes
 const QUIET = process.argv.includes('--quiet');
 const SELF_TEST = process.argv.includes('--self-test');
 
-// cs#48 currency re-vendor ritual token (code-resident survival assertion
-// target — rotated with the v0.5.6 byte-for-byte re-vendor; cs#47/W-min92
-// rotated in the CS47REVENDORPINQ7T3 value this one replaces).
-export const CS46_CURRENCY_TOKEN = 'CS48REVENDORPINQ7T4';
+// currency re-vendor ritual token (code-resident survival assertion target —
+// rotated with the 6335d81 byte-for-byte re-vendor of 2026-11-11; the
+// CS48REVENDORPINQ7T4 value this one replaces carried the v0.5.6-era re-vendor).
+export const CS46_CURRENCY_TOKEN = 'CS49REVENDORPINQ7T5';
 
-const PROVENANCE_SHA = '58530ec207b0d40c3386ed10215d5bda3eaf54af';
-const TOTAL_TUPLES = 415;
+const PROVENANCE_SHA = '413765b6d4385a3445ac1dddbc4ced16e0e281f6';
+const TOTAL_TUPLES = 418;
 
 /**
  * Sites the scanner DELIBERATELY does not check against the server manifest,
