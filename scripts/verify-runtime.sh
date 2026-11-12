@@ -15619,4 +15619,180 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 103: the chapter-label fade keeps one Timer child, stop/start re-arm, change-only showing and hide-once firing (ROK-5) ==="
+# NUMBERING: next-FREE probe at this lane's tree - 102 is the highest header
+# (w16L5 era) and `git grep -i 'check 103\|CHECK103'` returned rc=1 over the
+# whole tree at b65c591, so 103 is free. CHECK73's derivation self-pins this
+# era: every plant below is scratch-local (asserts ride GREEN103/RED103 vars,
+# not $POSITIVE_OUT), so the header-pin set does NOT rotate (the CHECK102
+# form).
+# WHY (ROK-5, round-2026-11-11 roku plan step ROK-S5): UpdateChapterLabel ran
+# on EVERY Video position tick (~2/s) and, inside a chapter, called
+# ShowChapterLabel every time - which stopped, unobserved and REMOVED the
+# running Timer child and minted a brand-new one. The 2s countdown restarted
+# on every tick, so the fade NEVER fired: the label sat over the picture for
+# the whole chapter, and the scene churned a Timer node create/append/remove
+# twice a second. The cure is three laws plus the fire's own contract:
+#   single child  - ArmChapterLabelTimer lazily mints ONE Timer (guarded by
+#                   `if m.chapterLabelTimer = invalid`), observes it once, and
+#                   ClosePlayer is the ONE release site; Show() stops the live
+#                   countdown instead of invalidating (orphaning) the child.
+#   stop/start    - the re-arm is control "stop" then "start" on that same
+#                   node; no other site starts it.
+#   change-only   - UpdateChapterLabel re-shows only when the chapter INDEX
+#                   changes; a user seek records the index it lands on so the
+#                   next tick does not re-arm a second time.
+#   hide-once     - OnChapterLabelTimerFire ONLY hides: it never re-arms,
+#                   restarts, re-shows, releases or re-mints, so each chapter
+#                   entry yields exactly one 2s window and one fade.
+# These are device-side Timer/render writes - brs mocks unknown roSGNode
+# types as Invalid, so no headless battery reaches them (the CHECK100/101
+# static-census doctrine is their honest home). Exact-equality arms over
+# comment-masked bodies: a limb stripped, doubled or reverted reddens BY ARM
+# NAME without rotating this census in the same commit.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+
+PS = "components/PlayerScene.brs"
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def mask(text):
+    # full-line comments only (no carrier line here carries a trailing one)
+    out = []
+    for line in text.splitlines():
+        probe = line.lstrip()
+        if probe.startswith("'") or probe[:4].lower() in ("rem ", "rem\t"):
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
+SRC = read(PS)
+if SRC is None:
+    problems.append("  %s - CHECK103 R0: the ROK-5 carrier vanished" % PS)
+    SRC = ""
+SRC = mask(SRC)
+
+BODY_RX = r"(?ms)^(?:sub|function) %s\(.*?^end (?:sub|function)"
+NAMES = ("Show", "OnPositionUpdate", "UpdateChapterLabel", "ShowChapterLabelAt",
+         "ShowChapterLabel", "ArmChapterLabelTimer", "OnChapterLabelTimerFire",
+         "ClosePlayer", "SeekRelative")
+BODIES = {}
+for name in NAMES:
+    found = re.findall(BODY_RX % re.escape(name), SRC)
+    if SRC and len(found) != 1:
+        problems.append("  %s - CHECK103 R0: %d/1 bodies named %s - the ROK-5 "
+                        "carrier shape drifted; rotate this leg in lockstep, never "
+                        "let it go vacuous" % (PS, len(found), name))
+    BODIES[name] = found[0] if len(found) == 1 else ""
+
+
+def scope_text(scope):
+    kind, _, name = scope.partition(":")
+    if kind == "file":
+        return SRC
+    if kind == "body":
+        return BODIES.get(name, "")
+    if kind == "outside":
+        body = BODIES.get(name, "")
+        return SRC.replace(body, "", 1) if body else SRC
+    raise SystemExit("CHECK103: unknown scope %s" % scope)
+
+
+# (law, label, scope, regex, want) - counts MEASURED from disk at this commit.
+ARMS = [
+    # single child
+    ("R1", "timer-mint-single", "file",
+     r'm\.chapterLabelTimer = CreateObject\("roSGNode", "Timer"\)', 1),
+    ("R1", "timer-mint-lazy", "body:ArmChapterLabelTimer",
+     r'if m\.chapterLabelTimer = invalid then\s*\n\s*m\.chapterLabelTimer = CreateObject\(', 1),
+    ("R1", "timer-observe-once", "body:ArmChapterLabelTimer",
+     r'm\.chapterLabelTimer\.ObserveField\("fire", "OnChapterLabelTimerFire"\)', 1),
+    ("R1", "timer-one-shot", "body:ArmChapterLabelTimer",
+     r'm\.chapterLabelTimer\.repeat = false', 1),
+    ("R1", "timer-two-seconds", "body:ArmChapterLabelTimer",
+     r'(?m)m\.chapterLabelTimer\.duration = 2\s*$', 1),
+    ("R1", "release-in-teardown", "body:ClosePlayer",
+     r'm\.top\.RemoveChild\(m\.chapterLabelTimer\)', 1),
+    ("R1", "release-outside-teardown", "outside:ClosePlayer",
+     r'RemoveChild\(m\.chapterLabelTimer\)', 0),
+    ("R1", "never-orphaned-live", "outside:ClosePlayer",
+     r'(?m)^\s*m\.chapterLabelTimer = invalid\s*$', 0),
+    # stop/start
+    ("R2", "arm-stop-start", "body:ArmChapterLabelTimer",
+     r'm\.chapterLabelTimer\.control = "stop"\s*\n\s*m\.chapterLabelTimer\.control = "start"', 1),
+    ("R2", "start-outside-arm", "outside:ArmChapterLabelTimer",
+     r'm\.chapterLabelTimer\.control = "start"', 0),
+    ("R2", "arm-sole-route", "body:ShowChapterLabel",
+     r'(?m)^\s*ArmChapterLabelTimer\(\)\s*$', 1),
+    # change-only
+    ("R3", "tick-routes-update", "body:OnPositionUpdate",
+     r'UpdateChapterLabel\(position, duration\)', 1),
+    ("R3", "change-only-gate", "body:UpdateChapterLabel",
+     r'if idx = m\.chapterLabelIndex then return\s*\n\s*m\.chapterLabelIndex = idx\s*\n\s*ShowChapterLabelAt\(idx\)', 1),
+    ("R3", "seek-records-index", "body:SeekRelative",
+     r'm\.chapterLabelIndex = GetChapterIndexAtPosition\(newPosition, duration\)\s*\n\s*ShowChapterLabelAt\(m\.chapterLabelIndex\)', 1),
+    ("R3", "label-sole-route", "outside:ShowChapterLabelAt",
+     r'(?<!sub )\bShowChapterLabel\(', 0),
+    # hide-once
+    ("R4", "fire-hides", "body:OnChapterLabelTimerFire",
+     r'm\.chapterLabel\.visible = false', 1),
+    ("R4", "fire-never-rearms", "body:OnChapterLabelTimerFire",
+     r'\.control\b|ArmChapterLabelTimer|ShowChapterLabel|RemoveChild|Append|CreateObject|chapterLabelTimer = ', 0),
+]
+
+if SRC:
+    for law, label, scope, rx, want in ARMS:
+        got = len(re.findall(rx, scope_text(scope)))
+        if got != want:
+            problems.append(
+                "  %s - CHECK103 %s [%s]: expected exactly %d, found %d - the "
+                "ROK-5 chapter-label fade limb was stripped, doubled or "
+                "reverted without rotating this census in the same commit"
+                % (PS, law, label, want, got))
+
+# R5: docs pair custody - the ledger row and the CHANGELOG entry name the era.
+DOCS = read(os.path.join("docs", "static-checks.md"))
+CHLOG = read("CHANGELOG.md")
+if DOCS is not None:
+    row = re.search(r"(?m)^\|\s*103\s*\|.*$", DOCS)
+    if not row:
+        problems.append("  docs/static-checks.md - CHECK103 R5: no row 103 in the checks table")
+    elif "ROK-5" not in row.group(0):
+        problems.append("  docs/static-checks.md - CHECK103 R5: row 103 does not name ROK-5")
+if CHLOG is not None:
+    for idiom in ("ROK-5", "Check 103"):
+        if idiom not in CHLOG:
+            problems.append("  CHANGELOG.md - CHECK103 R5: does not name %s" % idiom)
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK103: %d chapter-label fade pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK103: the chapter-label fade keeps its ROK-5 limbs - one lazily")
+print("  minted Timer child released only at teardown, a stop/start re-arm with")
+print("  no second starter, change-only showing on the position tick and the")
+print("  seek, a fire that only hides - and the era keeps its custody in the")
+print("  checks ledger and the CHANGELOG")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

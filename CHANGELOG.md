@@ -51,6 +51,47 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — ROK-5 — the player's chapter label fades after 2 seconds again (one Timer child, stop/start re-arm, change-only, hide-once); Check 103 keeps the limbs — 2026-11-12
+
+- **Why (round-2026-11-11 roku plan step ROK-S5):** `UpdateChapterLabel` runs on
+  every Video position tick (about twice a second) and, inside a chapter, called
+  `ShowChapterLabel` on every tick. Each call stopped, unobserved and removed the
+  running Timer child and minted a fresh one, so the 2s countdown restarted
+  forever and the fade never fired. The label sat over the picture for the
+  whole chapter, and the scene created/appended/removed a Timer node twice a
+  second.
+- **Single child + stop/start:** the new `ArmChapterLabelTimer` mints ONE
+  Timer lazily (`if m.chapterLabelTimer = invalid`), observes `fire` once, and
+  re-arms it with `control = "stop"` then `"start"` (the `ArmSyncLeaveStop`
+  idiom). `ClosePlayer` is the only release site. `Show()` no longer
+  invalidates the reference, which would orphan a live child on a re-Show; it
+  stops the countdown, hides the label and resets the chapter index.
+- **Change-only:** `UpdateChapterLabel` re-shows only when the chapter INDEX
+  changes (`GetChapterIndexAtPosition` replaces the object-returning
+  `GetChapterAtPosition`). A user seek (`SeekRelative`) still re-shows on
+  purpose, even within the same chapter, and records the index it lands on so
+  the next tick does not arm again.
+- **Hide-once:** `OnChapterLabelTimerFire` only hides the label. It never
+  re-arms, re-shows or releases, so each chapter entry gives one 2s window and
+  one fade.
+- Second effect, disclosed: both show paths now lift the boxed wire title
+  through `TextOrEmpty` (via the new `ShowChapterLabelAt`) before it reaches
+  `ShowChapterLabel`'s typed `String` formal. The seek path used to pass
+  `chapter.title` raw, so a non-string title raised a Type Mismatch (RT-092
+  law).
+- **Custody gate:** Check 103 is a 17-arm exact-equality census over the
+  comment-masked PlayerScene bodies (R1 single child: lazy mint, single
+  observe, one-shot 2s, release only in teardown, never invalidated while
+  live; R2 stop-then-start re-arm with no second starter, armed only from
+  `ShowChapterLabel`; R3 tick routing, the index gate, the seek index record,
+  `ShowChapterLabelAt` as the only label route; R4 the fire hides and does
+  nothing else) plus the R5 docs pair. These are device-side Timer/render
+  writes that `brs` cannot reach (it mocks unknown roSGNode types as Invalid),
+  so the static census is their honest home, as for Checks 100/101. The
+  portable twin carries one arm-narrow scratch plant per arm. Each fires
+  exactly one named CHECK103 conviction with Check 102 green, deleting the
+  ledger row fires R5 alone, and the restored tree exits 0.
+
 ### Docs — CP-023 [w35/L2]: device-class bearer-custody truth lines — the registry-stored tokens are declared by design, not a deferral, per the estate cookie-auth design — 2026-11-10
 
 - **Why:** the estate cookie-auth design (`COOKIE-DESIGN.md`) settled the permanent split —

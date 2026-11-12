@@ -347,7 +347,13 @@ sub Show(itemId as String, args as Object)
 
     ' P2-S5: chapter UI state (distinct from trickplay/BIF)
     m.chapterLabel = m.top.FindNode("chapterLabel")
-    m.chapterLabelTimer = invalid
+    ' ROK-5: the label's fade timer is ONE lazily-created child re-armed by
+    ' stop/start (ArmChapterLabelTimer) - never invalidated here, which would
+    ' orphan a live child on a re-Show. Stop any in-flight countdown, hide the
+    ' label and reset the change-only index so this item's first chapter shows.
+    if m.chapterLabelTimer <> invalid then m.chapterLabelTimer.control = "stop"
+    if m.chapterLabel <> invalid then m.chapterLabel.visible = false
+    m.chapterLabelIndex = -1
     m.chapterMarkers = []
 
     ' Title (RT-092 [review roku__exploiter #1]: m.item.name is a boxed wire
@@ -1224,31 +1230,44 @@ sub BuildChapterMarkers()
     end for
 end sub
 
-' P2-S5: Show the chapter label briefly when the user seeks near a chapter.
+' P2-S5: Show the chapter label briefly when playback enters a chapter.
+' ROK-5 change-only law: this runs on EVERY position tick (the Video node
+' reports ~twice a second), so it re-shows the label only when the chapter
+' INDEX changes. The pre-cure body re-armed a brand-new 2s timer on every
+' tick inside a chapter, so the countdown restarted forever and the fade
+' never fired - the label sat on screen for the whole chapter. Leaving all
+' chapters (a gap, or no chapter list) resets the index without showing.
 ' @param position Float - current playback position in seconds
 ' @param duration Float - total duration in seconds
 sub UpdateChapterLabel(position as Float, duration as Float)
-    chapter = GetChapterAtPosition(position, duration)
-    if chapter <> invalid then
-        title = chapter.title
-        if title <> invalid and title <> "" then
-            ShowChapterLabel(title)
-        end if
-    end if
+    idx = GetChapterIndexAtPosition(position, duration)
+    if idx = m.chapterLabelIndex then return
+    m.chapterLabelIndex = idx
+    ShowChapterLabelAt(idx)
 end sub
 
-' P2-S5: Return the chapter object at the given position, or invalid.
-function GetChapterAtPosition(position as Float, duration as Float) as Object
+' ROK-5: show the label for chapter idx (no-op for -1 or an empty title).
+' The title is a boxed wire value: TextOrEmpty lifts it before it crosses
+' into ShowChapterLabel's typed String formal (the RT-092 law).
+sub ShowChapterLabelAt(idx as Integer)
+    if idx < 0 then return
+    title = TextOrEmpty(m.playbackInfo.chapters[idx].title)
+    if title <> "" then ShowChapterLabel(title)
+end sub
+
+' P2-S5: Return the index of the chapter at the given position, or -1.
+function GetChapterIndexAtPosition(position as Float, duration as Float) as Integer
     if m.playbackInfo = invalid or m.playbackInfo.chapters = invalid then
-        return invalid
+        return -1
     end if
 
     chapters = m.playbackInfo.chapters
     if type(chapters) <> "roArray" or chapters.Count() = 0 then
-        return invalid
+        return -1
     end if
 
-    for each ch in chapters
+    for i = 0 to chapters.Count() - 1
+        ch = chapters[i]
         if ch = invalid then goto nextGetChapter
         startSec = ch.start_seconds
         endSec = ch.end_seconds
@@ -1256,12 +1275,12 @@ function GetChapterAtPosition(position as Float, duration as Float) as Object
         if startSec = invalid or endSec = invalid then goto nextGetChapter
 
         if position >= startSec and position < endSec then
-            return ch
+            return i
         end if
 
         nextGetChapter:
     end for
-    return invalid
+    return -1
 end function
 
 ' P2-S5: Display the chapter label for 2 seconds then fade it out.
@@ -1271,31 +1290,31 @@ sub ShowChapterLabel(title as String)
 
     m.chapterLabel.text = title
     m.chapterLabel.visible = true
+    ArmChapterLabelTimer()
+end sub
 
-    ' Reset existing timer if chapter changed mid-countdown.
-    if m.chapterLabelTimer <> invalid then
-        m.chapterLabelTimer.control = "stop"
-        m.chapterLabelTimer.UnObserveField("fire")
-        m.top.RemoveChild(m.chapterLabelTimer)
+' ROK-5: (re)arm the chapter-label fade. ONE Timer child for the scene's
+' playback life, created and observed once, re-armed by stop/start (the
+' ArmSyncLeaveStop idiom); a chapter change mid-countdown restarts the 2s
+' window on the same node instead of minting a new child.
+sub ArmChapterLabelTimer()
+    if m.chapterLabelTimer = invalid then
+        m.chapterLabelTimer = CreateObject("roSGNode", "Timer")
+        m.chapterLabelTimer.duration = 2
+        m.chapterLabelTimer.repeat = false
+        m.chapterLabelTimer.ObserveField("fire", "OnChapterLabelTimerFire")
+        m.top.AppendChild(m.chapterLabelTimer)
     end if
-
-    m.chapterLabelTimer = CreateObject("roSGNode", "Timer")
-    m.chapterLabelTimer.duration = 2
-    m.chapterLabelTimer.repeat = false
-    m.chapterLabelTimer.ObserveField("fire", "OnChapterLabelTimerFire")
-    m.top.Append(m.chapterLabelTimer)
+    m.chapterLabelTimer.control = "stop"
     m.chapterLabelTimer.control = "start"
 end sub
 
 ' P2-S5: Hide the chapter label when the timer fires.
+' ROK-5 hide-once: the fire ONLY hides - it never re-arms, and it keeps the
+' child for the next chapter change (teardown alone releases it).
 sub OnChapterLabelTimerFire()
     if m.chapterLabel <> invalid then
         m.chapterLabel.visible = false
-    end if
-    if m.chapterLabelTimer <> invalid then
-        m.chapterLabelTimer.UnObserveField("fire")
-        m.top.RemoveChild(m.chapterLabelTimer)
-        m.chapterLabelTimer = invalid
     end if
 end sub
 
@@ -1326,12 +1345,15 @@ sub ClosePlayer()
     end for
     m.chapterMarkers = []
 
-    ' P2-S5: clean up chapter label timer
+    ' P2-S5: clean up chapter label timer (ROK-5: teardown is the ONE
+    ' release site of the single child - stop, unobserve, remove)
     if m.chapterLabelTimer <> invalid then
+        m.chapterLabelTimer.control = "stop"
         m.chapterLabelTimer.UnObserveField("fire")
         m.top.RemoveChild(m.chapterLabelTimer)
         m.chapterLabelTimer = invalid
     end if
+    m.chapterLabelIndex = -1
     if m.chapterLabel <> invalid then
         m.chapterLabel.visible = false
     end if
@@ -1728,11 +1750,12 @@ sub SeekRelative(seconds as Float)
     ' seeks (ApplyRemotePlayback) instead of fighting the thumb frame-for-frame.
     m.userSeekInteractMs = NowMs()
 
-    ' P2-S5: show chapter label if we landed near a chapter boundary.
-    chapter = GetChapterAtPosition(newPosition, duration)
-    if chapter <> invalid and chapter.title <> invalid then
-        ShowChapterLabel(chapter.title)
-    end if
+    ' P2-S5: show chapter label if we landed inside a chapter. ROK-5: a user
+    ' seek is an explicit ask, so it re-shows even within the same chapter
+    ' (re-arming the one timer); recording the index keeps the next position
+    ' tick change-only instead of arming a second time.
+    m.chapterLabelIndex = GetChapterIndexAtPosition(newPosition, duration)
+    ShowChapterLabelAt(m.chapterLabelIndex)
 
     ' F13 SyncPlay: a host's local seek is broadcast (from old -> new position).
     ' MJ-10: bursts coalesce - the party gets ONE trailing broadcast ~250 ms
