@@ -28,7 +28,7 @@
                    id="titleLabel" />
         </Rectangle>
         <!-- Vertical action button column: 7 flat rating buttons + Clear PIN +
-             Refresh (flat single-action buttons mirror F11c exactly - no focus
+             Parental Controls + Refresh (flat single-action buttons mirror F11c exactly - no focus
              sub-modes, lowest-risk). -->
         <LayoutGroup translation="[40,160]" itemSpacings="[14]">
             <Button width="420" height="64" title="G" id="ratingGButton" />

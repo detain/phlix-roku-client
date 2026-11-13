@@ -693,9 +693,12 @@ at the ends — never wraps):
       `admin`, `active`, `PIN`). Bool/TINYINT flags (`is_admin`, `is_active`,
       `settings.pin_required_for_admin`) are read through type-guarded helpers and the computed
       `rating` Integer (0-6) is mapped to a label — neither is ever string-compared. The per-profile
-      actions screen has nine buttons: seven flat **Rating: G / PG / PG-13 / R / NC-17 / X /
+      actions screen has ten buttons: seven flat **Rating: G / PG / PG-13 / R / NC-17 / X /
       UNRATED** buttons (each sends `PUT /api/v1/admin/profiles/{id}` with `{rating: <int 0-6>}`),
-      **Clear PIN** (`DELETE /api/v1/admin/profiles/{id}/pin`), and **Refresh** — plus a multi-line
+      **Clear PIN** (`DELETE /api/v1/admin/profiles/{id}/pin`), **Parental Controls** (opens the
+      `ParentalControlsScene` — access Schedules / blocked Tags / Stream Limits for that profile via the non-admin
+      `/api/v1/profiles/{id}/schedules|tags|stream-limits` routes), and
+      **Refresh** — plus a multi-line
       detail summary (Name / Rating / Admin / Active / PIN required). Set-Rating and Clear-PIN call
       the server then re-fetch and re-render the profile; only one request runs at a time, and state
       is refreshed **manually** (no auto-poll). **Deferred / future work:** creating a profile,
