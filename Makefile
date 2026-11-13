@@ -332,6 +332,8 @@ check:
 	@echo "Checking prerequisites..."
 	@command -v zip >/dev/null 2>&1 && echo "  ✓ zip available" || echo "  WARNING: zip not found"
 	@command -v curl >/dev/null 2>&1 && echo "  ✓ curl available" || echo "  WARNING: curl not found"
+	@command -v python3 >/dev/null 2>&1 && echo "  ✓ python3 available" || echo "  WARNING: python3 not found (needed by scripts/ helpers)"
+	@command -v unzip >/dev/null 2>&1 && echo "  ✓ unzip available" || echo "  WARNING: unzip not found (needed by make verify-package)"
 	@if [ -d .github/workflows ]; then \
 		echo "  ✓ GitHub Actions configured"; \
 	else \

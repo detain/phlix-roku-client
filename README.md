@@ -43,6 +43,8 @@ The following features are not currently available:
 - **BrightScript Editor**: the VS Code extension *BrightScript Language* by RokuDeveloper (the canonical marketplace extension) or any editor
 - **curl**: For direct device communication
 - **zip**: For creating packages
+- **python3**: Used by repo helper scripts (`scripts/`)
+- **unzip**: Used by `make verify-package` to inspect the built zip
 
 ### Network Requirements
 - Roku device and Phlix Media Server on the same network
@@ -93,7 +95,7 @@ NO reachable fix, per-entry proofs printed on every run; ANY other advisory at A
 severity reddens the gate, and a broken audit never exits green. From a fresh checkout:
 
 ```bash
-npm ci    # devDependencies: brighterscript, @rokucommunity/bslint, rooibos-roku
+npm ci    # devDependencies: brighterscript, @rokucommunity/bslint, rooibos-roku, brs
 ```
 
 ### 4. Configure Server Connection
