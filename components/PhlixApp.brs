@@ -128,7 +128,7 @@ sub Init()
     if pendingDeepLink <> invalid and pendingDeepLink <> "" then
         ' Parse the JSON we stashed; if it fails treat as no pending link.
         parsed = ParseJson(pendingDeepLink)
-        if parsed <> invalid and parsed.contentId <> invalid then
+        if type(parsed) = "roAssociativeArray" and parsed.contentId <> invalid then
             m.deepLinkParams = parsed
             print "Resuming pending deep link: action=" m.deepLinkParams.action
         end if
@@ -832,7 +832,7 @@ sub OnLoginSuccess()
     pendingDeepLink = GetStorage().get("pending_deep_link")
     if pendingDeepLink <> invalid and pendingDeepLink <> "" then
         parsed = ParseJson(pendingDeepLink)
-        if parsed <> invalid and parsed.contentId <> invalid then
+        if type(parsed) = "roAssociativeArray" and parsed.contentId <> invalid then
             m.deepLinkParams = parsed
             GetStorage().set("pending_deep_link", "")
             GetStorage().flush()
