@@ -53,6 +53,11 @@ claim below re-checkable the same way:
 
 ### Fixed — ROK-3 / ROK-4 (ROK-S3) — one shared clamped lazy-poster activator (`ActivateVisibleRange` in `source/lib/Utilities.brs`) across Home/Library/Collection/Favorites/Audiobook/Search; the Collection grid builds nodes one 60-item page at a time and appends the next page on focus; EpisodeListTask and RecommendationsScene eager `HDPosterUrl` assignments stay deferred (consumer lists must adopt the activator) — 2026-11-12
 
+### Fixed — ROK-25 — `GetPageSize()` wired to the memory-tier promise: Season/Series/Favorites/Audiobook scenes and the ApiTask limit defaults use it; Check 105 keeps the callers — 2026-11-12
+
+- `GetPageSize()` (R6.8: low-tier devices get smaller pages) had zero callers. The four paged scenes now set `m.limit = GetPageSize()` and ApiTask's three `limit` defaults follow it. Check 105 is an exact-equality census of those callers.
+- CollectionScene: the magic 60 and 10 (ROK-S3) are now named `COLLECTION_PAGE_SIZE()` / `COLLECTION_LOOKAHEAD_ITEMS()`.
+
 ### Fixed — ROK-14 / ROK-36 — image-lane URL admissibility: server-supplied poster/thumbnail/photo urls ride `IsImageUrlAdmissible` and degrade to the placeholder; Check 104 keeps the limbs — 2026-11-12
 
 `IsImageUrlAdmissible` (Utilities.brs, a leaf over `IsStreamUrlAdmissible`

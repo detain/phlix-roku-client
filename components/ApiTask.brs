@@ -428,7 +428,7 @@ sub ExecRequest()
             ' R5.9: Cache at request level using same query-string logic as ApiClient.
             opts = req.options
             if opts = invalid then opts = {}
-            limit = 50
+            limit = GetPageSize() ' ROK-S4
             offset = 0
             if opts.DoesExist("limit") then limit = opts.limit
             if opts.DoesExist("offset") then offset = opts.offset
@@ -620,7 +620,7 @@ sub ExecRequest()
             ' R5.9: Cache at request level.
             opts = req.options
             if opts = invalid then opts = {}
-            limit = 50
+            limit = GetPageSize() ' ROK-S4
             offset = 0
             if opts.DoesExist("limit") then limit = opts.limit
             if opts.DoesExist("offset") then offset = opts.offset
@@ -723,7 +723,7 @@ sub ExecRequest()
         else if req.op = "getAdminStorage" then
             ApplyEnvelope(result, api.getAdminStorage())
         else if req.op = "getAdminActivity" then
-            limit = 20
+            limit = GetPageSize() ' ROK-S4
             if req.DoesExist("limit") and req.limit <> invalid then limit = req.limit
             ApplyEnvelope(result, api.getAdminActivity(limit))
         else if req.op = "scanLibrary" then

@@ -163,10 +163,20 @@ sub OnApiResponse(event as Object)
     end if
 end sub
 
+' ROK-S3: grid nodes built per append (page size).
+function COLLECTION_PAGE_SIZE() as Integer
+    return 60
+end function
+
+' ROK-S3: focus within this many items (two 5-col rows) of the built tail pulls the next page.
+function COLLECTION_LOOKAHEAD_ITEMS() as Integer
+    return 10
+end function
+
 ' ROK-S3: build the next page of grid nodes from m.items into content.
 sub AppendCollectionPage(content as Object)
     total = m.items.Count()
-    stopAt = m.builtCount + 60
+    stopAt = m.builtCount + COLLECTION_PAGE_SIZE()
     if stopAt > total then stopAt = total
     for i = m.builtCount to stopAt - 1
         item = m.items[i]
@@ -248,7 +258,7 @@ sub OnItemFocused(event as Object)
     if item = invalid then return
 
     ' ROK-S3: focus within two rows of the built tail pulls the next page.
-    if m.builtCount < m.items.Count() and index >= m.builtCount - 10 and m.itemsGrid <> invalid then
+    if m.builtCount < m.items.Count() and index >= m.builtCount - COLLECTION_LOOKAHEAD_ITEMS() and m.itemsGrid <> invalid then
         AppendCollectionPage(m.itemsGrid.content)
     end if
 

@@ -16012,4 +16012,85 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 105: the memory-tier page size reaches every paged scene and cache-defaulting task site (ROK-25) ==="
+# NUMBERING: next-free after 104. GetPageSize() (AppContext) was defined with
+# zero callers, so the documented R6.8 tier promise never reached a request.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def mask(text):
+    return "\n".join(l for l in text.splitlines()
+                     if not l.lstrip().startswith("'"))
+
+
+AC = read("source/lib/AppContext.brs")
+if AC is None:
+    problems.append("  source/lib/AppContext.brs - CHECK105 R0: carrier vanished")
+    AC = ""
+AC = mask(AC)
+if len(re.findall(r"(?m)^function GetPageSize\(\) as Integer", AC)) != 1:
+    problems.append("  source/lib/AppContext.brs - CHECK105 R1 [def]: GetPageSize expected exactly 1 definition")
+
+# (path, label, regex, want)
+SITES = [
+    ("components/SeasonScene.brs", "season", r"^\s*m\.limit = GetPageSize\(\)", 1),
+    ("components/SeriesScene.brs", "series", r"^\s*m\.limit = GetPageSize\(\)", 1),
+    ("components/FavoritesScene.brs", "favorites", r"^\s*m\.limit = GetPageSize\(\)", 1),
+    ("components/AudiobookScene.brs", "audiobook", r"^\s*m\.limit = GetPageSize\(\)", 1),
+    ("components/ApiTask.brs", "task-defaults", r"^\s*limit = GetPageSize\(\)", 3),
+    ("components/SeasonScene.brs", "season-raw", r"^\s*m\.limit = \d+\s*$", 0),
+    ("components/SeriesScene.brs", "series-raw", r"^\s*m\.limit = \d+\s*$", 0),
+    ("components/FavoritesScene.brs", "favorites-raw", r"^\s*m\.limit = \d+\s*$", 0),
+    ("components/AudiobookScene.brs", "audiobook-raw", r"^\s*m\.limit = \d+\s*$", 0),
+]
+for path, label, rx, want in SITES:
+    t = read(path)
+    if t is None:
+        problems.append("  %s - CHECK105 R2 [%s]: carrier vanished" % (path, label))
+        continue
+    got = len(re.findall(r"(?m)" + rx, mask(t)))
+    if got != want:
+        problems.append("  %s - CHECK105 R2 [%s]: expected exactly %d, found %d - a page-size caller was stripped or reshaped without rotating this census" % (path, label, want, got))
+
+DOCS = read(os.path.join("docs", "static-checks.md"))
+CHLOG = read("CHANGELOG.md")
+if DOCS is not None:
+    row = re.search(r"(?m)^\|\s*105\s*\|.*$", DOCS)
+    if not row:
+        problems.append("  docs/static-checks.md - CHECK105 R3: no row 105 in the checks table")
+    elif "ROK-25" not in row.group(0):
+        problems.append("  docs/static-checks.md - CHECK105 R3: row 105 does not name ROK-25")
+if CHLOG is not None:
+    for idiom in ("ROK-25", "Check 105"):
+        if idiom not in CHLOG:
+            problems.append("  CHANGELOG.md - CHECK105 R3: does not name %s" % idiom)
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK105: %d page-size wiring pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK105: GetPageSize is defined once and called by every paged scene and")
+print("  the three ApiTask limit defaults; no literal m.limit survives")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

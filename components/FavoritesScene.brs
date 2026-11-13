@@ -55,7 +55,7 @@ sub Init()
 
     ' Paging state for infinite scroll (R5.4)
     m.offset = 0
-    m.limit = 50
+    m.limit = GetPageSize() ' ROK-S4: memory-tier page size (AppContext.GetPageSize)
     m.hasMore = true
     m.loadingPage = false
     m.contentNode = invalid
