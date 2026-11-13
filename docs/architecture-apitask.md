@@ -18,7 +18,7 @@ Scene (render thread)              ApiTask (task thread)          ApiClient / ro
       |                                    |  m.api.<method>(...) -------> |
       |                                    |                               |
       |                                    |  response = {op, ok, data,   |
-      |                                    |                  error, status}
+      |                                    |                  error}
       |  observe "response" <------------ |                               |
       |  OnApiResponse()                  |                               |
 ```
@@ -29,15 +29,19 @@ Scene (render thread)              ApiTask (task thread)          ApiClient / ro
 
 ## The Response Envelope
 
-After R3.3, every API response uses this shape:
+The scene-facing `m.top.response` (written by `ApiTask`) has this shape:
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `op` | String | The operation that was run (e.g. `"getLibraries"`, `"login"`) |
-| `ok` | Boolean | Derived from HTTP status — `true` for 2xx, `false` otherwise. **Not** from whether `data` is non-invalid |
-| `data` | Object | Parsed JSON response body, or `invalid` on parse failure |
+| `ok` | Boolean | Derived from the HTTP status of the transport envelope — `true` for 2xx, `false` otherwise. **Not** from whether `data` is non-invalid |
+| `data` | Object | Server payload, unwrapped exactly once from the transport envelope (`invalid` on parse failure) |
 | `error` | String | Human-readable error message when `ok` is `false` |
-| `status` | Integer | Raw HTTP status code |
+
+There is **no** `status` field on the task response. The raw HTTP `status` exists only on the
+**transport envelope** `{status, ok, data, error}` returned by `ApiClient.request()`; `ApiTask`
+folds it into the response via `ApplyEnvelope()` (`components/ApiTask.brs`). See
+[api-envelope.md](api-envelope.md) for the envelope law.
 
 **`ok` derivation (R3.3):**
 ```brightscript
@@ -70,7 +74,7 @@ Each scene that dispatches through `ApiTask` must observe this rule. R1.4 added 
    end if
    ```
 
-3. **Return the correct envelope** — `ApiClient` methods return `{op, ok, data, error, status}` automatically
+3. **Return the correct envelope** — `ApiClient` methods return the transport envelope `{status, ok, data, error}`; route it through `ApplyEnvelope(result, env)` (see [api-envelope.md](api-envelope.md))
 
 4. **Dispatch from the scene** — set `m.top.request = {op: "myop", params: {...}}`, observe `response`, handle the three outcomes
 
@@ -108,6 +112,11 @@ The shipped chain stays as-is: this document records the problem only. Any move 
 - `createSession`, `reportProgress`, `completeSession` — mutate server state
 - `probeHealth` — must reflect current connectivity state
 - `checkAuth`, `checkAuthHub`, `login`, `logout` — auth state
+- `saveAudiobookProgress` — progress mutation
+- `getPlaybackPreferences` — must reflect the freshest server state after a PUT
+- `clearWatchHistory` — mutation whose success the user must see confirmed on every press
+
+(Authoritative list: `CacheShouldSkip()` in `components/ApiTask.brs`.)
 
 ---
 
