@@ -51,6 +51,18 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — ROK-14 / ROK-36 — image-lane URL admissibility: server-supplied poster/thumbnail/photo urls ride `IsImageUrlAdmissible` and degrade to the placeholder; Check 104 keeps the limbs — 2026-11-12
+
+`IsImageUrlAdmissible` (Utilities.brs, a leaf over `IsStreamUrlAdmissible`
+plus the `pkg:/` arm) and `SafeImageUrl(origin, url)` now gate the five
+image-lane carriers: PhotoAlbumScene thumbnails, PhotosScene album covers,
+PhotoViewerScene full image, DetailScene poster and similar rail, and
+HomeScene `UpNextPosterUrl`. An http:// image off an https origin, file://,
+data://, userinfo-game and non-string shapes degrade to
+`pkg:/images/placeholder.png`. Check 104 is a static census of those sites
+plus the docs pair (R1 leaf, R2 sites, R3 docs); headless unit covers the leaf
+refusals (tests/unit/Utilities2.test.brs).
+
 ### Fixed — ROK-5 — the player's chapter label fades after 2 seconds again (one Timer child, stop/start re-arm, change-only, hide-once); Check 103 keeps the limbs — 2026-11-12
 
 - **Why (round-2026-11-11 roku plan step ROK-S5):** `UpdateChapterLabel` runs on

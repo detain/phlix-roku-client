@@ -82,7 +82,7 @@ sub RenderCurrent()
     if m.fullImage <> invalid then
         url = "pkg:/images/placeholder.png"
         if photo.DoesExist("full_url") and photo.full_url <> invalid and photo.full_url <> "" then
-            url = photo.full_url
+            url = SafeImageUrl(GetServerUrl(), photo.full_url)
         end if
         m.fullImage.uri = url
     end if

@@ -468,18 +468,18 @@ function UpNextPosterUrl(item as Object) as String
         if item.DoesExist("metadata") and type(item.metadata) = "roAssociativeArray" then
             meta = item.metadata
             if meta.DoesExist("poster_url") and meta.poster_url <> invalid and meta.poster_url <> "" then
-                return meta.poster_url
+                return SafeImageUrl(GetServerUrl(), meta.poster_url)
             end if
             if meta.DoesExist("poster") and meta.poster <> invalid and meta.poster <> "" then
-                return meta.poster
+                return SafeImageUrl(GetServerUrl(), meta.poster)
             end if
         end if
         ' Direct poster field
         if item.DoesExist("poster_url") and item.poster_url <> invalid and item.poster_url <> "" then
-            return item.poster_url
+            return SafeImageUrl(GetServerUrl(), item.poster_url)
         end if
         if item.DoesExist("poster") and item.poster <> invalid and item.poster <> "" then
-            return item.poster
+            return SafeImageUrl(GetServerUrl(), item.poster)
         end if
     end if
     return "pkg:/images/placeholder.png"
@@ -619,10 +619,10 @@ function ContinuePosterUrl(item as Object) as String
         ' read poster keys when it is an assoc (else fall through to placeholder).
         if type(meta) = "roAssociativeArray" then
             if meta.DoesExist("poster_url") and meta.poster_url <> invalid and meta.poster_url <> "" then
-                return meta.poster_url
+                return SafeImageUrl(GetServerUrl(), meta.poster_url)
             end if
             if meta.DoesExist("poster") and meta.poster <> invalid and meta.poster <> "" then
-                return meta.poster
+                return SafeImageUrl(GetServerUrl(), meta.poster)
             end if
         end if
     end if

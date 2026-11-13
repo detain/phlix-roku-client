@@ -96,7 +96,7 @@ sub OnPhotoAlbumResponse(resp as Object)
 
             posterUrl = "pkg:/images/placeholder.png"
             if photo.DoesExist("thumbnail_url") and photo.thumbnail_url <> invalid and photo.thumbnail_url <> "" then
-                posterUrl = photo.thumbnail_url
+                posterUrl = SafeImageUrl(GetServerUrl(), photo.thumbnail_url)
             end if
 
             content.AddChild({

@@ -15886,4 +15886,101 @@ PYEOF
 echo "$PYOUT"
 [[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
 
+echo "=== Check 104: image-lane URLs route through the admissibility leaf and degrade to the placeholder (ROK-14 / ROK-36) ==="
+# NUMBERING: next-free after 103. Scratch-local, no header-pin rotation (the
+# CHECK103 form). WHY: server-supplied poster/thumbnail/photo urls were
+# assigned to Poster/Image uri raw, so an http:// image off an https origin
+# (or a file/data/userinfo shape) loaded unchecked. The cure is the pure
+# IsImageUrlAdmissible leaf + SafeImageUrl degrade arm; this census holds
+# every carrier on it.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def mask(text):
+    return "\n".join(l for l in text.splitlines()
+                     if not l.lstrip().startswith("'"))
+
+
+UT = read("source/lib/Utilities.brs")
+if UT is None:
+    problems.append("  source/lib/Utilities.brs - CHECK104 R0: carrier vanished")
+    UT = ""
+UT = mask(UT)
+for name, want in (("IsImageUrlAdmissible", 1), ("SafeImageUrl", 1)):
+    got = len(re.findall(r"(?m)^function %s\(" % name, UT))
+    if got != want:
+        problems.append("  source/lib/Utilities.brs - CHECK104 R1 [%s-def]: expected %d, found %d" % (name, want, got))
+m = re.search(r"(?ms)^function IsImageUrlAdmissible\(.*?^end function", UT)
+body = m.group(0) if m else ""
+for label, rx in (("pkg-arm", r'Left\(s, 5\) = "pkg:/"'),
+                  ("delegates", r"IsStreamUrlAdmissible\(")):
+    if len(re.findall(rx, body)) != 1:
+        problems.append("  source/lib/Utilities.brs - CHECK104 R1 [%s]: expected exactly 1" % label)
+
+# (path, label, regex, want)
+SITES = [
+    ("components/PhotoAlbumScene.brs", "album-thumb", r"SafeImageUrl\(GetServerUrl\(\), photo\.thumbnail_url\)", 1),
+    ("components/PhotoAlbumScene.brs", "album-thumb-raw", r"= photo\.thumbnail_url\s*$", 0),
+    ("components/PhotosScene.brs", "cover-thumb", r"SafeImageUrl\(GetServerUrl\(\), cover\.thumbnail_url\)", 1),
+    ("components/PhotosScene.brs", "cover-thumb-raw", r"= cover\.thumbnail_url\s*$", 0),
+    ("components/PhotoViewerScene.brs", "full-url", r"SafeImageUrl\(GetServerUrl\(\), photo\.full_url\)", 1),
+    ("components/PhotoViewerScene.brs", "full-url-raw", r"= photo\.full_url\s*$", 0),
+    ("components/DetailScene.brs", "poster", r"m\.posterImage\.uri = SafeImageUrl\(GetServerUrl\(\), posterUrl\)", 1),
+    ("components/DetailScene.brs", "poster-raw", r"m\.posterImage\.uri = posterUrl\s*$", 0),
+    ("components/DetailScene.brs", "similar", r"HDPosterUrl = SafeImageUrl\(GetServerUrl\(\), sim\.posterUrl\)", 1),
+    ("components/DetailScene.brs", "similar-raw", r"HDPosterUrl = sim\.posterUrl\s*$", 0),
+    ("components/HomeScene.brs", "upnext", r"return SafeImageUrl\(GetServerUrl\(\), (?:meta|item)\.poster(?:_url)?\)", 6),
+    ("components/HomeScene.brs", "upnext-raw", r"return (?:meta|item)\.poster(?:_url)?\s*$", 0),
+]
+for path, label, rx, want in SITES:
+    t = read(path)
+    if t is None:
+        problems.append("  %s - CHECK104 R2 [%s]: carrier vanished" % (path, label))
+        continue
+    got = len(re.findall(r"(?m)" + rx, mask(t)))
+    if got != want:
+        problems.append("  %s - CHECK104 R2 [%s]: expected exactly %d, found %d - an image-lane carrier was un-gated or reshaped without rotating this census" % (path, label, want, got))
+
+DOCS = read(os.path.join("docs", "static-checks.md"))
+CHLOG = read("CHANGELOG.md")
+if DOCS is not None:
+    row = re.search(r"(?m)^\|\s*104\s*\|.*$", DOCS)
+    if not row:
+        problems.append("  docs/static-checks.md - CHECK104 R3: no row 104 in the checks table")
+    elif "ROK-14" not in row.group(0):
+        problems.append("  docs/static-checks.md - CHECK104 R3: row 104 does not name ROK-14")
+if CHLOG is not None:
+    for idiom in ("ROK-14", "Check 104"):
+        if idiom not in CHLOG:
+            problems.append("  CHANGELOG.md - CHECK104 R3: does not name %s" % idiom)
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK104: %d image-lane admissibility pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK104: every image-lane carrier routes through SafeImageUrl over the")
+print("  IsImageUrlAdmissible leaf, no raw assignment survives, and the era keeps")
+print("  its custody in the checks ledger and the CHANGELOG")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
 exit $((VIOLATIONS))

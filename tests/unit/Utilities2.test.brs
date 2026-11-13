@@ -738,3 +738,25 @@ sub TestNormalizeCollectionItemLiftsMalformedShapes()
     assertTrue(nulled.year = invalid)
     print "TestNormalizeCollectionItemLiftsMalformedShapes passed"
 end sub
+
+' ---- IsImageUrlAdmissible tests (ROK-14 / ROK-36 image-lane leaf) ----
+
+sub TestIsImageUrlAdmissibleLeafRefusals()
+    https = "https://phlix.example.com"
+    ' pkg:/ placeholder and root-relative paths always pass.
+    assertTrue(IsImageUrlAdmissible(https, "pkg:/images/placeholder.png"))
+    assertTrue(IsImageUrlAdmissible(https, "/api/v1/images/1.jpg"))
+    assertTrue(IsImageUrlAdmissible(https, "https://cdn.example.com/a.jpg"))
+    ' http downgrade off an https origin is refused; http origin keeps http.
+    assertFalse(IsImageUrlAdmissible(https, "http://cdn.example.com/a.jpg"))
+    assertTrue(IsImageUrlAdmissible("http://192.168.1.5:8096", "http://192.168.1.5:8096/a.jpg"))
+    ' foreign / hostile shapes: file://, data://, userinfo games, blank, non-string.
+    assertFalse(IsImageUrlAdmissible(https, "file:///etc/passwd"))
+    assertFalse(IsImageUrlAdmissible(https, "data://x"))
+    assertFalse(IsImageUrlAdmissible(https, "https://phlix.example.com@evil.example/a.jpg"))
+    assertFalse(IsImageUrlAdmissible(https, ""))
+    assertFalse(IsImageUrlAdmissible(https, "   "))
+    assertFalse(IsImageUrlAdmissible(https, invalid))
+    assertFalse(IsImageUrlAdmissible(https, 42))
+    print "TestIsImageUrlAdmissibleLeafRefusals passed"
+end sub

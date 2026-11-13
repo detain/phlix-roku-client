@@ -394,7 +394,7 @@ sub RenderItem()
 
     posterUrl = TextOrEmpty(item.poster_url)
     if m.posterImage <> invalid and posterUrl <> "" then
-        m.posterImage.uri = posterUrl
+        m.posterImage.uri = SafeImageUrl(GetServerUrl(), posterUrl)
     end if
 
     ' Info line: year + runtime (MINUTES) + content-rating LABEL + chapter count.
@@ -1055,7 +1055,7 @@ sub DisplaySimilar(similarItems as Object)
             if sim.title <> invalid then node.Title = sim.title
             if sim.title <> invalid then node.accessibleLabel = sim.title
             if sim.posterUrl <> invalid and sim.posterUrl <> "" then
-                node.HDPosterUrl = sim.posterUrl
+                node.HDPosterUrl = SafeImageUrl(GetServerUrl(), sim.posterUrl)
             else
                 node.HDPosterUrl = "pkg:/images/placeholder.png"
             end if

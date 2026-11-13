@@ -92,7 +92,7 @@ sub OnPhotoAlbumsResponse(resp as Object)
             if album.DoesExist("cover_photo") and album.cover_photo <> invalid and type(album.cover_photo) = "roAssociativeArray" then
                 cover = album.cover_photo
                 if cover.DoesExist("thumbnail_url") and cover.thumbnail_url <> invalid and cover.thumbnail_url <> "" then
-                    posterUrl = cover.thumbnail_url
+                    posterUrl = SafeImageUrl(GetServerUrl(), cover.thumbnail_url)
                 end if
             end if
 

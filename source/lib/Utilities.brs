@@ -328,6 +328,37 @@ function IsStreamUrlAdmissible(originUrl as String, streamUrl as String) as Bool
     return true
 end function
 
+' =============================================================================
+' IMAGE LANE ADMISSIBILITY (ROK-14 / ROK-36)
+' =============================================================================
+
+' True when a server-supplied IMAGE url may ride a Poster/Image/ContentNode
+' uri from the given API origin. Image GETs carry no token but reveal viewing
+' habits and, on an https origin, an http:// target is the same mixed-content
+' downgrade the media lane refuses; foreign-shape strings (file://, data://,
+' userinfo games) are refused too. The package's own pkg:/ assets are always
+' admissible (the placeholder arm). Everything else delegates to
+' IsStreamUrlAdmissible so the two lanes share one scheme/origin law.
+' Accepts ANY wire shape (non-String, blank -> false). Pure.
+function IsImageUrlAdmissible(originUrl as Dynamic, imageUrl as Dynamic) as Boolean
+    if imageUrl = invalid then return false
+    if type(imageUrl) <> "String" and type(imageUrl) <> "roString" then return false
+    s = LCase(imageUrl.Trim())
+    if s = "" then return false
+    if Left(s, 5) = "pkg:/" then return true
+    o = ""
+    if originUrl <> invalid and (type(originUrl) = "String" or type(originUrl) = "roString") then o = originUrl
+    return IsStreamUrlAdmissible(o, imageUrl)
+end function
+
+' The admissible url or the pkg:/ placeholder: the single degrade arm every
+' image-lane site routes through. Callers pass GetServerUrl() as the origin (kept out of this
+' file: Utilities.brs is compiled into scopes that lack AppContext).
+function SafeImageUrl(originUrl as Dynamic, imageUrl as Dynamic) as String
+    if IsImageUrlAdmissible(originUrl, imageUrl) then return imageUrl
+    return "pkg:/images/placeholder.png"
+end function
+
 ' Manual redirect-hop budget for the send sites (CHECK48 pins the literal).
 function RedirectHopLimit() as Integer
     return 3
