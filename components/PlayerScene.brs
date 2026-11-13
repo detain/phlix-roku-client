@@ -2992,6 +2992,9 @@ sub ToggleSettingsPanel()
     content.AddChild({ title: Translate("player_settings_audio") })
     content.AddChild({ title: Translate("player_settings_subtitles") })
     content.AddChild({ title: Translate("settings_item_caption_mode") })
+    ' ROK-49: Watch Together is also reachable from the Down panel (mirrors the
+    ' options-key path; hub mode gets ToggleSyncPanel's honest not-available copy).
+    content.AddChild({ title: Translate("player_settings_watch_together") })
     if m.settingsList <> invalid then m.settingsList.content = content
 
     SetSettingsStatus(Translate("player_settings_hint"))
@@ -3021,6 +3024,10 @@ sub OnSettingsRowSelected(event as Object)
         OpenSubtitleTrackList()
     else if index = 2 then
         OpenCaptionModeList()
+    else if index = 3 then
+        ' ROK-49: mirror the options-key path (hub gate lives in ToggleSyncPanel).
+        CloseSettingsPanel()
+        ToggleSyncPanel()
     end if
 end sub
 
