@@ -4,7 +4,7 @@
 # later collides with a root file/dir would be treated as up-to-date and
 # silently skip its recipe, which is the fail-open class this repo legislated
 # against elsewhere. CHECK97 R2 reddens a new target without a .PHONY entry.
-.PHONY: all package package-signed install launch stop clean test test-unit test-integration lint lint-fix bslint validate validate-manifest validate-xml validate-routes check verify-runtime verify-package docs-api _run_rooibos _run_rooibos_unit _run_rooibos_integration _update-manifest
+.PHONY: all package package-signed install launch stop clean test test-unit test-integration lint lint-fix bslint validate validate-manifest validate-xml validate-routes check check-strict verify-runtime verify-package docs-api _run_rooibos _run_rooibos_unit _run_rooibos_integration _update-manifest
 
 # Roku IP address (set via environment or edit here)
 ROKU_IP ?= 192.168.1.100
@@ -26,7 +26,7 @@ BUILD_DIR = build
 MANIFEST_SRC = manifest
 MANIFEST_OUT = $(BUILD_DIR)/manifest
 
-_update-manifest: $(MANIFEST_SRC)
+_update-manifest: $(MANIFEST_SRC) package.json
 	@mkdir -p $(BUILD_DIR)
 	@sed -e 's/^major_version=.*/major_version=$(shell $(CURDIR)/scripts/derive-version.sh --major)/' \
 	      -e 's/^minor_version=.*/minor_version=$(shell $(CURDIR)/scripts/derive-version.sh --minor)/' \
@@ -346,6 +346,17 @@ check:
 		echo "  ✓ DEVELOPER.md exists"; \
 	else \
 		echo "  WARNING: DEVELOPER.md not found"; \
+	fi
+
+# Strict variant for CI: same checks, but any WARNING line fails the target.
+# The interactive `check` stays permissive (missing zip/curl is advisory locally).
+check-strict:
+	@out="$$($(MAKE) --no-print-directory check)"; rc=$$?; \
+	echo "$$out"; \
+	if [ $$rc -ne 0 ]; then exit $$rc; fi; \
+	if echo "$$out" | grep -q "WARNING"; then \
+		echo "ERROR: check-strict: one or more prerequisite WARNINGs"; \
+		exit 1; \
 	fi
 
 verify-runtime:

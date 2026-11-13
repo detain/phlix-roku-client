@@ -56,4 +56,4 @@ jobs:
 
       - name: Check prerequisites
         run: |
-          make check
+          make check-strict
