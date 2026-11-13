@@ -742,6 +742,27 @@ sub ActivateVisibleRange(content as Object, vr as Object, numCols as Integer, co
     end for
 end sub
 
+' ROK-S3: focus-window lazy activator for lists with no visibleRect field (MarkupList).
+' Activates the posters of [centerIndex - radius, centerIndex + radius], clamped to the
+' content bounds; O(window), never O(content), and no unload arm (same law as
+' ActivateVisibleRange).
+sub ActivateLazyPosterWindow(content as Object, centerIndex as Integer, radius as Integer)
+    if content = invalid then return
+    count = content.GetChildCount()
+    first = centerIndex - radius
+    if first < 0 then first = 0
+    last = centerIndex + radius
+    if last > count - 1 then last = count - 1
+    for i = first to last
+        child = content.GetChild(i)
+        if child <> invalid then
+            if child.HDPosterUrl = "" and child.doesExist("_lazyPosterUrl") then
+                ActivateLazyPosterUrl(child)
+            end if
+        end if
+    end for
+end sub
+
 ' R5: Clear lazy image — call when item goes out of visible range to free memory
 sub ClearLazyPosterUrl(contentNode as Object)
     if contentNode <> invalid and type(contentNode) = "roSGNode" then

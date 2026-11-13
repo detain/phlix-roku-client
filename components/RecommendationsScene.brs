@@ -15,6 +15,7 @@ sub Init()
 
     if m.recommendationsList <> invalid then
         m.recommendationsList.ObserveField("itemSelected", "OnItemSelected")
+        m.recommendationsList.ObserveField("itemFocused", "OnItemFocused")
     end if
 
     ' Route through ApiTask like other scenes
@@ -57,7 +58,8 @@ sub OnRecommendationsResponse(resp as Object)
             item = CreateObject("roSGNode", "ContentNode")
             item.Title = rec.title
             item.Year = rec.year
-            item.HDPosterUrl = rec.posterUrl
+            ' ROK-S3: lazy poster - URL stored now, HDPosterUrl set by the focus-window activator
+            SetLazyPosterUrl(item, rec, "posterUrl")
             item.Score = rec.score
             item.Id = rec.id
             content.AppendChild(item)
@@ -65,10 +67,18 @@ sub OnRecommendationsResponse(resp as Object)
 
         if m.recommendationsList <> invalid then
             m.recommendationsList.content = content
+            ActivateLazyPosterWindow(content, 0, 5)
         end if
     else
         m.emptyLabel.visible = true
     end if
+end sub
+
+' ROK-S3: activate the posters around the focused row (windowed, O(window)).
+sub OnItemFocused(event as Object)
+    index = event.getData()
+    if index = invalid or m.recommendationsList = invalid then return
+    ActivateLazyPosterWindow(m.recommendationsList.content, index, 5)
 end sub
 
 sub OnItemSelected(event as Object)

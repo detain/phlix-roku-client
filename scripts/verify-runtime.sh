@@ -14424,6 +14424,11 @@ for scn in ("HomeScene", "LibraryScene", "CollectionScene", "FavoritesScene", "A
         r6.append(scn + " regrew the unload arm")
     if "while child <> invalid" in ssrc:
         r6.append(scn + " regrew a full 0..invalid walk")
+rec = read("components/RecommendationsScene.brs") or ""
+if "item.HDPosterUrl" in strip_comment_lines(rec):
+    r6.append("RecommendationsScene regrew the eager HDPosterUrl assignment")
+if "ActivateLazyPosterWindow(" not in rec or "SetLazyPosterUrl(" not in rec:
+    r6.append("RecommendationsScene no longer routes through the lazy poster window leaf")
 if r6:
     problems.append("  windowed lazy walk - CHECK95 R6: " + "; ".join(r6))
 
