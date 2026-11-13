@@ -27,7 +27,6 @@ Same as R0.1 — no device was available in this remediation session.
 - The channel can boot past the first frame
 - Auth flow works end-to-end on real hardware
 
-**Static verification only:** All static checks in `scripts/verify-runtime.sh` pass (11+ CHECKs).
-[2026-10-30: count long stale — the script now runs 62 `=== Check` legs, all green.]
+**Static verification only:** All static checks in `scripts/verify-runtime.sh` pass (the script and `docs/static-checks.md` are the authority for the leg count; none is restated here).
 
 **Created:** 2026-08-06
