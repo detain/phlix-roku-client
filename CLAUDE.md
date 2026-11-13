@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A native Roku (BrightScript + SceneGraph XML) client for the Phlix Media Server. There is no compiler and no host-side runtime — the code only executes when packaged and sideloaded onto a Roku device. Treat the toolchain as a thin wrapper around `zip` + the Roku ECP HTTP API on port 8060.
+A native Roku (BrightScript + SceneGraph XML) client for the Phlix Media Server. There is no on-device compiler; the channel code only executes when packaged and sideloaded onto a Roku device. The host side is real code too: Node gate scripts (`scripts/*.mjs`, `tests/scripts/*.mjs`) and a headless BrightScript runner (`tests/scripts/run-headless-unit.mjs`). Treat the packaging toolchain as a thin wrapper around `zip` + curl: install goes to the dev installer on port 80 (`/plugin_install`, HTTP digest), while port 8060 is the Roku ECP API only (launch/keypress/query).
 
 ## Commands
 
-All workflows go through `Makefile`. `package.json` exists only to alias these for `npm`-aware tooling; there is no Node code.
+All workflows go through `Makefile`. `package.json` aliases these for `npm`-aware tooling. There is no Node code in the channel itself, but Node host scripts (gates, headless runner) do exist and are real code.
 
 | Command | What it actually does |
 |---|---|
@@ -150,8 +150,9 @@ and this client flipped to it in `07eef68` via `BearerSubprotocolOffer` at
 - `source/lib/SyncPlayProtocol.brs` — a **pure** factory (no I/O, no UI): RFC6455 framing
   (`BuildClientFrame`/`BuildTextFrame`/`ParseFrames` with masked client frames + buffered decode;
   BrightScript has no infix `xor`, so masking uses a composed `XorByte` helper), the WebSocket
-  handshake helpers (we send a valid random `Sec-WebSocket-Key` and accept the `101` **without
-  verifying the accept hash** — noted in-code), the **FLAT** `syncplay_*` codec (`Encode`/`Decode`;
+  handshake helpers (we send a valid random `Sec-WebSocket-Key` and the handshake is **fail-closed**: the
+  `101` is accepted only when `Sec-WebSocket-Accept` matches the expected hash, any missing/mismatched
+  value tears the socket down — see `SyncPlayProtocol.brs:623`), the **FLAT** `syncplay_*` codec (`Encode`/`Decode`;
   payload fields at the top level, `protocol_version:1`, ms `timestamp`), and the NTP TimeSync
   (weighted-mean offset, variance-<50 stability, drift EMA clamped `[0.99,1.01]`). Module-level
   `NowMs() as LongInteger` uses a `1000&` literal to avoid 32-bit overflow on `seconds*1000`.
@@ -161,7 +162,7 @@ and this client flipped to it in `07eef68` via `BearerSubprotocolOffer` at
   returning `invalid` is the tick that sends a `time_ping`. Only assocarray/string/number cross the
   Task↔scene boundary — the Task reads `config`/`command` and writes `event`/`connectionState`, never
   touching UI nodes. Because component scope does not auto-include `pkg:/source`, its XML carries the
-  full `<script>` closure (Storage, Utilities, AppContext, SyncPlayProtocol, own `.brs`).
+  full `<script>` closure (Storage, Utilities, SyncPlayProtocol, own `.brs`; AppContext/ApiClient are deliberately excluded per `SyncPlayTask.xml`).
 - `components/PlayerScene.{xml,brs}` — the **only** place playback control lives, so SyncPlay is an
   additive "Watch Together" overlay there (LabelList of groups + Create/Leave + status). It is opened
   by the `*`/Options key and **lazily** creates the `SyncPlayTask` + group-list `ApiTask` on first
