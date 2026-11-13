@@ -434,7 +434,7 @@ printf 'user = "rokudev:%s"\ndigest\nurl = "http://192.168.1.100/plugin_install"
 
 ### Unit Tests
 
-Unit tests live in `tests/unit/` — **31 rooibos unit suites** at time of writing, one
+Unit tests live in `tests/unit/` — **32 rooibos unit suites** at time of writing, one
 `*.test.brs` file per module. The full listing is the **Test Structure** block below;
 Check 62 pins this count and the listing to the shipped tree, so a re-drift reddens CI.
 
@@ -491,7 +491,7 @@ moment this block and the tree disagree, in either direction):
 
 ```
 tests/
-├── unit/                                  # 31 rooibos suites, one *.test.brs per module
+├── unit/                                  # 32 rooibos suites, one *.test.brs per module
 │   ├── AdminScanRoutines.test.brs
 │   ├── ApiClient.test.brs
 │   ├── ApiEnvelope.test.brs
@@ -519,6 +519,7 @@ tests/
 │   ├── SyncPlayProtocol.test.brs
 │   ├── SyncPlayWsTls.test.brs
 │   ├── Theme.test.brs
+│   ├── TrackSelection.test.brs
 │   ├── TranslateWithParams.test.brs
 │   ├── Utilities.test.brs
 │   ├── Utilities2.test.brs

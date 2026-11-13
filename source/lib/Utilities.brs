@@ -2359,3 +2359,94 @@ function HubRelayCleartextRefusedForOrigin(hubUrl as String) as Boolean
     if s = "" then return false
     return Left(s, 8) = "https://"
 end function
+
+' Stringify a track id that may be a JSON number OR string.
+' (Moved from components/PlayerScene.brs so the track-selection leaves below
+' are headless-testable; PlayerScene still sees it through its Utilities.brs
+' <script> include.)
+function TrackStringifyId(v as Object) as String
+    if v = invalid then return ""
+    tp = type(v)
+    if tp = "String" or tp = "roString" then return v
+    if tp = "Integer" or tp = "roInt" then return str(v).Trim()
+    if tp = "LongInteger" or tp = "roLongInteger" then return (str(v)).Trim()
+    if tp = "Float" or tp = "roFloat" or tp = "Double" or tp = "roDouble" then return str(Int(v)).Trim()
+    return ""
+end function
+
+' ROK-S2: the node-wins audio match. Finds the Video node's own availableAudioTracks
+' entry whose stringified server id equals `id` and answers that entry's Track
+' key; "" when nothing matches (the caller then neither applies nor persists
+' the selection).
+function NodeAudioTrackKey(nodeTracks as Object, id as String) as String
+    if nodeTracks = invalid then return ""
+    for i = 0 to nodeTracks.Count() - 1
+        track = nodeTracks[i]
+        if track <> invalid then
+            serverId = ""
+            if track.DoesExist("id") then
+                serverId = TrackStringifyId(track.id)
+            end if
+            if serverId = id then
+                if track.DoesExist("Track") then return TrackStringifyId(track.Track)
+                return ""
+            end if
+        end if
+    end for
+    return ""
+end function
+
+' ROK-S2: the node-wins subtitle match; answers the matched entry's TrackName
+' (falling back to name, then language), "" when nothing matches.
+function NodeSubtitleTrackName(nodeTracks as Object, id as String) as String
+    if nodeTracks = invalid then return ""
+    for i = 0 to nodeTracks.Count() - 1
+        track = nodeTracks[i]
+        if track <> invalid then
+            serverId = ""
+            if track.DoesExist("id") then
+                serverId = TrackStringifyId(track.id)
+            end if
+            if serverId = id then
+                if track.DoesExist("TrackName") then return TrackStringifyId(track.TrackName)
+                if track.DoesExist("name") then return TrackStringifyId(track.name)
+                if track.DoesExist("language") then return TrackStringifyId(track.language)
+                return ""
+            end if
+        end if
+    end for
+    return ""
+end function
+
+' ROK-S12: the pure verdict over a relay-token mint response. code is the HTTP
+' status, contentLength the header length (-1 when absent), body the response
+' text (invalid tolerated). Answers the minted token String, or "" for: a 3xx
+' (redirect_refused: never followed, the Bearer hub JWT must not walk), a body
+' over the byte cap (declared length OR actual length, checked BEFORE
+' ParseJSON), any non-201, an empty/unparseable body, or a non-String token
+' (W-min93 M-ROKU-26: a hostile hub answering {"token":123} must not cross
+' into "Bearer " + token).
+function RelayMintVerdict(code as Integer, contentLength as Integer, body as Dynamic) as String
+    if code >= 300 and code < 400 then return ""
+    if ResponseBodyExceedsCap(contentLength, -1) then return ""
+    if body = invalid then return ""
+    if type(body) <> "String" and type(body) <> "roString" then return ""
+    if ResponseBodyExceedsCap(-1, Len(body)) then return ""
+    if code <> 201 or body = "" then return ""
+    parsed = ParseJSON(body)
+    if parsed <> invalid and type(parsed) = "roAssociativeArray" and parsed.DoesExist("token") and (type(parsed.token) = "roString" or type(parsed.token) = "String") then
+        return parsed.token
+    end if
+    return ""
+end function
+
+' ROK-S34: the Down-panel settings row index -> action key. Rows are
+' 0 Audio, 1 Subtitles, 2 Caption Mode, 3 Watch Together (ROK-49); anything
+' else answers "" (no action).
+function SettingsRowAction(index as Integer) as String
+    if index = 0 then return "audio"
+    if index = 1 then return "subtitle"
+    if index = 2 then return "captionMode"
+    if index = 3 then return "watchTogether"
+    return ""
+end function

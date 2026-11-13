@@ -2889,9 +2889,9 @@ sub ToggleQualityPanel()
     if m.qualityList <> invalid then m.qualityList.content = content
 
     if m.variants.Count() = 0 then
-        SetQualityStatus("Adaptive streaming - no fixed-quality ladder for this stream")
+        SetQualityStatus(Translate("player_quality_status_adaptive"))
     else
-        SetQualityStatus("Auto adapts to your connection; pick a rung to lock it")
+        SetQualityStatus(Translate("player_quality_status_auto_hint"))
     end if
 
     if m.qualityList <> invalid then m.qualityList.SetFocus(true)
@@ -3018,13 +3018,16 @@ sub OnSettingsRowSelected(event as Object)
     index = event.getData()
     if index = invalid then return
 
-    if index = 0 then
+    ' ROK-S34: the row -> action map is the pure SettingsRowAction leaf
+    ' (Utilities.brs, headless-tested), so index 3 = Watch Together is pinned.
+    action = SettingsRowAction(index)
+    if action = "audio" then
         OpenAudioTrackList()
-    else if index = 1 then
+    else if action = "subtitle" then
         OpenSubtitleTrackList()
-    else if index = 2 then
+    else if action = "captionMode" then
         OpenCaptionModeList()
-    else if index = 3 then
+    else if action = "watchTogether" then
         ' ROK-49: mirror the options-key path (hub gate lives in ToggleSyncPanel).
         CloseSettingsPanel()
         ToggleSyncPanel()
@@ -3287,24 +3290,10 @@ sub OnAudioTrackSelected(index as Integer)
     ' the node wins.
     audioApplied = false
     if m.videoPlayer <> invalid then
-        nodeTracks = m.videoPlayer.availableAudioTracks
-        trackId = ""
-        for i = 0 to nodeTracks.Count() - 1
-            track = nodeTracks[i]
-            if track <> invalid then
-                serverId = ""
-                if track.DoesExist("id") then
-                    serverId = TrackStringifyId(track.id)
-                end if
-                if serverId = id then
-                    ' Use the node's own Track field as the selection key.
-                    if track.DoesExist("Track") then
-                        trackId = track.Track
-                    end if
-                    exit for
-                end if
-            end if
-        end for
+        ' ROK-S2: the matching is the pure NodeAudioTrackKey leaf (Utilities.brs,
+        ' headless-tested): an unmatched id answers "" and so is never applied
+        ' nor persisted.
+        trackId = NodeAudioTrackKey(m.videoPlayer.availableAudioTracks, id)
         if trackId <> "" then
             m.videoPlayer.audioTrack = trackId
             audioApplied = true
@@ -3359,27 +3348,7 @@ sub OnSubtitleTrackSelected(index as Integer)
         else
             ' Find the track in the node's own track list by matching the
             ' stringified server-side id to find the node's TrackName string.
-            trackName = ""
-            for i = 0 to nodeTracks.Count() - 1
-                track = nodeTracks[i]
-                if track <> invalid then
-                    serverId = ""
-                    if track.DoesExist("id") then
-                        serverId = TrackStringifyId(track.id)
-                    end if
-                    if serverId = id then
-                        ' Use the node's own TrackName field as the selection key.
-                        if track.DoesExist("TrackName") then
-                            trackName = track.TrackName
-                        else if track.DoesExist("name") then
-                            trackName = track.name
-                        else if track.DoesExist("language") then
-                            trackName = track.language
-                        end if
-                        exit for
-                    end if
-                end if
-            end for
+            trackName = NodeSubtitleTrackName(nodeTracks, id)
             if trackName <> "" then
                 m.videoPlayer.currentSubtitleTrack = trackName
                 subtitleApplied = true
@@ -3544,17 +3513,6 @@ function TrackLanguageLabel(code as String) as String
     key = LCase(code)
     if langMap.DoesExist(key) then return langMap[key]
     return code
-end function
-
-' Stringify a track id that may be a JSON number OR string.
-function TrackStringifyId(v as Object) as String
-    if v = invalid then return ""
-    tp = type(v)
-    if tp = "String" or tp = "roString" then return v
-    if tp = "Integer" or tp = "roInt" then return str(v).Trim()
-    if tp = "LongInteger" or tp = "roLongInteger" then return (str(v)).Trim()
-    if tp = "Float" or tp = "roFloat" or tp = "Double" or tp = "roDouble" then return str(Int(v)).Trim()
-    return ""
 end function
 
 ' Truthy guard for a possibly-bool/numeric JSON flag.

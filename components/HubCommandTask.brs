@@ -228,23 +228,11 @@ function MintRelayToken(apiBase as String, serverId as String, token as String) 
     while deadline < 100
         ev = wait(100, m.port)
         if type(ev) = "roUrlEvent" then
-            code = ev.GetResponseCode()
-            if code >= 300 and code < 400 then return "" ' redirect_refused: never followed
-            if ResponseBodyExceedsCap(ev.GetContentLength(), -1) then return ""
+            ' ROK-S12: the whole verdict (3xx refusal, body cap, 201 + String
+            ' token) is the pure RelayMintVerdict leaf (Utilities.brs), so the
+            ' ResponseBodyExceedsCap arms are headless-tested.
             body = ev.GetString()
-            if body <> invalid and ResponseBodyExceedsCap(-1, Len(body)) then return ""
-            if code = 201 and body <> invalid and body <> "" then
-                parsed = ParseJSON(body)
-                ' [W-min93 M-ROKU-26, review roku__exploiter m5] a hostile/
-                ' compromised hub answering {"token":123} used to cross the raw
-                ' value into "Bearer " + relayToken downstream — a task-thread
-                ' type error that kills the command channel before the ladder
-                ' even starts. Only a String token is minted onward.
-                if parsed <> invalid and type(parsed) = "roAssociativeArray" and parsed.DoesExist("token") and type(parsed.token) = "roString" then
-                    return parsed.token
-                end if
-            end if
-            return ""
+            return RelayMintVerdict(ev.GetResponseCode(), ev.GetContentLength(), body)
         else if type(ev) = "roSGNodeEvent" then
             ' A "close" arrived while minting — honour it.
             HandleCommand(ev.getData())

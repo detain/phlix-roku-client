@@ -197,7 +197,7 @@ exact Roku-spec dimensions as 8-bit RGB PNGs:
 | File | Size | Dimensions | Manifest key | Status |
 |------|------|------------|--------------|--------|
 | `images/icon-focus-hd.png` | 51,879 B | 290×218 | `mm_icon_focus_hd` | Correct spec |
-| `images/icon-focus-sd.png` | 32,586 B | 246×140 | `mm_icon_focus_sd` | Correct spec (earlier audits called it Missing — it exists) |
+| `images/icon-focus-sd.png` | 32,586 B | 246×140 | — (retired legacy key `mm_icon_focus_sd`; the manifest no longer declares it, see certification.md 1.5) | Correct dimensions, retired asset — kept for reference only, not cert-relevant (earlier audits called it Missing — it exists) |
 | `images/icon-side-hd.png` | 20,433 B | 176×110 | `mm_icon_side_hd` | Correct spec |
 | `images/splash-hd.png` | 682,827 B | 1,280×720 | `splash_screen_hd` | Correct spec |
 | `images/splash-fhd.png` | 1,441,342 B | 1,920×1,080 | `splash_screen_fhd` (manifest:14) | Correct spec |

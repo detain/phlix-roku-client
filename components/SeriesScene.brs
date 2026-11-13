@@ -21,6 +21,7 @@ sub Init()
     m.posterGrid = m.top.FindNode("itemsGrid")
     m.posterGrid.ObserveField("itemSelected", "OnItemSelected")
     m.posterGrid.ObserveField("itemFocused", "OnItemFocused")
+    m.posterGrid.ObserveField("visibleRect", "OnGridVisibleRectChange")
 
     ' UI nodes.
     m.backButton = m.top.FindNode("backButton")
@@ -254,11 +255,23 @@ sub OnBackPressed()
     m.top.requestClose = true
 end sub
 
+' ROK-S3: windowed lazy poster activation via the shared Utilities leaf (the
+' EpisodeListTask now stores _lazyPosterUrl instead of assigning HDPosterUrl).
+sub OnGridVisibleRectChange(event as Object)
+    vr = event.getData()
+    if vr = invalid then return
+    if m.posterGrid = invalid then return
+    content = m.posterGrid.content
+    if content = invalid then return
+    ActivateVisibleRange(content, vr, 5, 230, 345)
+end sub
+
 ' Pair every ObserveField with an UnObserveField so the scene does not leak.
 sub Teardown()
     if m.posterGrid <> invalid then
         m.posterGrid.UnObserveField("itemSelected")
         m.posterGrid.UnObserveField("itemFocused")
+        m.posterGrid.UnObserveField("visibleRect")
     end if
     if m.backButton <> invalid then
         m.backButton.UnObserveField("buttonSelected")

@@ -789,3 +789,14 @@ sub TestWatchStateCaptionNeverRendersBlind()
     assertEqual(WatchStateCaption({ watched: "yes", position_ticks: "5" }, "Watched"), "")
     print "TestWatchStateCaptionNeverRendersBlind passed"
 end sub
+
+sub TestSettingsRowActionMapping()
+    ' ROK-S34: the Down-panel row dispatch, including the Watch Together row.
+    assertEqual(SettingsRowAction(0), "audio")
+    assertEqual(SettingsRowAction(1), "subtitle")
+    assertEqual(SettingsRowAction(2), "captionMode")
+    assertEqual(SettingsRowAction(3), "watchTogether")
+    assertEqual(SettingsRowAction(4), "")
+    assertEqual(SettingsRowAction(-1), "")
+    print "TestSettingsRowActionMapping passed"
+end sub

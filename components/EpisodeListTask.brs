@@ -117,11 +117,9 @@ sub LoadList()
         end if
 
         ' poster_url is an absolute URL (TMDB or local) or null.
-        if item.poster_url <> invalid and item.poster_url <> "" then
-            contentItem.HDPosterUrl = item.poster_url
-        else
-            contentItem.HDPosterUrl = "pkg:/images/placeholder.png"
-        end if
+        ' ROK-S3: lazy poster - URL stored now, HDPosterUrl set by the shared
+        ' windowed activator (Season/Series visibleRect handlers).
+        SetLazyPosterUrl(contentItem, item, "poster_url")
     end for
 
     m.top.content = content

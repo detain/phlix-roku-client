@@ -326,6 +326,8 @@
     "party_you_are_host": "Vous êtes maintenant l'hôte",
     "playback_error": "Erreur de lecture",
     "playing_in": "Démarrage dans {seconds} s",
+    "quality_status_adaptive": "Diffusion adaptative : aucun palier de qualité fixe pour ce flux",
+    "quality_status_auto_hint": "Auto s'adapte à votre connexion ; choisissez un palier pour le verrouiller",
     "resuming_from": "Reprise à {time}",
     "select_track": "Sélectionner la piste",
     "settings_audio": "Audio",
@@ -535,6 +537,8 @@
     "confirm_title": "Modifier les droits d'administrateur ?",
     "disable": "Désactiver",
     "make_admin": "Nommer admin",
+    "new_password": "Nouveau mot de passe : {password}",
+    "password_hidden": "Mot de passe masqué",
     "remove_admin": "Retirer admin",
     "reset_password": "Réinitialiser le mot de passe",
     "set_admin": "Définir comme admin"

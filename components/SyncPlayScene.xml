@@ -51,7 +51,7 @@ Displays:
         <!-- Not in a room: show room list and create form -->
         <Rectangle height="580" width="1280" translation="[0,100]" color="#0d0d1a" visible="true" id="roomListPanel">
             <!-- Room name input -->
-            <Rectangle height="80" width="600" translation="[40,20]" color="#1a1a2e">
+            <Rectangle height="80" width="600" translation="[64,20]" color="#1a1a2e">
                 <Label height="30" width="580" translation="[10,5]"
                        id="roomNameLabel"
                        text="Room Name"
@@ -75,7 +75,7 @@ Displays:
                  visibility froze at the .brs default. Replaced with the repo's
                  real Button + explicit boolean state (On/Off captions ride the
                  existing settings_button_caption_on/off catalog keys). -->
-            <Rectangle height="60" width="300" translation="[40,110]" color="#1a1a2e">
+            <Rectangle height="60" width="300" translation="[64,110]" color="#1a1a2e">
                 <Label height="40" width="150" translation="[10,10]"
                        id="publicRoomLabel"
                        text="Public Room"
@@ -94,16 +94,16 @@ Displays:
                     id="createButton" />
 
             <!-- Room list -->
-            <Label height="30" width="1200" translation="[40,190]"
+            <Label height="30" width="1152" translation="[64,190]"
                    id="publicRoomsLabel"
                    text="Public Rooms"
                    font="font:MediumBoldSystemFont"
                    color="#FFFFFF" />
-            <LabelList height="350" width="1200" translation="[40,230]"
+            <LabelList height="350" width="1152" translation="[64,230]"
                        id="roomList" />
 
             <!-- Status message -->
-            <Label height="40" width="1200" translation="[40,560]"
+            <Label height="40" width="1152" translation="[64,560]"
                    wrap="true"
                    font="font:MediumSystemFont"
                    color="#AAAAAA"
@@ -113,33 +113,33 @@ Displays:
         <!-- In a room: show room info and members -->
         <Rectangle height="580" width="1280" translation="[0,100]" color="#0d0d1a" visible="false" id="roomInfoPanel">
             <!-- Room name and status -->
-            <Label height="40" width="900" translation="[40,20]"
+            <Label height="40" width="900" translation="[64,20]"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF"
                    id="currentRoomName" />
-            <Label height="30" width="900" translation="[40,65]"
+            <Label height="30" width="900" translation="[64,65]"
                    font="font:MediumSystemFont"
                    color="#AAAAAA"
                    id="roomStatus" />
 
             <!-- Members list -->
-            <Label height="30" width="1200" translation="[40,110]"
+            <Label height="30" width="1152" translation="[64,110]"
                    id="membersLabel"
                    text="Members"
                    font="font:MediumBoldSystemFont"
                    color="#FFFFFF" />
-            <LabelList height="300" width="1200" translation="[40,150]"
+            <LabelList height="300" width="1152" translation="[64,150]"
                        id="memberList" />
 
             <!-- Sync status -->
-            <Label height="30" width="1200" translation="[40,470]"
+            <Label height="30" width="1152" translation="[64,470]"
                    wrap="true"
                    font="font:MediumSystemFont"
                    color="#AAAAAA"
                    id="syncStatusLabel" />
 
             <!-- Leave button -->
-            <Button height="60" width="200" translation="[40,520]"
+            <Button height="60" width="200" translation="[64,520]"
                     text="Leave Room"
                     id="leaveButton" />
         </Rectangle>

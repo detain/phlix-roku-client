@@ -61,7 +61,7 @@ const ALLOWED = [
     "ContentIdGuard", "Discovery", "RedirectCustody", "Theme", "Storage",
     "HubRelayOriginLaw", "WireGuard", "AuthManager", "ApiClient",
     "AppContext", "PhlixApp", "SyncPlayManager", "SyncPlayWsTls", "PanelStack",
-    "SyncPlayJoinCode", "DetailSceneYear",
+    "SyncPlayJoinCode", "DetailSceneYear", "TrackSelection",
     // W14L1: four scene-routines suites drive one component each through
     // the EXTRA_SOURCES door (RT-047/048/049/091). One component per suite
     // is mandatory, not tidiness: the scenes share plain-text function

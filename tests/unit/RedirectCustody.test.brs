@@ -190,3 +190,24 @@ sub TestResponseBodyCapLaw()
     assertFalse(ResponseBodyExceedsCap(10, 10))
     print "TestResponseBodyCapLaw passed"
 end sub
+
+sub TestRelayMintVerdictArms()
+    ' ROK-S12: the MintRelayToken response verdict (pure leaf behind the
+    ' HubCommandTask transfer). Happy path mints the String token.
+    assertEqual(RelayMintVerdict(201, -1, "{" + Chr(34) + "token" + Chr(34) + ":" + Chr(34) + "abc" + Chr(34) + "}"), "abc")
+    ' redirect_refused: a 3xx is never followed, whatever the body.
+    assertEqual(RelayMintVerdict(302, -1, "{" + Chr(34) + "token" + Chr(34) + ":" + Chr(34) + "abc" + Chr(34) + "}"), "")
+    ' ResponseBodyExceedsCap arm, declared Content-Length over the cap.
+    cap = ResponseBodyByteCap()
+    assertEqual(RelayMintVerdict(201, cap + 1, "{" + Chr(34) + "token" + Chr(34) + ":" + Chr(34) + "abc" + Chr(34) + "}"), "")
+    ' ResponseBodyExceedsCap arm, materialized body over the cap (checked
+    ' before ParseJSON; a >cap body of a valid-looking prefix is still refused).
+    big = String(cap + 1, "a")
+    assertEqual(RelayMintVerdict(201, -1, big), "")
+    ' Non-201, empty, invalid and non-String-token shapes mint nothing.
+    assertEqual(RelayMintVerdict(200, -1, "{" + Chr(34) + "token" + Chr(34) + ":" + Chr(34) + "abc" + Chr(34) + "}"), "")
+    assertEqual(RelayMintVerdict(201, -1, ""), "")
+    assertEqual(RelayMintVerdict(201, -1, invalid), "")
+    assertEqual(RelayMintVerdict(201, -1, "{" + Chr(34) + "token" + Chr(34) + ":123}"), "")
+    print "TestRelayMintVerdictArms passed"
+end sub

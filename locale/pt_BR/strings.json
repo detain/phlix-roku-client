@@ -326,6 +326,8 @@
     "party_you_are_host": "Você agora é o host",
     "playback_error": "Erro de reprodução",
     "playing_in": "Inicia em {seconds} s",
+    "quality_status_adaptive": "Streaming adaptativo: este fluxo não tem uma escala de qualidade fixa",
+    "quality_status_auto_hint": "Auto se adapta à sua conexão; escolha um nível para fixá-lo",
     "resuming_from": "Retomando de {time}",
     "select_track": "Selecionar faixa",
     "settings_audio": "Áudio",
@@ -535,6 +537,8 @@
     "confirm_title": "Alterar os direitos de administrador?",
     "disable": "Desativar",
     "make_admin": "Tornar admin",
+    "new_password": "Nova senha: {password}",
+    "password_hidden": "Senha oculta",
     "remove_admin": "Remover admin",
     "reset_password": "Redefinir senha",
     "set_admin": "Definir como admin"

@@ -255,7 +255,7 @@ sub OnApiResponse(event as Object)
         ' OnPwClearFire wipes it); do NOT chain RefreshUser - the rest of
         ' the user state is unchanged.
         if pw <> "" then
-            SetStatus("New password: " + pw)
+            SetStatus(TranslateWithParams("useradminactions_new_password", { password: pw }))
             m.pwShown = true
             if m.pwClearTimer <> invalid then
                 m.pwClearTimer.control = "stop"
@@ -338,7 +338,7 @@ end function
 sub OnPwClearFire(event as Object)
     if m.pwShown then
         m.pwShown = false
-        SetStatus("Password hidden")
+        SetStatus(Translate("useradminactions_password_hidden"))
     end if
 end sub
 

@@ -34,3 +34,19 @@ yet. The client renders only what the wire carries; it never fabricates state.
   row, a whole-percent string for a started row, nothing when the block is
   absent (older server). Both grids set `caption1NumLines`/`caption2NumLines`
   so the second description line renders.
+
+## Design note DN-1 (ROK-51 / ROK-S36): profile switch, PIN-guarded switch vs QR pairing — DEFERRED, no code
+
+- **Question:** how a household member switches the active profile on the
+  TV. Two shapes were weighed: a PIN-guarded in-channel switch (pick a
+  profile on the device, enter its PIN with the remote when it is protected)
+  versus a QR pairing hand-off (the channel shows a code, the person confirms
+  on a phone or browser that already holds a session).
+- **Decision for this wave:** design only; no client code ships. Typing a
+  PIN with a D-pad is slow but needs no second device and fits the existing
+  PIN-guarded profile surface; QR pairing avoids on-TV typing but needs a
+  pairing endpoint that the server does not register, so under the S280 route
+  gate it cannot be called until the server adds it first.
+- **Next step:** if the owner picks QR pairing, file the endpoint ask against
+  phlix-server / phlix-contracts here as a WC-n entry; if the PIN-guarded
+  switch is picked, no wire gap exists and the work is client-only.

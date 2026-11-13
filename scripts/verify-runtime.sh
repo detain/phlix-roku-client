@@ -6317,8 +6317,13 @@ if auth_sites < len(AUTH_ALLOW):
 mrt = read("components/HubCommandTask.brs")
 if mrt is not None:
     mb = sub_body(mask(mrt), "MintRelayToken")
-    if mb is None or "ResponseBodyExceedsCap(" not in mb or "SetCertificatesFile(" not in mb:
-        problems.append("  components/HubCommandTask.brs - CHECK48 R1b: MintRelayToken must meet ResponseBodyExceedsCap before ParseJSON and pin SetCertificatesFile (ROK-13)")
+    if mb is None or "RelayMintVerdict(" not in mb or "SetCertificatesFile(" not in mb:
+        problems.append("  components/HubCommandTask.brs - CHECK48 R1b: MintRelayToken must route its response through RelayMintVerdict (cap before ParseJSON, 3xx refusal) and pin SetCertificatesFile (ROK-13/S12)")
+    # ROK-S12: the verdict leaf owns the cap arms; cap must precede ParseJSON.
+    _ut = read("source/lib/Utilities.brs")
+    vb = sub_body(mask(_ut), "RelayMintVerdict") if _ut is not None else None
+    if vb is None or "ResponseBodyExceedsCap(" not in vb or "ParseJSON(" not in vb or vb.find("ResponseBodyExceedsCap(") > vb.find("ParseJSON("):
+        problems.append("  source/lib/Utilities.brs - CHECK48 R1b: RelayMintVerdict must meet ResponseBodyExceedsCap BEFORE ParseJSON (ROK-13/S12)")
 
 # ---- R2 the consent choke over the single persist site -------------------
 if scene is not None:
@@ -6367,7 +6372,7 @@ if util is not None:
     u = mask(util)
     for name in ("HostOfUrl", "IsPrivateHostAddress", "ServerUrlUsesCleartextToRemoteHost",
                  "RedirectHopLimit", "OriginOfUrl", "IsCredentialSafeRedirectHop",
-                 "ResolveRedirectTarget", "ResponseBodyByteCap", "ResponseBodyExceedsCap"):
+                 "ResolveRedirectTarget", "ResponseBodyByteCap", "ResponseBodyExceedsCap", "RelayMintVerdict"):
         if not re.search(r"(?m)^function %s\b" % name, u):
             problems.append(f"  {UTIL} - CHECK48 R3: the custody leaf {name}() is gone — the unit suite and the send/scene call sites reference it by name")
     norm = sub_body(u, "NormalizeServerUrl")
@@ -11268,12 +11273,36 @@ for path, exempt in HINT_EXEMPT.items():
                 "file; carve-outs must rot with their markup")
 
 # R5 (brs half): no `.title =` write on a Button ref (label field is text).
+# ROK-S1 hardening: the name-based regex (n|*Button|publicToggle) is kept as
+# the fast lane, and a binding-based lane is added on top - every id declared on
+# a <Button> in components/*.xml is collected, and a `.title =` write is a
+# conviction when its receiver is m.<id>, findNode("<id>"), or a local assigned
+# from findNode("<id>") / m.<id> earlier in the same file. A Button renamed to
+# something outside the regex no longer slips through.
 BTN_TITLE_WRITE = re.compile(
     r'(?<![A-Za-z0-9_])(?:n|[A-Za-z0-9_]*Button|publicToggle)\.title\s*=(?!=)')
+BTN_IDS = set()
+for xpath in sorted(glob.glob("components/**/*.xml", recursive=True)):
+    for mm in re.finditer(r'<Button\b[^>]*?\bid="([A-Za-z0-9_]+)"', read(xpath) or ""):
+        BTN_IDS.add(mm.group(1))
+TITLE_WRITE_ANY = re.compile(r'([A-Za-z0-9_.]+(?:\([^()]*\))?)\.title\s*=(?!=)')
 for bpath in sorted(glob.glob("components/**/*.brs", recursive=True)):
     bsrc = read(bpath) or ""
+    bound = set()
+    for line in bsrc.splitlines():
+        code = line.split("'")[0]
+        for mm in re.finditer(r'([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?:[A-Za-z0-9_.]*\.)?(?:findNode\("([A-Za-z0-9_]+)"\)|m\.([A-Za-z0-9_]+))\s*$', code, re.I):
+            if (mm.group(2) or mm.group(3)) in BTN_IDS:
+                bound.add(mm.group(1))
     for i, line in enumerate(bsrc.splitlines(), 1):
-        if BTN_TITLE_WRITE.search(line.split("'")[0]):
+        code = line.split("'")[0]
+        hit = bool(BTN_TITLE_WRITE.search(code))
+        for mm in TITLE_WRITE_ANY.finditer(code):
+            recv = mm.group(1)
+            fm = re.search(r'findNode\("([A-Za-z0-9_]+)"\)$', recv)
+            if recv in bound or (fm and fm.group(1) in BTN_IDS) or (recv.startswith("m.") and recv[2:] in BTN_IDS):
+                hit = True
+        if hit:
             problems.append(
                 f"  {bpath}:{i} - CHECK74 R5: .title write on a Button ref — "
                 "the Button label field is text [ROK-1]")
@@ -11415,15 +11444,28 @@ if len(FILES) < 70:
 # body for the device's failure phrases; the README recipe must carry the same.
 MK = read("Makefile")
 if MK is not None:
+    # ROK-S6: the three legs share one roku_call macro; the response-guard
+    # markers live in the macro body and each target must route through it.
+    md = re.search(r"^define roku_call$.*?^endef$", MK, re.S | re.M)
+    mbody = md.group(0) if md else ""
+    if not mbody:
+        problems.append(
+            "  Makefile - CHECK75 R6: the shared 'define roku_call' macro "
+            "vanished - the device legs lost their response guard [ROK-6/S6]")
+    for marker in ("%{http_code}", "Install Failure|Error Message", "exit $$rc"):
+        if mbody and marker not in mbody:
+            problems.append(
+                f"  Makefile - CHECK75 R6: macro roku_call lost its "
+                f"response-guard marker {marker!r} - a failed device "
+                "response would exit 0 again [ROK-6]")
     for tgt in ("install", "launch", "stop"):
         mt = re.search(r"^%s:.*?(?=^\S)" % tgt, MK, re.S | re.M)
         body = mt.group(0) if mt else ""
-        for marker in ("%{http_code}", "Install Failure|Error Message", "exit $$rc"):
-            if marker not in body:
-                problems.append(
-                    f"  Makefile - CHECK75 R6: target {tgt!r} lost its "
-                    f"response-guard marker {marker!r} - a failed device "
-                    "response would exit 0 again [ROK-6]")
+        if "$(call roku_call," + tgt + "," not in body:
+            problems.append(
+                f"  Makefile - CHECK75 R6: target {tgt!r} no longer routes "
+                "through the roku_call response-guard macro - a failed "
+                "device response would exit 0 again [ROK-6]")
 RD = read("README.md")
 if RD is not None:
     for marker in ("%{http_code}", "Install Failure|Error Message"):
@@ -13748,8 +13790,8 @@ for loc in LOCALES:
     leaves = {s + "_" + k: v for s, sub in cat.items()
               if s != "_metadata" and isinstance(sub, dict)
               for k, v in sub.items() if isinstance(v, str)}
-    if len(leaves) != 434:
-        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 434 (ROK-S23 +1 common.watched key, ROK-50 +2 transcode_preparing keys, ROK-S2 +1 err_track_unavailable key, ROK-S21 +18 player-island/season keys, ROK-S22 +2 common.resume/player.resuming_from keys, ROK-S34 +1 settings_watch_together key) - the keyset moved")
+    if len(leaves) != 438:
+        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 438 (minors batch +4 player quality-status / useradminactions password-status keys, ROK-S23 +1 common.watched key, ROK-50 +2 transcode_preparing keys, ROK-S2 +1 err_track_unavailable key, ROK-S21 +18 player-island/season keys, ROK-S22 +2 common.resume/player.resuming_from keys, ROK-S34 +1 settings_watch_together key) - the keyset moved")
     if not leaves.get("common_live_tv", "").strip():
         missing3.append(f"{loc} lost the shipped common_live_tv value")
     percent_keys = [k for k in leaves if "percent" in k.lower() or "progress_" in k.lower()]
@@ -14372,7 +14414,7 @@ else:
     if "for i = first to last" not in av:
         r6.append("the bounded for-loop shape left")
 # ROK-3/ROK-4: the grid family shares the leaf; no scene keeps a private full walk.
-for scn in ("HomeScene", "LibraryScene", "CollectionScene", "FavoritesScene", "AudiobookScene", "SearchScene"):
+for scn in ("HomeScene", "LibraryScene", "CollectionScene", "FavoritesScene", "AudiobookScene", "SearchScene", "SeasonScene", "SeriesScene"):
     ssrc = read("components/" + scn + ".brs") or ""
     if "sub ActivateVisibleRange" in ssrc:
         r6.append(scn + " re-declares the activator instead of using the Utilities leaf")
@@ -16112,6 +16154,107 @@ if problems:
 
 print("  CHECK105: GetPageSize is defined once and called by every paged scene and")
 print("  the three ApiTask limit defaults; no literal m.limit survives")
+PYEOF
+) || PYRET=$?
+echo "$PYOUT"
+[[ $PYRET -eq 0 ]] && echo "  PASS" || VIOLATIONS=1
+
+echo "=== Check 106: the resume-aware Play button label and the player resume toast keep their custody (ROK-23 / ROK-S22) ==="
+# NUMBERING: next-free after 105. ROK-23 shipped PlayButtonLabel() ("Resume"
+# when a bookmark will seek, else "Play") and the player's "Resuming from
+# {time}" toast; nothing owned the definition or the toast until this leg.
+PYRET=0
+PYOUT=$(
+	python3 - <<'PYEOF'
+import json, os, re, sys
+
+repo = os.environ.get("PHLIX_ROKU_REPO") or os.environ.get("REPO") or "."
+os.chdir(repo)
+problems = []
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def mask(text):
+    return "\n".join(l.split("'")[0] for l in text.splitlines())
+
+
+def body(src, kind, name):
+    m = re.search(r"(?mi)^\s*%s\s+%s\s*\(.*?^\s*end\s+%s\b" % (kind, name, kind), src, re.S)
+    return m.group(0) if m else None
+
+
+ds = read("components/DetailScene.brs")
+if ds is None:
+    problems.append("  components/DetailScene.brs - CHECK106 R1: unreadable")
+else:
+    dm = mask(ds)
+    if len(re.findall(r"(?mi)^\s*function\s+PlayButtonLabel\s*\(", dm)) != 1:
+        problems.append("  components/DetailScene.brs - CHECK106 R1: PlayButtonLabel() must be defined exactly once")
+    pb = body(dm, "function", "PlayButtonLabel")
+    if pb is None:
+        problems.append("  components/DetailScene.brs - CHECK106 R1: PlayButtonLabel() body not found")
+    else:
+        if "m.resumeSeconds > 0" not in pb:
+            problems.append("  components/DetailScene.brs - CHECK106 R1: PlayButtonLabel() no longer gates on m.resumeSeconds > 0")
+        if 'Translate("common_resume")' not in pb or 'Translate("common_play")' not in pb:
+            problems.append("  components/DetailScene.brs - CHECK106 R1: PlayButtonLabel() must answer Translate(common_resume) and Translate(common_play)")
+        if pb.find("common_resume") > pb.find("common_play"):
+            problems.append("  components/DetailScene.brs - CHECK106 R1: the resume arm must precede the Play fallback")
+
+ps = read("components/PlayerScene.brs")
+if ps is None:
+    problems.append("  components/PlayerScene.brs - CHECK106 R2: unreadable")
+else:
+    pm = mask(ps)
+    if pm.count('TranslateWithParams("player_resuming_from"') != 1:
+        problems.append("  components/PlayerScene.brs - CHECK106 R2: the resume toast TranslateWithParams(player_resuming_from) must exist exactly once")
+    else:
+        i = pm.index('TranslateWithParams("player_resuming_from"')
+        window = pm[max(0, i - 600):i]
+        if "m.resumeSeconds > 0 and not m.resumeApplied" not in window or "toast.showInfo(" not in pm[i - 40:i]:
+            problems.append("  components/PlayerScene.brs - CHECK106 R2: the resume toast must fire inside the one-shot m.resumeSeconds > 0 and not m.resumeApplied seek guard via toast.showInfo")
+
+for loc in ("de_DE", "en_US", "es_ES", "fr_FR", "it_IT", "ja_JP", "pt_BR"):
+    raw = read(os.path.join("locale", loc, "strings.json"))
+    try:
+        cat = json.loads(raw)
+    except Exception:
+        problems.append("  locale/%s/strings.json - CHECK106 R3: unreadable" % loc)
+        continue
+    for sect, key in (("common", "resume"), ("common", "play"), ("player", "resuming_from")):
+        v = cat.get(sect, {}).get(key, "")
+        if not isinstance(v, str) or not v.strip():
+            problems.append("  locale/%s/strings.json - CHECK106 R3: %s_%s is missing or empty" % (loc, sect, key))
+    if "{time}" not in cat.get("player", {}).get("resuming_from", "{time}"):
+        problems.append("  locale/%s/strings.json - CHECK106 R3: player_resuming_from lost its {time} token" % loc)
+
+DOCS = read(os.path.join("docs", "static-checks.md"))
+CHLOG = read("CHANGELOG.md")
+if DOCS is not None:
+    row = re.search(r"(?m)^\|\s*106\s*\|.*$", DOCS)
+    if not row:
+        problems.append("  docs/static-checks.md - CHECK106 R4: no row 106 in the checks table")
+    elif "ROK-S22" not in row.group(0):
+        problems.append("  docs/static-checks.md - CHECK106 R4: row 106 does not name ROK-S22")
+if CHLOG is not None and "Check 106" not in CHLOG:
+    problems.append("  CHANGELOG.md - CHECK106 R4: does not name Check 106")
+
+if problems:
+    for prob in problems:
+        print(prob)
+    print("  CHECK106: %d resume-label pin(s) broken" % len(problems))
+    sys.exit(1)
+
+print("  CHECK106: PlayButtonLabel() is defined once with the resume-aware arm, the")
+print("  player resume toast fires inside the one-shot seek guard, and the keys ship")
+print("  in all seven locales")
 PYEOF
 ) || PYRET=$?
 echo "$PYOUT"

@@ -326,6 +326,8 @@
     "party_you_are_host": "あなたがホストになりました",
     "playback_error": "再生エラー",
     "playing_in": "{seconds}秒後に再生開始",
+    "quality_status_adaptive": "アダプティブストリーミング: このストリームには固定画質の段階がありません",
+    "quality_status_auto_hint": "自動は接続状況に合わせて調整されます。段階を選ぶと固定できます",
     "resuming_from": "{time} から再開します",
     "select_track": "トラックを選択",
     "settings_audio": "音声",
@@ -535,6 +537,8 @@
     "confirm_title": "管理者権限を変更しますか？",
     "disable": "無効化",
     "make_admin": "管理者にする",
+    "new_password": "新しいパスワード: {password}",
+    "password_hidden": "パスワードを非表示にしました",
     "remove_admin": "管理者解除",
     "reset_password": "パスワードをリセット",
     "set_admin": "管理者に設定"

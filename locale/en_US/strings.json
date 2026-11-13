@@ -326,6 +326,8 @@
     "party_you_are_host": "You are now host",
     "playback_error": "Playback Error",
     "playing_in": "Playing in {seconds}s",
+    "quality_status_adaptive": "Adaptive streaming - no fixed-quality ladder for this stream",
+    "quality_status_auto_hint": "Auto adapts to your connection; pick a rung to lock it",
     "resuming_from": "Resuming from {time}",
     "select_track": "Select track",
     "settings_audio": "Audio",
@@ -535,6 +537,8 @@
     "confirm_title": "Change admin rights?",
     "disable": "Disable",
     "make_admin": "Make Admin",
+    "new_password": "New password: {password}",
+    "password_hidden": "Password hidden",
     "remove_admin": "Remove Admin",
     "reset_password": "Reset Password",
     "set_admin": "Set Admin"

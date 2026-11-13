@@ -65,7 +65,7 @@
 
             <!-- Day-of-week checkboxes: Mon-Sun -->
             <LayoutGroup translation="[0,0]" itemSpacings="[12]" layoutDirection="horizontal">
-                <Label id="daysLabel" height="32" width="80" text="Days:" font="font:MediumSystemFont" color="#AAAAAA" vertAlign="center" />
+                <Label id="daysLabel" height="48" width="80" text="Days:" font="font:MediumSystemFont" color="#AAAAAA" vertAlign="center" />
                 <Button width="100" height="48" text="Mon" id="dayMonButton" />
                 <Button width="100" height="48" text="Tue" id="dayTueButton" />
                 <Button width="100" height="48" text="Wed" id="dayWedButton" />
