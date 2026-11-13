@@ -8,6 +8,8 @@
 
 A native Roku application for the Phlix Media Server platform. Stream your media library with full playback control, seamless authentication, and progress synchronization.
 
+> Note: identifiers such as `R7.6`, `MJ-8`, `CHECK 83` and `W-min91` in this README and `docs/` are internal fix-lane / ledger references kept for provenance; they are not public issue numbers.
+
 ## Features
 
 - **Secure Authentication**: Device registration with token-based session management

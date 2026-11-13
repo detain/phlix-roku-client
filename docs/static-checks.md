@@ -1,4 +1,4 @@
-# Static Checks — R0.7
+# Static Checks
 
 Static runtime-defect checker for phlix-roku-client.
 Source: `scripts/verify-runtime.sh`

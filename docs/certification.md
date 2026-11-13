@@ -131,7 +131,7 @@ exclusive behavior; 1.3 is declared for certification, not capability.
 
 ---
 
-## 8. Certification Items from client_missing.md §3.10
+## 8. Certification Items from the client-gap audit (`client_missing.md` §3.10 — archived in the phlix-docs repo under `docs/old/`)
 
 | # | Issue | Fix Phase | Status |
 |---|-------|-----------|--------|
