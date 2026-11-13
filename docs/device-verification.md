@@ -18,12 +18,9 @@ This document records the first-boot verification procedure for the Phlix Roku c
    cd /home/sites/phlix/phlix-roku-client
    make package
    ```
-   This produces `phlix.zip` in the **repo root** — the Makefile's `PKG_NAME` is
-   `phlix` and the `package` target writes the archive in front of itself (no `out/`
-   directory exists). The recipe zips `source/ components/ images/ locale/` and then
-   `zip -j` adds the version-derived manifest as a bare root member, and the target
-   ends by opening its own output through `scripts/verify-package.sh`, so a
-   structurally invalid zip fails the build loudly.
+   This produces `phlix.zip` in the **repo root** (the Makefile `PKG_NAME` is
+   `phlix`; no `out/` directory exists). For the exact packaging recipe, determinism
+   guarantees and verification, see `docs/publishing.md`.
 
 3. **Sideload the channel**:
    - From a browser on the same network as the Roku, navigate to:

@@ -16,6 +16,7 @@
 | 1.3 | No ANR (Application Not Responding) dialogs | UNVERIFIED — needs device | |
 | 1.4 | Memory usage acceptable (< 512MB typical) | UNVERIFIED — needs device | |
 | 1.5 | All required manifest keys present | PARTIAL | Was a false PASS: R6.1 "fixed" the manifest but shipped `rsg_version=7.0` — not a legal value (see §1a, M-ROKU-07). Now `rsg_version=1.3`, pinned by CHECK39. Remaining required-key gap: `mm_icon_focus_fhd` (live docs: "The app will not appear on devices … without this attribute", 540x405) is **absent**; `mm_icon_focus_sd`/`mm_icon_side_hd`, which R6.1 counted as fixes, are now LEGACY (deprecated) attributes per the same docs — present but no longer cert-relevant |
+| 1.6 | Version numbers consistent (manifest, package.json, Makefile) | PASS | All 1.0.1 per R6.1 |
 
 ### 1a. Manifest value-space truth (M-ROKU-07, re-verified 2026-10-29)
 
@@ -45,7 +46,6 @@ declaration honest). Feature-usage note, per the observer-model semantics: the
 channel's 489 `ObserveField` sites and `roSGNodeEvent` task loops are core
 SceneGraph at every rsg version — nothing in the codebase relies on a >=1.1
 exclusive behavior; 1.3 is declared for certification, not capability.
-| 1.6 | Version numbers consistent (manifest, package.json, Makefile) | PASS | All 1.0.1 per R6.1 |
 
 ---
 
@@ -70,8 +70,8 @@ exclusive behavior; 1.3 is declared for certification, not capability.
 | 3.3 | Back button exits channel from root | PASS | M-ROKU-01: OnKeyEvent consumes back at empty stack and raises exitChannel; main() returns (CHECK31). M-ROKU-16: the bootstrap screens (Connect/Login/ServerPicker) no longer eat Back — their handlers never consume it, so the press bubbles to that exit arm (CHECK47 R1); a bootstrap screen that disabled Back would re-trap a signed-out user |
 | 3.4 | Focus does not steal from user | PASS | R5.10: HomeScene.SetFocus only on first load |
 | 3.5 | Trickplay thumbnails on scrub | FAIL | R6.10: Server provides sprite sheets, Roku requires BIF format |
-| 3.6 | Channel icon appears correctly in Roku UI | FAIL | R6.2: All image assets are placeholder sizes (166B-6917B) |
-| 3.7 | Splash screen displays correctly | FAIL | R6.2: Splash images are placeholders (237-426 bytes) |
+| 3.6 | Channel icon appears correctly in Roku UI | PARTIAL | Placeholders replaced by generated art at exact spec dimensions (see Asset State; `mm_icon_focus_hd` 51,879 B, `mm_icon_side_hd` 20,433 B). Open: art is machine-generated not designer-commissioned, `mm_icon_focus_fhd` (540x405) still absent, and no on-device confirmation (BLOCKED, no hardware) |
+| 3.7 | Splash screen displays correctly | PARTIAL | Placeholders replaced: measured splash-sd 276,935 B, splash-hd 682,827 B, splash-fhd 1,441,342 B at exact spec dimensions (docs/device-verification.md Asset State). Open: brand-commissioned art + on-device confirmation (BLOCKED) |
 
 ---
 
@@ -148,8 +148,8 @@ exclusive behavior; 1.3 is declared for certification, not capability.
 ## FAIL Items Requiring Attention
 
 1. **Trickplay (3.5):** Server provides sprite sheet format; Roku requires BIF binary format. Server-side gap: getTrickplay endpoint does not expose a BIF URL.
-2. **Channel icon (3.6):** All image assets are placeholder sizes (166B-6917B). Proper 24-bit PNG assets must be commissioned per R6.2 findings.
-3. **Splash screen (3.7):** Splash images are placeholders (237-426 bytes). Must be replaced with proper branded assets.
+2. **Channel icon (3.6):** PARTIAL. Placeholder sizes (166B-6917B) are gone; generated art ships at spec dimensions. Designer-commissioned brand art is still an open action item (R6.2), along with `mm_icon_focus_fhd`.
+3. **Splash screen (3.7):** PARTIAL. Measured splash set is 276,935 / 682,827 / 1,441,342 B (SD/HD/FHD), generated at spec dimensions; designer-commissioned branded assets remain an open action item.
 
 ## UNVERIFIED Items Needing Device
 
@@ -162,5 +162,5 @@ exclusive behavior; 1.3 is declared for certification, not capability.
 
 ## Required for Submission
 
-1. Commission proper channel art (7 assets per R6.2) — PLUS `mm_icon_focus_fhd` (540x405): a REQUIRED manifest attribute per the live channel-manifest docs, still absent from both the manifest and the art set (M-ROKU-07 residual note; reviewer M3's icon clause, needs an art asset, tracked for its own lane)
+1. Commission proper channel art (basis: `images/` holds 7 files = 5 manifest-declared spec slots [focus_hd, side_hd, splash sd/hd/fhd] + 1 retired legacy `icon-focus-sd.png` + the runtime poster fallback `placeholder.png`; the sixth required slot, `mm_icon_focus_fhd`, is not yet created) — PLUS `mm_icon_focus_fhd` (540x405): a REQUIRED manifest attribute per the live channel-manifest docs, still absent from both the manifest and the art set (M-ROKU-07 residual note; reviewer M3's icon clause, needs an art asset, tracked for its own lane)
 2. Server-side: expose BIF URL in getTrickplay endpoint, OR implement sprite-based preview in R2.1 overlay

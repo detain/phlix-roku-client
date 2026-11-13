@@ -8,7 +8,7 @@
 
 ## ⚠️ R6.2 — Required for Roku Store Certification
 
-All images in this guide are **required for Roku Store certification**. Incorrect dimensions are a **submission blocker** — the Roku Developer Relations team will reject the channel package if any art asset is off by even 1 pixel.
+The manifest-declared images in this guide (`icon-focus-hd`, `icon-side-hd`, `splash-sd/hd/fhd`) are **required for Roku Store certification**; `icon-focus-sd.png` is retired and `placeholder.png` is a runtime fallback, not a store requirement. Incorrect dimensions are a **submission blocker** — the Roku Developer Relations team will reject the channel package if any art asset is off by even 1 pixel.
 
 > **MN-21 correction (per the shipped `manifest` note):** the `*_sd` icon family is **retired** — the
 > manifest declares only `mm_icon_focus_hd` and `mm_icon_side_hd` (focus_sd was retired rather than
@@ -40,7 +40,7 @@ No *dimension* blockers remain for Roku Store submission; the open cert item is 
 
 ## Overview
 
-The Phlix Roku channel requires correctly-sized artwork in 5 categories. All images must be PNG format with no alpha transparency issues on any background.
+The Phlix Roku channel requires correctly-sized artwork in 3 categories (app icons, splash screens, placeholder). All images must be PNG format with no alpha transparency issues on any background.
 
 ---
 
@@ -72,7 +72,7 @@ These appear during channel startup while the app initializes.
 | --------------------- | ------------------- | ------------------------------------------ |
 | `splash-sd.png`       | **720 × 480 px**    | SD launch screen                           |
 | `splash-hd.png`       | **1280 × 720 px**   | HD launch screen                           |
-| `splash-fhd.png`      | **1920 × 1080 px**  | Full HD launch screen (new — REQUIRED)     |
+| `splash-fhd.png`      | **1920 × 1080 px**  | Full HD launch screen (declared in manifest)     |
 
 **Design notes**:
 - Solid or gradient background (`#1a1a2e` dark blue-black recommended as brand color)
