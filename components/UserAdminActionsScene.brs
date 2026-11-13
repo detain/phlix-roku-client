@@ -77,6 +77,17 @@ sub Init()
     ' nothing. Callback-only channel from dialog button index to request.
     m.pendingAdminToggle = invalid
 
+    ' ROK-37: bounded one-time-password display. One Timer node, created once
+    ' and re-armed by stop/start (never destroyed/recreated per reset), clears
+    ' the revealed password from the status label after 30s.
+    m.pwClearTimer = m.top.CreateChild("Timer")
+    if m.pwClearTimer <> invalid then
+        m.pwClearTimer.duration = 30
+        m.pwClearTimer.repeat = false
+        m.pwClearTimer.ObserveField("fire", "OnPwClearFire")
+    end if
+    m.pwShown = false
+
     ' Focus the first action button.
     if m.approveButton <> invalid then m.approveButton.SetFocus(true)
 
@@ -240,10 +251,16 @@ sub OnApiResponse(event as Object)
             pw = resp.data.new_password
         end if
 
-        ' Show the one-time password and keep it visible (do NOT chain
-        ' RefreshUser - the rest of the user state is unchanged).
+        ' Show the one-time password for a bounded window (30s, then
+        ' OnPwClearFire wipes it); do NOT chain RefreshUser - the rest of
+        ' the user state is unchanged.
         if pw <> "" then
             SetStatus("New password: " + pw)
+            m.pwShown = true
+            if m.pwClearTimer <> invalid then
+                m.pwClearTimer.control = "stop"
+                m.pwClearTimer.control = "start"
+            end if
         else
             SetStatus(MessageOf(resp))
         end if
@@ -318,6 +335,13 @@ function UserDetailSummary(user as Object) as String
     return summary
 end function
 
+sub OnPwClearFire(event as Object)
+    if m.pwShown then
+        m.pwShown = false
+        SetStatus("Password hidden")
+    end if
+end sub
+
 sub SetStatus(text as String)
     if m.statusLabel <> invalid then m.statusLabel.text = text
 end sub
@@ -331,6 +355,14 @@ sub Teardown()
     if m.profilesButton <> invalid then m.profilesButton.UnObserveField("buttonSelected")
     if m.refreshButton <> invalid then m.refreshButton.UnObserveField("buttonSelected")
     if m.apiTask <> invalid then m.apiTask.UnObserveField("response")
+    if m.pwClearTimer <> invalid then
+        m.pwClearTimer.control = "stop"
+        m.pwClearTimer.UnObserveField("fire")
+        m.top.RemoveChild(m.pwClearTimer)
+        m.pwClearTimer = invalid
+    end if
+    m.pwShown = false
+    SetStatus("")
 end sub
 
 ' requestClose contract (docs/navigation.md): the OBSERVING parent removes the
