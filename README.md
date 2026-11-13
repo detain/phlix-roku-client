@@ -225,7 +225,7 @@ or silently deleting these truth markers — reddens CI.
 >   `src/Server/WebSocket/Workers/SyncPlayWorker.php` on `origin/master`. The two-entry
 >   bearer-subprotocol auth law landed in phlix-server `424c14d0`; this client flipped to it
 >   in `07eef68` (`BearerSubprotocolOffer`, `source/lib/SyncPlayProtocol.brs:309` at that commit;
->   the definition now sits at `:458` of the live file).
+>   the definition now sits at `:473` of the live file; grep `BearerSubprotocolOffer` rather than trusting the number).
 > - **`ws://` only — this build ships no `wss://` path.** The WebSocket rides Roku's
 >   `roStreamSocket`, which is plaintext TCP with **no TLS**, so this hand-rolled client can speak
 >   `ws://` only. That is a BUILD limitation, not a platform one: Roku's TLS client socket
@@ -456,7 +456,7 @@ ROKU_HOST=192.168.1.100 make test-unit
 ### Running Tests on Device
 
 1. Deploy to device: `make install`
-2. Tests run automatically via the test framework when accessed via developer portal
+2. Run `make test-unit` (headless host runner, or rokuunit when `ROKU_HOST` is set); `make test-integration` is device-only
 
 ### Integration Tests
 

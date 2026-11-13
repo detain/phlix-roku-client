@@ -2,7 +2,7 @@
 
 **For**: Phlix Media Server Development Team  
 **Purpose**: Document the Roku trickplay thumbnail requirement and current server gap  
-**Last updated**: 2026-08-07 (revised after a server-side review — see [Revision notes](#revision-notes))
+**Last updated**: 2026-11-12 (re-swept anchors; originally 2026-08-07, revised after a server-side review — see [Revision notes](#revision-notes))
 
 ---
 
@@ -10,7 +10,7 @@
 
 Roku's Video node supports **trickplay thumbnails** — a strip of preview images that appear during rewind/fast-forward scrubbing, giving users visual feedback of their position in the video. This is separate from and in addition to the standard seek bar.
 
-**Trickplay thumbnails on Roku require the binary BIF (BIF Image Format)** format, not the sprite-sheet format that the current Phlix server provides.
+Trickplay thumbnails on Roku require the **binary BIF (BIF Image Format)** format, not the sprite-sheet format that the current Phlix server provides.
 
 ---
 
@@ -21,7 +21,7 @@ Roku's Video node supports **trickplay thumbnails** — a strip of preview image
 | **Server — routes** | ⚠️ PARTIAL | Beyond `sprite.jpg` + `timeline.json` there is a whole `src/Media/Streaming/Trickplay/` subsystem (`TrickplayGenerator`, `TrickplayController`, `TrickplayResult.index_xml`) and three registered routes, one of which the code itself calls *"BIF index XML"*. Closer to BIF than a bare gap. |
 | **Server — producer** | 🚨 DEAD | **`StreamManager::setTrickplay()` has no callers**, so `TrickplayGenerator` never runs and those routes serve files nothing writes. This is the real blocker — see [The producer is unreachable](#-the-real-blocker-the-producer-is-unreachable). |
 | **Server — `.bif`** | ❌ GAP | No binary BIF is produced or served anywhere. |
-| **Roku client** | 🟡 WIRED — NO DATA | `PlayerScene.brs:481-484` (R6.10) sets `m.videoPlayer.bifDisplay` when the playback info carries a non-empty `trickplay_bif_url`; an absent URL is a tolerated no-op. No server response ever carries the key — the blocker is the dead producer above, not client code. See [Client integration status](#client-integration-status). |
+| **Roku client** | 🟡 WIRED — NO DATA | the R6.10 `bifDisplay` block in `PlayerScene.brs` sets `m.videoPlayer.bifDisplay` when the playback info carries a non-empty `trickplay_bif_url`; an absent URL is a tolerated no-op. No server response ever carries the key — the blocker is the dead producer above, not client code. See [Client integration status](#client-integration-status). |
 
 ### What the Server Currently Provides
 
@@ -229,7 +229,7 @@ Measured in this repo (re-verified 2026-11-09 at `b6c20b2`):
 
 - `grep -rn "bifDisplay" --include=*.brs --include=*.xml .` → **4 matches**: the R6.10 wiring and
   comments below, plus P2-S5-era historical prose.
-- `components/PlayerScene.brs:481-484` (R6.10, commit `fb296b7`) — guard
+- the R6.10 `bifDisplay` block in `components/PlayerScene.brs` (commit `fb296b7`) — guard
   `m.playbackInfo.trickplay_bif_url <> invalid and … <> ""`, then
   `m.videoPlayer.bifDisplay = m.playbackInfo.trickplay_bif_url`.
 - `components/DetailScene.brs:793-796` and `components/PlayerScene.brs:344` — P2-S5-era comments
@@ -239,11 +239,11 @@ Measured in this repo (re-verified 2026-11-09 at `b6c20b2`):
 
 1. **PlayerScene.brs** — request trickplay data during playback initialisation. **Half-done:** the
    player consumes `trickplay_bif_url` from the playback-info payload it already receives
-   (`PlayerScene.brs:483`), but no server response ever carries the key — see step 1 of Required
+   (the `trickplay_bif_url` guard in `PlayerScene.brs`), but no server response ever carries the key — see step 1 of Required
    Server API Changes.
 2. **PlayerScene.brs** — when the response carries a non-empty `trickplay_bif_url`, set
-   `m.videoPlayer.bifDisplay = url`. **DONE** (`PlayerScene.brs:484`).
-3. **Absent URL stays a no-op — DONE, and it is a law.** The `:483` guard makes it: no thumbnails,
+   `m.videoPlayer.bifDisplay = url`. **DONE** (the `m.videoPlayer.bifDisplay =` assignment in `PlayerScene.brs`).
+3. **Absent URL stays a no-op — DONE, and it is a law.** The `trickplay_bif_url` guard makes it: no thumbnails,
    no crash, no error. Keep this tolerant permanently:
    under Option B the BIF does not exist until the item's asset job has run, so an absent field is a
    normal steady state, not a transitional one.
@@ -293,7 +293,7 @@ wrong when made; the client half has since landed (R6.10, commit `fb296b7`).
 1. **Server (plan step S275):** close the producer gap, emit a spec-correct `.bif`, serve it, and add
    `trickplay_bif_url` when the file exists.
 2. **Roku client (this repo):** ✅ done — the player consumes `trickplay_bif_url` and sets
-   `bifDisplay` behind the absence-tolerant guard at `PlayerScene.brs:481-484`.
+   `bifDisplay` behind the absence-tolerant guard in the R6.10 block of `PlayerScene.brs`.
 
 Trickplay thumbnails appear when the server half lands — the client half is already waiting for it.
 
@@ -330,7 +330,7 @@ Workerman worker and an in-request ffmpeg pass would block the event loop.
 
 **2026-11-09 — client-half supersession (RT-012, w08L3).** The 2026-08-07 row-2 correction ("Not
 wired") was true on its date and is kept verbatim as history, but the R6.10 wave (commit `fb296b7`)
-has since landed the client half: `bifDisplay` now has real uses at `PlayerScene.brs:481-484`, not
+has since landed the client half: `bifDisplay` now has real uses in the R6.10 block of `PlayerScene.brs`, not
 zero matches. The status table, the integration section, and the timeline above were re-derived from
 `grep` at `b6c20b2`. End-to-end trickplay remains invisible on the device for a single reason: the
 server producer is still dead (step 0) and no response carries `trickplay_bif_url`.

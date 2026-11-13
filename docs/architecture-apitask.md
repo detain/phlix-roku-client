@@ -66,7 +66,7 @@ Each scene that dispatches through `ApiTask` must observe this rule. R1.4 added 
 1. **Choose the op name** — string constant matching the server route (e.g. `"getWatchHistory"`)
 
 2. **Add a branch inside `ExecRequest()` in `components/ApiTask.brs`** — the `req.op` chain runs
-   from `getLibraries` (:330) to `logout` (:777); follow the shipped idiom (see `clearWatchHistory`):
+   from `getLibraries` to `logout` (the first and last branches; locate by `req.op = "..."` grep, not line number); follow the shipped idiom (see `clearWatchHistory`):
    ```brightscript
    else if req.op = "myop" then
        env = api.myMethod(params)
@@ -80,10 +80,10 @@ Each scene that dispatches through `ApiTask` must observe this rule. R1.4 added 
 
 ---
 
-## The 82-Branch Dispatch (Known Scaling Problem)
+## The 85-Branch Dispatch (Known Scaling Problem)
 
-The `req.op` chain inside `ExecRequest()` (`components/ApiTask.brs:330-777`) is an 82-branch if/else
-chain (measured 2026-11-09 at `b6c20b2`; the file's :33-241 region is the cache-helper layer, not the
+The `req.op` chain inside `ExecRequest()` (`components/ApiTask.brs`, from the `getLibraries` branch to the `logout` branch) is an 85-branch if/else
+chain (re-measured 2026-11-12 at `b364bd2` via `grep -c 'req.op = '`; the cache-helper layer above `ExecRequest()` is not the
 dispatch). A table dispatch would be better:
 
 ```brightscript

@@ -144,7 +144,7 @@ SyncPlay is a hand-rolled RFC6455 WebSocket client built **to the shipped phlix-
 SyncPlay worker contract** (server `src/Server/WebSocket/Workers/SyncPlayWorker.php`, live on
 `origin/master`; the two-entry `bearer, <jwt>` dual-carrier law landed in phlix-server `424c14d0`
 and this client flipped to it in `07eef68` via `BearerSubprotocolOffer` at
-`source/lib/SyncPlayProtocol.brs:309` — see the two hard facts below), and it is
+`BearerSubprotocolOffer` in `source/lib/SyncPlayProtocol.brs` (`:309` at that commit; now `:473`) — see the two hard facts below), and it is
 **device-unverifiable** (bsc + review only). Two new files plus an additive overlay:
 
 - `source/lib/SyncPlayProtocol.brs` — a **pure** factory (no I/O, no UI): RFC6455 framing
@@ -152,7 +152,7 @@ and this client flipped to it in `07eef68` via `BearerSubprotocolOffer` at
   BrightScript has no infix `xor`, so masking uses a composed `XorByte` helper), the WebSocket
   handshake helpers (we send a valid random `Sec-WebSocket-Key` and the handshake is **fail-closed**: the
   `101` is accepted only when `Sec-WebSocket-Accept` matches the expected hash, any missing/mismatched
-  value tears the socket down — see `SyncPlayProtocol.brs:623`), the **FLAT** `syncplay_*` codec (`Encode`/`Decode`;
+  value tears the socket down — see `VerifyHandshakeAccept` in `SyncPlayProtocol.brs`), the **FLAT** `syncplay_*` codec (`Encode`/`Decode`;
   payload fields at the top level, `protocol_version:1`, ms `timestamp`), and the NTP TimeSync
   (weighted-mean offset, variance-<50 stability, drift EMA clamped `[0.99,1.01]`). Module-level
   `NowMs() as LongInteger` uses a `1000&` literal to avoid 32-bit overflow on `seconds*1000`.
