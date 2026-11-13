@@ -579,6 +579,10 @@ sub OnPlayerStateChange(event as Object)
         if m.resumeSeconds > 0 and not m.resumeApplied then
             m.videoPlayer.seek = m.resumeSeconds
             m.resumeApplied = true
+            ' ROK-23: tell the viewer playback is resuming, not restarting.
+            toast = GetToastManager()
+            toast.setScene(m.top)
+            toast.showInfo(TranslateWithParams("player_resuming_from", { time: FormatTime(m.resumeSeconds) }))
         end if
 
         ' R6.7: Apply persisted audio track preference on first "playing".

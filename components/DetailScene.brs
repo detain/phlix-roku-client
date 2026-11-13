@@ -193,6 +193,8 @@ sub ApplyResumeFromContinueWatching(resp as Object)
                     if ticksType = "Integer" or ticksType = "roInt" or ticksType = "LongInteger" or ticksType = "roLongInteger" or ticksType = "Float" or ticksType = "roFloat" or ticksType = "Double" or ticksType = "roDouble" then
                         if cw.position_ticks > 0 then
                             m.resumeSeconds = cw.position_ticks / 10000000.0
+                            ' ROK-23: disclose the resume on the button itself.
+                            if m.playButton <> invalid then m.playButton.setField("text", PlayButtonLabel())
                         end if
                     end if
                 end if
@@ -237,7 +239,7 @@ sub OnApiResponse(event as Object)
         m.playPending = false
         ' MN-1: retract the cue. PlayItem() below normally transitions away;
         ' the restore keeps the swap honest if this scene survives the answer.
-        if m.playButton <> invalid then m.playButton.text = Translate("common_play")
+        if m.playButton <> invalid then m.playButton.text = PlayButtonLabel()
         ' Markers/chapters may legitimately be empty; launch the player either way.
         if resp.ok then
             m.playbackInfo = resp.data
@@ -1111,11 +1113,18 @@ end sub
 ' string to have a programmatic Translate() override path; this sub is
 ' that path. The XML keeps English values as the en-fallback default,
 ' mirroring the DetailScene precedent.
+' ROK-23: "Resume" when a continue-watching bookmark will seek on launch
+' (m.resumeSeconds > 0, the same value threaded to PlayerScene), else "Play".
+function PlayButtonLabel() as String
+    if m.resumeSeconds <> invalid and m.resumeSeconds > 0 then return Translate("common_resume")
+    return Translate("common_play")
+end function
+
 sub ApplyXmlChrome()
     n = m.top.findNode("backButton")
     if n <> invalid then n.text = Translate("common_back")
     n = m.top.findNode("playButton")
-    if n <> invalid then n.text = Translate("common_play")
+    if n <> invalid then n.text = PlayButtonLabel()
     n = m.top.findNode("loadingLabel")
     if n <> invalid then n.text = Translate("common_loading")
 end sub
