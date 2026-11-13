@@ -48,7 +48,7 @@ This document provides detailed information for developers working on the Phlix 
 | `ApiTask` | Task node that moves HTTP off the render thread |
 | `AuthManager` | Session lifecycle, credential custody, token refresh |
 | `Storage` | Persistent local storage (registry) |
-| `SyncPlayManager` | Watch-party group state and transport |
+| `SyncPlayManager` | SyncPlay DEAD PATH — not wired into the shipped UI: REST group snapshot coordinator whose only caller is the never-instantiated `components/SyncPlayScene.brs`; the live watch-together flow is PlayerScene's overlay driving `components/SyncPlayTask` |
 | `ToastManager` | Non-blocking notices layered over scenes |
 
 The era `SessionManager`, `LibraryManager` and `TaskManager` rows were deleted

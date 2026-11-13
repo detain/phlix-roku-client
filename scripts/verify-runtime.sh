@@ -7928,6 +7928,19 @@ if i18 is not None:
         if "SyncPlayScene.brs" in line and "**not instantiated**" not in line and "DEAD PATH" not in line:
             problems.append(f"  {I18N} - CHECK56 R2: a consumer-table row names SyncPlayScene.brs without a dead marker (bare or prefixed) — the `errors` row presented the dead scene as a live law-driven errors consumer for an era (r1 MINOR-1); name the dead path explicitly: {line.strip()[:80]!r}")
 
+# ROK-12 mirror carriers: contributor-facing docs that name SyncPlayManager must
+# carry the dead marker on the same line (and must keep naming it, so a delete is loud).
+for mirror in ("DEVELOPER.md", "CLAUDE.md"):
+    mt = read(mirror)
+    if mt is None:
+        continue
+    mlines = [ln for ln in mt.split("\n") if "SyncPlayManager" in ln]
+    if not mlines:
+        problems.append(f"  {mirror} - CHECK56 R2: no SyncPlayManager mention — the mirror carrier vanished; the dead-marker law needs its line")
+    for ln in mlines:
+        if DEAD_MARKER not in ln:
+            problems.append(f"  {mirror} - CHECK56 R2: a SyncPlayManager line lost its {DEAD_MARKER!r} marker (ROK-12): {ln.strip()[:100]!r}")
+
 u = read(UTILS)
 require(u, UTILS, "DEAD-PATH NOTE (M-ROKU-26, Check 56)",
         "the local-error family docblock says these codes are 'produced ON THIS DEVICE' — half of them (the room REST path) are produced by code that never runs; the law note keeps that honest")

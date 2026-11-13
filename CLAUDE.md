@@ -53,7 +53,7 @@ These commands are run in CI and must pass before merging:
 ```
 source/main.brs            → boots an roSGScreen, instantiates the PhlixApp scene, runs the message loop
 components/*.{brs,xml}      → SceneGraph scenes + Task nodes (PhlixApp, Connect, Login, ServerPicker, Home, Library, Detail, Player, Recommendations, ApiTask, SyncPlayTask, HubCommandTask, ToastScene, …)
-source/lib/*.brs           → pure BrightScript modules, all using the factory-object pattern (incl. SyncPlayProtocol, SyncPlayManager, ToastManager)
+source/lib/*.brs           → pure BrightScript modules, all using the factory-object pattern (incl. SyncPlayProtocol, ToastManager, and SyncPlayManager — DEAD PATH — not wired into the shipped UI)
 locale/en_US/strings.json  → base-locale user-facing strings (see docs/i18n.md)
 ```
 
@@ -80,7 +80,7 @@ Every file in `source/lib/` exposes a single `PascalCase` factory function that 
 
 In **hub mode** the media `ApiClient`'s `baseUrl` is the relay base `{hub}/api/v1/servers/{id}/proxy` (from `GetMediaBaseUrl()`), so the same transport produces `{hub}/api/v1/servers/{id}/proxy/api/v1{path}` — the hub captures the trailing `api/v1{path}`, re-anchors it as `/api/v1{path}`, and tunnels it to the server. The existing Bearer-send is correct as-is (the hub token *is* the relay auth); no transport change was needed for relay routing. `getMyServers()` (`GET /me/servers`) was added for hub detection / the server picker.
 
-The manager layer is thin and partially retired: `SessionManager`, `LibraryManager`, and `TaskManager` were deleted in R7.5 and are gone; what remains is `AuthManager` (wraps auth token state over `ApiClient`) and `SyncPlayManager` (co-watch group state). The live law (M-ROKU-55): **scenes dispatch through `ApiTask` ops** (`task.request = { op: ..., ... }` off the render thread), **`AuthManager` wraps auth token state**, and **`AppContext` (`source/lib/AppContext.brs`) owns connection state** (server URL, connection kind, relay base). Do not let scenes call `ApiClient` transport methods directly — that bypasses the task threading model; `PhlixApp` keeps the shared `m.api`/`m.auth` handles for the auth ceremony and rebuilds, not as a scene-facing path.
+The manager layer is thin and partially retired: `SessionManager`, `LibraryManager`, and `TaskManager` were deleted in R7.5 and are gone; what remains is `AuthManager` (wraps auth token state over `ApiClient`) and `SyncPlayManager` (**DEAD PATH — not wired into the shipped UI**: its only caller is the never-instantiated `components/SyncPlayScene.brs`; the live co-watch flow is PlayerScene's overlay driving `components/SyncPlayTask`). The live law (M-ROKU-55): **scenes dispatch through `ApiTask` ops** (`task.request = { op: ..., ... }` off the render thread), **`AuthManager` wraps auth token state**, and **`AppContext` (`source/lib/AppContext.brs`) owns connection state** (server URL, connection kind, relay base). Do not let scenes call `ApiClient` transport methods directly — that bypasses the task threading model; `PhlixApp` keeps the shared `m.api`/`m.auth` handles for the auth ceremony and rebuilds, not as a scene-facing path.
 
 ### Boot / connection gate
 
