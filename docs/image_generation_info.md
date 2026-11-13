@@ -58,7 +58,7 @@ These icons appear when the user navigates to the channel on the Roku home scree
 
 **Design notes**:
 - Must be readable at small sizes
-- Transparent background (Roku applies rounded corners + drop shadow automatically)
+- Opaque background (Roku applies rounded corners + drop shadow automatically)
 - Leave ~10px padding inside the bounds
 - Use the channel's primary color scheme and logo
 

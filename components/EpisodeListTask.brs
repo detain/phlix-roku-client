@@ -87,7 +87,7 @@ sub LoadList()
                 if item.DoesExist("name") and item.name <> invalid and item.name <> "" then
                     caption = item.name
                 else if item.DoesExist("season_number") and item.season_number <> invalid then
-                    caption = "Season " + str(Int(item.season_number)).trim()
+                    caption = TranslateWithParams("common_season_number", { number: str(Int(item.season_number)).trim() })
                 else
                     caption = ""
                 end if

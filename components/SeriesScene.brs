@@ -161,7 +161,7 @@ function BuildCaption(item as Object) as String
         if item.DoesExist("name") and item.name <> invalid and item.name <> "" then
             return item.name
         else if item.DoesExist("season_number") and item.season_number <> invalid then
-            return "Season " + str(Int(item.season_number)).trim()
+            return TranslateWithParams("common_season_number", { number: str(Int(item.season_number)).trim() })
         end if
         return ""
     end if

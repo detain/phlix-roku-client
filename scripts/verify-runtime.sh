@@ -13707,8 +13707,8 @@ for loc in LOCALES:
     leaves = {s + "_" + k: v for s, sub in cat.items()
               if s != "_metadata" and isinstance(sub, dict)
               for k, v in sub.items() if isinstance(v, str)}
-    if len(leaves) != 412:
-        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 412 (ROK-50 +2 transcode_preparing keys, ROK-S2 +1 err_track_unavailable key) - the keyset moved")
+    if len(leaves) != 430:
+        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 430 (ROK-50 +2 transcode_preparing keys, ROK-S2 +1 err_track_unavailable key, ROK-S21 +18 player-island/season keys) - the keyset moved")
     if not leaves.get("common_live_tv", "").strip():
         missing3.append(f"{loc} lost the shipped common_live_tv value")
     percent_keys = [k for k in leaves if "percent" in k.lower() or "progress_" in k.lower()]

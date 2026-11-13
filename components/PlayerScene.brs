@@ -2985,12 +2985,12 @@ sub ToggleSettingsPanel()
     if m.settingsPanel <> invalid then m.settingsPanel.visible = true
 
     content = CreateObject("roSGNode", "ContentNode")
-    content.AddChild({ title: "Audio" })
-    content.AddChild({ title: "Subtitles" })
-    content.AddChild({ title: "Caption Mode" })
+    content.AddChild({ title: Translate("player_settings_audio") })
+    content.AddChild({ title: Translate("player_settings_subtitles") })
+    content.AddChild({ title: Translate("settings_item_caption_mode") })
     if m.settingsList <> invalid then m.settingsList.content = content
 
-    SetSettingsStatus("Select a setting to configure")
+    SetSettingsStatus(Translate("player_settings_hint"))
 
     if m.settingsList <> invalid then m.settingsList.SetFocus(true)
 end sub
@@ -3033,7 +3033,7 @@ sub OpenAudioTrackList()
     if m.trackListTitle <> invalid then m.trackListTitle.text = Translate("player_audio_tracks")
 
     if m.audioTracks.Count() = 0 then
-        SetTrackListStatus("No audio tracks available for this content")
+        SetTrackListStatus(Translate("player_no_audio_tracks"))
         if m.trackList <> invalid then m.trackList.content = CreateObject("roSGNode", "ContentNode")
         if m.trackListBackButton <> invalid then m.trackListBackButton.SetFocus(true)
         m.trackListPanelOpen = true
@@ -3049,13 +3049,13 @@ sub OpenAudioTrackList()
             id = TrackStringifyId(track.id)
             m.audioTrackIds.Push(id)
             caption = TrackAudioCaption(track)
-            if id = m.selectedAudioTrackId then caption = caption + "  (current)"
+            if id = m.selectedAudioTrackId then caption = caption + "  " + Translate("player_current_suffix")
             content.AddChild({ title: caption })
         end if
     end for
 
     if m.trackList <> invalid then m.trackList.content = content
-    SetTrackListStatus(m.audioTracks.Count().toStr() + " audio track(s)")
+    SetTrackListStatus(TranslateWithParams("player_audio_track_count", { count: m.audioTracks.Count().toStr() }))
 
     m.trackListPanelOpen = true
     if m.trackListPanel <> invalid then m.trackListPanel.visible = true
@@ -3068,7 +3068,7 @@ sub OpenSubtitleTrackList()
     if m.trackListTitle <> invalid then m.trackListTitle.text = Translate("player_subtitle_tracks")
 
     if m.subtitleTracks.Count() = 0 then
-        SetTrackListStatus("No subtitle tracks available for this content")
+        SetTrackListStatus(Translate("player_no_subtitle_tracks"))
         if m.trackList <> invalid then m.trackList.content = CreateObject("roSGNode", "ContentNode")
         if m.trackListBackButton <> invalid then m.trackListBackButton.SetFocus(true)
         m.trackListPanelOpen = true
@@ -3081,8 +3081,8 @@ sub OpenSubtitleTrackList()
 
     ' Row 0 is always "Off".
     m.subtitleTrackIds.Push("off")
-    offCaption = "Off"
-    if m.selectedSubtitleTrackId = "off" then offCaption = offCaption + "  (current)"
+    offCaption = Translate("settings_button_caption_off")
+    if m.selectedSubtitleTrackId = "off" then offCaption = offCaption + "  " + Translate("player_current_suffix")
     content.AddChild({ title: offCaption })
 
     ' Then each available subtitle track.
@@ -3091,13 +3091,13 @@ sub OpenSubtitleTrackList()
             id = TrackStringifyId(track.id)
             m.subtitleTrackIds.Push(id)
             caption = TrackSubtitleCaption(track)
-            if id = m.selectedSubtitleTrackId then caption = caption + "  (current)"
+            if id = m.selectedSubtitleTrackId then caption = caption + "  " + Translate("player_current_suffix")
             content.AddChild({ title: caption })
         end if
     end for
 
     if m.trackList <> invalid then m.trackList.content = content
-    SetTrackListStatus(m.subtitleTracks.Count().toStr() + " subtitle track(s)")
+    SetTrackListStatus(TranslateWithParams("player_subtitle_track_count", { count: m.subtitleTracks.Count().toStr() }))
 
     m.trackListPanelOpen = true
     if m.trackListPanel <> invalid then m.trackListPanel.visible = true
@@ -3110,7 +3110,7 @@ end sub
 ' the WIRE vocabulary owned by source/lib/Utilities.brs
 ' GetCaptionsModeWireValues() — single source of truth (this component
 ' declares that script in PlayerScene.xml; review #91 removed the local copy
-' of the list). Labels deliberately render the wire bytes here, unchanged.
+' of the list). Row labels are the localized display labels (CaptionsModeLabel); the wire bytes still go only to the OS.
 sub OpenCaptionModeList()
     m.trackListType = "captionMode"
     if m.trackListTitle <> invalid then m.trackListTitle.text = Translate("settings_item_caption_mode")
@@ -3123,14 +3123,14 @@ sub OpenCaptionModeList()
 
     for each mode in captionModes
         if mode <> invalid then
-            label = mode
-            if mode = m.captionMode then label = label + "  (current)"
+            label = CaptionsModeLabel(mode)
+            if mode = m.captionMode then label = label + "  " + Translate("player_current_suffix")
             content.AddChild({ title: label })
         end if
     end for
 
     if m.trackList <> invalid then m.trackList.content = content
-    SetTrackListStatus("Current: " + m.captionMode)
+    SetTrackListStatus(TranslateWithParams("player_caption_current", { mode: CaptionsModeLabel(m.captionMode) }))
 
     m.trackListPanelOpen = true
     if m.trackListPanel <> invalid then m.trackListPanel.visible = true
@@ -3189,7 +3189,7 @@ sub OpenChapterPicker()
 
     chapters = m.playbackInfo.chapters
     if chapters.Count() = 0 then
-        SetTrackListStatus("No chapters available")
+        SetTrackListStatus(Translate("player_no_chapters_status"))
         if m.trackList <> invalid then m.trackList.content = CreateObject("roSGNode", "ContentNode")
         if m.trackListBackButton <> invalid then m.trackListBackButton.SetFocus(true)
         m.trackListPanelOpen = true
@@ -3203,7 +3203,7 @@ sub OpenChapterPicker()
     for each ch in chapters
         if ch <> invalid then
             startSec = 0
-            title = "Chapter"
+            title = Translate("player_chapter_default")
             if ch.DoesExist("start_seconds") and ch.start_seconds <> invalid then startSec = ch.start_seconds
             if ch.DoesExist("title") and ch.title <> invalid and ch.title <> "" then title = ch.title
 
@@ -3215,7 +3215,7 @@ sub OpenChapterPicker()
     end for
 
     if m.trackList <> invalid then m.trackList.content = content
-    SetTrackListStatus(chapters.Count().toStr() + " chapter(s)")
+    SetTrackListStatus(TranslateWithParams("player_chapter_count", { count: chapters.Count().toStr() }))
 
     m.trackListPanelOpen = true
     if m.trackListPanel <> invalid then m.trackListPanel.visible = true
@@ -3303,12 +3303,12 @@ sub OnAudioTrackSelected(index as Integer)
         ' id may not have matched any node track (node wins on disagreement).
         actualTrack = m.videoPlayer.audioTrack
         if actualTrack <> "" and actualTrack <> invalid then
-            SetSettingsStatus("Audio track: " + actualTrack)
+            SetSettingsStatus(TranslateWithParams("player_status_audio_track", { track: actualTrack }))
         else
-            SetSettingsStatus("Audio track: " + TrackAudioIdToLabel(id))
+            SetSettingsStatus(TranslateWithParams("player_status_audio_track", { track: TrackAudioIdToLabel(id) }))
         end if
     else
-        SetSettingsStatus("Audio track: " + TrackAudioIdToLabel(id))
+        SetSettingsStatus(TranslateWithParams("player_status_audio_track", { track: TrackAudioIdToLabel(id) }))
         audioApplied = true
     end if
 
@@ -3379,12 +3379,12 @@ sub OnSubtitleTrackSelected(index as Integer)
         ' id may not have matched any node track (node wins on disagreement).
         actualTrackName = m.videoPlayer.currentSubtitleTrack
         if actualTrackName = "" then
-            SetSettingsStatus("Subtitle track: Off")
+            SetSettingsStatus(TranslateWithParams("player_status_subtitle_track", { track: Translate("settings_button_caption_off") }))
         else
-            SetSettingsStatus("Subtitle track: " + actualTrackName)
+            SetSettingsStatus(TranslateWithParams("player_status_subtitle_track", { track: actualTrackName }))
         end if
     else
-        SetSettingsStatus("Subtitle track: " + TrackSubtitleIdToLabel(id))
+        SetSettingsStatus(TranslateWithParams("player_status_subtitle_track", { track: TrackSubtitleIdToLabel(id) }))
         subtitleApplied = true
     end if
 
@@ -3430,7 +3430,7 @@ sub OnCaptionModeSelected(index as Integer)
     deviceInfo = CreateObject("roDeviceInfo")
     deviceInfo.SetCaptionsMode(selectedMode)
 
-    SetSettingsStatus("Caption mode: " + selectedMode)
+    SetSettingsStatus(TranslateWithParams("settings_caption_mode_label", { mode: CaptionsModeLabel(selectedMode) }))
 
     CloseTrackListPanel()
     CloseSettingsPanel()
@@ -3484,10 +3484,10 @@ function TrackSubtitleCaption(track as Object) as String
     if track.DoesExist("language") and track.language <> invalid then
         lang = TrackLanguageLabel(track.language)
     end if
-    if lang = "" then lang = "Unknown"
+    if lang = "" then lang = Translate("player_track_unknown")
     flags = []
-    if track.DoesExist("isForced") and TrackIsTruthy(track, "isForced") then flags.Push("Forced")
-    if track.DoesExist("isDefault") and TrackIsTruthy(track, "isDefault") then flags.Push("Default")
+    if track.DoesExist("isForced") and TrackIsTruthy(track, "isForced") then flags.Push(Translate("player_track_forced"))
+    if track.DoesExist("isDefault") and TrackIsTruthy(track, "isDefault") then flags.Push(Translate("player_track_default"))
     result = lang
     if flags.Count() > 0 then result = result + " (" + JoinStrings(flags, ", ") + ")"
     return result
@@ -3561,7 +3561,7 @@ end function
 
 ' Find the display label for an audio track id (or the id itself).
 function TrackAudioIdToLabel(id as String) as String
-    if id = "" then return "Default"
+    if id = "" then return Translate("player_track_default")
     for each track in m.audioTracks
         if track <> invalid and TrackStringifyId(track.id) = id then
             return TrackAudioCaption(track)
@@ -3572,7 +3572,7 @@ end function
 
 ' Find the display label for a subtitle track id (or "Off" or the id).
 function TrackSubtitleIdToLabel(id as String) as String
-    if id = "off" then return "Off"
+    if id = "off" then return Translate("settings_button_caption_off")
     for each track in m.subtitleTracks
         if track <> invalid and TrackStringifyId(track.id) = id then
             return TrackSubtitleCaption(track)
