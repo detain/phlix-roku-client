@@ -61,6 +61,7 @@ sub Init()
     m.collectionId = ""
     m.collectionName = ""
     m.items = []
+    m.builtCount = 0
 
     ' Observe our own requestClose so a child can ask us to close.
     m.top.ObserveField("requestClose", "OnChildRequestClose")
@@ -138,29 +139,13 @@ sub OnApiResponse(event as Object)
             if norm.id <> "" then m.items.Push(norm)
         end for
 
+        ' ROK-S3 (ROK-3 paginate): the full item list stays in m.items but
+        ' only one page of ContentNodes is built now; OnItemFocused appends
+        ' the next page as focus nears the built tail, so a large collection
+        ' never materialises every node (and its poster slot) in one pass.
         content = CreateObject("roSGNode", "ContentNode")
-        for each item in m.items
-            contentItem = content.AddChild({
-                Title: item.name
-                accessibleLabel: item.name
-                ShortDescriptionLine1: item.name
-                Type: item.type
-                id: item.id
-            })
-
-            if item.overview <> "" then
-                contentItem.Description = item.overview
-            end if
-
-            if item.year <> invalid then
-                yearStr = str(Int(item.year)).trim()
-                if yearStr <> "0" then contentItem.ShortDescriptionLine2 = yearStr
-            end if
-
-            ' poster_url is an absolute URL (TMDB or local) or empty.
-            ' ROK-3: lazy poster - URL stored now, HDPosterUrl set by the shared windowed activator
-            SetLazyPosterUrl(contentItem, item, "poster_url")
-        end for
+        m.builtCount = 0
+        AppendCollectionPage(content)
 
         if m.itemsGrid <> invalid then m.itemsGrid.content = content
 
@@ -176,6 +161,37 @@ sub OnApiResponse(event as Object)
             m.descriptionLabel.text = Translate("collection_empty")
         end if
     end if
+end sub
+
+' ROK-S3: build the next page of grid nodes from m.items into content.
+sub AppendCollectionPage(content as Object)
+    total = m.items.Count()
+    stopAt = m.builtCount + 60
+    if stopAt > total then stopAt = total
+    for i = m.builtCount to stopAt - 1
+        item = m.items[i]
+        contentItem = content.AddChild({
+            Title: item.name
+            accessibleLabel: item.name
+            ShortDescriptionLine1: item.name
+            Type: item.type
+            id: item.id
+        })
+
+        if item.overview <> "" then
+            contentItem.Description = item.overview
+        end if
+
+        if item.year <> invalid then
+            yearStr = str(Int(item.year)).trim()
+            if yearStr <> "0" then contentItem.ShortDescriptionLine2 = yearStr
+        end if
+
+        ' poster_url is an absolute URL (TMDB or local) or empty.
+        ' ROK-3: lazy poster - URL stored now, HDPosterUrl set by the shared windowed activator
+        SetLazyPosterUrl(contentItem, item, "poster_url")
+    end for
+    m.builtCount = stopAt
 end sub
 
 ' RT-094: collection failure-vs-usable verdict, pure so the headless suite
@@ -230,6 +246,11 @@ sub OnItemFocused(event as Object)
 
     item = m.items[index]
     if item = invalid then return
+
+    ' ROK-S3: focus within two rows of the built tail pulls the next page.
+    if m.builtCount < m.items.Count() and index >= m.builtCount - 10 and m.itemsGrid <> invalid then
+        AppendCollectionPage(m.itemsGrid.content)
+    end if
 
     if m.descriptionLabel <> invalid then
         if item.overview <> "" then

@@ -51,6 +51,8 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Fixed — ROK-3 / ROK-4 (ROK-S3) — one shared clamped lazy-poster activator (`ActivateVisibleRange` in `source/lib/Utilities.brs`) across Home/Library/Collection/Favorites/Audiobook/Search; the Collection grid builds nodes one 60-item page at a time and appends the next page on focus; EpisodeListTask and RecommendationsScene eager `HDPosterUrl` assignments stay deferred (consumer lists must adopt the activator) — 2026-11-12
+
 ### Fixed — ROK-14 / ROK-36 — image-lane URL admissibility: server-supplied poster/thumbnail/photo urls ride `IsImageUrlAdmissible` and degrade to the placeholder; Check 104 keeps the limbs — 2026-11-12
 
 `IsImageUrlAdmissible` (Utilities.brs, a leaf over `IsStreamUrlAdmissible`
