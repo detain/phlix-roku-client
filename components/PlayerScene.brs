@@ -462,7 +462,7 @@ sub Show(itemId as String, args as Object)
         end if
         m.transcodeAttempted = true
         if m.titleLabel <> invalid and m.item <> invalid then
-            m.titleLabel.text = TextOrEmpty(m.item.name) + " (Preparing...)"
+            m.titleLabel.text = TextOrEmpty(m.item.name) + " (" + Translate("player_transcode_preparing") + ")"
         end if
         ' C20 [review roku__gameux C1]: the hint lives in the overlay's
         ' titleLabel - surface the chrome (passively) so the wait is visible.
@@ -544,7 +544,7 @@ sub OnPlayerStateChange(event as Object)
         if not m.transcodeAttempted then
             m.transcodeAttempted = true
             if m.titleLabel <> invalid and m.item <> invalid then
-                m.titleLabel.text = TextOrEmpty(m.item.name) + " (Preparing...)"
+                m.titleLabel.text = TextOrEmpty(m.item.name) + " (" + Translate("player_transcode_preparing") + ")"
             end if
             ' C20: surface the (Preparing...) hint live (see the Show() twin).
             ShowControls(true, true)
@@ -1487,6 +1487,14 @@ function GetTranscodePollElapsed() as Float
     return CDbl(dt.AsSeconds()) + (CDbl(dt.GetMilliseconds()) / 1000#) - m.transcodePollStartTime
 end function
 
+' ROK-50: title-line "(Preparing... Ns)" cue; change-only write.
+sub ShowTranscodeElapsed(secs as Integer)
+    if m.titleLabel = invalid or m.item = invalid then return
+    if secs < 1 then return
+    txt = TextOrEmpty(m.item.name) + " (" + TranslateWithParams("player_transcode_preparing_elapsed", { seconds: secs.ToStr() }) + ")"
+    if m.titleLabel.text <> txt then m.titleLabel.text = txt
+end sub
+
 sub OnTranscodePollFire()
     ' Nothing to poll without a job id.
     if m.transcodeJobId = invalid or m.transcodeJobId = "" then
@@ -1508,6 +1516,10 @@ sub OnTranscodePollFire()
         ShowErrorDialog(m.top, Translate("common_error"), Translate("player_err_transcode_timeout"), [Translate("common_retry"), Translate("common_cancel")], OnTranscodeTimeoutRetry)
         return
     end if
+
+    ' ROK-50: elapsed-seconds cue rides the existing single poll timer (no
+    ' extra Timer); the title only re-renders when the whole second changes.
+    ShowTranscodeElapsed(Int(elapsed))
 
     ' Guard: if the poll task is still running from a prior call, skip this
     ' tick (R1.4 busy guard). getTranscodeStatus completes in well under the
@@ -3700,7 +3712,7 @@ sub OnPlaybackRetry(index as Integer)
     if m.item = invalid or m.itemId = invalid or m.itemId = "" then return
     m.transcodeAttempted = true
     if m.titleLabel <> invalid then
-        m.titleLabel.text = TextOrEmpty(m.item.name) + " (Preparing...)"
+        m.titleLabel.text = TextOrEmpty(m.item.name) + " (" + Translate("player_transcode_preparing") + ")"
     end if
     if m.apiTask.state = "run" then return
     m.apiTask.request = { op: "startTranscode", itemId: m.itemId }

@@ -300,7 +300,7 @@
     "err_session_expired": "Your session has expired. Please log in again to continue saving progress.",
     "err_stream_limit": "Stream limit reached. Stop another stream to continue watching.",
     "err_transcode_no_stream": "Transcode produced no stream URL.",
-    "err_transcode_timeout": "Transcode timed out.",
+    "err_transcode_timeout": "Transcode is taking longer than expected. Retry to keep waiting.",
     "leave": "Leave",
     "no_chapters": "No chapters available for this content",
     "party_connected": "Connected to Watch Together",
@@ -334,6 +334,8 @@
     "sync_status_no_groups": "No groups - create one to start",
     "sync_status_select_group": "Select a group to join, or Create",
     "sync_status_unavailable": "Watch Together unavailable",
+    "transcode_preparing": "Preparing…",
+    "transcode_preparing_elapsed": "Preparing… {seconds}s",
     "up_next_in": "Up Next in",
     "up_next_title": "Up Next: {title}",
     "video_quality": "Video Quality"

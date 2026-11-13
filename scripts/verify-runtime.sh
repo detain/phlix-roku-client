@@ -13656,8 +13656,8 @@ for loc in LOCALES:
     leaves = {s + "_" + k: v for s, sub in cat.items()
               if s != "_metadata" and isinstance(sub, dict)
               for k, v in sub.items() if isinstance(v, str)}
-    if len(leaves) != 409:
-        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 409 - the keyset moved")
+    if len(leaves) != 411:
+        missing3.append(f"{loc} carries {len(leaves)} leaf keys, not the measured 411 (ROK-50 +2 transcode_preparing keys) - the keyset moved")
     if not leaves.get("common_live_tv", "").strip():
         missing3.append(f"{loc} lost the shipped common_live_tv value")
     percent_keys = [k for k in leaves if "percent" in k.lower() or "progress_" in k.lower()]
@@ -15237,7 +15237,7 @@ ARMS = [
     ("components/DetailScene.brs", "S2-detail-agg-rating", "re",
      r'IsBoxedNumber\(agg\.rating\)', 1),
     ("components/PlayerScene.brs", "S3a-player-title-lifts", "re",
-     r'TextOrEmpty\(m\.item\.name\)', 6),
+     r'TextOrEmpty\(m\.item\.name\)', 7),
     ("components/PlayerScene.brs", "S3b-player-member-count", "re",
      r'IsBoxedNumber\(group\.member_count\)', 1),
     ("components/PlayerScene.brs", "R105-route-window", "str",

@@ -300,7 +300,7 @@
     "err_session_expired": "Die Sitzung ist abgelaufen. Bitte erneut anmelden, damit der Fortschritt weitergespeichert wird.",
     "err_stream_limit": "Stream-Limit erreicht. Einen anderen Stream beenden, um weiterzusehen.",
     "err_transcode_no_stream": "Der Transcoder hat keine Stream-URL erzeugt.",
-    "err_transcode_timeout": "Zeitüberschreitung beim Transcodieren.",
+    "err_transcode_timeout": "Das Transcodieren dauert länger als erwartet. Wiederholen, um weiter zu warten.",
     "leave": "Verlassen",
     "no_chapters": "Für diesen Inhalt sind keine Kapitel verfügbar",
     "party_connected": "Mit der Watch-Party verbunden",
@@ -334,6 +334,8 @@
     "sync_status_no_groups": "Keine Gruppen - erstelle eine, um zu starten",
     "sync_status_select_group": "Wähle eine Gruppe zum Beitreten oder erstelle eine",
     "sync_status_unavailable": "SyncPlay nicht verfügbar",
+    "transcode_preparing": "Wird vorbereitet…",
+    "transcode_preparing_elapsed": "Wird vorbereitet… {seconds}s",
     "up_next_in": "Als Nächstes in",
     "up_next_title": "Als Nächstes: {title}",
     "video_quality": "Videoqualität"

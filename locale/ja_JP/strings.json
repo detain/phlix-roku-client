@@ -300,7 +300,7 @@
     "err_session_expired": "セッションの有効期限が切れました。進捗の保存を続けるにはもう一度ログインしてください。",
     "err_stream_limit": "ストリームの上限に達しました。他のストリームを停止して視聴を続けてください。",
     "err_transcode_no_stream": "トランスコードからストリームURLが生成されませんでした。",
-    "err_transcode_timeout": "トランスコードがタイムアウトしました。",
+    "err_transcode_timeout": "トランスコードに想定より時間がかかっています。再試行すると待機を続けます。",
     "leave": "退出",
     "no_chapters": "このコンテンツにはチャプターがありません",
     "party_connected": "パーティに接続しました",
@@ -334,6 +334,8 @@
     "sync_status_no_groups": "グループがありません - 作成すると開始できます",
     "sync_status_select_group": "参加するグループを選択するか、作成してください",
     "sync_status_unavailable": "SyncPlay は利用できません",
+    "transcode_preparing": "準備中…",
+    "transcode_preparing_elapsed": "準備中… {seconds}秒",
     "up_next_in": "次回まで",
     "up_next_title": "次の動画: {title}",
     "video_quality": "画質"

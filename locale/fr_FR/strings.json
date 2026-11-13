@@ -300,7 +300,7 @@
     "err_session_expired": "Votre session a expiré. Veuillez vous reconnecter pour continuer à enregistrer la progression.",
     "err_stream_limit": "Limite de flux atteinte. Arrêtez un autre flux pour continuer à regarder.",
     "err_transcode_no_stream": "Le transcodage n'a produit aucune URL de stream.",
-    "err_transcode_timeout": "Le transcodage a expiré.",
+    "err_transcode_timeout": "Le transcodage prend plus de temps que prévu. Réessayez pour continuer à attendre.",
     "leave": "Quitter",
     "no_chapters": "Aucun chapitre disponible pour ce contenu",
     "party_connected": "Connecté à la soirée d'écoute",
@@ -334,6 +334,8 @@
     "sync_status_no_groups": "Aucun groupe - créez-en un pour commencer",
     "sync_status_select_group": "Sélectionnez un groupe à rejoindre ou créez-en un",
     "sync_status_unavailable": "SyncPlay indisponible",
+    "transcode_preparing": "Préparation…",
+    "transcode_preparing_elapsed": "Préparation… {seconds}s",
     "up_next_in": "À suivre dans",
     "up_next_title": "À suivre : {title}",
     "video_quality": "Qualité vidéo"

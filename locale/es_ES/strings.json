@@ -300,7 +300,7 @@
     "err_session_expired": "Tu sesión ha caducado. Inicia sesión de nuevo para seguir guardando el progreso.",
     "err_stream_limit": "Se alcanzó el límite de streams. Detén otro stream para seguir viendo.",
     "err_transcode_no_stream": "La transcodificación no generó ninguna URL de stream.",
-    "err_transcode_timeout": "La transcodificación agotó el tiempo de espera.",
+    "err_transcode_timeout": "La transcodificación está tardando más de lo esperado. Reintenta para seguir esperando.",
     "leave": "Salir",
     "no_chapters": "No hay capítulos disponibles para este contenido",
     "party_connected": "Conectado a la fiesta de visionado",
@@ -334,6 +334,8 @@
     "sync_status_no_groups": "No hay grupos: crea uno para empezar",
     "sync_status_select_group": "Selecciona un grupo al que unirte o crea uno",
     "sync_status_unavailable": "SyncPlay no disponible",
+    "transcode_preparing": "Preparando…",
+    "transcode_preparing_elapsed": "Preparando… {seconds}s",
     "up_next_in": "A continuación en",
     "up_next_title": "A continuación: {title}",
     "video_quality": "Calidad de vídeo"
