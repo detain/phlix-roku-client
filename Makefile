@@ -119,23 +119,40 @@ package-signed:
 # C08 cure the version-injected manifest rides at the zip's root and is the
 # single source the installer should see — feeding a second, un-injected
 # 'manifest' field re-created the dual-source shape the C1 law forbids.
+# ROK-6: the response is CAPTURED and judged, not dropped: curl -sS exits 0 on
+# any HTTP status and the device's installer answers 200 even for 'Install
+# Failure', so a bare pipe let make report success on a failed install. Each
+# leg now writes the body to a mktemp file, reads the status via -w, and fails
+# loud on a non-2xx status or an 'Install Failure' / 'Error Message' body.
 install: package
 	@echo "Installing to Roku at $(ROKU_IP)..."
-	@printf 'user = "%s:%s"\ndigest\nurl = "http://%s/plugin_install"\nrequest = "POST"\nform = "mysubmit=Install"\nform = "archive=@%s.zip"\nform = "passwd="\n' \
+	@body=$$(mktemp) && \
+	code=$$(printf 'user = "%s:%s"\ndigest\nurl = "http://%s/plugin_install"\nrequest = "POST"\nform = "mysubmit=Install"\nform = "archive=@%s.zip"\nform = "passwd="\n' \
 		"$(ROKU_DEV)" "$(ROKU_PASSWORD)" "$(ROKU_IP)" "$(PKG_NAME)" \
-		| curl -sS --config -
+		| curl -sS --config - -o "$$body" -w '%{http_code}') ; \
+	rc=0; case "$$code" in 2??) ;; *) echo "install FAILED: HTTP status $$code" >&2; rc=1;; esac; \
+	if grep -qiE 'Install Failure|Error Message' "$$body"; then echo "install FAILED: device reported:" >&2; grep -iE 'Install Failure|Error Message' "$$body" >&2; rc=1; fi; \
+	rm -f "$$body"; exit $$rc
 
 # Launch the app (after install)
 launch:
 	@echo "Launching $(PKG_NAME)..."
-	@printf 'user = "%s:%s"\nurl = "http://%s:8060/launch/dev?channel=dev"\nrequest = "POST"\n' \
-		"$(ROKU_DEV)" "$(ROKU_PASSWORD)" "$(ROKU_IP)" | curl -sS --config -
+	@body=$$(mktemp) && \
+	code=$$(printf 'user = "%s:%s"\nurl = "http://%s:8060/launch/dev?channel=dev"\nrequest = "POST"\n' \
+		"$(ROKU_DEV)" "$(ROKU_PASSWORD)" "$(ROKU_IP)" | curl -sS --config - -o "$$body" -w '%{http_code}') ; \
+	rc=0; case "$$code" in 2??) ;; *) echo "launch FAILED: HTTP status $$code" >&2; rc=1;; esac; \
+	if grep -qiE 'Install Failure|Error Message' "$$body"; then echo "launch FAILED: device reported:" >&2; grep -iE 'Install Failure|Error Message' "$$body" >&2; rc=1; fi; \
+	rm -f "$$body"; exit $$rc
 
 # Stop the app
 stop:
 	@echo "Stopping $(PKG_NAME)..."
-	@printf 'user = "%s:%s"\nurl = "http://%s:8060/keypress/home"\nrequest = "POST"\n' \
-		"$(ROKU_DEV)" "$(ROKU_PASSWORD)" "$(ROKU_IP)" | curl -sS --config -
+	@body=$$(mktemp) && \
+	code=$$(printf 'user = "%s:%s"\nurl = "http://%s:8060/keypress/home"\nrequest = "POST"\n' \
+		"$(ROKU_DEV)" "$(ROKU_PASSWORD)" "$(ROKU_IP)" | curl -sS --config - -o "$$body" -w '%{http_code}') ; \
+	rc=0; case "$$code" in 2??) ;; *) echo "stop FAILED: HTTP status $$code" >&2; rc=1;; esac; \
+	if grep -qiE 'Install Failure|Error Message' "$$body"; then echo "stop FAILED: device reported:" >&2; grep -iE 'Install Failure|Error Message' "$$body" >&2; rc=1; fi; \
+	rm -f "$$body"; exit $$rc
 
 # Clean build artifacts (RT-008: the digest sibling and the version-derived
 # build/ tree are build output too - 'clean' means clean).

@@ -420,7 +420,10 @@ zip -r phlix.zip manifest source components images locale
 # forbids); credentials never ride argv (-u user:pass is visible in ps);
 # -sS, not -v (verbose echoes the auth header into scrollback).
 read -rs -p "Roku dev-mode password: " ROKU_PASS
-printf 'user = "rokudev:%s"\ndigest\nurl = "http://192.168.1.100/plugin_install"\nrequest = "POST"\nform = "mysubmit=Install"\nform = "archive=@phlix.zip"\nform = "passwd="\n' "$ROKU_PASS" | curl -sS --config -
+# Response law [ROK-6]: capture the body + HTTP status and fail loud - the
+# device answers 200 even for an 'Install Failure' page.
+printf 'user = "rokudev:%s"\ndigest\nurl = "http://192.168.1.100/plugin_install"\nrequest = "POST"\nform = "mysubmit=Install"\nform = "archive=@phlix.zip"\nform = "passwd="\n' "$ROKU_PASS" | curl -sS --config - -o roku-install.out -w '%{http_code}\n'
+! grep -qiE 'Install Failure|Error Message' roku-install.out || { echo "install FAILED" >&2; false; }
 ```
 
 ## Testing

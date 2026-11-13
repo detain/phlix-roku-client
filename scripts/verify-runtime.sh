@@ -11327,6 +11327,28 @@ if len(FILES) < 70:
         "glob or the tree changed shape; rotate with disclosure, never let "
         "this leg go vacuous")
 
+# ---- R6: the Makefile device legs stay fail-loud (ROK-6) ---------------------
+# install/launch/stop must capture the response (-o + -w status) and grep the
+# body for the device's failure phrases; the README recipe must carry the same.
+MK = read("Makefile")
+if MK is not None:
+    for tgt in ("install", "launch", "stop"):
+        mt = re.search(r"^%s:.*?(?=^\S)" % tgt, MK, re.S | re.M)
+        body = mt.group(0) if mt else ""
+        for marker in ("%{http_code}", "Install Failure|Error Message", "exit $$rc"):
+            if marker not in body:
+                problems.append(
+                    f"  Makefile - CHECK75 R6: target {tgt!r} lost its "
+                    f"response-guard marker {marker!r} - a failed device "
+                    "response would exit 0 again [ROK-6]")
+RD = read("README.md")
+if RD is not None:
+    for marker in ("%{http_code}", "Install Failure|Error Message"):
+        if marker not in RD:
+            problems.append(
+                f"  README.md - CHECK75 R6: the sideload recipe lost its "
+                f"response-guard marker {marker!r} [ROK-6]")
+
 # ---- R4: the ledger row keeps its cure markers ------------------------------
 LEDGER = read("docs/static-checks.md")
 if LEDGER is None:
