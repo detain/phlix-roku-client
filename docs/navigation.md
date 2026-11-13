@@ -32,13 +32,23 @@ the final state.
 Creates a child scene, appends it to `m.top`, sets focus on it, records it on the
 stack, and returns it. The caller is responsible for calling any setup methods
 (like `LoadItem`, `LoadSeason`) on the returned node after `PushScreen` returns.
+
+**Depth cap (M-ROKU-28):** when `m.screenStack.Count() >= 12` the push is
+REFUSED: `PushScreen` prints a log line and returns `invalid`, creating no
+scene. Disclosure of the refusal is the CALLER's duty — every caller must guard
+the returned node against `invalid` before calling setup methods on it, and
+surface the refusal (the deep-link arms use `ShowDeepLinkError()`).
 The live callers are the deep-link arms in `PhlixApp.brs`:
 
 ```brightscript
 ' PhlixApp.brs, the deep-link "play" arm (real code):
 detailScene = PushScreen("DetailScene", {})
-detailScene.autoPlayOnLoad = true
-detailScene.LoadItem(item.id)
+if detailScene = invalid then
+    ShowDeepLinkError()
+else
+    detailScene.autoPlayOnLoad = true
+    detailScene.LoadItem(item.id)
+end if
 ```
 
 (HomeScene's rail handlers — Library, Music, Search, the resume player — do
