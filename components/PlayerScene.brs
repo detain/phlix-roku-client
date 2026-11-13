@@ -76,9 +76,9 @@ sub Init()
     ' and nothing ever set a title. Catalog-backed .brs writes, SkipButton's
     ' label idiom; the play/pause title follows the player state (see
     ' OnPlayerStateChange arms), seeded here as "Play" (nothing is playing yet).
-    if m.rewindButton <> invalid then m.rewindButton.title = Translate("player_btn_rewind")
-    if m.forwardButton <> invalid then m.forwardButton.title = Translate("player_btn_forward")
-    if m.playPauseButton <> invalid then m.playPauseButton.title = Translate("player_btn_play")
+    if m.rewindButton <> invalid then m.rewindButton.text = Translate("player_btn_rewind")
+    if m.forwardButton <> invalid then m.forwardButton.text = Translate("player_btn_forward")
+    if m.playPauseButton <> invalid then m.playPauseButton.text = Translate("player_btn_play")
 
     ' ============================================================= '
     ' P3-S4 Sleep Timer: init and wire up UI nodes. Additive -        '
@@ -560,7 +560,7 @@ sub OnPlayerStateChange(event as Object)
     else if state = "playing" then
         m.isPlaying = true
         ' MJ-11: the focused button now offers PAUSE (catalog-backed title).
-        if m.playPauseButton <> invalid then m.playPauseButton.title = Translate("player_btn_pause")
+        if m.playPauseButton <> invalid then m.playPauseButton.text = Translate("player_btn_pause")
         ' C20 [review roku__gameux C1]: the first "playing" of an item passively
         ' reveals the control surface (scrub bar, title, time, buttons) so it is
         ' discoverable, then R2.1's 4-second timer retires it. Every later
@@ -608,7 +608,7 @@ sub OnPlayerStateChange(event as Object)
     else if state = "paused" then
         m.isPlaying = false
         ' MJ-11: the focused button now offers PLAY (catalog-backed title).
-        if m.playPauseButton <> invalid then m.playPauseButton.title = Translate("player_btn_play")
+        if m.playPauseButton <> invalid then m.playPauseButton.text = Translate("player_btn_play")
         ' C20 [review roku__gameux C1/m3]: pause previously produced ZERO visual
         ' response (the review's "one ShowControls(true) call away"). Standard
         ' Roku convention: pausing reveals the transport controls. Suppressed
@@ -4064,21 +4064,21 @@ end sub
 ' mirroring the DetailScene precedent.
 sub ApplyXmlChrome()
     n = m.top.findNode("backButton")
-    if n <> invalid then n.title = Translate("common_back")
+    if n <> invalid then n.text = Translate("common_back")
     n = m.top.findNode("chapterButton")
-    if n <> invalid then n.title = Translate("common_chapters")
+    if n <> invalid then n.text = Translate("common_chapters")
     n = m.top.findNode("sleepButton")
-    if n <> invalid then n.title = Translate("player_sleep")
+    if n <> invalid then n.text = Translate("player_sleep")
     n = m.top.findNode("syncHeaderLabel")
     if n <> invalid then n.text = Translate("syncplay_title")
     n = m.top.findNode("syncCreateButton")
-    if n <> invalid then n.title = Translate("player_create_group")
+    if n <> invalid then n.text = Translate("player_create_group")
     n = m.top.findNode("syncLeaveButton")
-    if n <> invalid then n.title = Translate("player_leave")
+    if n <> invalid then n.text = Translate("player_leave")
     ' MJ-2: the join-by-code form speaks through the same override path as the
     ' rest of the panel chrome (CHECK25's net; the XML literals are en-fallback).
     n = m.top.findNode("syncJoinCodeButton")
-    if n <> invalid then n.title = Translate("syncplay_join_with_code")
+    if n <> invalid then n.text = Translate("syncplay_join_with_code")
     n = m.top.findNode("syncCodeLabel")
     if n <> invalid then n.text = Translate("syncplay_code_label")
     n = m.top.findNode("syncCodeInput")
@@ -4086,9 +4086,9 @@ sub ApplyXmlChrome()
     n = m.top.findNode("syncCodePasswordLabel")
     if n <> invalid then n.text = Translate("syncplay_password_label")
     n = m.top.findNode("syncCodeJoinButton")
-    if n <> invalid then n.title = Translate("syncplay_join")
+    if n <> invalid then n.text = Translate("syncplay_join")
     n = m.top.findNode("syncCodeCancelButton")
-    if n <> invalid then n.title = Translate("common_cancel")
+    if n <> invalid then n.text = Translate("common_cancel")
     n = m.top.findNode("qualityHeaderLabel")
     if n <> invalid then n.text = Translate("player_video_quality")
     n = m.top.findNode("settingsHeaderLabel")
@@ -4096,21 +4096,21 @@ sub ApplyXmlChrome()
     n = m.top.findNode("trackListTitle")
     if n <> invalid then n.text = Translate("player_select_track")
     n = m.top.findNode("trackListBackButton")
-    if n <> invalid then n.title = Translate("common_back")
+    if n <> invalid then n.text = Translate("common_back")
     n = m.top.findNode("sleepTimerHeaderLabel")
     if n <> invalid then n.text = Translate("player_sleep_timer")
     n = m.top.findNode("sleepTimerCancelButton")
-    if n <> invalid then n.title = Translate("common_cancel")
+    if n <> invalid then n.text = Translate("common_cancel")
     n = m.top.findNode("pipExitButton")
-    if n <> invalid then n.title = Translate("common_exit")
+    if n <> invalid then n.text = Translate("common_exit")
     n = m.top.findNode("playbackErrorHeaderLabel")
     if n <> invalid then n.text = Translate("player_playback_error")
     n = m.top.findNode("errorOkButton")
-    if n <> invalid then n.title = Translate("common_ok")
+    if n <> invalid then n.text = Translate("common_ok")
     n = m.top.findNode("upNextCardCountdown")
     if n <> invalid then n.text = Translate("player_up_next_in")
     n = m.top.findNode("upNextPlayButton")
-    if n <> invalid then n.title = Translate("common_play")
+    if n <> invalid then n.text = Translate("common_play")
     n = m.top.findNode("upNextCancelButton")
-    if n <> invalid then n.title = Translate("common_cancel")
+    if n <> invalid then n.text = Translate("common_cancel")
 end sub

@@ -44,7 +44,7 @@ Displays:
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF" />
             <Button height="50" width="120" translation="[1100,25]"
-                    title="Back"
+                    text="Back"
                     id="backButton" />
         </Rectangle>
 
@@ -83,14 +83,14 @@ Displays:
                        color="#FFFFFF" />
                 <Rectangle height="40" width="110" translation="[160,10]" color="#2a2a3e">
                     <Button height="40" width="110"
-                            title="On"
+                            text="On"
                             id="publicToggle" />
                 </Rectangle>
             </Rectangle>
 
             <!-- Create room button -->
             <Button height="60" width="260" translation="[380,110]"
-                    title="Create Room"
+                    text="Create Room"
                     id="createButton" />
 
             <!-- Room list -->
@@ -140,7 +140,7 @@ Displays:
 
             <!-- Leave button -->
             <Button height="60" width="200" translation="[40,520]"
-                    title="Leave Room"
+                    text="Leave Room"
                     id="leaveButton" />
         </Rectangle>
     </children>

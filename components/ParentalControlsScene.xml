@@ -34,9 +34,9 @@
 
         <!-- Section tabs: Schedules | Tags | Stream Limits -->
         <LayoutGroup translation="[40,120]" itemSpacings="[8]" layoutDirection="horizontal">
-            <Button width="280" height="48" title="Schedules" id="tabSchedulesButton" />
-            <Button width="280" height="48" title="Tags" id="tabTagsButton" />
-            <Button width="280" height="48" title="Stream Limits" id="tabStreamLimitsButton" />
+            <Button width="280" height="48" text="Schedules" id="tabSchedulesButton" />
+            <Button width="280" height="48" text="Tags" id="tabTagsButton" />
+            <Button width="280" height="48" text="Stream Limits" id="tabStreamLimitsButton" />
         </LayoutGroup>
 
         <!-- Schedules Section -->
@@ -66,13 +66,13 @@
             <!-- Day-of-week checkboxes: Mon-Sun -->
             <LayoutGroup translation="[0,0]" itemSpacings="[12]" layoutDirection="horizontal">
                 <Label id="daysLabel" height="32" width="80" text="Days:" font="font:MediumSystemFont" color="#AAAAAA" vertAlign="center" />
-                <Button width="100" height="36" title="Mon" id="dayMonButton" />
-                <Button width="100" height="36" title="Tue" id="dayTueButton" />
-                <Button width="100" height="36" title="Wed" id="dayWedButton" />
-                <Button width="100" height="36" title="Thu" id="dayThuButton" />
-                <Button width="100" height="36" title="Fri" id="dayFriButton" />
-                <Button width="100" height="36" title="Sat" id="daySatButton" />
-                <Button width="100" height="36" title="Sun" id="daySunButton" />
+                <Button width="100" height="36" text="Mon" id="dayMonButton" />
+                <Button width="100" height="36" text="Tue" id="dayTueButton" />
+                <Button width="100" height="36" text="Wed" id="dayWedButton" />
+                <Button width="100" height="36" text="Thu" id="dayThuButton" />
+                <Button width="100" height="36" text="Fri" id="dayFriButton" />
+                <Button width="100" height="36" text="Sat" id="daySatButton" />
+                <Button width="100" height="36" text="Sun" id="daySunButton" />
             </LayoutGroup>
 
             <!-- Time pickers (using text input for HH:MM format) -->
@@ -85,8 +85,8 @@
 
             <!-- Add schedule button -->
             <LayoutGroup itemSpacings="[8]" layoutDirection="horizontal">
-                <Button width="300" height="48" title="Add Schedule" id="addScheduleButton" />
-                <Button width="300" height="48" title="Delete Selected" id="deleteScheduleButton" />
+                <Button width="300" height="48" text="Add Schedule" id="addScheduleButton" />
+                <Button width="300" height="48" text="Delete Selected" id="deleteScheduleButton" />
             </LayoutGroup>
         </LayoutGroup>
 
@@ -103,8 +103,8 @@
             <LayoutGroup itemSpacings="[8]" layoutDirection="horizontal">
                 <Label id="tagNameLabel" text="Tag:" height="36" width="60" font="font:MediumSystemFont" color="#AAAAAA" vertAlign="center" />
                 <TextEditBox id="tagNameInput" hintText="e.g. restricted" maxLength="64" width="300" />
-                <Button width="200" height="48" title="Add Blocked Tag" id="addTagButton" />
-                <Button width="200" height="48" title="Remove Selected" id="removeTagButton" />
+                <Button width="200" height="48" text="Add Blocked Tag" id="addTagButton" />
+                <Button width="200" height="48" text="Remove Selected" id="removeTagButton" />
             </LayoutGroup>
         </LayoutGroup>
 
@@ -122,7 +122,7 @@
             <LayoutGroup itemSpacings="[8]" layoutDirection="horizontal">
                 <Label id="maxStreamsLabel" text="Max Streams:" height="36" width="130" font="font:MediumSystemFont" color="#AAAAAA" vertAlign="center" />
                 <TextEditBox id="maxStreamsInput" hintText="1-10" maxLength="2" width="90" />
-                <Button width="200" height="48" title="Update Limit" id="updateStreamLimitButton" />
+                <Button width="200" height="48" text="Update Limit" id="updateStreamLimitButton" />
             </LayoutGroup>
         </LayoutGroup>
 

@@ -28,7 +28,7 @@
         <!-- Header -->
         <Rectangle height="100" width="1280" color="#1a1a2e">
             <Rectangle height="60" width="160" translation="[20,20]">
-                <Button height="60" width="160" title="Back" id="backButton" />
+                <Button height="60" width="160" text="Back" id="backButton" />
             </Rectangle>
         </Rectangle>
 
@@ -73,34 +73,34 @@
                 </Rectangle>
 
                 <Button height="60" width="200" translation="[10,330]"
-                        title="Play"
+                        text="Play"
                         id="playButton" />
 
                 <Button height="60" width="300" translation="[230,330]"
-                        title="Add to Favorites"
+                        text="Add to Favorites"
                         visible="false"
                         id="favoriteButton" />
 
                 <Button height="60" width="300" translation="[540,330]"
-                        title="Rating: not set"
+                        text="Rating: not set"
                         visible="false"
                         id="ratingButton" />
 
                 <!-- R7.11: Add to Collection button -->
                 <Button height="60" width="200" translation="[260,400]"
-                        title="Add to Collection"
+                        text="Add to Collection"
                         visible="false"
                         id="collectionButton" />
 
                 <!-- R7.5: Mark Watched/Unwatched button -->
                 <Button height="60" width="200" translation="[10,400]"
-                        title="Mark as Watched"
+                        text="Mark as Watched"
                         visible="false"
                         id="watchedButton" />
 
                 <!-- R7.5: Like button -->
                 <Button height="60" width="200" translation="[220,400]"
-                        title="Like"
+                        text="Like"
                         visible="false"
                         id="likeButton" />
             </Rectangle>

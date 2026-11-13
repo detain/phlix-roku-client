@@ -43,7 +43,7 @@
             <!-- Top Bar -->
             <Rectangle height="100" width="1280" translation="[0,0]">
                 <Rectangle height="100" width="200" translation="[20,20]">
-                    <Button height="60" width="160" title="Back" id="backButton" />
+                    <Button height="60" width="160" text="Back" id="backButton" />
                 </Rectangle>
             </Rectangle>
 
@@ -88,17 +88,17 @@
 
                 <!-- P3-S4: PiP (Picture-in-Picture) toggle button -->
                 <Button height="50" width="100" translation="[940,15]"
-                        title="PiP"
+                        text="PiP"
                         id="pipButton" />
 
                 <!-- R2.5: Chapters button - opens chapter picker overlay -->
                 <Button height="50" width="130" translation="[1060,15]"
-                        title="Chapters"
+                        text="Chapters"
                         id="chapterButton" />
 
                 <!-- R2.6: Sleep button - opens sleep timer panel -->
                 <Button height="50" width="100" translation="[1200,15]"
-                        title="Sleep"
+                        text="Sleep"
                         id="sleepButton" />
             </Rectangle>
 
@@ -142,11 +142,11 @@
                 <LabelList height="290" width="540" translation="[30,90]"
                            id="syncGroupList" />
                 <Button height="60" width="540" translation="[30,400]"
-                        title="Join With Code" id="syncJoinCodeButton" />
+                        text="Join With Code" id="syncJoinCodeButton" />
                 <Button height="60" width="260" translation="[30,470]"
-                        title="Create Group" id="syncCreateButton" />
+                        text="Create Group" id="syncCreateButton" />
                 <Button height="60" width="260" translation="[310,470]"
-                        title="Leave" id="syncLeaveButton" />
+                        text="Leave" id="syncLeaveButton" />
                 <Group id="syncCodeGroup" translation="[30,90]" visible="false">
                     <Label height="50" width="540" translation="[0,0]"
                            id="syncCodeLabel"
@@ -163,9 +163,9 @@
                     <TextEditBox id="syncCodePasswordInput" secureMode="true" maxLength="255"
                                  height="60" width="540" translation="[0,190]" />
                     <Button height="60" width="260" translation="[0,290]"
-                            title="Join" id="syncCodeJoinButton" />
+                            text="Join" id="syncCodeJoinButton" />
                     <Button height="60" width="260" translation="[280,290]"
-                            title="Cancel" id="syncCodeCancelButton" />
+                            text="Cancel" id="syncCodeCancelButton" />
                 </Group>
                 <Label height="80" width="540" translation="[30,550]"
                        wrap="true"
@@ -237,7 +237,7 @@
                 <LabelList height="380" width="460" translation="[30,90]"
                            id="trackList" />
                 <Button height="60" width="200" translation="[30,440]"
-                        title="Back"
+                        text="Back"
                         id="trackListBackButton" />
                 <Label height="60" width="460" translation="[30,480]"
                        wrap="true"
@@ -263,7 +263,7 @@
                 <LabelList height="340" width="460" translation="[30,90]"
                            id="sleepTimerPresetList" />
                 <Button height="60" width="200" translation="[30,400]"
-                        title="Cancel"
+                        text="Cancel"
                         id="sleepTimerCancelButton" />
                 <Label height="70" width="460" translation="[30,440]"
                        wrap="true"
@@ -287,7 +287,7 @@
             <Poster height="190" width="330" translation="[5,5]" id="pipSnapshotImage"
                     loadWidth="330" loadHeight="190" loadDisplayMode="scaleToFit" />
             <Button height="40" width="80" translation="[5,5]"
-                    title="Exit"
+                    text="Exit"
                     id="pipExitButton" />
         </Rectangle>
 
@@ -310,7 +310,7 @@
                        color="#FFFFFF"
                        id="errorMessageLabel" />
                 <Button height="60" width="200" translation="[160,240]"
-                        title="OK"
+                        text="OK"
                         id="errorOkButton" />
             </Rectangle>
         </Rectangle>
@@ -326,9 +326,9 @@
                            color="#FFFFFF" id="upNextCardTitle" />
                     <Label height="30" width="320" font="font:MediumSystemFont"
                            color="#AAAAAA" text="Up Next in" id="upNextCardCountdown" />
-                    <Button height="36" width="120" title="Play" translation="[0,10]"
+                    <Button height="36" width="120" text="Play" translation="[0,10]"
                             id="upNextPlayButton" />
-                    <Button height="36" width="120" title="Cancel" translation="[130,10]"
+                    <Button height="36" width="120" text="Cancel" translation="[130,10]"
                             id="upNextCancelButton" />
                 </LayoutGroup>
             </LayoutGroup>

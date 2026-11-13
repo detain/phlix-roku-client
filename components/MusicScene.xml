@@ -24,13 +24,13 @@
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF" />
             <Button height="60" width="200" translation="[320,20]"
-                    title="Artists"
+                    text="Artists"
                     id="artistsButton" />
             <Button height="60" width="200" translation="[560,20]"
-                    title="Albums"
+                    text="Albums"
                     id="albumsButton" />
             <Button height="60" width="200" translation="[800,20]"
-                    title="Tracks"
+                    text="Tracks"
                     id="tracksButton" />
         </Rectangle>
 

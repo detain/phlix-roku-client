@@ -41,26 +41,26 @@
                  the two admin-only entries ride the far end, non-admins
                  still stop at Settings. -->
             <Button height="60" width="130" translation="[250,36]"
-                    title="Search"
+                    text="Search"
                     id="searchButton" />
             <Button height="60" width="140" translation="[390,36]"
-                    title="For You"
+                    text="For You"
                     id="forYouButton" />
             <Button height="60" width="155" translation="[540,36]"
-                    title="Favorites"
+                    text="Favorites"
                     id="favoritesButton" />
             <Button height="60" width="175" translation="[705,36]"
-                    title="Collections"
+                    text="Collections"
                     id="collectionsButton" />
             <Button height="60" width="120" translation="[890,36]"
-                    title="Settings"
+                    text="Settings"
                     id="settingsButton" />
             <Button height="60" width="125" translation="[1020,36]"
-                    title="Live TV"
+                    text="Live TV"
                     visible="false"
                     id="tvButton" />
             <Button height="60" width="110" translation="[1155,36]"
-                    title="Admin"
+                    text="Admin"
                     visible="false"
                     id="adminButton" />
         </Rectangle>
@@ -147,7 +147,7 @@
              content. ApplyXmlChrome overrides the title via
              Translate("common_retry"). -->
         <Button id="retryButton" translation="[1056,644]" width="160" height="36"
-                title="Retry" focusable="true" visible="false" />
+                text="Retry" focusable="true" visible="false" />
     </children>
 </component>
 

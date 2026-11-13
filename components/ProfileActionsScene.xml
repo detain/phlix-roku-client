@@ -31,16 +31,16 @@
              Parental Controls + Refresh (flat single-action buttons mirror F11c exactly - no focus
              sub-modes, lowest-risk). -->
         <LayoutGroup translation="[40,160]" itemSpacings="[14]">
-            <Button width="420" height="64" title="G" id="ratingGButton" />
-            <Button width="420" height="64" title="PG" id="ratingPgButton" />
-            <Button width="420" height="64" title="PG-13" id="ratingPg13Button" />
-            <Button width="420" height="64" title="R" id="ratingRButton" />
-            <Button width="420" height="64" title="NC-17" id="ratingNc17Button" />
-            <Button width="420" height="64" title="X" id="ratingXButton" />
-            <Button width="420" height="64" title="UNRATED" id="ratingUnratedButton" />
-            <Button width="420" height="64" title="Clear PIN" id="clearPinButton" />
-            <Button width="420" height="64" title="Parental Controls" id="parentalControlsButton" />
-            <Button width="420" height="64" title="Refresh" id="refreshButton" />
+            <Button width="420" height="64" text="G" id="ratingGButton" />
+            <Button width="420" height="64" text="PG" id="ratingPgButton" />
+            <Button width="420" height="64" text="PG-13" id="ratingPg13Button" />
+            <Button width="420" height="64" text="R" id="ratingRButton" />
+            <Button width="420" height="64" text="NC-17" id="ratingNc17Button" />
+            <Button width="420" height="64" text="X" id="ratingXButton" />
+            <Button width="420" height="64" text="UNRATED" id="ratingUnratedButton" />
+            <Button width="420" height="64" text="Clear PIN" id="clearPinButton" />
+            <Button width="420" height="64" text="Parental Controls" id="parentalControlsButton" />
+            <Button width="420" height="64" text="Refresh" id="refreshButton" />
         </LayoutGroup>
         <!-- Current profile-state detail -->
         <Label width="680" height="400" translation="[560,160]"

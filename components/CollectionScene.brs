@@ -337,7 +337,7 @@ end function
 ' mirroring the DetailScene precedent.
 sub ApplyXmlChrome()
     n = m.top.findNode("backButton")
-    if n <> invalid then n.title = Translate("common_back")
+    if n <> invalid then n.text = Translate("common_back")
     n = m.top.findNode("titleLabel")
     if n <> invalid then n.text = Translate("common_collection")
     n = m.top.findNode("loadingLabel")
@@ -345,5 +345,5 @@ sub ApplyXmlChrome()
     n = m.top.findNode("descriptionLabel")
     if n <> invalid then n.text = Translate("common_select_item")
     n = m.top.findNode("retryButton")
-    if n <> invalid then n.title = Translate("common_retry")
+    if n <> invalid then n.text = Translate("common_retry")
 end sub

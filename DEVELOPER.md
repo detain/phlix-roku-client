@@ -509,7 +509,6 @@ sub LoadData()
     task = CreateObject("roSGNode", "ApiTask")
     task.ObserveField("response", "OnApiResponse")
     task.request = { op: "getLibraries" }
-    if task.state = "run" then return
     task.control = "run"
 end sub
 

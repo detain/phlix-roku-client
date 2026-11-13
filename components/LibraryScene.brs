@@ -813,11 +813,11 @@ End Function
 ' mirroring the DetailScene precedent.
 sub ApplyXmlChrome()
     n = m.top.findNode("backButton")
-    if n <> invalid then n.title = Translate("common_back")
+    if n <> invalid then n.text = Translate("common_back")
     n = m.top.findNode("titleLabel")
     if n <> invalid then n.text = Translate("common_library")
     n = m.top.findNode("optionsButton")
-    if n <> invalid then n.title = Translate("common_sort")
+    if n <> invalid then n.text = Translate("common_sort")
     n = m.top.findNode("jumpToLabel")
     if n <> invalid then n.text = Translate("library_jump_to")
     n = m.top.findNode("descriptionLabel")
@@ -825,7 +825,7 @@ sub ApplyXmlChrome()
     n = m.top.findNode("loadingLabel")
     if n <> invalid then n.text = Translate("common_loading")
     n = m.top.findNode("retryButton")
-    if n <> invalid then n.title = Translate("common_retry")
+    if n <> invalid then n.text = Translate("common_retry")
 end sub
 
 ' RT-094: browse failure-vs-usable verdict, pure so the headless suite can

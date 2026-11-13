@@ -53,7 +53,7 @@
                  d-pad URL typing. Finds fill the address box; manual entry
                  above remains the documented fallback. -->
             <Button height="60" width="520" translation="[20,180]"
-                    title="Find Phlix server on network"
+                    text="Find Phlix server on network"
                     id="findServerButton" />
             <LabelList height="140" width="520" translation="[20,250]"
                        numRows="2"
@@ -79,12 +79,12 @@
 
             <!-- Connect Button -->
             <Button height="60" width="520" translation="[20,440]"
-                    title="Connect"
+                    text="Connect"
                     id="connectButton" />
 
             <!-- Connect anyway (revealed only after a failed probe) -->
             <Button height="60" width="520" translation="[20,510]"
-                    title="Connect anyway"
+                    text="Connect anyway"
                     visible="false"
                     id="connectAnywayButton" />
         </Rectangle>

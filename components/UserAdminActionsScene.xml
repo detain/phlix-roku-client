@@ -28,12 +28,12 @@
         </Rectangle>
         <!-- Vertical action button column -->
         <LayoutGroup translation="[40,160]" itemSpacings="[20]">
-            <Button width="420" height="64" title="Approve" id="approveButton" />
-            <Button width="420" height="64" title="Disable" id="disableButton" />
-            <Button width="420" height="64" title="Set Admin" id="adminButton" />
-            <Button width="420" height="64" title="Reset Password" id="resetPasswordButton" />
-            <Button width="420" height="64" title="Profiles" id="profilesButton" />
-            <Button width="420" height="64" title="Refresh" id="refreshButton" />
+            <Button width="420" height="64" text="Approve" id="approveButton" />
+            <Button width="420" height="64" text="Disable" id="disableButton" />
+            <Button width="420" height="64" text="Set Admin" id="adminButton" />
+            <Button width="420" height="64" text="Reset Password" id="resetPasswordButton" />
+            <Button width="420" height="64" text="Profiles" id="profilesButton" />
+            <Button width="420" height="64" text="Refresh" id="refreshButton" />
         </LayoutGroup>
         <!-- Current user-state detail -->
         <Label width="1200" height="240" translation="[500,160]"

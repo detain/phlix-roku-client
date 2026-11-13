@@ -28,10 +28,10 @@
         </Rectangle>
         <!-- Vertical action button column -->
         <LayoutGroup translation="[40,160]" itemSpacings="[20]">
-            <Button width="420" height="64" title="Scan (incremental)" id="scanButton" />
-            <Button width="420" height="64" title="Rescan (full)" id="rescanButton" />
-            <Button width="420" height="64" title="Match Metadata" id="matchButton" />
-            <Button width="420" height="64" title="Refresh Status" id="refreshButton" />
+            <Button width="420" height="64" text="Scan (incremental)" id="scanButton" />
+            <Button width="420" height="64" text="Rescan (full)" id="rescanButton" />
+            <Button width="420" height="64" text="Match Metadata" id="matchButton" />
+            <Button width="420" height="64" text="Refresh Status" id="refreshButton" />
         </LayoutGroup>
         <!-- Current scan status -->
         <Label width="1200" height="200" translation="[500,160]"

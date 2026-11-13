@@ -3248,7 +3248,7 @@ if UP is not None:
 
 # R5: README header prose derives from the XML it documents.
 head = []
-for m in re.finditer(r'<Button[^>]*?translation="\[(\d+),20\]"[^>]*?title="([^"]*)"', xml):
+for m in re.finditer(r'<Button[^>]*?translation="\[(\d+),20\]"[^>]*?text="([^"]*)"', xml):
     head.append((int(m.group(1)), m.group(2)))
 head.sort()
 titles = [t for _, t in head]
@@ -9515,9 +9515,9 @@ if en is not None:
         problems.append("  locale/en_US/strings.json - CHECK66 R6: caption label drifted from sentence case again (M-ROKU-48 — the split with the OS wire value's own casing is the defect)")
     if en.get("login", {}).get("button") != "Log In":
         problems.append("  locale/en_US/strings.json - CHECK66 R6: login.button is not the verb pair 'Log In' (M-ROKU-49)")
-    if LXML is not None and 'title="Log In"' not in LXML:
+    if LXML is not None and 'text="Log In"' not in LXML:
         problems.append("  components/LoginScene.xml - CHECK66 R6: XML fallback literal no longer byte-matches the catalog (CHECK25 pairing; both must move together)")
-    if LXML is not None and re.search(r'title="Login"\s*\n\s*id="loginButton"', LXML):
+    if LXML is not None and re.search(r'text="Login"\s*\n\s*id="loginButton"', LXML):
         problems.append("  components/LoginScene.xml - CHECK66 R6: the noun-as-verb 'Login' literal was reintroduced")
 
 # ---- R7 cross-locale presence of the consent key family -------------------
@@ -11193,6 +11193,12 @@ for path in XMLS:
         if tag in SKIP_TAGS:
             return
         _tags.append(tag)
+        if tag == "Button" and "title" in att:
+            problems.append(
+                f"  {path}:{parser.CurrentLineNumber} - CHECK74 R5: "
+                "<Button> carries title= — the Roku Button label field is "
+                "text=; title= is not a Button field and renders an "
+                "unlabeled button [ROK-1]")
         h = att.get("hintText")
         if h is not None and h.strip():
             _hints.append((parser.CurrentLineNumber, tag, att.get("id"),
@@ -11260,6 +11266,17 @@ for path, exempt in HINT_EXEMPT.items():
                 f"  {path} - CHECK74 R2: exemption for {value!r} ({reason}) "
                 "is stale — the literal no longer rides hintText= on this "
                 "file; carve-outs must rot with their markup")
+
+# R5 (brs half): no `.title =` write on a Button ref (label field is text).
+BTN_TITLE_WRITE = re.compile(
+    r'(?<![A-Za-z0-9_])(?:n|[A-Za-z0-9_]*Button|publicToggle)\.title\s*=(?!=)')
+for bpath in sorted(glob.glob("components/**/*.brs", recursive=True)):
+    bsrc = read(bpath) or ""
+    for i, line in enumerate(bsrc.splitlines(), 1):
+        if BTN_TITLE_WRITE.search(line.split("'")[0]):
+            problems.append(
+                f"  {bpath}:{i} - CHECK74 R5: .title write on a Button ref — "
+                "the Button label field is text [ROK-1]")
 
 if hint_count < 6:
     problems.append(
@@ -13360,8 +13377,8 @@ if missing3:
 # ---- R4 DetailScene play cue ----------------------------------------------------
 missing4 = []
 for needle in (
-    'm.playButton.title = Translate("common_loading")',
-    'm.playButton.title = Translate("common_play")',
+    'm.playButton.text = Translate("common_loading")',
+    'm.playButton.text = Translate("common_play")',
 ):
     if DSC.count(needle) != 1:
         missing4.append(f"{needle} x{DSC.count(needle)}, expected 1")
@@ -13632,7 +13649,7 @@ else:
     else:
         if 'visible="false"' not in tag.group(0):
             missing2.append("tvButton no longer ships visible=\"false\" (the isAdmin gate only hides the step)")
-        if 'title="Live TV"' not in tag.group(0):
+        if 'text="Live TV"' not in tag.group(0):
             missing2.append("tvButton lost its en-fallback title")
 if HOME:
     if 'm.tvButton.ObserveField("buttonSelected", "OnTvPressed")' not in hc:
@@ -13681,7 +13698,7 @@ if HOME:
     fhz = sub_body(HOME, "FocusHeaderZone")
     if fhz is None or not re.search(r'm\.headerCol = "tv" and m\.tvButton <> invalid and m\.tvButton\.visible then\s*\n\s*m\.tvButton\.SetFocus\(true\)', fhz, re.S):
         missing2.append("FocusHeaderZone cannot restore tv through its .visible gate - a grid->header return after a demotion would strand focus on a hidden node")
-    if not re.search(r'findNode\("tvButton"\)[\s\S]{0,80}n\.title = Translate\("common_live_tv"\)', HOME):
+    if not re.search(r'findNode\("tvButton"\)[\s\S]{0,80}n\.text = Translate\("common_live_tv"\)', HOME):
         missing2.append("ApplyXmlChrome no longer speaks the shipped key - a chrome literal the mirror law convicts")
 README = read("README.md")
 if README is None:
@@ -15417,7 +15434,7 @@ ARMS = [
     ("components/FavoritesScene.xml", "fav-xml-retry-id",
      r'id="retryButton"', 1),
     ("components/FavoritesScene.xml", "fav-xml-retry-chrome",
-     r'title="Retry" focusable="true" visible="false"', 1),
+     r'text="Retry" focusable="true" visible="false"', 1),
     ("components/SearchScene.brs", "sea-choke-call",
      r'browseOutcome = SearchBrowseOutcome\(', 1),
     ("components/SearchScene.brs", "sea-failure-write",
@@ -15431,7 +15448,7 @@ ARMS = [
     ("components/SearchScene.xml", "sea-xml-retry-id",
      r'id="retryButton"', 1),
     ("components/SearchScene.xml", "sea-xml-retry-chrome",
-     r'title="Retry" focusable="true" visible="false"', 1),
+     r'text="Retry" focusable="true" visible="false"', 1),
     ("components/LibraryScene.brs", "lib-choke-call",
      r'browseOutcome = LibraryBrowseOutcome\(', 1),
     ("components/LibraryScene.brs", "lib-failed-limbs",
@@ -15443,7 +15460,7 @@ ARMS = [
     ("components/LibraryScene.xml", "lib-xml-retry-id",
      r'id="retryButton"', 1),
     ("components/LibraryScene.xml", "lib-xml-retry-chrome",
-     r'title="Retry" focusable="true" visible="false"', 1),
+     r'text="Retry" focusable="true" visible="false"', 1),
     ("components/CollectionScene.brs", "col-choke-call",
      r'browseOutcome = CollectionBrowseOutcome\(', 1),
     ("components/CollectionScene.brs", "col-failed-limbs",
@@ -15457,7 +15474,7 @@ ARMS = [
     ("components/CollectionScene.xml", "col-xml-retry-id",
      r'id="retryButton"', 1),
     ("components/CollectionScene.xml", "col-xml-retry-chrome",
-     r'title="Retry" focusable="true" visible="false"', 1),
+     r'text="Retry" focusable="true" visible="false"', 1),
 ]
 
 problems = []

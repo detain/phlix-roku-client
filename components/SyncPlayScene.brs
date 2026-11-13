@@ -159,9 +159,9 @@ sub OnPublicTogglePressed()
     m.publicRoom = not m.publicRoom
     if m.publicToggle <> invalid then
         if m.publicRoom then
-            m.publicToggle.title = Translate("settings_button_caption_on")
+            m.publicToggle.text = Translate("settings_button_caption_on")
         else
-            m.publicToggle.title = Translate("settings_button_caption_off")
+            m.publicToggle.text = Translate("settings_button_caption_off")
         end if
     end if
 end sub
@@ -326,7 +326,7 @@ sub ApplyXmlChrome()
     n = m.top.findNode("headerLabel")
     if n <> invalid then n.text = Translate("syncplay_title")
     n = m.top.findNode("backButton")
-    if n <> invalid then n.title = Translate("common_back")
+    if n <> invalid then n.text = Translate("common_back")
     n = m.top.findNode("roomNameLabel")
     if n <> invalid then n.text = Translate("syncplay_label_room_name")
     n = m.top.findNode("publicRoomLabel")
@@ -334,17 +334,17 @@ sub ApplyXmlChrome()
     ' [CR-2] Initial caption for the Button-backed visibility toggle; the
     ' toggle handler keeps it in sync with m.publicRoom afterwards.
     n = m.top.findNode("publicToggle")
-    if n <> invalid then n.title = Translate("settings_button_caption_on")
+    if n <> invalid then n.text = Translate("settings_button_caption_on")
     ' [CR-2/Check74 R2] The room-name placeholder was already a real hintText=
     ' but sat OUTSIDE the translate net (Check 74's first day caught it).
     n = m.top.findNode("roomNameInput")
     if n <> invalid then n.hintText = Translate("syncplay_hint_group_name")
     n = m.top.findNode("createButton")
-    if n <> invalid then n.title = Translate("syncplay_create_room")
+    if n <> invalid then n.text = Translate("syncplay_create_room")
     n = m.top.findNode("publicRoomsLabel")
     if n <> invalid then n.text = Translate("syncplay_public_rooms")
     n = m.top.findNode("membersLabel")
     if n <> invalid then n.text = Translate("syncplay_members_label")
     n = m.top.findNode("leaveButton")
-    if n <> invalid then n.title = Translate("syncplay_leave_room")
+    if n <> invalid then n.text = Translate("syncplay_leave_room")
 end sub

@@ -20,7 +20,7 @@
 
     <children>
         <!-- Skip Button - positioned in bottom right -->
-        <Button height="60" width="140" title="" id="button" />
+        <Button height="60" width="140" text="" id="button" />
         <Label height="60" width="140" translation="[0,0]"
                font="font:MediumSystemFont"
                color="#FFFFFF"

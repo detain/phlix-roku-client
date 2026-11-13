@@ -5502,27 +5502,27 @@ for SPEC in \
 	"fav-observe|components/FavoritesScene.brs|ObserveField(\"buttonSelected\", \"OnFavoritesRetryPressed\")|ObserveField(\"buttonSelected\", \"OnFavoritesRetryPressedX\")" \
 	"fav-unobserve|components/FavoritesScene.brs|m.retryButton.UnObserveField(\"buttonSelected\")|m.retryButton.UnObserveFieldX(\"buttonSelected\")" \
 	"fav-xml-retry-id|components/FavoritesScene.xml|id=\"retryButton\"|id=\"retryButtonX\"" \
-	"fav-xml-retry-chrome|components/FavoritesScene.xml|title=\"Retry\" focusable=\"true\"|title=\"Retry\" focusable=\"false\"" \
+	"fav-xml-retry-chrome|components/FavoritesScene.xml|text=\"Retry\" focusable=\"true\"|text=\"Retry\" focusable=\"false\"" \
 	"sea-choke-call|components/SearchScene.brs|browseOutcome = SearchBrowseOutcome(|browseOutcome = SearchBrowseOutcomeX(" \
 	"sea-failure-write|components/SearchScene.brs|Translate(\"search_failed\")|Translate( \"search_failed\")" \
 	"sea-noresults-sole-writer|components/SearchScene.brs|Translate(\"search_no_results\")|Translate( \"search_no_results\")" \
 	"sea-observe|components/SearchScene.brs|ObserveField(\"buttonSelected\", \"OnSearchRetryPressed\")|ObserveField(\"buttonSelected\", \"OnSearchRetryPressedX\")" \
 	"sea-unobserve|components/SearchScene.brs|m.retryButton.UnObserveField(\"buttonSelected\")|m.retryButton.UnObserveFieldX(\"buttonSelected\")" \
 	"sea-xml-retry-id|components/SearchScene.xml|id=\"retryButton\"|id=\"retryButtonX\"" \
-	"sea-xml-retry-chrome|components/SearchScene.xml|title=\"Retry\" focusable=\"true\"|title=\"Retry\" focusable=\"false\"" \
+	"sea-xml-retry-chrome|components/SearchScene.xml|text=\"Retry\" focusable=\"true\"|text=\"Retry\" focusable=\"false\"" \
 	"lib-choke-call|components/LibraryScene.brs|browseOutcome = LibraryBrowseOutcome(|browseOutcome = LibraryBrowseOutcomeX(" \
 	"lib-failed-limbs|components/LibraryScene.brs|Translate(\"library_failed\")|Translate( \"library_failed\")" \
 	"lib-observe|components/LibraryScene.brs|ObserveField(\"buttonSelected\", \"OnLibraryRetryPressed\")|ObserveField(\"buttonSelected\", \"OnLibraryRetryPressedX\")" \
 	"lib-unobserve|components/LibraryScene.brs|m.retryButton.UnObserveField(\"buttonSelected\")|m.retryButton.UnObserveFieldX(\"buttonSelected\")" \
 	"lib-xml-retry-id|components/LibraryScene.xml|id=\"retryButton\"|id=\"retryButtonX\"" \
-	"lib-xml-retry-chrome|components/LibraryScene.xml|title=\"Retry\" focusable=\"true\"|title=\"Retry\" focusable=\"false\"" \
+	"lib-xml-retry-chrome|components/LibraryScene.xml|text=\"Retry\" focusable=\"true\"|text=\"Retry\" focusable=\"false\"" \
 	"col-choke-call|components/CollectionScene.brs|browseOutcome = CollectionBrowseOutcome(|browseOutcome = CollectionBrowseOutcomeX(" \
 	"col-failed-limbs|components/CollectionScene.brs|Translate(\"collection_failed\")|Translate( \"collection_failed\")" \
 	"col-empty-sole-writer|components/CollectionScene.brs|Translate(\"collection_empty\")|Translate( \"collection_empty\")" \
 	"col-observe|components/CollectionScene.brs|ObserveField(\"buttonSelected\", \"OnCollectionRetryPressed\")|ObserveField(\"buttonSelected\", \"OnCollectionRetryPressedX\")" \
 	"col-unobserve|components/CollectionScene.brs|m.retryButton.UnObserveField(\"buttonSelected\")|m.retryButton.UnObserveFieldX(\"buttonSelected\")" \
 	"col-xml-retry-id|components/CollectionScene.xml|id=\"retryButton\"|id=\"retryButtonX\"" \
-	"col-xml-retry-chrome|components/CollectionScene.xml|title=\"Retry\" focusable=\"true\"|title=\"Retry\" focusable=\"false\""; do
+	"col-xml-retry-chrome|components/CollectionScene.xml|text=\"Retry\" focusable=\"true\"|text=\"Retry\" focusable=\"false\""; do
 	IFS='|' read -r C101_LABEL C101_FILE C101_OLD C101_NEW <<<"$SPEC"
 	C101_LABEL="$C101_LABEL" C101_FILE="$C101_FILE" C101_OLD="$C101_OLD" C101_NEW="$C101_NEW" python3 - <<'PYEOF101'
 import os

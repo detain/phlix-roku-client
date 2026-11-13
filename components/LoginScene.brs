@@ -264,5 +264,5 @@ sub ApplyXmlChrome()
     n = m.top.findNode("passwordInput")
     if n <> invalid then n.hintText = Translate("login_password")
     n = m.top.findNode("loginButton")
-    if n <> invalid then n.title = Translate("login_button")
+    if n <> invalid then n.text = Translate("login_button")
 end sub

@@ -237,7 +237,7 @@ sub OnApiResponse(event as Object)
         m.playPending = false
         ' MN-1: retract the cue. PlayItem() below normally transitions away;
         ' the restore keeps the swap honest if this scene survives the answer.
-        if m.playButton <> invalid then m.playButton.title = Translate("common_play")
+        if m.playButton <> invalid then m.playButton.text = Translate("common_play")
         ' Markers/chapters may legitimately be empty; launch the player either way.
         if resp.ok then
             m.playbackInfo = resp.data
@@ -484,9 +484,9 @@ sub RenderFavorite()
     if m.userData.DoesExist("favorite") and m.userData.favorite = true then isFav = true
 
     if isFav then
-        m.favoriteButton.title = Translate("detail_favorite_remove")
+        m.favoriteButton.text = Translate("detail_favorite_remove")
     else
-        m.favoriteButton.title = Translate("detail_favorite_add")
+        m.favoriteButton.text = Translate("detail_favorite_add")
     end if
 end sub
 
@@ -494,9 +494,9 @@ sub RenderRating()
     if m.ratingButton = invalid then return
 
     if m.pendingRating > 0 then
-        m.ratingButton.title = TranslateWithParams("detail_rating_label", { rating: m.pendingRating })
+        m.ratingButton.text = TranslateWithParams("detail_rating_label", { rating: m.pendingRating })
     else
-        m.ratingButton.title = Translate("detail_rating_not_set")
+        m.ratingButton.text = Translate("detail_rating_not_set")
     end if
 end sub
 
@@ -513,9 +513,9 @@ sub RenderWatched()
     if m.userData.DoesExist("watched") and m.userData.watched = true then isWatched = true
 
     if isWatched then
-        m.watchedButton.title = Translate("detail_watched_unmark")
+        m.watchedButton.text = Translate("detail_watched_unmark")
     else
-        m.watchedButton.title = Translate("detail_watched_mark")
+        m.watchedButton.text = Translate("detail_watched_mark")
     end if
 end sub
 
@@ -531,9 +531,9 @@ sub RenderLike()
     if m.userData.DoesExist("liked") and m.userData.liked = true then isLiked = true
 
     if isLiked then
-        m.likeButton.title = Translate("detail_like_unlike")
+        m.likeButton.text = Translate("detail_like_unlike")
     else
-        m.likeButton.title = Translate("detail_like_like")
+        m.likeButton.text = Translate("detail_like_like")
     end if
 end sub
 
@@ -560,12 +560,12 @@ sub RenderCollection()
             if itemInCollection then exit for
         end for
         if itemInCollection then
-            m.collectionButton.title = Translate("detail_collection_remove")
+            m.collectionButton.text = Translate("detail_collection_remove")
         else
-            m.collectionButton.title = Translate("detail_collection_add")
+            m.collectionButton.text = Translate("detail_collection_add")
         end if
     else
-        m.collectionButton.title = Translate("detail_collection_add")
+        m.collectionButton.text = Translate("detail_collection_add")
     end if
 end sub
 
@@ -745,7 +745,7 @@ sub OnPlayPressed()
         ' whole latency. Swap the label to the shipped loading copy (the
         ' CHECK58 sole-writer law is about the DESCRIPTION strip; this is the
         ' button's own title).
-        if m.playButton <> invalid then m.playButton.title = Translate("common_loading")
+        if m.playButton <> invalid then m.playButton.text = Translate("common_loading")
         m.apiTask.request = { op: "getItemPlaybackInfo", itemId: m.itemId }
         m.apiTask.control = "run"
     end if
@@ -1113,9 +1113,9 @@ end sub
 ' mirroring the DetailScene precedent.
 sub ApplyXmlChrome()
     n = m.top.findNode("backButton")
-    if n <> invalid then n.title = Translate("common_back")
+    if n <> invalid then n.text = Translate("common_back")
     n = m.top.findNode("playButton")
-    if n <> invalid then n.title = Translate("common_play")
+    if n <> invalid then n.text = Translate("common_play")
     n = m.top.findNode("loadingLabel")
     if n <> invalid then n.text = Translate("common_loading")
 end sub

@@ -46,6 +46,6 @@
              common_retry, the CHECK25 pairing. -->
         <Button id="retryButton" translation="[1056,644]"
                 width="160" height="36"
-                title="Retry" focusable="true" visible="false" />
+                text="Retry" focusable="true" visible="false" />
     </children>
 </component>

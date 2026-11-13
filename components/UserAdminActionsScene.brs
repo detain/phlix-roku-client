@@ -214,9 +214,9 @@ sub OnApiResponse(event as Object)
 
         if m.adminButton <> invalid then
             if m.currentIsAdmin then
-                m.adminButton.title = Translate("useradminactions_remove_admin")
+                m.adminButton.text = Translate("useradminactions_remove_admin")
             else
-                m.adminButton.title = Translate("useradminactions_make_admin")
+                m.adminButton.text = Translate("useradminactions_make_admin")
             end if
         end if
 
@@ -382,17 +382,17 @@ sub ApplyXmlChrome()
     n = m.top.findNode("titleLabel")
     if n <> invalid then n.text = Translate("common_user")
     n = m.top.findNode("approveButton")
-    if n <> invalid then n.title = Translate("useradminactions_approve")
+    if n <> invalid then n.text = Translate("useradminactions_approve")
     n = m.top.findNode("disableButton")
-    if n <> invalid then n.title = Translate("useradminactions_disable")
+    if n <> invalid then n.text = Translate("useradminactions_disable")
     n = m.top.findNode("adminButton")
-    if n <> invalid then n.title = Translate("useradminactions_set_admin")
+    if n <> invalid then n.text = Translate("useradminactions_set_admin")
     n = m.top.findNode("resetPasswordButton")
-    if n <> invalid then n.title = Translate("useradminactions_reset_password")
+    if n <> invalid then n.text = Translate("useradminactions_reset_password")
     n = m.top.findNode("profilesButton")
-    if n <> invalid then n.title = Translate("common_profiles")
+    if n <> invalid then n.text = Translate("common_profiles")
     n = m.top.findNode("refreshButton")
-    if n <> invalid then n.title = Translate("common_refresh")
+    if n <> invalid then n.text = Translate("common_refresh")
     n = m.top.findNode("statusLabel")
     if n <> invalid then n.text = Translate("common_loading")
 end sub

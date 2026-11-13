@@ -206,7 +206,7 @@ sub StartPlaybackWithUrl(streamUrl as String)
     m.isPlaying = true
 
     if m.playPauseButton <> invalid then
-        m.playPauseButton.title = Translate("common_pause")
+        m.playPauseButton.text = Translate("common_pause")
     end if
 
     ' Restore saved position if available
@@ -229,12 +229,12 @@ sub OnPlayerStateChange(event as Object)
     if state = "playing" then
         m.isPlaying = true
         if m.playPauseButton <> invalid then
-            m.playPauseButton.title = Translate("common_pause")
+            m.playPauseButton.text = Translate("common_pause")
         end if
     else if state = "paused" then
         m.isPlaying = false
         if m.playPauseButton <> invalid then
-            m.playPauseButton.title = Translate("common_play")
+            m.playPauseButton.text = Translate("common_play")
         end if
     else if state = "stopped" or state = "finished" then
         m.isPlaying = false
@@ -545,17 +545,17 @@ end sub
 ' mirroring the DetailScene precedent.
 sub ApplyXmlChrome()
     n = m.top.findNode("backButton")
-    if n <> invalid then n.title = Translate("common_back")
+    if n <> invalid then n.text = Translate("common_back")
     n = m.top.findNode("prevChapterButton")
-    if n <> invalid then n.title = Translate("common_prev")
+    if n <> invalid then n.text = Translate("common_prev")
     n = m.top.findNode("rewindButton")
-    if n <> invalid then n.title = Translate("audiobookplayer_skip_backward")
+    if n <> invalid then n.text = Translate("audiobookplayer_skip_backward")
     n = m.top.findNode("playPauseButton")
-    if n <> invalid then n.title = Translate("common_play")
+    if n <> invalid then n.text = Translate("common_play")
     n = m.top.findNode("forwardButton")
-    if n <> invalid then n.title = Translate("audiobookplayer_skip_forward")
+    if n <> invalid then n.text = Translate("audiobookplayer_skip_forward")
     n = m.top.findNode("nextChapterButton")
-    if n <> invalid then n.title = Translate("common_next")
+    if n <> invalid then n.text = Translate("common_next")
     n = m.top.findNode("loadingLabel")
     if n <> invalid then n.text = Translate("common_loading")
 end sub

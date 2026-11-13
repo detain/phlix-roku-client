@@ -487,5 +487,5 @@ sub ApplyXmlChrome()
     n = m.top.findNode("statusLabel")
     if n <> invalid then n.text = Translate("search_hint")
     n = m.top.findNode("retryButton")
-    if n <> invalid then n.title = Translate("common_retry")
+    if n <> invalid then n.text = Translate("common_retry")
 end sub
