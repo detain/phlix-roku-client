@@ -169,6 +169,13 @@ jobs:
     # bare sideload zip Roku's Dev Application Installer expects). Skipped on PRs.
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-26.04
+    # ROK-31: the reset-then-publish sequence (delete release+tag, recreate) is
+    # not atomic; two overlapping master pushes could interleave and leave the
+    # rolling "latest" release missing or mislabeled. Serialize them; queue
+    # (never cancel) so a mid-publish run is not killed half-done.
+    concurrency:
+      group: roku-release-latest
+      cancel-in-progress: false
     # Override the read-only default above: publishing a Release needs write.
     permissions:
       contents: write
