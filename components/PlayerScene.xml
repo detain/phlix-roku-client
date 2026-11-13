@@ -326,9 +326,9 @@
                            color="#FFFFFF" id="upNextCardTitle" />
                     <Label height="30" width="320" font="font:MediumSystemFont"
                            color="#AAAAAA" text="Up Next in" id="upNextCardCountdown" />
-                    <Button height="36" width="120" text="Play" translation="[0,10]"
+                    <Button height="48" width="120" text="Play" translation="[0,10]"
                             id="upNextPlayButton" />
-                    <Button height="36" width="120" text="Cancel" translation="[130,10]"
+                    <Button height="48" width="120" text="Cancel" translation="[130,10]"
                             id="upNextCancelButton" />
                 </LayoutGroup>
             </LayoutGroup>

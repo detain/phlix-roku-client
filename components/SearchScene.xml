@@ -50,7 +50,7 @@
              design-time value; ApplyXmlChrome re-localizes it through
              common_retry, the CHECK25 pairing. -->
         <Button id="retryButton" translation="[1056,644]"
-                width="160" height="36"
+                width="160" height="48"
                 text="Retry" focusable="true" visible="false" />
     </children>
 </component>

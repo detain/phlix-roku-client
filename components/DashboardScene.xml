@@ -37,7 +37,7 @@
              + focused so "the fetch failed" carries a pressable way back (the
              M16 boot-retry idiom). Chrome text is the en-fallback default;
              ApplyXmlChrome overrides the title via Translate("common_retry"). -->
-        <Button id="retryButton" translation="[980,22]" width="260"
+        <Button id="retryButton" translation="[980,22]" width="260" height="48"
                 text="Retry" focusable="true" visible="false" />
     </children>
 </component>
