@@ -18,7 +18,7 @@
 
     <children>
         <Video height="720" width="1280" id="videoPlayer" />
-        <Label width="1200" height="60" translation="[40,20]"
+        <Label width="1152" height="60" translation="[64,36]"
                text=""
                font="font:LargeBoldSystemFont"
                color="#FFFFFF"
