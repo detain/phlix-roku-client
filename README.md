@@ -788,7 +788,6 @@ phlix-roku/
 │   ├── SkipButton.brs            # Skip intro/outro button node (Group; owns its button, exposes skipRequested)
 │   ├── DetailScene.brs           # Item detail view
 │   ├── RatingBadge.brs           # Rating star/score badge (Rectangle overlay shown on poster/detail chrome)
-│   ├── PosterMetaTask.brs        # Fetches poster image dimensions (width/height/aspect) off the render thread
 │   ├── CollectionsScene.brs      # Collections list (LabelList of collection names, read-only)
 │   ├── CollectionScene.brs       # One collection's items (poster grid; raw rows normalized client-side)
 │   ├── SearchScene.brs           # Search keyboard + results grid (GET /media?search= via ApiTask)
