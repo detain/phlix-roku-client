@@ -296,6 +296,7 @@
     "create_group": "Create Group",
     "err_access_schedule": "Playback blocked by access schedule. Try again during allowed hours.",
     "err_no_stream": "No stream URL available",
+    "err_track_unavailable": "That track is unavailable for this video",
     "err_playback_failed": "Playback failed. Please try again.",
     "err_session_expired": "Your session has expired. Please log in again to continue saving progress.",
     "err_stream_limit": "Stream limit reached. Stop another stream to continue watching.",

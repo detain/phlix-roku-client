@@ -296,6 +296,7 @@
     "create_group": "Gruppe erstellen",
     "err_access_schedule": "Wiedergabe durch den Zugriffszeitplan blockiert. Während der erlaubten Zeiten erneut versuchen.",
     "err_no_stream": "Keine Stream-URL verfügbar",
+    "err_track_unavailable": "Diese Spur ist für dieses Video nicht verfügbar",
     "err_playback_failed": "Wiedergabe fehlgeschlagen. Bitte versuche es erneut.",
     "err_session_expired": "Die Sitzung ist abgelaufen. Bitte erneut anmelden, damit der Fortschritt weitergespeichert wird.",
     "err_stream_limit": "Stream-Limit erreicht. Einen anderen Stream beenden, um weiterzusehen.",

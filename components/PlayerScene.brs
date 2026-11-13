@@ -3274,6 +3274,7 @@ sub OnAudioTrackSelected(index as Integer)
     ' playbackInfo.audio_tracks reflects what was requested, but the node
     ' may have a different (or no) actual track available. If the two disagree,
     ' the node wins.
+    audioApplied = false
     if m.videoPlayer <> invalid then
         nodeTracks = m.videoPlayer.availableAudioTracks
         trackId = ""
@@ -3295,6 +3296,7 @@ sub OnAudioTrackSelected(index as Integer)
         end for
         if trackId <> "" then
             m.videoPlayer.audioTrack = trackId
+            audioApplied = true
         end if
 
         ' Read back actual state for the confirmation message — the requested
@@ -3309,10 +3311,15 @@ sub OnAudioTrackSelected(index as Integer)
         SetSettingsStatus("Audio track: " + TrackAudioIdToLabel(id))
     end if
 
-    ' R6.7: Persist AFTER confirming the change took effect.
-    GetStorage().set("preferred_audio_track", id)
-    GetStorage().flush()
-    m.selectedAudioTrackId = id
+    ' R6.7: Persist AFTER confirming the change took effect (node track match).
+    if audioApplied then
+        GetStorage().set("preferred_audio_track", id)
+        GetStorage().flush()
+        m.selectedAudioTrackId = id
+    else
+        SetSettingsStatus(Translate("player_err_track_unavailable"))
+        SetProgressWarning(Translate("player_err_track_unavailable"))
+    end if
 
     CloseTrackListPanel()
 end sub
@@ -3321,9 +3328,7 @@ sub OnSubtitleTrackSelected(index as Integer)
     if index < 0 or index >= m.subtitleTrackIds.Count() then return
     id = m.subtitleTrackIds[index]
 
-    GetStorage().set("preferred_subtitle_track", id)
-    GetStorage().flush()  ' R1.6: batched flush after user preference change
-    m.selectedSubtitleTrackId = id
+    subtitleApplied = false
 
     ' R6.6: Apply subtitle track using the correct Video node API.
     ' - subtitleTracks: read-only array of {TrackName: String, Language: String, ...}
@@ -3338,6 +3343,7 @@ sub OnSubtitleTrackSelected(index as Integer)
         nodeTracks = m.videoPlayer.subtitleTracks
         if id = "off" then
             m.videoPlayer.currentSubtitleTrack = ""
+            subtitleApplied = true
         else
             ' Find the track in the node's own track list by matching the
             ' stringified server-side id to find the node's TrackName string.
@@ -3362,7 +3368,10 @@ sub OnSubtitleTrackSelected(index as Integer)
                     end if
                 end if
             end for
-            m.videoPlayer.currentSubtitleTrack = trackName
+            if trackName <> "" then
+                m.videoPlayer.currentSubtitleTrack = trackName
+                subtitleApplied = true
+            end if
         end if
 
         ' Read back actual state for the confirmation message — the requested
@@ -3375,6 +3384,18 @@ sub OnSubtitleTrackSelected(index as Integer)
         end if
     else
         SetSettingsStatus("Subtitle track: " + TrackSubtitleIdToLabel(id))
+        subtitleApplied = true
+    end if
+
+    ' R1.6/R6.6: persist ONLY after the Video node accepted the track; an
+    ' unmatched id must not become the stored preference (ROK-2).
+    if subtitleApplied then
+        GetStorage().set("preferred_subtitle_track", id)
+        GetStorage().flush()
+        m.selectedSubtitleTrackId = id
+    else
+        SetSettingsStatus(Translate("player_err_track_unavailable"))
+        SetProgressWarning(Translate("player_err_track_unavailable"))
     end if
 
     CloseTrackListPanel()

@@ -84,7 +84,7 @@ sites keep the header and that its value never comes from a literal.
 
 Honest scope: the server has a client-telemetry store
 (`src/Stats/ClientHeartbeatStoreInterface.php`, with `MAX_VERSION_LENGTH`,
-`MAX_CLIENT_TYPE_LENGTH`, `MAX_BUILD_TOKEN_LENGTH` — present since 2026-11 (as of this writing) through the
+`MAX_CLIENT_TYPE_LENGTH`, `MAX_BUILD_TOKEN_LENGTH` — present as of 2026-11-12, populated through the
 QuickConnect PIN-login flow). The Roku channel authenticates via `/auth/login`,
 not QuickConnect, so **this lane does not write heartbeat rows**; the header is
 available to header-logging operators, and wiring the channel into the

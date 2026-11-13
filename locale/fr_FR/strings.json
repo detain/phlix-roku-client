@@ -296,6 +296,7 @@
     "create_group": "Créer un groupe",
     "err_access_schedule": "Lecture bloquée par l'horaire d'accès. Réessayez pendant les heures autorisées.",
     "err_no_stream": "Aucune URL de flux disponible",
+    "err_track_unavailable": "Cette piste n'est pas disponible pour cette vidéo",
     "err_playback_failed": "Échec de la lecture. Veuillez réessayer.",
     "err_session_expired": "Votre session a expiré. Veuillez vous reconnecter pour continuer à enregistrer la progression.",
     "err_stream_limit": "Limite de flux atteinte. Arrêtez un autre flux pour continuer à regarder.",

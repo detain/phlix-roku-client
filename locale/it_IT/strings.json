@@ -296,6 +296,7 @@
     "create_group": "Crea gruppo",
     "err_access_schedule": "Riproduzione bloccata dalla pianificazione di accesso. Riprova durante le ore consentite.",
     "err_no_stream": "Nessun URL di streaming disponibile",
+    "err_track_unavailable": "Questa traccia non è disponibile per questo video",
     "err_playback_failed": "Riproduzione non riuscita. Riprova.",
     "err_session_expired": "La tua sessione è scaduta. Accedi di nuovo per continuare a salvare i progressi.",
     "err_stream_limit": "Limite di stream raggiunto. Interrompi un altro stream per continuare a guardare.",

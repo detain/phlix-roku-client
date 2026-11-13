@@ -2,6 +2,7 @@
 
 Static runtime-defect checker for phlix-roku-client.
 Source: `scripts/verify-runtime.sh`
+Current as of 2026-11 (see the table below for the live check count).
 
 | # | Check Name | Defect Class | Audit Source | Description |
 |---|-----------|--------------|-------------|-------------|

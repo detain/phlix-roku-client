@@ -296,6 +296,7 @@
     "create_group": "Criar grupo",
     "err_access_schedule": "Reprodução bloqueada pela agenda de acesso. Tente novamente durante os horários permitidos.",
     "err_no_stream": "Nenhuma URL de transmissão disponível",
+    "err_track_unavailable": "Esta faixa não está disponível para este vídeo",
     "err_playback_failed": "Falha na reprodução. Tente novamente.",
     "err_session_expired": "Sua sessão expirou. Entre novamente para continuar salvando o progresso.",
     "err_stream_limit": "Limite de streams atingido. Encerre outro stream para continuar assistindo.",
