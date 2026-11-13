@@ -802,7 +802,7 @@ phlix-roku/
 │   ├── PhotosScene.brs           # Photo date-album grid (entry point of a photo library)
 │   ├── PhotoAlbumScene.brs       # One date album's thumbnail grid (signed thumbnail_urls)
 │   ├── PhotoViewerScene.brs      # Full-screen photo viewer (caption/info chrome)
-│   ├── SettingsScene.brs         # Settings, 7 sections (Account / Server / Playback / Captions / Notifications / Watch History / About; R7.1)
+│   ├── SettingsScene.brs         # Settings, 7 sections (Account / Server / Playback / Captions / Watch History / Notifications / About; R7.1)
 │   ├── ParentalControlsScene.brs # Parental controls, 3 sections (access Schedules / blocked Tags / Stream Limits; P5-S5)
 │   ├── LiveTvScene.brs           # Admin Live TV channels list (one-shot LabelList; row-select resolves stream → live player)
 │   ├── LivePlayerScene.brs       # Dedicated lightweight live Video player (no sessions/progress/transcode/markers)

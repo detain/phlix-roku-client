@@ -2,7 +2,7 @@
 ' @license   MIT
 
 ' components/SettingsScene.brs
-' R7.1: Settings scene with 6 sections (Account, Server, Playback, Captions, Watch History, About)
+' R7.1: Settings scene with 7 sections (Account, Server, Playback, Captions, Watch History, Notifications, About)
 
 sub Init()
     ApplyXmlChrome()
