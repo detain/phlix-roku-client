@@ -20,9 +20,9 @@ jobs:
     name: brighterscript type-check
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Install dependencies
@@ -34,7 +34,7 @@ jobs:
     name: Validate XML files
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Validate XML files
         run: make validate-xml
 
@@ -42,7 +42,7 @@ jobs:
     name: Validate manifest
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Validate manifest
         run: make validate-manifest
 
@@ -50,7 +50,7 @@ jobs:
     name: verify-runtime checks
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Checkout phlix-server (Check 14 ENUM reference)
         run: git clone --depth 1 --branch master https://github.com/detain/phlix-server.git ../phlix-server
       - name: verify-runtime checks
@@ -66,9 +66,9 @@ jobs:
     name: Headless BrightScript unit gate
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Install dependencies
@@ -95,9 +95,9 @@ jobs:
     env:
       ROKU_HOST: ${{ secrets.ROKU_HOST }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Install dependencies
@@ -117,7 +117,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Build sideload zip (manifest + source + images)
         run: make package
@@ -182,7 +182,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download sideload package
         uses: actions/download-artifact@v8
@@ -205,7 +205,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish "latest" prerelease
-        uses: softprops/action-gh-release@c12583777ecdfd3be55c69cf75464299dc01057e
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: latest
           name: Latest (master)
