@@ -16,7 +16,7 @@
     <children>
         <!-- Header -->
         <Rectangle height="100" width="1280" color="#1a1a2e">
-            <Label height="60" width="800" translation="[40,20]"
+            <Label height="60" width="800" translation="[64,36]"
                    id="headerLabel"
                    text="Search"
                    font="font:LargeBoldSystemFont"

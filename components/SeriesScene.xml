@@ -20,10 +20,10 @@
     <children>
         <!-- Header -->
         <Rectangle height="100" width="1280" color="#1a1a2e">
-            <Rectangle height="60" width="160" translation="[20,20]">
+            <Rectangle height="60" width="160" translation="[64,36]">
                 <Button height="60" width="160" text="Back" id="backButton" />
             </Rectangle>
-            <Label height="60" width="800" translation="[200,20]"
+            <Label height="60" width="800" translation="[244,36]"
                    text="Series"
                    font="font:LargeBoldSystemFont"
                    color="#FFFFFF"

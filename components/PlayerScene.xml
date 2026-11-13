@@ -42,7 +42,7 @@
         <Rectangle height="720" width="1280" transparency="0.7" visible="false" id="controlsOverlay">
             <!-- Top Bar -->
             <Rectangle height="100" width="1280" translation="[0,0]">
-                <Rectangle height="100" width="200" translation="[20,20]">
+                <Rectangle height="100" width="200" translation="[64,36]">
                     <Button height="60" width="160" text="Back" id="backButton" />
                 </Rectangle>
             </Rectangle>

@@ -12613,6 +12613,30 @@ elif any(int(y) < 36 for y in hb):
                     "y<36 - back inside the top overscan band MN-9 pulled chrome out of "
                     "(got %s)" % sorted(set(hb)))
 
+# R2b (ROK-S14): the header-chrome safe-origin law spans EVERY scene, not just Home.
+# Inside a 1280x100 header band, no child may sit at the pre-MN-9 overscan
+# origins [40,20] / [20,20] / [200,20]; they live at [64,36] / [244,36].
+import glob as _glob
+for _p in sorted(_glob.glob("components/*.xml")):
+    _lines = read(_p).split("\n")
+    _inh = False
+    _ind = ""
+    for _l in _lines:
+        _m = re.match(r'^(\s*)<Rectangle height="100" width="1280"', _l)
+        if _m and not _inh:
+            _inh, _ind = True, _m.group(1)
+            continue
+        if _inh:
+            if _l.startswith(_ind + "</Rectangle>"):
+                _inh = False
+            elif re.search(r'translation="\[(40|20|200),20\]"', _l):
+                problems.append("  %s - CHECK85 R2: header chrome at the overscan "
+                                "origin %s - sweep to the [64,36] safe grid (ROK-15)"
+                                % (_p, re.search(r'translation="(\[[^"]*\])"', _l).group(1)))
+if re.search(r'translation="\[980,22\]"', read("components/DashboardScene.xml")):
+    problems.append("  components/DashboardScene.xml - CHECK85 R2: retryButton back "
+                    "at [980,22] - top-band/right-overscan (ROK-15)")
+
 # ---- R3: MN-10 fetch cues center, start hidden, spin, and retract
 cues = (
     ("components/HomeScene.xml", "components/HomeScene.brs", 2),

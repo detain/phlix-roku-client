@@ -146,7 +146,7 @@
              end of the description strip and never overlays populated grid
              content. ApplyXmlChrome overrides the title via
              Translate("common_retry"). -->
-        <Button id="retryButton" translation="[1056,644]" width="160" height="48"
+        <Button id="retryButton" translation="[1056,636]" width="160" height="48"
                 text="Retry" focusable="true" visible="false" />
     </children>
 </component>
