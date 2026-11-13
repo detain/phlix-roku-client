@@ -1630,6 +1630,31 @@ function FlattenLocaleCatalog(raw as Object) as Object
     return flat
 end function
 
+' Build the bare-key lookup table for Translate()'s legacy step 2 (ROK-27):
+' bareKey -> value, first section in raw.Keys() order wins, string leaves only,
+' "_metadata" skipped. Precomputed once at load so a flat-table miss costs one
+' hash lookup instead of a 32-section probe. Pure: raw is never mutated.
+' @param raw Object|invalid - parsed catalog
+' @return Object - roAssociativeArray of bare keys to string values
+function BuildBareLocaleIndex(raw as Object) as Object
+    bare = CreateObject("roAssociativeArray")
+    if raw = invalid then return bare
+    for each section in raw.Keys()
+        if section <> "_metadata"
+            sectionData = raw[section]
+            if type(sectionData) = "roAssociativeArray"
+                for each bareKey in sectionData.Keys()
+                    leaf = sectionData[bareKey]
+                    if (type(leaf) = "String" or type(leaf) = "roString") and not bare.doesExist(bareKey)
+                        bare[bareKey] = leaf
+                    end if
+                end for
+            end if
+        end if
+    end for
+    return bare
+end function
+
 ' Load locale strings from the bundled JSON catalog (called at app startup via
 ' AppContext.InitLocale; Translate retries lazily until it succeeds).
 '
@@ -1671,6 +1696,7 @@ sub LoadLocaleStrings()
 
     LoadLocaleStrings._raw = raw
     LoadLocaleStrings._cache = FlattenLocaleCatalog(raw)
+    LoadLocaleStrings._bare = BuildBareLocaleIndex(raw)
     LoadLocaleStrings._loaded = true
 end sub
 
@@ -1678,7 +1704,7 @@ end sub
 ' Resolution order (first hit wins):
 '   1. exact match in the flattened "<section>_<bareKey>" table — the call-site
 '      convention every scene uses ("settings_button_cancel")
-'   2. nested probe raw[section][key] — legacy support for bare-key callers
+'   2. precomputed bare-key index (was a nested probe raw[section][key]) — legacy support for bare-key callers
 '   3. return the key unchanged — graceful fallback that renders visibly
 '      broken instead of silently wrong, and keeps Translate total.
 ' Only string-typed catalog values are returned; a non-string leaf (a shape
@@ -1695,25 +1721,14 @@ function Translate(key as String) as String
         if flatResult <> invalid then return flatResult
     end if
 
-    raw = LoadLocaleStrings._raw
-    ' MN-18 (review roku__scribe lineage): probe EVERY shipped section - the
-    ' legacy six-name hardcode silently missed 26 of the 32. A bare-key legacy
-    ' caller resolves wherever its key lives. "_metadata" is catalog
-    ' provenance, not copy, so it is skipped.
-    sections = []
-    if raw <> invalid then sections = raw.Keys()
-    for each section in sections
-        if section <> "_metadata" and raw.doesExist(section) then
-            sectionData = raw.lookup(section)
-            if type(sectionData) = "roAssociativeArray" and sectionData.doesExist(key) then
-                result = sectionData.lookup(key)
-                ' String-typed values only — same guard as the flat table, so a
-                ' CI-rejected non-string leaf falls through to the raw key instead
-                ' of crashing this function's `as String` return.
-                if result <> invalid and (type(result) = "String" or type(result) = "roString") then return result
-            end if
-        end if
-    end for
+    ' MN-18 / ROK-27: legacy bare-key callers resolve via the index precomputed
+    ' at load (every shipped section, "_metadata" skipped, string leaves only,
+    ' first section in Keys() order wins) - O(1) instead of a per-miss probe.
+    bare = LoadLocaleStrings._bare
+    if bare <> invalid and bare.doesExist(key) then
+        bareResult = bare.lookup(key)
+        if bareResult <> invalid then return bareResult
+    end if
     return key
 end function
 

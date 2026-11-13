@@ -188,3 +188,35 @@ sub TestConcurrentStreamLimitTextSelectionLaw()
     assertTrue(TranslateWithParams("parentalcontrols_current_limit_one", { count: 1 }) <> "")
     print "TestConcurrentStreamLimitTextSelectionLaw passed"
 end sub
+
+' ROK-27: the precomputed bare-key index must resolve exactly what the former
+' per-miss section probe did (first section in Keys() order, string leaves
+' only, "_metadata" skipped).
+sub TestBuildBareLocaleIndexParity()
+    raw = {
+        _metadata: { version: "x" }
+        alpha: { shared: "A", only_a: "a1", bad: [1, 2] }
+        beta: { shared: "B", only_b: "b1", bad: "ok" }
+    }
+    idx = BuildBareLocaleIndex(raw)
+    ' reference: the legacy probe over raw.Keys()
+    for each k in ["shared", "only_a", "only_b", "bad", "version", "missing"]
+        expected = invalid
+        for each section in raw.Keys()
+            if expected = invalid and section <> "_metadata"
+                sd = raw[section]
+                if type(sd) = "roAssociativeArray" and sd.doesExist(k)
+                    v = sd[k]
+                    if type(v) = "String" or type(v) = "roString" then expected = v
+                end if
+            end if
+        end for
+        if expected = invalid
+            assertFalse(idx.doesExist(k))
+        else
+            assertEqual(idx[k], expected)
+        end if
+    end for
+    assertEqual(BuildBareLocaleIndex(invalid).Count(), 0)
+    print "TestBuildBareLocaleIndexParity passed"
+end sub

@@ -1483,8 +1483,10 @@ if util is not None:
         problems.append(
             f"  {UTILITIES} - CHECK22: mapping law shape changed - normalizer no "
             'longer lowercases and maps "." and "-" to "_"')
-    if (not re.search(r'if raw <> invalid then sections = raw\.Keys\(\)', util)
-            or 'if section <> "_metadata" and raw.doesExist(section) then' not in util):
+    if ('function BuildBareLocaleIndex(' not in util
+            or 'for each section in raw.Keys()' not in util
+            or 'if section <> "_metadata"' not in util
+            or 'LoadLocaleStrings._bare = BuildBareLocaleIndex(raw)' not in util):
         problems.append(
             f'  {UTILITIES} - CHECK22: Translate() nested probe no longer walks EVERY '
             'shipped section (MN-18 cure shape) - the errors family must stay resolvable '
@@ -12332,9 +12334,12 @@ def read(path):
 util = read(UTILITIES)
 if util is not None:
     r1 = []
-    if 'if raw <> invalid then sections = raw.Keys()' not in util:
-        r1.append('probe stopped enumerating the parsed catalog (raw.Keys() walk lost)')
-    if 'if section <> "_metadata" and raw.doesExist(section) then' not in util:
+    if ('function BuildBareLocaleIndex(' not in util
+            or 'for each section in raw.Keys()' not in util
+            or 'LoadLocaleStrings._bare = BuildBareLocaleIndex(raw)' not in util
+            or 'bare = LoadLocaleStrings._bare' not in util):
+        r1.append('probe stopped enumerating the parsed catalog (raw.Keys() walk lost; ROK-27 precomputed bare index must walk every section at load and Translate must read it)')
+    if 'if section <> "_metadata"' not in util:
         r1.append('_metadata-skip guard lost')
     if util.count('sections = ["common"') != 0:
         r1.append('the legacy six-name section list is re-grown')
