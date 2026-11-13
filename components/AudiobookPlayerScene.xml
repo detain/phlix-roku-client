@@ -72,11 +72,11 @@
 
             <!-- Time Labels -->
             <Label height="30" width="200" translation="[10,190]"
-                   font="font:SmallSystemFont"
+                   font="font:MediumSystemFont"
                    color="#888888"
                    id="timeLabel" />
             <Label height="30" width="200" translation="[650,190]"
-                   font="font:SmallSystemFont"
+                   font="font:MediumSystemFont"
                    color="#888888"
                    horizAlign="right"
                    id="durationLabel" />

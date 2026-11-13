@@ -55,7 +55,7 @@ Displays:
                 <Label height="30" width="580" translation="[10,5]"
                        id="roomNameLabel"
                        text="Room Name"
-                       font="font:SmallSystemFont"
+                       font="font:MediumSystemFont"
                        color="#AAAAAA" />
                 <Rectangle height="40" width="580" translation="[10,30]" color="#2a2a3e">
                     <TextEditBox height="40" width="560" translation="[10,0]"
@@ -105,7 +105,7 @@ Displays:
             <!-- Status message -->
             <Label height="40" width="1200" translation="[40,560]"
                    wrap="true"
-                   font="font:SmallSystemFont"
+                   font="font:MediumSystemFont"
                    color="#AAAAAA"
                    id="statusLabel" />
         </Rectangle>
@@ -118,7 +118,7 @@ Displays:
                    color="#FFFFFF"
                    id="currentRoomName" />
             <Label height="30" width="900" translation="[40,65]"
-                   font="font:SmallSystemFont"
+                   font="font:MediumSystemFont"
                    color="#AAAAAA"
                    id="roomStatus" />
 
@@ -134,7 +134,7 @@ Displays:
             <!-- Sync status -->
             <Label height="30" width="1200" translation="[40,470]"
                    wrap="true"
-                   font="font:SmallSystemFont"
+                   font="font:MediumSystemFont"
                    color="#AAAAAA"
                    id="syncStatusLabel" />
 

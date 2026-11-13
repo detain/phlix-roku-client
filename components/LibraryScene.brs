@@ -569,7 +569,7 @@ sub BuildAzBar()
             button.text = letter
             button.height = 35
             button.width = 40
-            button.font = "font:SmallSystemFont"
+            button.font = "font:MediumSystemFont"
             ' buttonSelected is an integer event field - the old
             ' setField("buttonSelected", "OnAzButtonPressed") assigned a STRING
             ' into it instead of wiring the callback, so rail presses were dead.

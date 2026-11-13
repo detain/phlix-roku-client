@@ -35,7 +35,7 @@
             <Label height="30" width="460" translation="[20,90]"
                    id="usernameLabel"
                    text="Username"
-                   font="font:SmallSystemFont"
+                   font="font:MediumSystemFont"
                    color="#AAAAAA" />
             <TextEditBox height="50" width="460" translation="[20,120]"
                          hintText="Username"
@@ -46,7 +46,7 @@
             <Label height="30" width="460" translation="[20,180]"
                    id="passwordLabel"
                    text="Password"
-                   font="font:SmallSystemFont"
+                   font="font:MediumSystemFont"
                    color="#AAAAAA" />
             <TextEditBox height="50" width="460" translation="[20,210]"
                          hintText="Password"
@@ -57,7 +57,7 @@
             <!-- Status Label (shown during async operations) -->
             <Label height="30" width="460" translation="[20,270]"
                    text=""
-                   font="font:SmallSystemFont"
+                   font="font:MediumSystemFont"
                    color="#0095d5"
                    visible="false"
                    id="statusLabel" />
@@ -70,7 +70,7 @@
             <!-- Error Label (distinct failure messages, shown below button) -->
             <Label height="30" width="460" translation="[20,380]"
                    text=""
-                   font="font:SmallSystemFont"
+                   font="font:MediumSystemFont"
                    color="#FF4444"
                    visible="false"
                    id="errorLabel" />
