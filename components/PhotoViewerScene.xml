@@ -26,6 +26,13 @@
                 loadWidth="1280" loadHeight="720" loadDisplayMode="scaleToFit"
                 id="fullImage" />
 
+        <!-- Double-buffer prefetch: hidden Poster primed with the NEXT photo so
+             it is decoded before the slideshow/Right advance (same bounded
+             1280x720 decode as fullImage; only two decoded photos live). -->
+        <Poster width="1280" height="720"
+                loadWidth="1280" loadHeight="720" loadDisplayMode="scaleToFit"
+                visible="false" id="prefetchImage" />
+
         <!-- Caption: photo name + "i / N" -->
         <Label height="40" width="1200" translation="[40,672]"
                text=""

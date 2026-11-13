@@ -24,6 +24,7 @@ sub Init()
 
     m.fullImage = m.top.FindNode("fullImage")
     m.captionLabel = m.top.FindNode("captionLabel")
+    m.prefetchImage = m.top.FindNode("prefetchImage")
 
     ' F7b: EXIF info overlay (hidden until Up is pressed).
     m.infoOverlay = m.top.FindNode("infoOverlay")
@@ -87,6 +88,8 @@ sub RenderCurrent()
         m.fullImage.uri = url
     end if
 
+    PrefetchNext()
+
     if m.captionLabel <> invalid then
         name = ""
         if photo.DoesExist("name") and photo.name <> invalid then name = photo.name
@@ -105,6 +108,23 @@ sub RenderCurrent()
         else
             m.infoLabel.text = summary
         end if
+    end if
+end sub
+
+' Prime the hidden Poster with the next photo (wrap-around) through the same
+' SafeImageUrl leaf as the visible Poster. Bounded: one extra decode only.
+sub PrefetchNext()
+    if m.prefetchImage = invalid then return
+    count = m.photos.Count()
+    if count <= 1 then
+        m.prefetchImage.uri = ""
+        return
+    end if
+    nxt = m.photos[(m.index + 1) mod count]
+    if nxt <> invalid and nxt.DoesExist("full_url") and nxt.full_url <> invalid and nxt.full_url <> "" then
+        m.prefetchImage.uri = SafeImageUrl(GetServerUrl(), nxt.full_url)
+    else
+        m.prefetchImage.uri = ""
     end if
 end sub
 
