@@ -3309,6 +3309,7 @@ sub OnAudioTrackSelected(index as Integer)
         end if
     else
         SetSettingsStatus("Audio track: " + TrackAudioIdToLabel(id))
+        audioApplied = true
     end if
 
     ' R6.7: Persist AFTER confirming the change took effect (node track match).

@@ -208,6 +208,11 @@ function MintRelayToken(apiBase as String, serverId as String, token as String) 
     transfer.SetUrl(url)
     transfer.SetRequest("POST")
     transfer.SetMessagePort(m.port)
+    ' ROK-13 custody: the Bearer hub JWT must never be 3xx-walked to a host
+    ' the user never chose - refuse every redirect (redirect_refused law).
+    transfer.EnableRedirects(false)
+    transfer.SetCertificatesFile("common:/certs/ca-bundle.crt")
+    transfer.InitClientCertificates()
     transfer.AddHeader("Authorization", "Bearer " + token)
     transfer.AddHeader("Content-Type", "application/json")
     ' M-ROKU-11: honest client identity on the hub relay-token mint too —
@@ -224,8 +229,11 @@ function MintRelayToken(apiBase as String, serverId as String, token as String) 
         ev = wait(100, m.port)
         if type(ev) = "roUrlEvent" then
             code = ev.GetResponseCode()
+            if code >= 300 and code < 400 then return "" ' redirect_refused: never followed
+            if ResponseBodyExceedsCap(ev.GetContentLength(), -1) then return ""
             body = ev.GetString()
-            if code = 201 and body <> "" then
+            if body <> invalid and ResponseBodyExceedsCap(-1, Len(body)) then return ""
+            if code = 201 and body <> invalid and body <> "" then
                 parsed = ParseJSON(body)
                 ' [W-min93 M-ROKU-26, review roku__exploiter m5] a hostile/
                 ' compromised hub answering {"token":123} used to cross the raw

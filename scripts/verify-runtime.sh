@@ -6269,6 +6269,57 @@ if ac is not None:
     elif "ResponseBodyExceedsCap(" not in ph:
         problems.append(f"  {AC} - CHECK48 R1: probeHealth stopped consulting ResponseBodyExceedsCap — the uncredentialed probe may follow redirects by design, but an oversized hostile /health body must still meet the parse cap before ParseJSON (RT-034)")
 
+# ---- R1b ROK-13 credentialed-transfer census -----------------------------
+# EVERY AddHeader("Authorization", ...) site under components/ + source/ must
+# be in the allow-list below AND its enclosing function must disable the
+# firmware auto-follow. A NEW credentialed transfer fails loud until it is
+# consciously custodied and added here.
+AUTH_ALLOW = {
+    ("source/lib/ApiClient.brs", "sendRaw"),
+    ("source/lib/ApiClient.brs", "resolveLocation"),
+    ("components/HubCommandTask.brs", "MintRelayToken"),
+}
+FUNC_RE = re.compile(r"(?m)^\s*(?:(\w+):\s*function\(|(?:sub|function)\s+(\w+)\b)")
+auth_sites = 0
+for root in ("components", "source"):
+    for dp, _dn, fns in os.walk(root):
+        for fn in sorted(fns):
+            if not fn.endswith(".brs"):
+                continue
+            path = os.path.join(dp, fn).replace(os.sep, "/")
+            raw = read(path)
+            if raw is None:
+                continue
+            masked = mask(raw)
+            starts = [(masked.count("\n", 0, m.start()), m.group(1) or m.group(2)) for m in FUNC_RE.finditer(masked)]
+            mlines = masked.split("\n")
+            for site in re.finditer(r'\.AddHeader\(\s*"Authorization"', raw):
+                line_start = raw.rfind("\n", 0, site.start()) + 1
+                if "'" in raw[line_start:site.start()] and '"' not in raw[line_start:raw.find("'", line_start)]:
+                    continue  # commented-out line
+                auth_sites += 1
+                site_line = raw.count("\n", 0, site.start())
+                idx = -1
+                for i, (pos, _nm) in enumerate(starts):
+                    if pos <= site_line:
+                        idx = i
+                if idx < 0:
+                    problems.append(f"  {path} - CHECK48 R1b: Authorization AddHeader outside any function")
+                    continue
+                fname = starts[idx][1]
+                end = starts[idx + 1][0] if idx + 1 < len(starts) else len(mlines)
+                if (path, fname) not in AUTH_ALLOW:
+                    problems.append(f"  {path} - CHECK48 R1b: credentialed transfer in `{fname}` is outside the allow-list - a new Authorization-carrying send must be custodied (EnableRedirects(false) + 3xx refusal) and added to AUTH_ALLOW (ROK-13)")
+                elif "EnableRedirects(false)" not in "\n".join(mlines[starts[idx][0]:end]):
+                    problems.append(f"  {path} - CHECK48 R1b: `{fname}` carries Authorization but no longer disables the firmware auto-follow (ROK-13)")
+if auth_sites < len(AUTH_ALLOW):
+    problems.append(f"  CHECK48 R1b: census saw {auth_sites} Authorization sites, expected >= {len(AUTH_ALLOW)} - the census cannot run vacuously")
+mrt = read("components/HubCommandTask.brs")
+if mrt is not None:
+    mb = sub_body(mask(mrt), "MintRelayToken")
+    if mb is None or "ResponseBodyExceedsCap(" not in mb or "SetCertificatesFile(" not in mb:
+        problems.append("  components/HubCommandTask.brs - CHECK48 R1b: MintRelayToken must meet ResponseBodyExceedsCap before ParseJSON and pin SetCertificatesFile (ROK-13)")
+
 # ---- R2 the consent choke over the single persist site -------------------
 if scene is not None:
     sc = mask(scene)
