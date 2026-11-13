@@ -7,28 +7,28 @@ This document provides detailed information for developers working on the Phlix 
 ### Application Flow
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        PhlixApp                             │
-│  (Main application controller - entry point)               │
-└─────────────────────────────────────────────────────────────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-│  LoginScene     │  │   HomeScene     │  │  LibraryScene    │
-│  (Authentication)│  │  (Main browse)  │  │  (Media browse)  │
-└─────────────────┘  └─────────────────┘  └─────────────────┘
-                                                     │
-                                                     ▼
-                                           ┌─────────────────┐
-                                           │  DetailScene    │
-                                           │ (Item details)  │
-                                           └─────────────────┘
-                                                     │
-                                                     ▼
-                                           ┌─────────────────┐
-                                           │  PlayerScene    │
-                                           │ (Video player)  │
-                                           └─────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                          PhlixApp                            │
+│        (Main application controller - entry point)           │
+└──────────────────────────────────────────────────────────────┘
+        │ no server_url              │ server_url set
+        ▼                            ▼
+┌───────────────────┐      ┌───────────────────┐
+│   ConnectScene    │ ───▶ │    LoginScene     │
+│ (First-run server)│      │  (Authentication) │
+└───────────────────┘      └───────────────────┘
+                                     │
+                                     ▼
+┌───────────────────┐      ┌───────────────────┐      ┌───────────────────┐
+│    HomeScene      │ ───▶ │   LibraryScene    │ ───▶ │    DetailScene    │
+│   (Main browse)   │      │  (Media browse)   │      │  (Item details)   │
+└───────────────────┘      └───────────────────┘      └───────────────────┘
+                                                                │
+                                                                ▼
+                                                      ┌───────────────────┐
+                                                      │    PlayerScene    │
+                                                      │  (Video player)   │
+                                                      └───────────────────┘
 ```
 
 ### Data Flow
@@ -150,7 +150,7 @@ end function
 ```brightscript
 ' Local variables - always use specific types
 localVariable = "string"  ' implicit string
-count as Integer = 0      ' explicit integer
+count% = 0               ' explicit integer via % type suffix (no `as` on locals)
 
 ' Component fields - use m.top for interface
 m.top.fieldName = value
@@ -168,7 +168,7 @@ end function
 ### Control Flow
 
 ```brightscript
-' If statements - always use then on same line or endif
+' If statements - block form closes with end if (then is optional on the same line)
 if condition then
     ' code
 end if
@@ -503,10 +503,21 @@ end sub
 sub LoadData()
     m.top.findNode("spinner").visible = true
 
-    ' Async load
-    m.api.getLibraries()
+    ' Async load: fresh ApiTask node per call (M-ROKU-55 - scenes dispatch
+    ' through ApiTask ops, never ApiClient directly). The spinner is cleared
+    ' in the response handler, NOT here - the call returns immediately.
+    task = CreateObject("roSGNode", "ApiTask")
+    task.ObserveField("response", "OnApiResponse")
+    task.request = { op: "getLibraries" }
+    if task.state = "run" then return
+    task.control = "run"
+end sub
 
+sub OnApiResponse(event as Object)
     m.top.findNode("spinner").visible = false
+    resp = event.getData()
+    if resp = invalid then return
+    ' ... use resp.ok / resp.data
 end sub
 ```
 
