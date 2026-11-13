@@ -99,11 +99,17 @@ if [ ! -f "$CERT_PATH" ]; then
 	fi
 
 	if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-		openssl req -new -x509 -days 3650 -nodes \
-			-out "$CERT_PATH" \
-			-keyout "$CERT_PATH" \
-			-subj "/CN=Phlix Dev Signing/O=Phlix Media/C=US" \
-			-batch
+		# The key and cert share one file: create it owner-only (umask 077)
+		# so the private key is never world-readable, even transiently.
+		(
+			umask 077
+			openssl req -new -x509 -days 3650 -nodes \
+				-out "$CERT_PATH" \
+				-keyout "$CERT_PATH" \
+				-subj "/CN=Phlix Dev Signing/O=Phlix Media/C=US" \
+				-batch
+		)
+		chmod 600 "$CERT_PATH"
 		echo "  ✓ Self-signed certificate generated at $CERT_PATH"
 	else
 		echo "ERROR: Cannot proceed without a signing certificate." >&2
@@ -112,6 +118,8 @@ if [ ! -f "$CERT_PATH" ]; then
 		exit 1
 	fi
 else
+	# Tighten pre-existing key material that may have been created 0644.
+	chmod 600 "$CERT_PATH"
 	echo "  ✓ Reusing existing certificate at $CERT_PATH"
 fi
 
