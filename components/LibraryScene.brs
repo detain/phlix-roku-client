@@ -670,42 +670,12 @@ sub OnVisibleRectChange(event as Object)
     vr = event.getData()
     if vr = invalid then return
 
-    ' Calculate visible item range based on grid geometry
-    ' numColumns=5, item width ~230, item height ~350
-    ' visible rect: vr[0], vr[1] is top-left; vr[2], vr[3] is width, height
-
-    ' For each content node child, check if its position is in visible rect
-    ' and load/unload images accordingly
     if m.contentNode = invalid then return
 
-    rowHeight = 350
-    numCols = 5
-
-    firstVisibleRow = Int(vr.y / rowHeight)
-    lastVisibleRow = Int((vr.y + vr.height) / rowHeight) + 1
-    firstVisibleIndex = firstVisibleRow * numCols
-    lastVisibleIndex = lastVisibleRow * numCols + numCols
-
-    i = 0
-    child = m.contentNode.GetChild(i)
-    while child <> invalid
-        ' Activate image if in visible range (with buffer of 1 row)
-        activateThreshold = firstVisibleIndex - numCols
-        clearThreshold = lastVisibleIndex + numCols
-
-        if i >= activateThreshold and i <= clearThreshold then
-            if child.HDPosterUrl = "" and child.doesExist("_lazyPosterUrl") then
-                ActivateLazyPosterUrl(child)
-            end if
-        else
-            ' Out of visible range — clear to save memory (only if already loaded)
-            if child.HDPosterUrl <> "" then
-                ClearLazyPosterUrl(child)
-            end if
-        end if
-        i = i + 1
-        child = m.contentNode.GetChild(i)
-    end while
+    ' ROK-3: shared clamped activator (numColumns=5, row pitch ~350). The old O(N)
+    ' walker and its out-of-band unload arm are retired: nothing outside the
+    ' window is visited; a content rebuild replaces the tree wholesale.
+    ActivateVisibleRange(m.contentNode, vr, 5, 230, 350)
 end sub
 
 sub ShowSeries(seriesId as String, seriesName as String)

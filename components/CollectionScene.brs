@@ -34,6 +34,7 @@ sub Init()
     if m.itemsGrid <> invalid then
         m.itemsGrid.ObserveField("itemSelected", "OnItemSelected")
         m.itemsGrid.ObserveField("itemFocused", "OnItemFocused")
+        m.itemsGrid.ObserveField("visibleRect", "OnGridVisibleRectChange")
     end if
 
     ' UI nodes.
@@ -157,11 +158,8 @@ sub OnApiResponse(event as Object)
             end if
 
             ' poster_url is an absolute URL (TMDB or local) or empty.
-            if item.poster_url <> "" then
-                contentItem.HDPosterUrl = item.poster_url
-            else
-                contentItem.HDPosterUrl = "pkg:/images/placeholder.png"
-            end if
+            ' ROK-3: lazy poster - URL stored now, HDPosterUrl set by the shared windowed activator
+            SetLazyPosterUrl(contentItem, item, "poster_url")
         end for
 
         if m.itemsGrid <> invalid then m.itemsGrid.content = content
@@ -303,6 +301,7 @@ sub Teardown()
     if m.itemsGrid <> invalid then
         m.itemsGrid.UnObserveField("itemSelected")
         m.itemsGrid.UnObserveField("itemFocused")
+        m.itemsGrid.UnObserveField("visibleRect")
     end if
     if m.backButton <> invalid then
         m.backButton.UnObserveField("buttonSelected")
@@ -346,4 +345,14 @@ sub ApplyXmlChrome()
     if n <> invalid then n.text = Translate("common_select_item")
     n = m.top.findNode("retryButton")
     if n <> invalid then n.text = Translate("common_retry")
+end sub
+
+' ROK-3: windowed lazy poster activation via the shared Utilities leaf.
+sub OnGridVisibleRectChange(event as Object)
+    vr = event.getData()
+    if vr = invalid then return
+    if m.itemsGrid = invalid then return
+    content = m.itemsGrid.content
+    if content = invalid then return
+    ActivateVisibleRange(content, vr, 5, 230, 345)
 end sub

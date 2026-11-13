@@ -572,43 +572,6 @@ sub OnLibraryVisibleRectChange(event as Object)
     ActivateVisibleRange(m.libraryContent, vr, 5, 230, 280)
 end sub
 
-' R5: Generic visible range activator
-' [RT-004 review roku__crossfe m3] The pre-fix walk descended children 0..
-' invalid on EVERY visibleRect event — O(content) per scroll frame, janking
-' the render thread on long rails. The cure (per the review) clamps the walk
-' to the visible window plus one column of margin each side — exactly the
-' band the old in-window test selected — and rides GetChild's random access.
-' Disclosed behavior delta: the old else-branch unload (clear a loaded poster
-' once it left the band) dies with the clamp — nothing outside the band is
-' visited anymore. No correctness law moves: lazy activation still happens
-' when a tile approaches the viewport, and a rail rebuild replaces the
-' content tree wholesale, so the stale-poster memory trim is the only thing
-' traded away for the O(window) law.
-' GetChildCount bounds the window against a tree shorter than the scroll math.
-sub ActivateVisibleRange(content as Object, vr as Object, numCols as Integer, colWidth as Integer, rowHeight as Integer)
-    if content = invalid or vr = invalid then return
-
-    firstVisibleRow = Int(vr.y / rowHeight)
-    lastVisibleRow = Int((vr.y + vr.height) / rowHeight) + 1
-    firstVisibleIndex = firstVisibleRow * numCols
-    lastVisibleIndex = lastVisibleRow * numCols + numCols
-
-    first = firstVisibleIndex - numCols
-    if first < 0 then first = 0
-    last = lastVisibleIndex + numCols
-    count = content.GetChildCount()
-    if last > count - 1 then last = count - 1
-
-    for i = first to last
-        child = content.GetChild(i)
-        if child <> invalid then
-            if child.HDPosterUrl = "" and child.doesExist("_lazyPosterUrl") then
-                ActivateLazyPosterUrl(child)
-            end if
-        end if
-    end for
-end sub
-
 ' Best-effort poster for a continue-watching tile. CW items are RAW JOIN rows
 ' with NO poster_url; try metadata.poster_url then metadata.poster, else the
 ' placeholder.

@@ -14336,7 +14336,8 @@ if r5:
 
 # ---- R6 windowed walk (RT-004) ------------------------------------------------------
 r6 = []
-av = sub_body(strip_comment_lines(HSRC), "ActivateVisibleRange")
+USRC_R6 = read("source/lib/Utilities.brs") or ""
+av = sub_body(strip_comment_lines(USRC_R6), "ActivateVisibleRange")
 if av is None:
     r6.append("ActivateVisibleRange vanished")
 else:
@@ -14346,6 +14347,17 @@ else:
         r6.append("the window is no longer bounded by GetChildCount")
     if "for i = first to last" not in av:
         r6.append("the bounded for-loop shape left")
+# ROK-3/ROK-4: the grid family shares the leaf; no scene keeps a private full walk.
+for scn in ("HomeScene", "LibraryScene", "CollectionScene", "FavoritesScene", "AudiobookScene", "SearchScene"):
+    ssrc = read("components/" + scn + ".brs") or ""
+    if "sub ActivateVisibleRange" in ssrc:
+        r6.append(scn + " re-declares the activator instead of using the Utilities leaf")
+    if "ActivateVisibleRange(" not in ssrc:
+        r6.append(scn + " visibleRect handler no longer calls the shared activator")
+    if "ClearLazyPosterUrl(" in ssrc:
+        r6.append(scn + " regrew the unload arm")
+    if "while child <> invalid" in ssrc:
+        r6.append(scn + " regrew a full 0..invalid walk")
 if r6:
     problems.append("  windowed lazy walk - CHECK95 R6: " + "; ".join(r6))
 

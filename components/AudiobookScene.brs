@@ -18,6 +18,7 @@ sub Init()
     m.posterGrid = m.top.FindNode("itemsGrid")
     m.posterGrid.ObserveField("itemSelected", "OnItemSelected")
     m.posterGrid.ObserveField("itemFocused", "OnItemFocused")
+    m.posterGrid.ObserveField("visibleRect", "OnGridVisibleRectChange")
 
     ' UI nodes
     m.backButton = m.top.FindNode("backButton")
@@ -135,11 +136,8 @@ sub OnApiResponse(event as Object)
             })
 
             ' poster_url is an absolute URL or null.
-            if item.poster_url <> invalid and item.poster_url <> "" then
-                contentItem.HDPosterUrl = item.poster_url
-            else
-                contentItem.HDPosterUrl = "pkg:/images/placeholder.png"
-            end if
+            ' ROK-3: lazy poster - URL stored now, HDPosterUrl set by the shared windowed activator
+            SetLazyPosterUrl(contentItem, item, "poster_url")
         end for
 
         ' Update paging state
@@ -238,6 +236,7 @@ sub Teardown()
     if m.posterGrid <> invalid then
         m.posterGrid.UnObserveField("itemSelected")
         m.posterGrid.UnObserveField("itemFocused")
+        m.posterGrid.UnObserveField("visibleRect")
     end if
     if m.apiTask <> invalid then
         m.apiTask.UnObserveField("response")
@@ -273,4 +272,14 @@ sub ApplyXmlChrome()
     if n <> invalid then n.text = Translate("audiobook_select")
     n = m.top.findNode("loadingLabel")
     if n <> invalid then n.text = Translate("common_loading")
+end sub
+
+' ROK-3: windowed lazy poster activation via the shared Utilities leaf.
+sub OnGridVisibleRectChange(event as Object)
+    vr = event.getData()
+    if vr = invalid then return
+    if m.posterGrid = invalid then return
+    content = m.posterGrid.content
+    if content = invalid then return
+    ActivateVisibleRange(content, vr, 5, 230, 345)
 end sub
