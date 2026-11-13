@@ -99,7 +99,7 @@ sub main(args as Object)
     ' Docs: https://developer.roku.com/dev/docs/deep-linking
     deepLinkParams = ExtractDeepLinkParams(args)
     if deepLinkParams <> invalid then
-        print "Deep link received: contentId=" deepLinkParams.contentId " mediaType=" deepLinkParams.mediaType
+        print "Deep link received: contentId=" StripWireControlChars(deepLinkParams.contentId.Trim()) " mediaType=" StripWireControlChars(deepLinkParams.mediaType.Trim())
     else
         print "No valid deep link in launch args"
     end if
@@ -165,7 +165,7 @@ sub main(args as Object)
                 ' R6.3 validation/routing is shared: cold and warm paths map identically.
                 warmDeepLinkParams = ExtractDeepLinkParams(args)
                 if warmDeepLinkParams <> invalid then
-                    print "Warm deep link valid: contentId=" warmDeepLinkParams.contentId " mediaType=" warmDeepLinkParams.mediaType
+                    print "Warm deep link valid: contentId=" StripWireControlChars(warmDeepLinkParams.contentId.Trim()) " mediaType=" StripWireControlChars(warmDeepLinkParams.mediaType.Trim())
                     ' Signal PhlixApp to handle the warm deep link.
                     ' PhlixApp.ProcessWarmDeepLink checks for active playback,
                     ' stops it cleanly (R4.4 progress + completion), then routes.
