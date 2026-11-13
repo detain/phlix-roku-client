@@ -51,6 +51,8 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Changed — dependency upgrade (2026-11-13) — `brighterscript` 0.72.5 -> 0.73.8, `@rokucommunity/bslint` -> ^0.8.47, `rooibos-roku` -> ^5.17.0 (one bsc across bslint/rooibos/roku-debug); bsc output identical to 0.72.5 (33 pre-existing warnings, 0 errors), headless battery 294/0, audit gate unchanged (7 allow-listed dev-chain advisories via brs, which is final at 0.45.0). GitHub Actions already at latest majors (checkout v6, setup-node v6, upload-artifact v7, download-artifact v8, Node 24).
+
 ### Fixed — deferred-minors batch (ROK-S2 / S6 / S12 / S21 / S22 / S31 / S34, 2026-11-13) — track-selection and relay-mint verdicts are headless-tested, the Makefile device legs share one macro, four English literals are catalog keys, Check 106 owns the resume label
 
 - **Track selection (ROK-S2):** the node-wins matching in `OnAudioTrackSelected` / `OnSubtitleTrackSelected` is now the pure `NodeAudioTrackKey` / `NodeSubtitleTrackName` leaves (`source/lib/Utilities.brs`, with `TrackStringifyId` moved beside them). An id the Video node does not list answers `""`, so the preference is neither applied nor persisted; `tests/unit/TrackSelection.test.brs` pins match, unmatched, missing-key and invalid-entry shapes. Behaviour is unchanged on the device.
