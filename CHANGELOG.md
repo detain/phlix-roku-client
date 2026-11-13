@@ -51,6 +51,11 @@ claim below re-checkable the same way:
   - 2026-10-30 `e1d04b8f` — current master tip: the commit the single `latest`
     tag points at while this entry is written.
 
+### Added — ROK-24 (ROK-S23) — watched/progress indicator on the season and episode lists, built end to end across server, contracts and client — 2026-11-13
+
+- phlix-server `553e56f` adds an add-only per-row `user_data` block (`watched`, `position_ticks`, `duration_ticks`, `progress_percent`) to `GET /api/v1/media?parentId=` rows; `@phlix/contracts` `2d87e75` types it. `EpisodeListTask.brs` renders it on each tile's second caption line via the pure `WatchStateCaption` (Utilities.brs): the localized `common.watched` word (new key, all seven locales) for a watched row, a whole percent for a started row, nothing against an older server. SeasonScene/SeriesScene grids set `caption1NumLines`/`caption2NumLines` so the line renders. CHECK93 R3 leaf census rotated 433 -> 434. `docs/wire-contract-gaps.md` WC-1 closed.
+- Cosmetic: `common.resume` / `player.resuming_from` moved to alphabetical position in all seven catalogs.
+
 ### Fixed — ROK-3 / ROK-4 (ROK-S3) — one shared clamped lazy-poster activator (`ActivateVisibleRange` in `source/lib/Utilities.brs`) across Home/Library/Collection/Favorites/Audiobook/Search; the Collection grid builds nodes one 60-item page at a time and appends the next page on focus; EpisodeListTask and RecommendationsScene eager `HDPosterUrl` assignments stay deferred (consumer lists must adopt the activator) — 2026-11-12
 
 ### Fixed — ROK-25 — `GetPageSize()` wired to the memory-tier promise: Season/Series/Favorites/Audiobook scenes and the ApiTask limit defaults use it; Check 105 keeps the callers — 2026-11-12

@@ -760,3 +760,32 @@ sub TestIsImageUrlAdmissibleLeafRefusals()
     assertFalse(IsImageUrlAdmissible(https, 42))
     print "TestIsImageUrlAdmissibleLeafRefusals passed"
 end sub
+
+' ---- WatchStateCaption tests (ROK-S23 / ROK-24 watched/progress cue) ----
+
+sub TestWatchStateCaptionWatchedWins()
+    ' A watched row says the (caller-localized) label even with progress numbers.
+    ud = { watched: true, position_ticks: 10, duration_ticks: 100, progress_percent: 10 }
+    assertEqual(WatchStateCaption(ud, "Watched"), "Watched")
+    print "TestWatchStateCaptionWatchedWins passed"
+end sub
+
+sub TestWatchStateCaptionPercentFromServerOrTicks()
+    assertEqual(WatchStateCaption({ watched: false, progress_percent: 42.5 }, "Watched"), "42%")
+    ' ticks fallback when progress_percent is absent
+    assertEqual(WatchStateCaption({ watched: false, position_ticks: 300, duration_ticks: 1000 }, "Watched"), "30%")
+    ' a started row under 1% earns 1%; clamp holds at 100
+    assertEqual(WatchStateCaption({ watched: false, position_ticks: 1, duration_ticks: 1000000 }, "Watched"), "1%")
+    assertEqual(WatchStateCaption({ watched: false, progress_percent: 400 }, "Watched"), "100%")
+    print "TestWatchStateCaptionPercentFromServerOrTicks passed"
+end sub
+
+sub TestWatchStateCaptionNeverRendersBlind()
+    ' Absent / non-AA / empty / zero progress -> no line, not a lie.
+    assertEqual(WatchStateCaption(invalid, "Watched"), "")
+    assertEqual(WatchStateCaption("nope", "Watched"), "")
+    assertEqual(WatchStateCaption({}, "Watched"), "")
+    assertEqual(WatchStateCaption({ watched: false, position_ticks: 0, duration_ticks: 0, progress_percent: 0 }, "Watched"), "")
+    assertEqual(WatchStateCaption({ watched: "yes", position_ticks: "5" }, "Watched"), "")
+    print "TestWatchStateCaptionNeverRendersBlind passed"
+end sub

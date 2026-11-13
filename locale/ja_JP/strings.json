@@ -236,12 +236,12 @@
     "pause": "一時停止",
     "photos": "写真",
     "play": "再生",
-    "resume": "再開",
     "prev": "前へ",
     "profile": "プロフィール",
     "profiles": "プロフィール",
     "recordings": "録画",
     "refresh": "更新",
+    "resume": "再開",
     "retry": "再試行",
     "search": "検索",
     "season": "シーズン",
@@ -254,7 +254,8 @@
     "tv_guide": "TVガイド",
     "up_next": "次に再生",
     "user": "ユーザー",
-    "users": "ユーザー"
+    "users": "ユーザー",
+    "watched": "視聴済み"
   },
   "errors": {
     "not_authenticated": "ウォッチパーティを使う前にログインしてください。",
@@ -324,8 +325,8 @@
     "party_member_joined": "{member} が参加しました",
     "party_you_are_host": "あなたがホストになりました",
     "playback_error": "再生エラー",
-    "resuming_from": "{time} から再開します",
     "playing_in": "{seconds}秒後に再生開始",
+    "resuming_from": "{time} から再開します",
     "select_track": "トラックを選択",
     "settings_audio": "音声",
     "settings_hint": "設定する項目を選択してください",

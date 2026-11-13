@@ -236,12 +236,12 @@
     "pause": "Pause",
     "photos": "Photos",
     "play": "Play",
-    "resume": "Resume",
     "prev": "Prev",
     "profile": "Profile",
     "profiles": "Profiles",
     "recordings": "Recordings",
     "refresh": "Refresh",
+    "resume": "Resume",
     "retry": "Retry",
     "search": "Search",
     "season": "Season",
@@ -254,7 +254,8 @@
     "tv_guide": "TV Guide",
     "up_next": "Up Next",
     "user": "User",
-    "users": "Users"
+    "users": "Users",
+    "watched": "Watched"
   },
   "errors": {
     "not_authenticated": "Log in before using Watch Together.",
@@ -324,8 +325,8 @@
     "party_member_joined": "{member} joined",
     "party_you_are_host": "You are now host",
     "playback_error": "Playback Error",
-    "resuming_from": "Resuming from {time}",
     "playing_in": "Playing in {seconds}s",
+    "resuming_from": "Resuming from {time}",
     "select_track": "Select track",
     "settings_audio": "Audio",
     "settings_hint": "Select a setting to configure",

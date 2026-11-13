@@ -236,12 +236,12 @@
     "pause": "Pause",
     "photos": "Fotos",
     "play": "Wiedergeben",
-    "resume": "Fortsetzen",
     "prev": "Vorheriger",
     "profile": "Profil",
     "profiles": "Profile",
     "recordings": "Aufnahmen",
     "refresh": "Aktualisieren",
+    "resume": "Fortsetzen",
     "retry": "Wiederholen",
     "search": "Suchen",
     "season": "Staffel",
@@ -254,7 +254,8 @@
     "tv_guide": "TV-Programm",
     "up_next": "Als Nächstes",
     "user": "Benutzer",
-    "users": "Benutzer"
+    "users": "Benutzer",
+    "watched": "Gesehen"
   },
   "errors": {
     "not_authenticated": "Melde dich an, bevor du Watch-Parties nutzt.",
@@ -324,8 +325,8 @@
     "party_member_joined": "{member} ist beigetreten",
     "party_you_are_host": "Du bist jetzt Host",
     "playback_error": "Wiedergabefehler",
-    "resuming_from": "Weiter bei {time}",
     "playing_in": "Startet in {seconds}s",
+    "resuming_from": "Weiter bei {time}",
     "select_track": "Spur auswählen",
     "settings_audio": "Audio",
     "settings_hint": "Einstellung zum Konfigurieren auswählen",

@@ -236,12 +236,12 @@
     "pause": "Pausar",
     "photos": "Fotos",
     "play": "Reproducir",
-    "resume": "Reanudar",
     "prev": "Anterior",
     "profile": "Perfil",
     "profiles": "Perfiles",
     "recordings": "Grabaciones",
     "refresh": "Actualizar",
+    "resume": "Reanudar",
     "retry": "Reintentar",
     "search": "Buscar",
     "season": "Temporada",
@@ -254,7 +254,8 @@
     "tv_guide": "Guía TV",
     "up_next": "A continuación",
     "user": "Usuario",
-    "users": "Usuarios"
+    "users": "Usuarios",
+    "watched": "Visto"
   },
   "errors": {
     "not_authenticated": "Inicia sesión antes de usar las salas de visionado.",
@@ -324,8 +325,8 @@
     "party_member_joined": "{member} se unió",
     "party_you_are_host": "Ahora eres el anfitrión",
     "playback_error": "Error de reproducción",
-    "resuming_from": "Reanudando desde {time}",
     "playing_in": "Se reproducirá en {seconds}s",
+    "resuming_from": "Reanudando desde {time}",
     "select_track": "Seleccionar pista",
     "settings_audio": "Audio",
     "settings_hint": "Selecciona un ajuste para configurarlo",

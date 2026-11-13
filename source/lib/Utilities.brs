@@ -1024,6 +1024,51 @@ function EpisodeCaption(item as Object) as String
     return title
 end function
 
+' Build the second caption line for a season/episode list row from the row's
+' add-only per-user `user_data` block ({watched, position_ticks, duration_ticks,
+' progress_percent}, ROK-S23 / ROK-24). Returns:
+'   - watchedLabel (the localized "Watched" word) when the row is watched;
+'   - a whole-percent string ("42%") for a started-but-unfinished row;
+'   - "" (no line - not a lie) when the block is absent/non-AA or carries no
+'     usable numbers, so an older server never renders blind.
+' The label is a parameter so this stays pure (the caller owns Translate custody).
+' Percent prefers the server's progress_percent, else position/duration ticks,
+' clamped into 1..100.
+' @param userData Object - the row's user_data (may be invalid)
+' @param watchedLabel String - localized "Watched"
+' @return String
+function WatchStateCaption(userData as Dynamic, watchedLabel as String) as String
+    if userData = invalid or type(userData) <> "roAssociativeArray" then return ""
+    if userData.DoesExist("watched") and userData.watched = true then return watchedLabel
+
+    percent = -1
+    if userData.DoesExist("progress_percent") and IsNumericType(userData.progress_percent) then
+        percent = Int(userData.progress_percent)
+    end if
+    if percent < 1 and userData.DoesExist("position_ticks") and userData.DoesExist("duration_ticks") then
+        if IsNumericType(userData.position_ticks) and IsNumericType(userData.duration_ticks) then
+            if userData.duration_ticks > 0 and userData.position_ticks > 0 then
+                percent = Int(userData.position_ticks / userData.duration_ticks * 100.0)
+            end if
+        end if
+    end if
+    if percent < 1 then
+        ' Started (positive ticks) but under 1%: still earns 1%; no ticks: nothing.
+        if userData.DoesExist("position_ticks") and IsNumericType(userData.position_ticks) then
+            if userData.position_ticks > 0 then percent = 1
+        end if
+    end if
+    if percent < 1 then return ""
+    if percent > 100 then percent = 100
+    return Str(percent).trim() + "%"
+end function
+
+' True for the boxed/intrinsic numeric type names JSON numbers arrive as.
+function IsNumericType(v as Dynamic) as Boolean
+    t = type(v)
+    return t = "Integer" or t = "roInt" or t = "roInteger" or t = "LongInteger" or t = "roLongInteger" or t = "Float" or t = "roFloat" or t = "Double" or t = "roDouble"
+end function
+
 ' Flatten a RAW album-track row (from /music/albums/{name}) into the flat shape
 ' the music UI consumes: {id,name,artist,track_number,disc_number,duration_secs}.
 ' The interesting fields live under metadata.* on raw rows; read top-level first,

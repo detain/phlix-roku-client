@@ -104,6 +104,14 @@ sub LoadList()
             id: item.id
         })
 
+        ' ROK-S23 / ROK-24: per-user watched/progress cue on the tile's second
+        ' description line (the same ShortDescriptionLine2 the other PosterGrid
+        ' scenes use). "" when the server row carries no user_data block.
+        if item.DoesExist("user_data") then
+            stateCaption = WatchStateCaption(item.user_data, Translate("common_watched"))
+            if stateCaption <> "" then contentItem.ShortDescriptionLine2 = stateCaption
+        end if
+
         if item.overview <> invalid then
             contentItem.Description = item.overview
         end if

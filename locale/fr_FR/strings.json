@@ -236,12 +236,12 @@
     "pause": "Pause",
     "photos": "Photos",
     "play": "Lecture",
-    "resume": "Reprendre",
     "prev": "Précédent",
     "profile": "Profil",
     "profiles": "Profils",
     "recordings": "Enregistrements",
     "refresh": "Rafraîchir",
+    "resume": "Reprendre",
     "retry": "Réessayer",
     "search": "Rechercher",
     "season": "Saison",
@@ -254,7 +254,8 @@
     "tv_guide": "Guide TV",
     "up_next": "À suivre",
     "user": "Utilisateur",
-    "users": "Utilisateurs"
+    "users": "Utilisateurs",
+    "watched": "Vu"
   },
   "errors": {
     "not_authenticated": "Connectez-vous avant d’utiliser les soirées synchronisées.",
@@ -324,8 +325,8 @@
     "party_member_joined": "{member} a rejoint",
     "party_you_are_host": "Vous êtes maintenant l'hôte",
     "playback_error": "Erreur de lecture",
-    "resuming_from": "Reprise à {time}",
     "playing_in": "Démarrage dans {seconds} s",
+    "resuming_from": "Reprise à {time}",
     "select_track": "Sélectionner la piste",
     "settings_audio": "Audio",
     "settings_hint": "Sélectionnez un réglage à configurer",

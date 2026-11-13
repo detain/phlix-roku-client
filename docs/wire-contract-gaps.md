@@ -3,7 +3,7 @@
 Gaps where the Roku client needs a server/contract field that does not exist
 yet. The client renders only what the wire carries; it never fabricates state.
 
-## WC-1 (ROK-24 / ROK-S23): per-user watched/progress on children lists
+## WC-1 (ROK-24 / ROK-S23): per-user watched/progress on children lists — CLOSED 2026-11-13
 
 - **Need:** season and episode lists (`SeriesScene`, `SeasonScene`, loaded by
   `components/EpisodeListTask.brs` via `GET /api/v1/libraries/{id}/items`
@@ -23,3 +23,14 @@ yet. The client renders only what the wire carries; it never fabricates state.
   `GET /api/v1/libraries/{id}/items` (at minimum when `parentId` is set),
   mirroring the detail endpoint's shape. Once present, the client adds the
   mark in `EpisodeListTask.brs` where the ContentNode is built.
+
+- **Resolution (2026-11-13, owner ruling: build end to end):** phlix-server
+  `553e56f` adds the add-only per-row `user_data`
+  (`{watched, position_ticks, duration_ticks, progress_percent}`) to
+  `GET /api/v1/media?parentId=` rows (the endpoint `getLibraryItems` actually
+  calls in drill-down mode), and `@phlix/contracts` `2d87e75` types it. The
+  client renders it in `EpisodeListTask.brs` via `WatchStateCaption`
+  (`source/lib/Utilities.brs`): the localized `common.watched` word for a watched
+  row, a whole-percent string for a started row, nothing when the block is
+  absent (older server). Both grids set `caption1NumLines`/`caption2NumLines`
+  so the second description line renders.
