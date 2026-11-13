@@ -68,7 +68,9 @@
             <!-- Bottom Bar -->
             <Rectangle height="120" width="1280" translation="[0,580]">
                 <Rectangle height="80" width="854" translation="[213,40]">
-                    <Rectangle height="8" width="854" color="#404040" />
+                    <!-- ROK-52: the track is the single source of the bar geometry; OnPositionUpdate
+                         scales progressBar against this node's width (no duplicated 854 literal). -->
+                    <Rectangle height="8" width="854" color="#404040" id="progressTrack" />
                     <Rectangle height="8" width="0" color="#0095d5" id="progressBar" />
                 </Rectangle>
                 <Label height="40" width="200" translation="[540,25]"

@@ -33,6 +33,7 @@ sub Init()
 
     ' UI nodes
     m.progressBar = m.top.FindNode("progressBar")
+    m.progressTrack = m.top.FindNode("progressTrack")
     m.timeLabel = m.top.FindNode("timeLabel")
     m.titleLabel = m.top.FindNode("titleLabel")
     m.backButton = m.top.FindNode("backButton")
@@ -779,8 +780,9 @@ sub OnPositionUpdate(event as Object)
     if duration > 0 then
         ' Update progress bar
         progress = (position / duration) * 100
-        if m.progressBar <> invalid then
-            m.progressBar.width = Int(854 * progress / 100)
+        if m.progressBar <> invalid and m.progressTrack <> invalid then
+            ' ROK-52: width derives from the XML track, not a duplicated literal.
+            m.progressBar.width = Int(m.progressTrack.width * progress / 100)
         end if
 
         ' Update time label
